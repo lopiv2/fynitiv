@@ -9,6 +9,7 @@ class AuthState {
     this.user,
     this.userId,
     this.serverUrl,
+    this.serverId,
     this.error,
   });
 
@@ -17,6 +18,7 @@ class AuthState {
   final UserDto? user;
   final String? userId;
   final String? serverUrl;
+  final String? serverId;
   final String? error;
 
   AuthState copyWith({
@@ -25,6 +27,7 @@ class AuthState {
     UserDto? user,
     String? userId,
     String? serverUrl,
+    String? serverId,
     String? error,
     bool clearError = false,
   }) {
@@ -34,6 +37,7 @@ class AuthState {
       user: user ?? this.user,
       userId: userId ?? this.userId,
       serverUrl: serverUrl ?? this.serverUrl,
+      serverId: serverId ?? this.serverId,
       error: clearError ? null : (error ?? this.error),
     );
   }

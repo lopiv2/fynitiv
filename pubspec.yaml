@@ -52,6 +52,13 @@ dependencies:
   material_ui: ^1.0.0
   animated_text_kit: ^4.3.0
   audioplayers: ^6.8.1
+  # Localización (gen-l10n)
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.0
+  country_flags: ^4.1.2
+  crypto: ^3.0.7
+  device_info_plus: ^13.2.0
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +70,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -70,15 +78,25 @@ dev_dependencies:
 # The following section is specific to Flutter packages.
 flutter:
 
+  # Genera las localizaciones a partir de los .arb en lib/l10n
+  generate: true
+
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
 
+  # Iconos de lanzamiento de la app
+  # Generados con: flutter_launcher_icons
+  # Windows usa assets/images/Logo_jellyfinitive.ico (windows/runner/resources/app_icon.ico)
+  # Android usa assets/images/Logo_jellyfinitive.png (512x512)
+
   # Assets de la aplicación
   assets:
     - assets/images/flares/
     - assets/images/backgrounds/splash_back.png
+    - assets/images/Logo_letter_jellyfinitive.png
+    - assets/images/Logo_jellyfinitive.png
     - assets/audio/splash_reveal.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see
@@ -106,3 +124,9 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# Iconos de lanzamiento (flutter_launcher_icons)
+flutter_launcher_icons:
+  android: true
+  image_path: "assets/images/Logo_jellyfinitive.png"
+  min_sdk_android: 24

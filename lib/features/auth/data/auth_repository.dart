@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 
 import '../../../core/constants/app_constants.dart';
+import '../../../core/network/concurrency_limit_interceptor.dart';
 import '../../../core/storage/session_storage.dart';
 
 class AuthRepository {
@@ -15,7 +16,20 @@ class AuthRepository {
     String? token,
   }) async {
     final deviceId = await storage.getOrCreateDeviceId();
-    final client = JellyfinDart(basePathOverride: serverUrl);
+    final normalized = _normalizeUrl(serverUrl);
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: normalized,
+        connectTimeout: const Duration(seconds: 8),
+        receiveTimeout: const Duration(seconds: 12),
+      ),
+    );
+    // Limita la concurrencia para no saturar el servidor Jellyfin.
+    dio.interceptors.add(ConcurrencyLimitInterceptor(maxConcurrent: 3));
+    final client = JellyfinDart(
+      dio: dio,
+      basePathOverride: normalized,
+    );
     client.setMediaBrowserAuth(
       deviceId: deviceId,
       version: AppConstants.appVersion,
@@ -24,6 +38,14 @@ class AuthRepository {
       token: token,
     );
     return client;
+  }
+
+  String _normalizeUrl(String url) {
+    var u = url.trim();
+    while (u.endsWith('/')) {
+      u = u.substring(0, u.length - 1);
+    }
+    return u;
   }
 
   /// Autentica por nombre de usuario y contraseña.

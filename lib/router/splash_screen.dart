@@ -5,7 +5,10 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../core/widgets/language_selector.dart';
+import '../core/widgets/scale_button.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../l10n/app_localizations.dart';
 
 /// Pantalla de bienvenida con el logo animado en 3D.
 ///
@@ -107,41 +110,71 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                         children: [_buildLetters(), _buildShineOverlay()],
                       ),
                     ),
-                    // Tagline que aparece con efecto scramble al terminar el brillo.
-                    if (_taglineValue > 0)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 48),
-                        child: SizedBox(
-                          height: 72,
-                          child: Center(
-                            child: AnimatedTextKit(
-                              isRepeatingAnimation: false,
-                              animatedTexts: [
-                                ScrambleAnimatedText(
-                                  'THE DEFINITIVE EXPERIENCE',
-                                  textAlign: TextAlign.center,
-                                  speed: const Duration(milliseconds: 60),
-                                  textStyle: const TextStyle(
-                                    color: Color(0xFFE3E9FF),
-                                    fontSize: 32,
-                                    fontWeight: FontWeight.w800,
-                                    letterSpacing: 8,
-                                    shadows: [
-                                      Shadow(
-                                        color: Color(0x66000B33),
-                                        blurRadius: 12,
-                                        offset: Offset(0, 6),
+                    // Tagline que aparece con efecto scramble al terminar el
+                    // brillo. AnimatedSize suaviza el empuje del botón play.
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 700),
+                      curve: Curves.easeOutCubic,
+                      alignment: Alignment.topCenter,
+                      child: _taglineValue > 0
+                          ? Padding(
+                              padding: const EdgeInsets.only(top: 48),
+                              child: SizedBox(
+                                height: 72,
+                                child: Center(
+                                  child: AnimatedSlide(
+                                    offset: Offset(
+                                      0,
+                                      0.5 * (1 - _taglineValue),
+                                    ),
+                                    duration: const Duration(milliseconds: 700),
+                                    curve: Curves.easeOutCubic,
+                                    child: AnimatedOpacity(
+                                      opacity: _taglineValue,
+                                      duration: const Duration(
+                                        milliseconds: 700,
                                       ),
-                                    ],
+                                      curve: Curves.easeOut,
+                                      child: AnimatedTextKit(
+                                        isRepeatingAnimation: false,
+                                        animatedTexts: [
+                                          ScrambleAnimatedText(
+                                            AppLocalizations.of(
+                                              context,
+                                            )!.splashTagline,
+                                            textAlign: TextAlign.center,
+                                            speed: const Duration(
+                                              milliseconds: 60,
+                                            ),
+                                            textStyle: const TextStyle(
+                                              color: Color(0xFFE3E9FF),
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: 8,
+                                              shadows: [
+                                                Shadow(
+                                                  color: Color(0x66000B33),
+                                                  blurRadius: 12,
+                                                  offset: Offset(0, 6),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
                     const SizedBox(height: 72),
                     _buildControls(),
+                    const SizedBox(height: 20),
+                    const LanguageSelector(),
+                    const SizedBox(height: 24),
+                    _buildDevBadge(),
                   ],
                 );
               },
@@ -268,25 +301,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          onPressed: _replay,
-          tooltip: 'Repetir animación',
-          icon: const Icon(Icons.replay),
-          iconSize: 30,
-          color: Colors.white,
-          style: IconButton.styleFrom(
-            backgroundColor: Colors.white.withValues(alpha: 0.15),
-            padding: const EdgeInsets.all(16),
-          ),
-        ),
-        const SizedBox(width: 40),
-        Material(
-          color: Colors.white.withValues(alpha: 0.20),
-          shape: const CircleBorder(),
-          elevation: 6,
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: _enterApp,
+        ScaleButton(
+          onPressed: _enterApp,
+          selectedScale: 1.2,
+          borderRadius: BorderRadius.circular(60),
+          child: Material(
+            color: Colors.white.withValues(alpha: 0.20),
+            shape: const CircleBorder(),
+            elevation: 6,
             child: const Padding(
               padding: EdgeInsets.all(28),
               child: Icon(
@@ -299,6 +321,84 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ),
       ],
     );
+  }
+
+  /// Badge de pruebas del creador: solo visible en desarrollo para comprobar
+  /// los flujos de la app (repetir presentación y resetear configuración).
+  Widget _buildDevBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        color: Colors.white.withValues(alpha: 0.10),
+        border: Border.all(color: Colors.white24),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ScaleButton(
+            onPressed: _replay,
+            selectedScale: 1.15,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.replay, size: 18, color: Colors.white70),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Repetir presentación',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          ScaleButton(
+            onPressed: _resetConfig,
+            selectedScale: 1.15,
+            borderRadius: BorderRadius.circular(16),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.delete_sweep_outlined,
+                    size: 18,
+                    color: Colors.white70,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Resetear configuración',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.85),
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resetConfig() async {
+    await ref.read(authControllerProvider.notifier).resetAppData();
+    if (!mounted) return;
+    setState(() {
+      _controller
+        ..reset()
+        ..forward();
+    });
+    _playLogo();
   }
 }
 

@@ -3,43 +3,78 @@ import 'package:go_router/go_router.dart';
 
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
-import '../features/auth/presentation/login_screen.dart';
-import '../features/library/presentation/library_screen.dart';
+import '../features/household/application/household_provider.dart';
+import '../features/household/domain/household.dart';
+import '../features/household/presentation/household_wizard_screen.dart';
+import '../features/library/presentation/home_screen.dart';
+import '../features/library/presentation/library_view_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
+import '../features/users/presentation/user_selection_screen.dart';
 import 'home_shell.dart';
 import 'splash_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authControllerProvider);
-
-  return GoRouter(
-    initialLocation: '/library',
+  final router = GoRouter(
+    initialLocation: '/home',
     redirect: (context, state) {
+      final authState = ref.read(authControllerProvider);
+      final household = ref.read(householdProvider);
       final location = state.matchedLocation;
       switch (authState.status) {
         case AuthStatus.unknown:
           return location == '/splash' ? null : '/splash';
         case AuthStatus.authenticated:
-          return (location == '/splash' || location == '/login')
-              ? '/library'
+          return (location == '/splash' ||
+                  location == '/users' ||
+                  location == '/setup')
+              ? '/home'
               : null;
         case AuthStatus.unauthenticated:
-          return location == '/login' ? null : '/login';
+          // Sin servidor → el wizard lo pide en su primer paso.
+          if (authState.serverUrl == null) {
+            return location == '/setup' ? null : '/setup';
+          }
+          // La casa es válida solo si coincide con el servidor actual.
+          final houseMatchesServer = household != null &&
+              household.serverId != null &&
+              household.matchesServer(authState.serverId);
+          // Sin casa (o casa de otro servidor) → asistente.
+          if (household == null || !houseMatchesServer) {
+            return location == '/setup' ? null : '/setup';
+          }
+          // Con casa válida: se permite la selección de usuarios y gestionarla.
+          return (location == '/users' || location == '/setup')
+              ? null
+              : '/users';
       }
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, _) => const SplashScreen()),
-      GoRoute(path: '/login', builder: (_, _) => const LoginScreen()),
+      GoRoute(
+        path: '/setup',
+        builder: (context, state) => HouseholdWizardScreen(
+          initialHousehold: state.extra is Household
+              ? state.extra as Household
+              : null,
+        ),
+      ),
+      GoRoute(
+        path: '/users',
+        builder: (_, _) => const UserSelectionScreen(),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             HomeShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
             routes: [
+              GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
               GoRoute(
-                path: '/library',
-                builder: (_, _) => const LibraryScreen(),
+                path: '/library/:viewId',
+                builder: (context, state) => LibraryViewScreen(
+                  viewId: state.pathParameters['viewId']!,
+                ),
               ),
             ],
           ),
@@ -63,4 +98,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
     ],
   );
+
+  // Refresca el redirect sin recrear el router, preservando la navegación.
+  ref.listen(authControllerProvider, (_, _) => router.refresh());
+  ref.listen(householdProvider, (_, _) => router.refresh());
+
+  return router;
 });
