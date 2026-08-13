@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:animated_text_kit/animated_text_kit.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -25,35 +26,52 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   static const String _title = 'JELLYFINITIVE';
 
-  /// Desfase de inicio de la rotación de cada letra (fracción de la animación).
-  static const double _stagger = 0.04;
+  /// Duración total de la animación en segundos (sincronizada con el audio logo).
+  static const double _totalSeconds = 14;
 
-  /// Duración de la rotación de cada letra (fracción de la animación).
-  static const double _rotateDuration = 0.4;
+  /// Convierte segundos absolutos a fracción del controller.
+  static double _f(double seconds) => seconds / _totalSeconds;
+
+  /// Desfase de inicio de la rotación de cada letra (segundos).
+  static const double _staggerSeconds = 0.5;
+
+  /// Duración de la rotación de cada letra (segundos).
+  static const double _rotateSeconds = 4.5;
 
   late final AnimationController _controller;
+  late final AudioPlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
+    _audioPlayer = AudioPlayer();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 5),
+      duration: const Duration(seconds: 14),
     );
     _controller.forward();
+    _playLogo();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _audioPlayer.dispose();
     super.dispose();
   }
 
-  /// Reinicia la animación desde cero.
+  /// Reproduce el audio logo de la splash.
+  Future<void> _playLogo() async {
+    await _audioPlayer.stop();
+    await _audioPlayer.play(AssetSource('audio/splash_reveal.mp3'));
+  }
+
+  /// Reinicia la animación y el audio desde cero.
   void _replay() {
     _controller
       ..reset()
       ..forward();
+    _playLogo();
   }
 
   /// Resuelve la sesión y entra en la aplicación.
@@ -68,10 +86,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         width: double.infinity,
         height: double.infinity,
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0A2A8A), Color(0xFF1558D8), Color(0xFF2B7FFF)],
+          image: DecorationImage(
+            image: AssetImage('assets/images/backgrounds/splash_back.png'),
+            fit: BoxFit.cover,
           ),
         ),
         child: Center(
@@ -188,7 +205,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// termina el barrido de brillo.
   double get _taglineValue {
     final t = Curves.easeOut.transform(
-      ((_controller.value - 0.94) / 0.06).clamp(0.0, 1.0),
+      ((_controller.value - _f(12.5)) / _f(1.5)).clamp(0.0, 1.0),
     );
     return t;
   }
@@ -196,7 +213,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// Valor 0→1 del barrido de brillo (ocurre al final de la animación).
   double get _shineValue {
     final t = Curves.easeInOut.transform(
-      ((_controller.value - 0.72) / 0.22).clamp(0.0, 1.0),
+      ((_controller.value - _f(10.5)) / _f(1.5)).clamp(0.0, 1.0),
     );
     return t;
   }
@@ -205,14 +222,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// barrido de brillo llega a su fin).
   double get _endGlowValue {
     final t = Curves.easeOut.transform(
-      ((_controller.value - 0.90) / 0.10).clamp(0.0, 1.0),
+      ((_controller.value - _f(11.5)) / _f(1.5)).clamp(0.0, 1.0),
     );
     return t;
   }
 
   /// Ventana de tiempo (fracción 0→1) en la que ocurre el destello.
   double get _flareLocal {
-    return ((_controller.value - 0.88) / 0.12).clamp(0.0, 1.0);
+    return ((_controller.value - _f(11)) / _f(2.5)).clamp(0.0, 1.0);
   }
 
   /// Opacidad del destello: encendido rápido y decaimiento exponencial.
@@ -237,10 +254,10 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   /// Ángulo de rotación Y de la letra [index]: de π/2 (perfil) a 0 (frontal),
-  /// con desfase escalonado por letra.
+  /// con desfase escalonado por letra en segundos.
   double _letterAngle(int index) {
-    final start = index * _stagger;
-    final end = (start + _rotateDuration).clamp(0.0, 1.0);
+    final start = _f(index * _staggerSeconds);
+    final end = _f(index * _staggerSeconds + _rotateSeconds).clamp(0.0, 1.0);
     final local = Curves.easeOutCubic.transform(
       ((_controller.value - start) / (end - start)).clamp(0.0, 1.0),
     );
