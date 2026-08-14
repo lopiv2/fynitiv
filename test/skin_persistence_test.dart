@@ -50,6 +50,7 @@ void main() {
     expect(restored.bannerShowJellyfinLogo, isTrue);
     expect(restored.bannerHoverReveal, isTrue);
     expect(restored.bannerShowActions, isTrue);
+    expect(restored.showTrailerInSlider, isTrue);
     expect(restored.bannerTransition, SliderTransition.fade);
     expect(restored.bannerArrowsOnHover, isTrue);
     expect(restored.sidebarPosition, SidebarPosition.top);

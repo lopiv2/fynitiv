@@ -128,6 +128,9 @@ class Sidebar extends ConsumerWidget {
               child: _logo(sidebarLogo, textPrimary,
                   height: 36, compact: true),
             ),
+            // Inicio y Buscar quedan fijos a la izquierda; solo los elementos
+            // de la biblioteca hacen scroll en la barra superior.
+            ...mainItems,
             Expanded(
               child: ScrollConfiguration(
                 behavior: const _HorizontalScrollBehavior(),
@@ -135,7 +138,6 @@ class Sidebar extends ConsumerWidget {
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 4),
                   children: [
-                    ...mainItems,
                     if (viewItems.isNotEmpty) ...[
                       const _SidebarDivider(),
                       ...viewItems,
@@ -437,6 +439,7 @@ class _NavItemState extends State<_NavItem> {
     if (_hovered) {
       content = Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: Colors.white,
@@ -447,35 +450,27 @@ class _NavItemState extends State<_NavItem> {
         ),
       );
     } else if (selected && selectedColor != null) {
-      content = Stack(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(10),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  selectedColor,
-                  Color.lerp(selectedColor, Colors.black, 0.5)!,
-                ],
-              ),
-            ),
-            child: _buildRow(color: textPrimary, weight: FontWeight.w600),
+      // Mismo tamaño que el hover: contenedor con degradado vertical.
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        alignment: Alignment.centerLeft,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              selectedColor,
+              Color.lerp(selectedColor, Colors.black, 0.5)!,
+            ],
           ),
-          // Pequeño flash blanco arriba del todo del botón seleccionado.
-          const Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: Center(child: _TopFlash()),
-          ),
-        ],
+        ),
+        child: _buildRow(color: textPrimary, weight: FontWeight.w600),
       );
     } else {
       content = Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: selected
@@ -505,20 +500,3 @@ class _NavItemState extends State<_NavItem> {
   }
 }
 
-/// Pequeña barra blanca (flash) que aparece en el borde superior del item
-/// seleccionado cuando hay un color de selección definido.
-class _TopFlash extends StatelessWidget {
-  const _TopFlash();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 22,
-      height: 2,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(1),
-      ),
-    );
-  }
-}

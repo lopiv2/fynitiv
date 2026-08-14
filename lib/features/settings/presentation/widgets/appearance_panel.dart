@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
@@ -5,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/skin/skin_presets.dart';
+import '../../../../core/widgets/app_loader.dart';
+import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/scale_button.dart';
 import '../../../../l10n/app_localizations.dart';
 
@@ -22,6 +25,14 @@ const _logoAssets = [
   'assets/images/Logo_jellyfinitive.png',
 ];
 
+/// Assets de logotipo para las tarjetas de las filas de contenido.
+const _cardLogoAssets = [
+  'assets/images/jellyfin.png',
+  'assets/images/jellyfin-logo.png',
+  'assets/images/Logo_letter_jellyfinitive.png',
+  'assets/images/Logo_jellyfinitive.png',
+];
+
 class _AppearancePanelState extends ConsumerState<AppearancePanel> {
   late Skin _draft;
   bool _loaded = false;
@@ -35,7 +46,7 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
       _loaded = true;
     }
     if (active == null) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AppLoader());
     }
 
     return SingleChildScrollView(
@@ -269,6 +280,217 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                   () => _draft = _draft.copyWith(showContinueRow: v),
                 ),
               ),
+              _OptionRow(
+                label: l10n.cardImageType,
+                child: SegmentedButton<CardImageType>(
+                  segments: [
+                    ButtonSegment(
+                      value: CardImageType.poster,
+                      label: Text(l10n.poster),
+                    ),
+                    ButtonSegment(
+                      value: CardImageType.backdrop,
+                      label: Text(l10n.backdrop),
+                    ),
+                  ],
+                  selected: {_draft.cardImageType},
+                  onSelectionChanged: (s) => setState(
+                    () => _draft = _draft.copyWith(cardImageType: s.first),
+                  ),
+                ),
+              ),
+              _OptionRow(
+                label: l10n.cardLogo,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: _draft.cardLogo ?? 'none',
+                            dropdownColor: const Color(0xFF1A2568),
+                            style: const TextStyle(color: Colors.white),
+                            items: [
+                              DropdownMenuItem(
+                                value: 'none',
+                                child: Text(
+                                  l10n.none,
+                                  style: const TextStyle(color: Colors.white),
+                                ),
+                              ),
+                              for (final asset in _cardLogoAssets)
+                                DropdownMenuItem(
+                                  value: asset,
+                                  child: Text(
+                                    asset.split('/').last,
+                                    style:
+                                        const TextStyle(color: Colors.white),
+                                  ),
+                                ),
+                            ],
+                            onChanged: (v) => setState(
+                              () => _draft = _draft.copyWith(
+                                cardLogo: v == 'none' ? null : v,
+                                clearCardLogo: v == 'none',
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        IconButton(
+                          tooltip: l10n.uploadLogo,
+                          onPressed: () => _pickCardLogo(),
+                          icon: const Icon(Icons.upload_file,
+                              color: Colors.white),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Vista previa de cómo quedaría el logotipo en una tarjeta.
+                    Center(
+                      child: Column(
+                        children: [
+                          Text(
+                            l10n.preview,
+                            style: const TextStyle(
+                              color: Colors.white38,
+                              fontSize: 12,
+                            ),
+                          ),
+                          const SizedBox(height: 6),
+                          _LogoPreview(
+                            logo: _draft.cardLogo,
+                            size: _draft.cardLogoSize,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Slider(
+                            value: _draft.cardLogoSize.clamp(10, 60),
+                            min: 10,
+                            max: 60,
+                            divisions: 50,
+                            label: '${_draft.cardLogoSize.round()}px',
+                            onChanged: (v) => setState(
+                              () => _draft =
+                                  _draft.copyWith(cardLogoSize: v),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          '${_draft.cardLogoSize.round()}px',
+                          style: const TextStyle(color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              _OptionRow(
+                label: l10n.playerLogo,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: _draft.playerLogo ?? 'none',
+                        dropdownColor: const Color(0xFF1A2568),
+                        style: const TextStyle(color: Colors.white),
+                        items: [
+                          DropdownMenuItem(
+                            value: 'none',
+                            child: Text(
+                              l10n.none,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                          for (final asset in _cardLogoAssets)
+                            DropdownMenuItem(
+                              value: asset,
+                              child: Text(
+                                asset.split('/').last,
+                                style:
+                                    const TextStyle(color: Colors.white),
+                              ),
+                            ),
+                        ],
+                        onChanged: (v) => setState(
+                          () => _draft = _draft.copyWith(
+                            playerLogo: v == 'none' ? null : v,
+                            clearPlayerLogo: v == 'none',
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      tooltip: l10n.uploadLogo,
+                      onPressed: () => _pickPlayerLogo(),
+                      icon: const Icon(Icons.upload_file,
+                          color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+              _OptionRow(
+                label: l10n.playerLogoPosition,
+                child: DropdownButtonFormField<LogoOverlayPosition>(
+                  initialValue: _draft.playerLogoPosition,
+                  dropdownColor: const Color(0xFF1A2568),
+                  style: const TextStyle(color: Colors.white),
+                  items: [
+                    for (final (pos, label) in [
+                      (LogoOverlayPosition.none, l10n.none),
+                      (LogoOverlayPosition.topLeft, l10n.topLeft),
+                      (LogoOverlayPosition.topRight, l10n.topRight),
+                      (LogoOverlayPosition.bottomLeft, l10n.bottomLeft),
+                      (LogoOverlayPosition.bottomRight, l10n.bottomRight),
+                    ])
+                      DropdownMenuItem(
+                        value: pos,
+                        child: Text(
+                          label,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setState(
+                    () => _draft =
+                        _draft.copyWith(playerLogoPosition: v),
+                  ),
+                ),
+              ),
+              _OptionRow(
+                label: l10n.audioWaveformEffect,
+                child: DropdownButtonFormField<AudioWaveformEffect>(
+                  initialValue: _draft.audioWaveformEffect,
+                  dropdownColor: const Color(0xFF1A2568),
+                  style: const TextStyle(color: Colors.white),
+                  items: [
+                    for (final (effect, label) in [
+                      (AudioWaveformEffect.equalizer, l10n.effectEqualizer),
+                      (AudioWaveformEffect.wave, l10n.effectWave),
+                      (AudioWaveformEffect.mirror, l10n.effectMirror),
+                      (AudioWaveformEffect.bars, l10n.effectBars),
+                    ])
+                      DropdownMenuItem(
+                        value: effect,
+                        child: Text(
+                          label,
+                          style: const TextStyle(color: Colors.white),
+                        ),
+                      ),
+                  ],
+                  onChanged: (v) => setState(
+                    () => _draft =
+                        _draft.copyWith(audioWaveformEffect: v),
+                  ),
+                ),
+              ),
               _SwitchRow(
                 label: l10n.showNewReleasesRow,
                 value: _draft.showNewReleasesRow,
@@ -330,6 +552,24 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
         ),
       ),
     );
+  }
+
+  /// Pide una imagen del disco para usarla como logotipo de las tarjetas.
+  Future<void> _pickCardLogo() => _pickImage(
+        (path) => _draft = _draft.copyWith(cardLogo: path),
+      );
+
+  /// Pide una imagen del disco para usarla como logotipo del reproductor.
+  Future<void> _pickPlayerLogo() => _pickImage(
+        (path) => _draft = _draft.copyWith(playerLogo: path),
+      );
+
+  /// Abre el selector de archivos y aplica la ruta elegida.
+  Future<void> _pickImage(void Function(String path) apply) async {
+    final result = await FilePicker.pickFile(type: FileType.image);
+    final path = result?.path;
+    if (path == null || !mounted) return;
+    setState(() => apply(path));
   }
 
   /// Copia el JSON del skin actual al portapapeles.
@@ -677,6 +917,48 @@ class _SwitchRow extends StatelessWidget {
             ),
           ),
           Switch(value: value, onChanged: onChanged),
+        ],
+      ),
+    );
+  }
+}
+
+/// Mini tarjeta 16:9 que simula cómo quedará el logotipo en los elementos.
+class _LogoPreview extends StatelessWidget {
+  const _LogoPreview({required this.logo, required this.size});
+
+  final String? logo;
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 280,
+      height: 280 * 9 / 16,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF232F3E), Color(0xFF0A0F14)],
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          const Center(
+            child: Text(
+              '16:9',
+              style: TextStyle(color: Colors.white24),
+            ),
+          ),
+          if (logo != null && logo!.isNotEmpty)
+            Positioned(
+              right: 10,
+              bottom: 10,
+              child: LogoImage(logo: logo!, height: size),
+            ),
         ],
       ),
     );

@@ -291,6 +291,63 @@ class AppLocalizationsEs extends AppLocalizations {
   String get showNewReleasesRow => 'Mostrar fila \'Novedades\'';
 
   @override
+  String get cardImageType => 'Imagen de las tarjetas';
+
+  @override
+  String get poster => 'Póster';
+
+  @override
+  String get backdrop => 'Backdrop';
+
+  @override
+  String get cardLogo => 'Logotipo de las tarjetas';
+
+  @override
+  String get cardLogoSize => 'Tamaño del logotipo';
+
+  @override
+  String get playerLogo => 'Logotipo del reproductor';
+
+  @override
+  String get playerLogoPosition => 'Logotipo en el reproductor';
+
+  @override
+  String get audioWaveformEffect => 'Efecto de onda del audio';
+
+  @override
+  String get effectEqualizer => 'Ecualizador';
+
+  @override
+  String get effectWave => 'Onda';
+
+  @override
+  String get effectMirror => 'Espejo';
+
+  @override
+  String get effectBars => 'Barras';
+
+  @override
+  String get preview => 'Vista previa';
+
+  @override
+  String get none => 'Ninguno';
+
+  @override
+  String get uploadLogo => 'Subir imagen';
+
+  @override
+  String get topLeft => 'Arriba a la izquierda';
+
+  @override
+  String get topRight => 'Arriba a la derecha';
+
+  @override
+  String get bottomLeft => 'Abajo a la izquierda';
+
+  @override
+  String get bottomRight => 'Abajo a la derecha';
+
+  @override
   String get reset => 'Restablecer';
 
   @override
@@ -319,4 +376,37 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get details => 'Detalles';
+
+  @override
+  String get watchTrailer => 'Ver trailer';
+
+  @override
+  String get playbackFailed => 'No se pudo iniciar la reproducción.';
+
+  @override
+  String get play => 'Reproducir';
+
+  @override
+  String get pause => 'Pausar';
+
+  @override
+  String get volume => 'Volumen';
+
+  @override
+  String get fullscreen => 'Pantalla completa';
+
+  @override
+  String get exitFullscreen => 'Salir de pantalla completa';
+
+  @override
+  String get subtitle => 'Subtítulos';
+
+  @override
+  String get subtitlesOff => 'Desactivados';
+
+  @override
+  String get replay => 'Volver a reproducir';
+
+  @override
+  String get audio => 'Audio';
 }

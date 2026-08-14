@@ -1,15 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/hover_invert.dart';
 import '../../../../core/widgets/scale_button.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../application/image_url.dart';
+import '../../application/library_providers.dart';
 
 /// Carrusel de banners horizontales genérico (estilo Disney+/Prime).
 ///
@@ -41,6 +46,7 @@ class FeaturedSlider extends StatefulWidget {
     this.showTitle = true,
     this.showAgeRating = false,
     this.contentScale = 1.0,
+    this.showTrailer = false,
   });
 
   /// Tamaño por defecto del logo (fracción del ancho del banner).
@@ -105,6 +111,9 @@ class FeaturedSlider extends StatefulWidget {
   /// Escala del conjunto (logo, botones, insignia y descripción) del banner.
   final double contentScale;
 
+  /// Muestra el botón de trailer, solo para películas o series.
+  final bool showTrailer;
+
   @override
   State<FeaturedSlider> createState() => _FeaturedSliderState();
 }
@@ -114,6 +123,7 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
   Timer? _timer;
   int _currentPage = 0;
   bool _sliderHovered = false;
+  bool _autoPlayPaused = false;
 
   List<BaseItemDto> get _banners => widget.items.take(widget.maxItems).toList();
 
@@ -141,8 +151,23 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
     super.dispose();
   }
 
+  /// Pausa (trailer reproduciéndose) o reanuda (trailer cerrado/terminado) el
+  /// avance automático, para que el slider no cambie de elemento mientras se
+  /// reproduce un trailer.
+  void _setAutoPlayPaused(bool paused) {
+    if (_autoPlayPaused == paused) return;
+    _autoPlayPaused = paused;
+    if (paused) {
+      _timer?.cancel();
+    } else {
+      _startAutoPlay();
+    }
+    if (mounted) setState(() {});
+  }
+
   void _startAutoPlay() {
     _timer?.cancel();
+    if (_autoPlayPaused) return;
     final interval = widget.autoPlayInterval;
     if (interval == null || _banners.length < 2) return;
     _timer = Timer.periodic(interval, (_) {
@@ -259,6 +284,8 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
     showActions: widget.showActions,
     showAgeRating: widget.showAgeRating,
     contentScale: widget.contentScale,
+    showTrailer: widget.showTrailer,
+    onTrailerPlaybackChanged: _setAutoPlayPaused,
   );
 
   /// Capa de banners: PageView (deslizamiento) o AnimatedSwitcher (fade).
@@ -378,6 +405,8 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     required this.showActions,
     required this.showAgeRating,
     required this.contentScale,
+    required this.showTrailer,
+    this.onTrailerPlaybackChanged,
   });
 
   final BaseItemDto item;
@@ -392,6 +421,11 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   final bool showActions;
   final bool showAgeRating;
   final double contentScale;
+  final bool showTrailer;
+
+  /// Notifica al slider si un trailer está reproduciéndose (para pausar el
+  /// avance automático mientras tanto).
+  final ValueChanged<bool>? onTrailerPlaybackChanged;
 
   @override
   ConsumerState<_SliderBannerCard> createState() => _SliderBannerCardState();
@@ -399,9 +433,165 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
 
 class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   bool _hovered = false;
+  bool _trailerLoading = false;
+  bool _trailerBuffering = false;
+  Player? _trailerPlayer;
+  VideoController? _trailerVideoController;
+  StreamSubscription<dynamic>? _trailerCompletionSub;
+  StreamSubscription<dynamic>? _trailerBufferingSub;
+  StreamSubscription<dynamic>? _trailerCropSub;
+
+  /// Ratio de aspecto objetivo para recortar los bordes negros (letterbox)
+  /// incrustados en los trailers. La mayoría son 2.39:1 dentro de un
+  /// contenedor 16:9, por lo que se recorta verticalmente hasta este ratio.
+  static const double _trailerCropAspect = 2.39;
+
+  /// Rango de aspecto (w/h) en el que el trailer se considera letterboxed
+  /// (16:9 con barras). Si el video ya es tan ancho o más, no se recorta.
+  static const double _trailerCropMinAspect = 1.5;
+  static const double _trailerCropMaxAspect = 2.1;
 
   void _setHovered(bool value) {
     if (_hovered != value) setState(() => _hovered = value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SliderBannerCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.item.id != widget.item.id) {
+      _closeTrailer();
+    }
+  }
+
+  @override
+  void dispose() {
+    _trailerCompletionSub?.cancel();
+    _trailerBufferingSub?.cancel();
+    _trailerCropSub?.cancel();
+    _trailerPlayer?.dispose();
+    widget.onTrailerPlaybackChanged?.call(false);
+    super.dispose();
+  }
+
+  /// Reproduce el trailer en el panel derecho del banner con media_kit
+  /// (libmpv, fiable en Windows). Mientras se reproduce se pausa el avance
+  /// automático del slider.
+  Future<void> _openTrailer() async {
+    if (_trailerPlayer != null || _trailerLoading) return;
+    setState(() => _trailerLoading = true);
+    final streamUrl = await ref.read(trailerStreamProvider(widget.item).future);
+    if (!mounted) {
+      _trailerLoading = false;
+      return;
+    }
+    if (streamUrl == null) {
+      setState(() => _trailerLoading = false);
+      return;
+    }
+    final player = Player();
+    // El VideoController se crea antes de open() para que la textura del
+    // vídeo se asocie correctamente. `auto-copy` evita desfase A/V con la
+    // decodificación directa por hardware en algunos GPUs.
+    final videoController = VideoController(
+      player,
+      configuration: const VideoControllerConfiguration(hwdec: 'auto-copy'),
+    );
+    // Muestra el loader mientras el reproductor bufferiza (antes del primer
+    // frame) además de durante la apertura del stream.
+    _trailerBufferingSub = player.stream.buffering.listen((isBuffering) {
+      if (mounted) setState(() => _trailerBuffering = isBuffering);
+    });
+    // Recorta los bordes negros (letterbox) incrustados en el trailer en
+    // cuanto se conocen las dimensiones reales del video.
+    _trailerCropSub = player.stream.videoParams.listen((params) async {
+      final width = params.dw;
+      final height = params.dh;
+      if (width == null || height == null) return;
+      await _applyTrailerCrop(player, width, height);
+      await _trailerCropSub?.cancel();
+      _trailerCropSub = null;
+    });
+    try {
+      await player.open(
+        Media(
+          streamUrl,
+          httpHeaders: const {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+          },
+        ),
+      );
+    } catch (_) {
+      await _trailerBufferingSub?.cancel();
+      await player.dispose();
+      if (mounted) setState(() => _trailerLoading = false);
+      return;
+    }
+    if (!mounted) {
+      await _trailerBufferingSub?.cancel();
+      await player.dispose();
+      return;
+    }
+    setState(() {
+      _trailerLoading = false;
+      _trailerPlayer = player;
+      _trailerVideoController = videoController;
+    });
+    widget.onTrailerPlaybackChanged?.call(true);
+    // Detecta el final de forma fiable (position >= duration) para reanudar
+    // el auto-play; el stream "completed" puede dispararse de forma espuria.
+    _trailerCompletionSub = player.stream.position.listen((pos) {
+      final duration = player.state.duration;
+      if (duration > Duration.zero && pos >= duration) {
+        _closeTrailer();
+      }
+    });
+    await player.play();
+  }
+
+  /// Abre el reproductor a pantalla completa con el contenido del banner.
+  void _openPlayer() {
+    final itemId = widget.item.id;
+    if (itemId == null || itemId.isEmpty) return;
+    _closeTrailer();
+    context.push('/player/$itemId', extra: widget.item);
+  }
+
+  /// Recorta verticalmente el trailer hasta [_trailerCropAspect] para
+  /// eliminar las barras negras de letterbox, mediante la propiedad
+  /// `video-crop` de libmpv (expuesta por media_kit). El frame recortado se
+  /// escala luego al llenar el contenedor con `BoxFit.cover`.
+  Future<void> _applyTrailerCrop(Player player, int width, int height) async {
+    final aspect = width / height;
+    if (aspect < _trailerCropMinAspect || aspect > _trailerCropMaxAspect) {
+      return;
+    }
+    final cropHeight = (width / _trailerCropAspect).round();
+    if (cropHeight >= height) return;
+    final cropY = (height - cropHeight) ~/ 2;
+    final native = player.platform;
+    if (native is NativePlayer) {
+      try {
+        await native.setProperty('video-crop', '${width}x$cropHeight+0+$cropY');
+      } catch (_) {}
+    }
+  }
+
+  void _closeTrailer() {
+    _trailerCompletionSub?.cancel();
+    _trailerCompletionSub = null;
+    _trailerBufferingSub?.cancel();
+    _trailerBufferingSub = null;
+    _trailerCropSub?.cancel();
+    _trailerCropSub = null;
+    _trailerPlayer?.dispose();
+    _trailerPlayer = null;
+    _trailerVideoController = null;
+    _trailerLoading = false;
+    _trailerBuffering = false;
+    widget.onTrailerPlaybackChanged?.call(false);
+    if (mounted) setState(() {});
   }
 
   String? get _logoUrl {
@@ -495,6 +685,10 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     final genres = item.genres ?? const <String>[];
     final rating = item.communityRating;
     final s = widget.contentScale;
+    // El botón de trailer solo se muestra para películas o series.
+    final showTrailer =
+        widget.showTrailer &&
+        (item.type == BaseItemKind.movie || item.type == BaseItemKind.series);
     final showYear = !widget.showAgeRating && year != null;
     final showGenres = !widget.showAgeRating && genres.isNotEmpty;
 
@@ -606,11 +800,17 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                       SizedBox(height: 12 * s),
                       _ActionButtons(
                         scale: s,
+                        showTrailer: showTrailer,
+                        onTrailer: _openTrailer,
+                        onWatch: _openPlayer,
                         watchLabel: AppLocalizations.of(context)!.watchNow,
                         favoritesTooltip: AppLocalizations.of(
                           context,
                         )!.addToFavorites,
                         detailsTooltip: AppLocalizations.of(context)!.details,
+                        trailerTooltip: AppLocalizations.of(
+                          context,
+                        )!.watchTrailer,
                       ),
                     ],
                     if (widget.showIncludedBadge) ...[
@@ -705,6 +905,61 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 bottom: 34,
                 child: _AgeRatingBadge(rating: _ageRating!),
               ),
+            // Reproductor del trailer en el lado derecho (estilo Prime).
+            if (_trailerLoading || _trailerPlayer != null)
+              Positioned(
+                right: 34,
+                top: 12,
+                bottom: 64,
+                width: (constraints.maxWidth * 1).clamp(420.0, 880.0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(radius + 2),
+                  child: ColoredBox(
+                    color: Colors.black,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _trailerVideoController != null &&
+                                  !_trailerBuffering
+                              ? _TrailerVideoPlayer(
+                                  controller: _trailerVideoController!,
+                                )
+                              : const Center(
+                                  child: AppLoader(),
+                                ),
+                        ),
+                        // Degradado oscuro en el borde izquierdo que funde
+                        // con el fondo del banner (estilo Amazon Prime).
+                        Positioned(
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: 160,
+                          child: IgnorePointer(
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.centerLeft,
+                                  end: Alignment.centerRight,
+                                  colors: [
+                                    fallbackColor,
+                                    fallbackColor.withValues(alpha: 0),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: _CloseTrailerButton(onTap: _closeTrailer),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -727,18 +982,30 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   }
 }
 
-/// Botones de acción del banner: "Ver ahora", añadir (+) e información (i).
+/// Botones de acción del banner: "Ver ahora", trailer, añadir (+) e info (i).
 class _ActionButtons extends StatelessWidget {
   const _ActionButtons({
     required this.watchLabel,
     required this.favoritesTooltip,
     required this.detailsTooltip,
+    required this.trailerTooltip,
+    this.showTrailer = false,
+    this.onTrailer,
+    this.onWatch,
     this.scale = 1.0,
   });
 
   final String watchLabel;
   final String favoritesTooltip;
   final String detailsTooltip;
+  final String trailerTooltip;
+  final bool showTrailer;
+
+  /// Acción al pulsar el botón de trailer.
+  final VoidCallback? onTrailer;
+
+  /// Acción al pulsar "Ver ahora" (abre el reproductor a pantalla completa).
+  final VoidCallback? onWatch;
   final double scale;
 
   @override
@@ -748,7 +1015,7 @@ class _ActionButtons extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         GestureDetector(
-          onTap: () {},
+          onTap: onWatch ?? () {},
           child: Container(
             height: 34 * s,
             padding: EdgeInsets.symmetric(horizontal: 14 * s),
@@ -774,6 +1041,15 @@ class _ActionButtons extends StatelessWidget {
           ),
         ),
         SizedBox(width: 36 * s),
+        if (showTrailer) ...[
+          _RoundIconButton(
+            icon: Icons.play_circle_outline,
+            tooltip: trailerTooltip,
+            scale: s,
+            onTap: onTrailer ?? () {},
+          ),
+          SizedBox(width: 8 * s),
+        ],
         _RoundIconButton(
           icon: Icons.add,
           tooltip: favoritesTooltip,
@@ -832,6 +1108,48 @@ class _RoundIconButton extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Reproductor nativo del trailer mediante video_player (sin webview).
+/// Reproductor nativo del trailer mediante media_kit (libmpv), sin webview.
+class _TrailerVideoPlayer extends StatelessWidget {
+  const _TrailerVideoPlayer({required this.controller});
+
+  final VideoController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Video(
+      controller: controller,
+      controls: NoVideoControls,
+      fit: BoxFit.cover,
+      fill: const Color(0xFF000000),
+    );
+  }
+}
+
+/// Botón para cerrar el reproductor del trailer.
+class _CloseTrailerButton extends StatelessWidget {
+  const _CloseTrailerButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          color: Colors.black54,
+          shape: BoxShape.circle,
+          border: Border.all(color: Colors.white38),
+        ),
+        child: const Icon(Icons.close, color: Colors.white, size: 18),
       ),
     );
   }

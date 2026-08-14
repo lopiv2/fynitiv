@@ -290,6 +290,63 @@ class AppLocalizationsEn extends AppLocalizations {
   String get showNewReleasesRow => 'Show \'New releases\' row';
 
   @override
+  String get cardImageType => 'Cards image type';
+
+  @override
+  String get poster => 'Poster';
+
+  @override
+  String get backdrop => 'Backdrop';
+
+  @override
+  String get cardLogo => 'Card logo';
+
+  @override
+  String get cardLogoSize => 'Logo size';
+
+  @override
+  String get playerLogo => 'Player logo';
+
+  @override
+  String get playerLogoPosition => 'Logo in player';
+
+  @override
+  String get audioWaveformEffect => 'Audio waveform effect';
+
+  @override
+  String get effectEqualizer => 'Equalizer';
+
+  @override
+  String get effectWave => 'Wave';
+
+  @override
+  String get effectMirror => 'Mirror';
+
+  @override
+  String get effectBars => 'Bars';
+
+  @override
+  String get preview => 'Preview';
+
+  @override
+  String get none => 'None';
+
+  @override
+  String get uploadLogo => 'Upload image';
+
+  @override
+  String get topLeft => 'Top left';
+
+  @override
+  String get topRight => 'Top right';
+
+  @override
+  String get bottomLeft => 'Bottom left';
+
+  @override
+  String get bottomRight => 'Bottom right';
+
+  @override
   String get reset => 'Reset';
 
   @override
@@ -318,4 +375,37 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get details => 'Details';
+
+  @override
+  String get watchTrailer => 'Watch trailer';
+
+  @override
+  String get playbackFailed => 'Couldn\'t start playback.';
+
+  @override
+  String get play => 'Play';
+
+  @override
+  String get pause => 'Pause';
+
+  @override
+  String get volume => 'Volume';
+
+  @override
+  String get fullscreen => 'Fullscreen';
+
+  @override
+  String get exitFullscreen => 'Exit fullscreen';
+
+  @override
+  String get subtitle => 'Subtitle';
+
+  @override
+  String get subtitlesOff => 'Off';
+
+  @override
+  String get replay => 'Replay';
+
+  @override
+  String get audio => 'Audio';
 }

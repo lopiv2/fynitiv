@@ -3,6 +3,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/dashboard_background.dart';
+import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/search_providers.dart';
 
@@ -53,7 +54,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ? const SizedBox.shrink()
                   : results.when(
                       loading: () => const Center(
-                        child: CircularProgressIndicator(),
+                        child: AppLoader(),
                       ),
                       error: (e, _) => Center(child: Text('$e')),
                       data: (list) => list.isEmpty

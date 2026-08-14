@@ -644,6 +644,120 @@ abstract class AppLocalizations {
   /// **'Show \'New releases\' row'**
   String get showNewReleasesRow;
 
+  /// No description provided for @cardImageType.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards image type'**
+  String get cardImageType;
+
+  /// No description provided for @poster.
+  ///
+  /// In en, this message translates to:
+  /// **'Poster'**
+  String get poster;
+
+  /// No description provided for @backdrop.
+  ///
+  /// In en, this message translates to:
+  /// **'Backdrop'**
+  String get backdrop;
+
+  /// No description provided for @cardLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Card logo'**
+  String get cardLogo;
+
+  /// No description provided for @cardLogoSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo size'**
+  String get cardLogoSize;
+
+  /// No description provided for @playerLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Player logo'**
+  String get playerLogo;
+
+  /// No description provided for @playerLogoPosition.
+  ///
+  /// In en, this message translates to:
+  /// **'Logo in player'**
+  String get playerLogoPosition;
+
+  /// No description provided for @audioWaveformEffect.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio waveform effect'**
+  String get audioWaveformEffect;
+
+  /// No description provided for @effectEqualizer.
+  ///
+  /// In en, this message translates to:
+  /// **'Equalizer'**
+  String get effectEqualizer;
+
+  /// No description provided for @effectWave.
+  ///
+  /// In en, this message translates to:
+  /// **'Wave'**
+  String get effectWave;
+
+  /// No description provided for @effectMirror.
+  ///
+  /// In en, this message translates to:
+  /// **'Mirror'**
+  String get effectMirror;
+
+  /// No description provided for @effectBars.
+  ///
+  /// In en, this message translates to:
+  /// **'Bars'**
+  String get effectBars;
+
+  /// No description provided for @preview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get preview;
+
+  /// No description provided for @none.
+  ///
+  /// In en, this message translates to:
+  /// **'None'**
+  String get none;
+
+  /// No description provided for @uploadLogo.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload image'**
+  String get uploadLogo;
+
+  /// No description provided for @topLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Top left'**
+  String get topLeft;
+
+  /// No description provided for @topRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Top right'**
+  String get topRight;
+
+  /// No description provided for @bottomLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom left'**
+  String get bottomLeft;
+
+  /// No description provided for @bottomRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Bottom right'**
+  String get bottomRight;
+
   /// No description provided for @reset.
   ///
   /// In en, this message translates to:
@@ -703,6 +817,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Details'**
   String get details;
+
+  /// No description provided for @watchTrailer.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch trailer'**
+  String get watchTrailer;
+
+  /// No description provided for @playbackFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t start playback.'**
+  String get playbackFailed;
+
+  /// No description provided for @play.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get play;
+
+  /// No description provided for @pause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get pause;
+
+  /// No description provided for @volume.
+  ///
+  /// In en, this message translates to:
+  /// **'Volume'**
+  String get volume;
+
+  /// No description provided for @fullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen'**
+  String get fullscreen;
+
+  /// No description provided for @exitFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Exit fullscreen'**
+  String get exitFullscreen;
+
+  /// No description provided for @subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle'**
+  String get subtitle;
+
+  /// No description provided for @subtitlesOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get subtitlesOff;
+
+  /// No description provided for @replay.
+  ///
+  /// In en, this message translates to:
+  /// **'Replay'**
+  String get replay;
+
+  /// No description provided for @audio.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio'**
+  String get audio;
 }
 
 class _AppLocalizationsDelegate

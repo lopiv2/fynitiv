@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 
+import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
@@ -33,7 +34,7 @@ class UserSelectionScreen extends ConsumerWidget {
         ),
         child: SafeArea(
           child: users.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: AppLoader()),
             error: (e, _) => _ErrorView(
               error: e.toString(),
               onRetry: () => ref.invalidate(publicUsersProvider),

@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/di/providers.dart';
 import '../../../core/security/pin_hasher.dart';
+import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../users/application/users_provider.dart';
@@ -186,7 +187,7 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
         const SizedBox(height: 24),
         Expanded(
           child: users.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const Center(child: AppLoader()),
             error: (e, _) => _WizardError(
               error: e.toString(),
               onRetry: () => ref.invalidate(publicUsersProvider),
@@ -328,7 +329,7 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
                 ? const SizedBox(
                     width: 18,
                     height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: AppLoader(size: 18),
                   )
                 : const Icon(Icons.check),
             label: Text(l10n.save),

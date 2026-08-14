@@ -26,6 +26,8 @@ class HomeScreen extends ConsumerWidget {
     final skin = ref.watch(skinControllerProvider).value;
     final platformMode = ref.watch(platformModeProvider).value;
     final showBanner = skin?.showNewReleasesBanner ?? false;
+    final useBackdrop =
+        (skin?.cardImageType ?? CardImageType.poster) == CardImageType.backdrop;
     final bannerAttached =
         showBanner && (skin?.bannerAttachedTop ?? false);
     final hoverReveal =
@@ -53,6 +55,7 @@ class HomeScreen extends ConsumerWidget {
                 showJellyfinLogo: skin?.bannerShowJellyfinLogo ?? false,
                 hoverReveal: hoverReveal,
                 showActions: skin?.bannerShowActions ?? false,
+                showTrailer: skin?.showTrailerInSlider ?? false,
                 transition:
                     skin?.bannerTransition ?? SliderTransition.slide,
                 arrowsOnHover: skin?.bannerArrowsOnHover ?? false,
@@ -70,6 +73,8 @@ class HomeScreen extends ConsumerWidget {
                 serverUrl: serverUrl,
                 height: skin?.homeRowHeight ?? 270,
                 cardWidth: skin?.homeCardWidth ?? 150,
+                useBackdrop: useBackdrop,
+                cardLogo: skin?.cardLogo,
               ),
             if (!showBanner && (skin?.showNewReleasesRow ?? true))
               ContentRow(
@@ -78,6 +83,8 @@ class HomeScreen extends ConsumerWidget {
                 serverUrl: serverUrl,
                 height: skin?.homeRowHeight ?? 270,
                 cardWidth: skin?.homeCardWidth ?? 150,
+                useBackdrop: useBackdrop,
+                cardLogo: skin?.cardLogo,
               ),
             for (final view in (views.value ?? const <BaseItemDto>[]).take(4))
               ContentRow(
@@ -88,6 +95,8 @@ class HomeScreen extends ConsumerWidget {
                 serverUrl: serverUrl,
                 height: skin?.homeRowHeight ?? 270,
                 cardWidth: skin?.homeCardWidth ?? 150,
+                useBackdrop: useBackdrop,
+                cardLogo: skin?.cardLogo,
               ),
             const SizedBox(height: 24),
           ],

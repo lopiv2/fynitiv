@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/dashboard_background.dart';
+import '../../../core/widgets/app_loader.dart';
 import '../application/library_providers.dart';
 import 'widgets/poster_card.dart';
 
@@ -20,7 +21,7 @@ class LibraryViewScreen extends ConsumerWidget {
       body: DashboardBackground(
         child: items.when(
           loading: () =>
-              const Center(child: CircularProgressIndicator()),
+              const Center(child: AppLoader()),
           error: (e, _) => Center(child: Text('$e')),
           data: (list) => GridView.builder(
             padding: const EdgeInsets.all(24),

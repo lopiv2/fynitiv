@@ -12,6 +12,15 @@ typedef AvatarPosition = LogoPosition;
 /// Posición de los puntos de navegación del slider de novedades.
 enum SliderDotAlignment { left, center, right }
 
+/// Posición del logotipo superpuesto en el reproductor.
+enum LogoOverlayPosition { none, topLeft, topRight, bottomLeft, bottomRight }
+
+/// Tipo de imagen de las tarjetas de las filas de contenido.
+enum CardImageType { poster, backdrop }
+
+/// Efecto de la animación de onda del reproductor de audio.
+enum AudioWaveformEffect { equalizer, wave, mirror, bars }
+
 /// Tipo de transición entre banners del slider de novedades.
 enum SliderTransition { slide, fade }
 
@@ -38,6 +47,12 @@ class Skin {
     this.navItemIconSpacing = 12,
     this.sidebarSelectedColor,
     this.showContinueRow = true,
+    this.cardImageType = CardImageType.poster,
+    this.cardLogo,
+    this.cardLogoSize = 18,
+    this.playerLogo,
+    this.playerLogoPosition = LogoOverlayPosition.none,
+    this.audioWaveformEffect = AudioWaveformEffect.equalizer,
     this.showNewReleasesRow = true,
     this.showNewReleasesBanner = false,
     this.bannerBorder = false,
@@ -48,6 +63,7 @@ class Skin {
     this.bannerShowJellyfinLogo = false,
     this.bannerHoverReveal = false,
     this.bannerShowActions = false,
+    this.showTrailerInSlider = false,
     this.bannerTransition = SliderTransition.slide,
     this.bannerArrowsOnHover = false,
     this.bannerShowTitle = true,
@@ -100,6 +116,29 @@ class Skin {
   final SidebarPosition sidebarPosition;
   final double sidebarWidth;
   final bool showContinueRow;
+
+  /// Tipo de imagen de las tarjetas de las filas de contenido: póster vertical
+  /// (2:3) o backdrop horizontal (16:9).
+  final CardImageType cardImageType;
+
+  /// Logotipo superpuesto abajo a la derecha de las tarjetas de las filas de
+  /// contenido. Puede ser un asset (`assets/...`) o la ruta de un archivo de
+  /// imagen propio. `null` = sin logotipo.
+  final String? cardLogo;
+
+  /// Altura del logotipo de las tarjetas (px).
+  final double cardLogoSize;
+
+  /// Logotipo del reproductor (marca de agua). Si es `null` se usa el mismo
+  /// de las tarjetas ([cardLogo]). Puede ser un asset o una ruta de archivo.
+  final String? playerLogo;
+
+  /// Posición del logotipo (el mismo de las tarjetas) dentro del reproductor
+  /// de vídeo. [LogoOverlayPosition.none] lo desactiva.
+  final LogoOverlayPosition playerLogoPosition;
+
+  /// Efecto de la onda animada del reproductor de audio.
+  final AudioWaveformEffect audioWaveformEffect;
   final bool showNewReleasesRow;
 
   /// Muestra las novedades como carrusel de banners (estilo Disney+) en la
@@ -130,6 +169,9 @@ class Skin {
 
   /// Muestra los botones de acción (Ver ahora, +, i) bajo el logo del banner.
   final bool bannerShowActions;
+
+  /// Muestra un botón de trailer en el slider, solo para películas o series.
+  final bool showTrailerInSlider;
 
   /// Transición entre banners del slider de novedades.
   final SliderTransition bannerTransition;
@@ -188,6 +230,12 @@ class Skin {
     double? navItemIconSpacing,
     Color? sidebarSelectedColor,
     bool? showContinueRow,
+    CardImageType? cardImageType,
+    String? cardLogo,
+    double? cardLogoSize,
+    String? playerLogo,
+    LogoOverlayPosition? playerLogoPosition,
+    AudioWaveformEffect? audioWaveformEffect,
     bool? showNewReleasesRow,
     bool? showNewReleasesBanner,
     bool? bannerBorder,
@@ -198,6 +246,7 @@ class Skin {
     bool? bannerShowJellyfinLogo,
     bool? bannerHoverReveal,
     bool? bannerShowActions,
+    bool? showTrailerInSlider,
     SliderTransition? bannerTransition,
     bool? bannerArrowsOnHover,
     bool? bannerShowTitle,
@@ -212,6 +261,8 @@ class Skin {
     bool? sidebarCollapsible,
     String? fontFamily,
     bool clearSidebarLogo = false,
+    bool clearCardLogo = false,
+    bool clearPlayerLogo = false,
   }) {
     return Skin(
       id: id ?? this.id,
@@ -236,6 +287,14 @@ class Skin {
       navItemIconSpacing: navItemIconSpacing ?? this.navItemIconSpacing,
       sidebarSelectedColor: sidebarSelectedColor ?? this.sidebarSelectedColor,
       showContinueRow: showContinueRow ?? this.showContinueRow,
+      cardImageType: cardImageType ?? this.cardImageType,
+      cardLogo: clearCardLogo ? null : (cardLogo ?? this.cardLogo),
+      cardLogoSize: cardLogoSize ?? this.cardLogoSize,
+      playerLogo: clearPlayerLogo ? null : (playerLogo ?? this.playerLogo),
+      playerLogoPosition:
+          playerLogoPosition ?? this.playerLogoPosition,
+      audioWaveformEffect:
+          audioWaveformEffect ?? this.audioWaveformEffect,
       showNewReleasesRow: showNewReleasesRow ?? this.showNewReleasesRow,
       showNewReleasesBanner:
           showNewReleasesBanner ?? this.showNewReleasesBanner,
@@ -250,6 +309,7 @@ class Skin {
           bannerShowJellyfinLogo ?? this.bannerShowJellyfinLogo,
       bannerHoverReveal: bannerHoverReveal ?? this.bannerHoverReveal,
       bannerShowActions: bannerShowActions ?? this.bannerShowActions,
+      showTrailerInSlider: showTrailerInSlider ?? this.showTrailerInSlider,
       bannerTransition: bannerTransition ?? this.bannerTransition,
       bannerArrowsOnHover: bannerArrowsOnHover ?? this.bannerArrowsOnHover,
       bannerShowTitle: bannerShowTitle ?? this.bannerShowTitle,
@@ -301,6 +361,14 @@ class Skin {
       sidebarSelectedColor:
           _colorOrNull(json['sidebarSelectedColor'] as String?),
       showContinueRow: json['showContinueRow'] as bool? ?? true,
+      cardImageType: _cardImageTypeFromString(json['cardImageType']),
+      cardLogo: json['cardLogo'] as String?,
+      cardLogoSize: (json['cardLogoSize'] as num?)?.toDouble() ?? 18,
+      playerLogo: json['playerLogo'] as String?,
+      playerLogoPosition:
+          _logoOverlayPositionFromString(json['playerLogoPosition']),
+      audioWaveformEffect:
+          _audioWaveformEffectFromString(json['audioWaveformEffect']),
       showNewReleasesRow: json['showNewReleasesRow'] as bool? ?? true,
       showNewReleasesBanner: json['showNewReleasesBanner'] as bool? ?? false,
       bannerBorder: json['bannerBorder'] as bool? ?? false,
@@ -313,6 +381,7 @@ class Skin {
       bannerShowJellyfinLogo: json['bannerShowJellyfinLogo'] as bool? ?? false,
       bannerHoverReveal: json['bannerHoverReveal'] as bool? ?? false,
       bannerShowActions: json['bannerShowActions'] as bool? ?? false,
+      showTrailerInSlider: json['showTrailerInSlider'] as bool? ?? false,
       bannerTransition: _transitionFromString(json['bannerTransition']),
       bannerArrowsOnHover: json['bannerArrowsOnHover'] as bool? ?? false,
       bannerShowTitle: json['bannerShowTitle'] as bool? ?? true,
@@ -354,6 +423,12 @@ class Skin {
         if (sidebarSelectedColor != null)
           'sidebarSelectedColor': _colorToString(sidebarSelectedColor!),
         'showContinueRow': showContinueRow,
+        'cardImageType': cardImageType.name,
+        if (cardLogo != null) 'cardLogo': cardLogo,
+        'cardLogoSize': cardLogoSize,
+        if (playerLogo != null) 'playerLogo': playerLogo,
+        'playerLogoPosition': playerLogoPosition.name,
+        'audioWaveformEffect': audioWaveformEffect.name,
         'showNewReleasesRow': showNewReleasesRow,
         'showNewReleasesBanner': showNewReleasesBanner,
         'bannerBorder': bannerBorder,
@@ -364,6 +439,7 @@ class Skin {
         'bannerShowJellyfinLogo': bannerShowJellyfinLogo,
         'bannerHoverReveal': bannerHoverReveal,
         'bannerShowActions': bannerShowActions,
+        'showTrailerInSlider': showTrailerInSlider,
         'bannerTransition': bannerTransition.name,
         'bannerArrowsOnHover': bannerArrowsOnHover,
         'bannerShowTitle': bannerShowTitle,
@@ -401,6 +477,20 @@ class Skin {
 
   static SliderTransition _transitionFromString(String? s) {
     return SliderTransition.values.asNameMap()[s] ?? SliderTransition.slide;
+  }
+
+  static LogoOverlayPosition _logoOverlayPositionFromString(String? s) {
+    return LogoOverlayPosition.values.asNameMap()[s] ??
+        LogoOverlayPosition.none;
+  }
+
+  static CardImageType _cardImageTypeFromString(String? s) {
+    return CardImageType.values.asNameMap()[s] ?? CardImageType.poster;
+  }
+
+  static AudioWaveformEffect _audioWaveformEffectFromString(String? s) {
+    return AudioWaveformEffect.values.asNameMap()[s] ??
+        AudioWaveformEffect.equalizer;
   }
 
   static String _colorToString(Color c) {

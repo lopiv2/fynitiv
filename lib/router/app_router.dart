@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jellyfin_dart/jellyfin_dart.dart';
 
 import '../features/auth/application/auth_controller.dart';
 import '../features/auth/application/auth_state.dart';
@@ -8,6 +9,7 @@ import '../features/household/domain/household.dart';
 import '../features/household/presentation/household_wizard_screen.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/library_view_screen.dart';
+import '../features/player/presentation/player_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/users/presentation/user_selection_screen.dart';
@@ -62,6 +64,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/users',
         builder: (_, _) => const UserSelectionScreen(),
+      ),
+      // Reproductor a pantalla completa (fuera del shell para cubrir todo).
+      GoRoute(
+        path: '/player/:itemId',
+        builder: (context, state) => PlayerScreen(
+          itemId: state.pathParameters['itemId']!,
+          item: state.extra is BaseItemDto ? state.extra as BaseItemDto : null,
+        ),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
