@@ -307,4 +307,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get skinCopied => 'Skin copiado al portapapeles';
+
+  @override
+  String get includedWithJellyfin => 'Se incluye con Jellyfin';
+
+  @override
+  String get watchNow => 'Ver ahora';
+
+  @override
+  String get addToFavorites => 'Agregar a favoritos';
+
+  @override
+  String get details => 'Detalles';
 }

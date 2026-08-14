@@ -679,6 +679,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Skin copied to clipboard'**
   String get skinCopied;
+
+  /// No description provided for @includedWithJellyfin.
+  ///
+  /// In en, this message translates to:
+  /// **'Included with Jellyfin'**
+  String get includedWithJellyfin;
+
+  /// No description provided for @watchNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch now'**
+  String get watchNow;
+
+  /// No description provided for @addToFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to favorites'**
+  String get addToFavorites;
+
+  /// No description provided for @details.
+  ///
+  /// In en, this message translates to:
+  /// **'Details'**
+  String get details;
 }
 
 class _AppLocalizationsDelegate

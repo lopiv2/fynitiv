@@ -23,3 +23,14 @@ String itemBackdropUrl(
   return '$serverUrl/Items/${item.id}/Images/Backdrop'
       '?maxWidth=$maxWidth${tag.isNotEmpty ? '&tag=$tag' : ''}';
 }
+
+/// URL del logo de un item.
+String itemLogoUrl(
+  String serverUrl,
+  BaseItemDto item, {
+  int maxWidth = 600,
+}) {
+  final tag = item.imageTags?[ImageType.logo.name] ?? '';
+  return '$serverUrl/Items/${item.id}/Images/Logo'
+      '?maxWidth=$maxWidth${tag.isNotEmpty ? '&tag=$tag' : ''}';
+}

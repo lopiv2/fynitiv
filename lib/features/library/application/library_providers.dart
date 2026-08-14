@@ -58,6 +58,33 @@ final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   return res.data?.items ?? [];
 });
 
+/// Novedades para el carrusel de banners del home (estilo Disney+).
+/// Máximo 10 items y con imágenes de fondo (backdrop) habilitadas.
+final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: 10,
+        fields: [
+          ItemFields.dateCreated,
+          ItemFields.genres,
+          ItemFields.overview,
+          ItemFields.primaryImageAspectRatio,
+        ],
+        enableImageTypes: [
+          ImageType.primary,
+          ImageType.backdrop,
+          ImageType.logo,
+        ],
+      );
+  return res.data?.items ?? [];
+});
+
 /// Items de una vista/biblioteca concreta.
 final libraryItemsProvider =
     FutureProvider.family<List<BaseItemDto>, String>((ref, viewId) async {

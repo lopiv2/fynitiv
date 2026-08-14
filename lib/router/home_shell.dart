@@ -20,8 +20,8 @@ class HomeShell extends ConsumerWidget {
     final mode = ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
     final sidebar = ref.watch(sidebarControllerProvider);
     final skin = ref.watch(skinControllerProvider).value;
-    final sidebarOnRight =
-        skin?.sidebarPosition == SidebarPosition.right;
+    final sidebarPosition =
+        skin?.sidebarPosition ?? SidebarPosition.left;
 
     // En móvil, la sidebar arranca colapsada (se abre con el botón).
     ref.listen(platformModeProvider, (_, next) {
@@ -51,6 +51,32 @@ class HomeShell extends ConsumerWidget {
       ),
     );
 
+    final isLeftRight = sidebarPosition == SidebarPosition.left ||
+        sidebarPosition == SidebarPosition.right;
+    final Widget body;
+    if (isLeftRight) {
+      body = Row(
+        children: [
+          if (sidebarWidget != null && sidebarPosition == SidebarPosition.left)
+            sidebarWidget,
+          content,
+          if (sidebarWidget != null && sidebarPosition == SidebarPosition.right)
+            sidebarWidget,
+        ],
+      );
+    } else {
+      body = Column(
+        children: [
+          if (sidebarWidget != null && sidebarPosition == SidebarPosition.top)
+            sidebarWidget,
+          content,
+          if (sidebarWidget != null &&
+              sidebarPosition == SidebarPosition.bottom)
+            sidebarWidget,
+        ],
+      );
+    }
+
     return KeyboardListener(
       focusNode: FocusNode(),
       autofocus: true,
@@ -64,13 +90,7 @@ class HomeShell extends ConsumerWidget {
           : null,
       child: Scaffold(
         body: DashboardBackground(
-          child: Row(
-            children: [
-              if (sidebarWidget != null && !sidebarOnRight) sidebarWidget,
-              content,
-              if (sidebarWidget != null && sidebarOnRight) sidebarWidget,
-            ],
-          ),
+          child: body,
         ),
         floatingActionButton: switch (mode) {
           PlatformMode.desktop => FloatingActionButton.small(

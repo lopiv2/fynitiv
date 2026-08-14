@@ -97,6 +97,7 @@ flutter:
     - assets/images/backgrounds/splash_back.png
     - assets/images/Logo_letter_jellyfinitive.png
     - assets/images/Logo_jellyfinitive.png
+    - assets/images/jellyfin-logo.png
     - assets/audio/splash_reveal.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see

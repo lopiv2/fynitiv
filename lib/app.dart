@@ -2,6 +2,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/constants/app_constants.dart';
+import 'core/debug/device_simulator_host.dart';
 import 'core/i18n/locale_provider.dart';
 import 'core/skin/skin_controller.dart';
 import 'core/skin/skin_presets.dart';
@@ -33,6 +34,7 @@ class JellyfinitiveApp extends ConsumerWidget {
       ],
       routerConfig: router,
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => DeviceSimulatorHost(child: child),
     );
   }
 }

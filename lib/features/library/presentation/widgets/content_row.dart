@@ -10,11 +10,19 @@ class ContentRow extends StatelessWidget {
     required this.title,
     required this.items,
     required this.serverUrl,
+    this.height = 270,
+    this.cardWidth = 150,
   });
 
   final String title;
   final List<BaseItemDto> items;
   final String? serverUrl;
+
+  /// Alto de la fila.
+  final double height;
+
+  /// Ancho de cada tarjeta.
+  final double cardWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -35,14 +43,14 @@ class ContentRow extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         SizedBox(
-          height: 270,
+          height: height,
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 24),
             itemCount: items.length,
             separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (context, i) => SizedBox(
-              width: 150,
+              width: cardWidth,
               child: PosterCard(
                 item: items[i],
                 serverUrl: serverUrl,

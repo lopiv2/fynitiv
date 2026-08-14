@@ -1,13 +1,19 @@
 import 'package:material_ui/material_ui.dart';
 
 /// Posición de la barra lateral en el dashboard.
-enum SidebarPosition { left, right }
+enum SidebarPosition { left, top, right, bottom }
 
 /// Posición del logo dentro de la barra lateral.
 enum LogoPosition { top, bottom }
 
 /// Posición del avatar de usuario dentro de la barra lateral.
 typedef AvatarPosition = LogoPosition;
+
+/// Posición de los puntos de navegación del slider de novedades.
+enum SliderDotAlignment { left, center, right }
+
+/// Tipo de transición entre banners del slider de novedades.
+enum SliderTransition { slide, fade }
 
 /// Skin: define colores, logos, layout y tipografía de la app.
 class Skin {
@@ -28,8 +34,30 @@ class Skin {
     this.avatarPosition = LogoPosition.top,
     this.sidebarPosition = SidebarPosition.left,
     this.sidebarWidth = 260,
+    this.sidebarHeaderSpacing = 8,
+    this.navItemIconSpacing = 12,
+    this.sidebarSelectedColor,
     this.showContinueRow = true,
     this.showNewReleasesRow = true,
+    this.showNewReleasesBanner = false,
+    this.bannerBorder = false,
+    this.bannerLogoWidthFactor = 0.32,
+    this.bannerShowArrows = false,
+    this.bannerDotAlignment = SliderDotAlignment.right,
+    this.bannerShowIncludedBadge = false,
+    this.bannerShowJellyfinLogo = false,
+    this.bannerHoverReveal = false,
+    this.bannerShowActions = false,
+    this.bannerTransition = SliderTransition.slide,
+    this.bannerArrowsOnHover = false,
+    this.bannerShowTitle = true,
+    this.bannerAttachedTop = false,
+    this.bannerShowAgeRating = false,
+    this.bannerContentScale = 1.0,
+    this.bannerHeightFactor = 0.38,
+    this.bannerMaxHeight = 440,
+    this.homeCardWidth = 150,
+    this.homeRowHeight = 270,
     this.cardBorderRadius = 10,
     this.sidebarCollapsible = true,
     this.fontFamily,
@@ -58,11 +86,81 @@ class Skin {
   /// Dónde ubicar el avatar de usuario dentro de la barra lateral.
   final AvatarPosition avatarPosition;
 
+  /// Espaciado vertical alrededor del avatar/logo cuando van arriba.
+  final double sidebarHeaderSpacing;
+
+  /// Separación horizontal entre el icono y el texto de los items de la barra.
+  final double navItemIconSpacing;
+
+  /// Color del item seleccionado de la barra. Si es `null` se usa el acento
+  /// con transparencia.
+  final Color? sidebarSelectedColor;
+
   // Layout.
   final SidebarPosition sidebarPosition;
   final double sidebarWidth;
   final bool showContinueRow;
   final bool showNewReleasesRow;
+
+  /// Muestra las novedades como carrusel de banners (estilo Disney+) en la
+  /// parte superior del home, con slider de puntos.
+  final bool showNewReleasesBanner;
+
+  /// Borde blanco alrededor de cada banner del slider de novedades.
+  final bool bannerBorder;
+
+  /// Tamaño del logo del título en el slider de novedades (fracción del ancho).
+  final double bannerLogoWidthFactor;
+
+  /// Muestra flechas a los lados del slider de novedades para navegar.
+  final bool bannerShowArrows;
+
+  /// Posición de los puntos del slider de novedades.
+  final SliderDotAlignment bannerDotAlignment;
+
+  /// Muestra la insignia "Se incluye con Jellyfin" bajo el logo del banner.
+  final bool bannerShowIncludedBadge;
+
+  /// Muestra el logo de Jellyfin en pequeño sobre el logo del banner.
+  final bool bannerShowJellyfinLogo;
+
+  /// Al pasar el ratón sobre el logo (solo escritorio), el logo se desliza
+  /// hacia arriba y se revela la descripción del elemento.
+  final bool bannerHoverReveal;
+
+  /// Muestra los botones de acción (Ver ahora, +, i) bajo el logo del banner.
+  final bool bannerShowActions;
+
+  /// Transición entre banners del slider de novedades.
+  final SliderTransition bannerTransition;
+
+  /// Muestra las flechas del slider solo al pasar el ratón sobre él.
+  final bool bannerArrowsOnHover;
+
+  /// Muestra el título (Novedades) sobre el slider.
+  final bool bannerShowTitle;
+
+  /// Pega el slider al borde superior del contenido (sin margen).
+  final bool bannerAttachedTop;
+
+  /// Muestra la edad recomendada del contenido (recuadro de color) en el
+  /// slider, en lugar del año y el tipo de contenido.
+  final bool bannerShowAgeRating;
+
+  /// Escala del conjunto (logo, botones, insignia, descripción) del slider.
+  final double bannerContentScale;
+
+  /// Factor de altura del slider (relativo al ancho disponible).
+  final double bannerHeightFactor;
+
+  /// Altura máxima del slider.
+  final double bannerMaxHeight;
+
+  /// Ancho de las tarjetas de las filas del home.
+  final double homeCardWidth;
+
+  /// Alto de las filas del home.
+  final double homeRowHeight;
   final double cardBorderRadius;
   final bool sidebarCollapsible;
 
@@ -86,8 +184,30 @@ class Skin {
     AvatarPosition? avatarPosition,
     SidebarPosition? sidebarPosition,
     double? sidebarWidth,
+    double? sidebarHeaderSpacing,
+    double? navItemIconSpacing,
+    Color? sidebarSelectedColor,
     bool? showContinueRow,
     bool? showNewReleasesRow,
+    bool? showNewReleasesBanner,
+    bool? bannerBorder,
+    double? bannerLogoWidthFactor,
+    bool? bannerShowArrows,
+    SliderDotAlignment? bannerDotAlignment,
+    bool? bannerShowIncludedBadge,
+    bool? bannerShowJellyfinLogo,
+    bool? bannerHoverReveal,
+    bool? bannerShowActions,
+    SliderTransition? bannerTransition,
+    bool? bannerArrowsOnHover,
+    bool? bannerShowTitle,
+    bool? bannerAttachedTop,
+    bool? bannerShowAgeRating,
+    double? bannerContentScale,
+    double? bannerHeightFactor,
+    double? bannerMaxHeight,
+    double? homeCardWidth,
+    double? homeRowHeight,
     double? cardBorderRadius,
     bool? sidebarCollapsible,
     String? fontFamily,
@@ -111,8 +231,35 @@ class Skin {
       avatarPosition: avatarPosition ?? this.avatarPosition,
       sidebarPosition: sidebarPosition ?? this.sidebarPosition,
       sidebarWidth: sidebarWidth ?? this.sidebarWidth,
+      sidebarHeaderSpacing:
+          sidebarHeaderSpacing ?? this.sidebarHeaderSpacing,
+      navItemIconSpacing: navItemIconSpacing ?? this.navItemIconSpacing,
+      sidebarSelectedColor: sidebarSelectedColor ?? this.sidebarSelectedColor,
       showContinueRow: showContinueRow ?? this.showContinueRow,
       showNewReleasesRow: showNewReleasesRow ?? this.showNewReleasesRow,
+      showNewReleasesBanner:
+          showNewReleasesBanner ?? this.showNewReleasesBanner,
+      bannerBorder: bannerBorder ?? this.bannerBorder,
+      bannerLogoWidthFactor:
+          bannerLogoWidthFactor ?? this.bannerLogoWidthFactor,
+      bannerShowArrows: bannerShowArrows ?? this.bannerShowArrows,
+      bannerDotAlignment: bannerDotAlignment ?? this.bannerDotAlignment,
+      bannerShowIncludedBadge:
+          bannerShowIncludedBadge ?? this.bannerShowIncludedBadge,
+      bannerShowJellyfinLogo:
+          bannerShowJellyfinLogo ?? this.bannerShowJellyfinLogo,
+      bannerHoverReveal: bannerHoverReveal ?? this.bannerHoverReveal,
+      bannerShowActions: bannerShowActions ?? this.bannerShowActions,
+      bannerTransition: bannerTransition ?? this.bannerTransition,
+      bannerArrowsOnHover: bannerArrowsOnHover ?? this.bannerArrowsOnHover,
+      bannerShowTitle: bannerShowTitle ?? this.bannerShowTitle,
+      bannerAttachedTop: bannerAttachedTop ?? this.bannerAttachedTop,
+      bannerShowAgeRating: bannerShowAgeRating ?? this.bannerShowAgeRating,
+      bannerContentScale: bannerContentScale ?? this.bannerContentScale,
+      bannerHeightFactor: bannerHeightFactor ?? this.bannerHeightFactor,
+      bannerMaxHeight: bannerMaxHeight ?? this.bannerMaxHeight,
+      homeCardWidth: homeCardWidth ?? this.homeCardWidth,
+      homeRowHeight: homeRowHeight ?? this.homeRowHeight,
       cardBorderRadius: cardBorderRadius ?? this.cardBorderRadius,
       sidebarCollapsible: sidebarCollapsible ?? this.sidebarCollapsible,
       fontFamily: fontFamily ?? this.fontFamily,
@@ -140,12 +287,44 @@ class Skin {
       logoPosition: _logoPositionFromString(json['logoPosition'] as String?),
       avatarPosition:
           _logoPositionFromString(json['avatarPosition'] as String?),
-      sidebarPosition: json['sidebarPosition'] == 'right'
-          ? SidebarPosition.right
-          : SidebarPosition.left,
+      sidebarPosition: switch (json['sidebarPosition']) {
+        'top' => SidebarPosition.top,
+        'right' => SidebarPosition.right,
+        'bottom' => SidebarPosition.bottom,
+        _ => SidebarPosition.left,
+      },
       sidebarWidth: (json['sidebarWidth'] as num?)?.toDouble() ?? 260,
+      sidebarHeaderSpacing:
+          (json['sidebarHeaderSpacing'] as num?)?.toDouble() ?? 8,
+      navItemIconSpacing:
+          (json['navItemIconSpacing'] as num?)?.toDouble() ?? 12,
+      sidebarSelectedColor:
+          _colorOrNull(json['sidebarSelectedColor'] as String?),
       showContinueRow: json['showContinueRow'] as bool? ?? true,
       showNewReleasesRow: json['showNewReleasesRow'] as bool? ?? true,
+      showNewReleasesBanner: json['showNewReleasesBanner'] as bool? ?? false,
+      bannerBorder: json['bannerBorder'] as bool? ?? false,
+      bannerLogoWidthFactor:
+          (json['bannerLogoWidthFactor'] as num?)?.toDouble() ?? 0.32,
+      bannerShowArrows: json['bannerShowArrows'] as bool? ?? false,
+      bannerDotAlignment: _dotAlignmentFromString(json['bannerDotAlignment']),
+      bannerShowIncludedBadge:
+          json['bannerShowIncludedBadge'] as bool? ?? false,
+      bannerShowJellyfinLogo: json['bannerShowJellyfinLogo'] as bool? ?? false,
+      bannerHoverReveal: json['bannerHoverReveal'] as bool? ?? false,
+      bannerShowActions: json['bannerShowActions'] as bool? ?? false,
+      bannerTransition: _transitionFromString(json['bannerTransition']),
+      bannerArrowsOnHover: json['bannerArrowsOnHover'] as bool? ?? false,
+      bannerShowTitle: json['bannerShowTitle'] as bool? ?? true,
+      bannerAttachedTop: json['bannerAttachedTop'] as bool? ?? false,
+      bannerShowAgeRating: json['bannerShowAgeRating'] as bool? ?? false,
+      bannerContentScale:
+          (json['bannerContentScale'] as num?)?.toDouble() ?? 1.0,
+      bannerHeightFactor:
+          (json['bannerHeightFactor'] as num?)?.toDouble() ?? 0.38,
+      bannerMaxHeight: (json['bannerMaxHeight'] as num?)?.toDouble() ?? 440,
+      homeCardWidth: (json['homeCardWidth'] as num?)?.toDouble() ?? 150,
+      homeRowHeight: (json['homeRowHeight'] as num?)?.toDouble() ?? 270,
       cardBorderRadius:
           (json['cardBorderRadius'] as num?)?.toDouble() ?? 10,
       sidebarCollapsible: json['sidebarCollapsible'] as bool? ?? true,
@@ -168,11 +347,33 @@ class Skin {
         if (splashLogo != null) 'splashLogo': splashLogo,
         'logoPosition': logoPosition.name,
         'avatarPosition': avatarPosition.name,
-        'sidebarPosition':
-            sidebarPosition == SidebarPosition.right ? 'right' : 'left',
+        'sidebarPosition': sidebarPosition.name,
         'sidebarWidth': sidebarWidth,
+        'sidebarHeaderSpacing': sidebarHeaderSpacing,
+        'navItemIconSpacing': navItemIconSpacing,
+        if (sidebarSelectedColor != null)
+          'sidebarSelectedColor': _colorToString(sidebarSelectedColor!),
         'showContinueRow': showContinueRow,
         'showNewReleasesRow': showNewReleasesRow,
+        'showNewReleasesBanner': showNewReleasesBanner,
+        'bannerBorder': bannerBorder,
+        'bannerLogoWidthFactor': bannerLogoWidthFactor,
+        'bannerShowArrows': bannerShowArrows,
+        'bannerDotAlignment': bannerDotAlignment.name,
+        'bannerShowIncludedBadge': bannerShowIncludedBadge,
+        'bannerShowJellyfinLogo': bannerShowJellyfinLogo,
+        'bannerHoverReveal': bannerHoverReveal,
+        'bannerShowActions': bannerShowActions,
+        'bannerTransition': bannerTransition.name,
+        'bannerArrowsOnHover': bannerArrowsOnHover,
+        'bannerShowTitle': bannerShowTitle,
+        'bannerAttachedTop': bannerAttachedTop,
+        'bannerShowAgeRating': bannerShowAgeRating,
+        'bannerContentScale': bannerContentScale,
+        'bannerHeightFactor': bannerHeightFactor,
+        'bannerMaxHeight': bannerMaxHeight,
+        'homeCardWidth': homeCardWidth,
+        'homeRowHeight': homeRowHeight,
         'cardBorderRadius': cardBorderRadius,
         'sidebarCollapsible': sidebarCollapsible,
         if (fontFamily != null) 'fontFamily': fontFamily,
@@ -184,8 +385,22 @@ class Skin {
     return Color(value);
   }
 
+  static Color? _colorOrNull(String? s) {
+    if (s == null || s.isEmpty) return null;
+    return _colorFromString(s);
+  }
+
   static LogoPosition _logoPositionFromString(String? s) {
     return s == 'bottom' ? LogoPosition.bottom : LogoPosition.top;
+  }
+
+  static SliderDotAlignment _dotAlignmentFromString(String? s) {
+    return SliderDotAlignment.values.asNameMap()[s] ??
+        SliderDotAlignment.right;
+  }
+
+  static SliderTransition _transitionFromString(String? s) {
+    return SliderTransition.values.asNameMap()[s] ?? SliderTransition.slide;
   }
 
   static String _colorToString(Color c) {

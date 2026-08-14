@@ -75,7 +75,7 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                       selected: active.id == preset.id,
                       onTap: () => ref
                           .read(skinControllerProvider.notifier)
-                          .apply(preset),
+                          .applyPresetSkin(preset),
                     ),
                 ],
               ),
@@ -133,21 +133,25 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
               const SizedBox(height: 10),
               _OptionRow(
                 label: l10n.sidebarPosition,
-                child: SegmentedButton<SidebarPosition>(
-                  segments: [
-                    ButtonSegment(
-                      value: SidebarPosition.left,
-                      label: Text(l10n.left),
-                    ),
-                    ButtonSegment(
-                      value: SidebarPosition.right,
-                      label: Text(l10n.right),
-                    ),
+                child: Wrap(
+                  spacing: 8,
+                  children: [
+                    for (final (value, label) in [
+                      (SidebarPosition.left, l10n.left),
+                      (SidebarPosition.top, l10n.top),
+                      (SidebarPosition.right, l10n.right),
+                      (SidebarPosition.bottom, l10n.bottom),
+                    ])
+                      ChoiceChip(
+                        label: Text(label),
+                        selected: _draft.sidebarPosition == value,
+                        onSelected: (_) => setState(
+                          () => _draft = _draft.copyWith(
+                            sidebarPosition: value,
+                          ),
+                        ),
+                      ),
                   ],
-                  selected: {_draft.sidebarPosition},
-                  onSelectionChanged: (s) => setState(
-                    () => _draft = _draft.copyWith(sidebarPosition: s.first),
-                  ),
                 ),
               ),
               _OptionRow(

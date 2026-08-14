@@ -96,5 +96,9 @@
   "importExport": "Importar / Exportar",
   "exportSkin": "Exportar",
   "importSkin": "Importar",
-  "skinCopied": "Skin copiado al portapapeles"
+  "skinCopied": "Skin copiado al portapapeles",
+  "includedWithJellyfin": "Se incluye con Jellyfin",
+  "watchNow": "Ver ahora",
+  "addToFavorites": "Agregar a favoritos",
+  "details": "Detalles"
 }

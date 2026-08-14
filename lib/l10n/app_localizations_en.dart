@@ -306,4 +306,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get skinCopied => 'Skin copied to clipboard';
+
+  @override
+  String get includedWithJellyfin => 'Included with Jellyfin';
+
+  @override
+  String get watchNow => 'Watch now';
+
+  @override
+  String get addToFavorites => 'Add to favorites';
+
+  @override
+  String get details => 'Details';
 }

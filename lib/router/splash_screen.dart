@@ -194,12 +194,38 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           _LetterTile(
             letter: _title[i],
             angle: _letterAngle(i),
+            gradient: i < 5 ? _LetterTile._silverGradient : _letterGradient(i),
             glow: i == _title.length - 1 ? _endGlowValue : 0,
             flareOpacity: i == _title.length - 1 ? _flareOpacity : 0,
             flareScale: i == _title.length - 1 ? _flareScale : 0,
             flareRotation: i == _title.length - 1 ? _flareRotation : 0,
           ),
       ],
+    );
+  }
+
+  /// Color base de una letra de "FINITIVE": interpolado de azul (F, #1CA0FD)
+  /// a morado (E, #DB45FD) a lo largo del tramo.
+  static Color _letterColor(int index) {
+    return Color.lerp(
+      const Color(0xFF1CA0FD),
+      const Color(0xFFDB45FD),
+      (index - 5) / 7,
+    )!;
+  }
+
+  /// Degradado vertical (abajo→arriba) de una letra de "FINITIVE": abajo una
+  /// versión oscura del color base, en medio una franja estrecha muy clara y
+  /// arriba el color base, que conserva el tono final (#1CA0FD→#DB45FD).
+  static LinearGradient _letterGradient(int index) {
+    final base = _letterColor(index);
+    final dark = Color.lerp(base, Colors.black, 0.3)!;
+    final light = Color.lerp(base, Colors.white, 0.5)!;
+    return LinearGradient(
+      begin: Alignment.bottomCenter,
+      end: Alignment.topCenter,
+      colors: [dark, light, base, base],
+      stops: const [0.0, 0.42, 0.58, 1.0],
     );
   }
 
@@ -402,12 +428,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 }
 
-/// Una letra del título con rotación 3D sobre su eje vertical, degradado
-/// azul→violeta y relieve (extrusión de capas de profundidad).
+/// Una letra del título con rotación 3D sobre su eje vertical, un degradado
+/// vertical por letra y relieve (extrusión de capas de profundidad).
 class _LetterTile extends StatelessWidget {
   const _LetterTile({
     required this.letter,
     required this.angle,
+    this.gradient,
     this.glow = 0,
     this.flareOpacity = 0,
     this.flareScale = 0,
@@ -416,6 +443,9 @@ class _LetterTile extends StatelessWidget {
 
   final String letter;
   final double angle;
+
+  /// Degradado vertical de la cara frontal de la letra.
+  final LinearGradient? gradient;
 
   /// Intensidad 0→1 del glow que envuelve la letra (usado en la última "E").
   final double glow;
@@ -429,11 +459,18 @@ class _LetterTile extends StatelessWidget {
   /// Rotación del destello al entrar.
   final double flareRotation;
 
-  /// Degradado de la cara frontal de cada letra.
-  static const LinearGradient _faceGradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF3FA2FF), Color(0xFF8A5BFF), Color(0xFFB06EFF)],
+  /// Degradado plateado vertical (abajo→arriba) de las letras "JELLY". La
+  /// franja blanca central es más estrecha que las bandas superior e inferior.
+  static const LinearGradient _silverGradient = LinearGradient(
+    begin: Alignment.bottomCenter,
+    end: Alignment.topCenter,
+    colors: [
+      Color(0xFF6A83B5),
+      Color(0xFFFEFEFE),
+      Color(0xFFDADBE3),
+      Color(0xFFDADBE3),
+    ],
+    stops: [0.0, 0.42, 0.58, 1.0],
   );
 
   /// Número de capas de profundidad del relieve.
@@ -491,8 +528,9 @@ class _LetterTile extends StatelessWidget {
                   )!,
                 ),
               ),
-            // Cara frontal con el degradado azul→violeta.
-            _face(gradient: _faceGradient),
+            // Cara frontal con el degradado vertical de la letra. Lleva
+            // outline blanco.
+            _face(gradient: gradient, outline: true),
             // Destello (flare) final sobre la letra.
             if (flareOpacity > 0)
               Positioned.fill(
@@ -524,9 +562,14 @@ class _LetterTile extends StatelessWidget {
     );
   }
 
-  /// Dibuja la letra con un color sólido o un degradado.
-  Widget _face({Color? color, LinearGradient? gradient}) {
-    final text = Text(
+  /// Dibuja la letra con un color sólido o un degradado y, opcionalmente, un
+  /// outline blanco con un leve brillo que solo cubre la letra (no el relieve).
+  Widget _face({
+    Color? color,
+    LinearGradient? gradient,
+    bool outline = false,
+  }) {
+    final filled = Text(
       letter,
       style: TextStyle(
         color: color ?? Colors.white,
@@ -542,11 +585,42 @@ class _LetterTile extends StatelessWidget {
         ],
       ),
     );
-    if (gradient == null) return text;
-    return ShaderMask(
-      blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => gradient.createShader(bounds),
-      child: text,
+
+    Widget letterWidget = filled;
+    if (gradient != null) {
+      letterWidget = ShaderMask(
+        blendMode: BlendMode.srcIn,
+        shaderCallback: (bounds) => gradient.createShader(bounds),
+        child: filled,
+      );
+    }
+
+    if (!outline) return letterWidget;
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        letterWidget,
+        Text(
+          letter,
+          style: TextStyle(
+            fontSize: 160,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 4,
+            foreground: Paint()
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 3.5
+              ..color = const Color(0xFFFFFFFF),
+            shadows: const [
+              Shadow(
+                color: Color(0x4DFFFFFF),
+                blurRadius: 10,
+                offset: Offset(0, 0),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

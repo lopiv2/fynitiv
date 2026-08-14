@@ -1,3 +1,5 @@
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -41,18 +43,26 @@ class Sidebar extends ConsumerWidget {
     final sidebarLogo = skin?.sidebarLogo;
     final logoPosition = skin?.logoPosition ?? LogoPosition.top;
     final avatarPosition = skin?.avatarPosition ?? AvatarPosition.top;
+    final headerSpacing = skin?.sidebarHeaderSpacing ?? 8;
+    final iconSpacing = skin?.navItemIconSpacing ?? 12;
+    final position = skin?.sidebarPosition ?? SidebarPosition.left;
+    final selectedColor = skin?.sidebarSelectedColor;
+    // Bibliotecta activa según la ruta actual (/library/:viewId).
+    final activeViewId = GoRouterState.of(context).pathParameters['viewId'];
+    final horizontal = position == SidebarPosition.top ||
+        position == SidebarPosition.bottom;
 
-    final logo = _logo(sidebarLogo, textPrimary);
-    final avatar = _UserAvatar(auth: auth);
-    final navItems = <Widget>[
+    final mainItems = <Widget>[
       _NavItem(
         icon: Icons.home_outlined,
         selectedIcon: Icons.home,
         label: l10n.home,
-        selected: currentIndex == 0,
+        selected: currentIndex == 0 && activeViewId == null,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
+        iconSpacing: iconSpacing,
+        selectedColor: selectedColor,
         onTap: () => _goBranch(context, ref, 0),
       ),
       _NavItem(
@@ -62,30 +72,22 @@ class Sidebar extends ConsumerWidget {
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
+        iconSpacing: iconSpacing,
+        selectedColor: selectedColor,
         onTap: () => _goBranch(context, ref, 1),
       ),
-      const SizedBox(height: 16),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Text(
-          l10n.library.toUpperCase(),
-          style: TextStyle(
-            color: textSecondary.withValues(alpha: 0.5),
-            fontSize: 12,
-            letterSpacing: 1.5,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
-      const SizedBox(height: 8),
+    ];
+    final viewItems = <Widget>[
       for (var i = 0; i < views.length; i++)
         _NavItem(
           icon: _viewIcon(views[i]),
           label: views[i].name ?? '',
-          selected: false,
+          selected: activeViewId == views[i].id,
           textPrimary: textPrimary,
           textSecondary: textSecondary,
           accent: accent,
+          iconSpacing: iconSpacing,
+          selectedColor: selectedColor,
           onTap: () => context.go('/library/${views[i].id}'),
         ),
     ];
@@ -97,26 +99,103 @@ class Sidebar extends ConsumerWidget {
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
+      iconSpacing: iconSpacing,
+      selectedColor: selectedColor,
       onTap: () => _goBranch(context, ref, 2),
     );
+
+    final logo = _logo(sidebarLogo, textPrimary);
+    final avatar = _UserAvatar(auth: auth);
+
+    if (horizontal) {
+      return Container(
+        height: 68,
+        decoration: BoxDecoration(
+          color: bg,
+          border: Border(
+            bottom: position == SidebarPosition.top
+                ? BorderSide(color: border)
+                : BorderSide.none,
+            top: position == SidebarPosition.bottom
+                ? BorderSide(color: border)
+                : BorderSide.none,
+          ),
+        ),
+        child: Row(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _logo(sidebarLogo, textPrimary,
+                  height: 36, compact: true),
+            ),
+            Expanded(
+              child: ScrollConfiguration(
+                behavior: const _HorizontalScrollBehavior(),
+                child: ListView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  children: [
+                    ...mainItems,
+                    if (viewItems.isNotEmpty) ...[
+                      const _SidebarDivider(),
+                      ...viewItems,
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            settings,
+            _UserAvatar(auth: auth, compact: true),
+          ],
+        ),
+      );
+    }
 
     return Container(
       width: skin?.sidebarWidth ?? 260,
       decoration: BoxDecoration(
         color: bg,
-        border: Border(right: BorderSide(color: border)),
+        border: Border(
+          right: position == SidebarPosition.left
+              ? BorderSide(color: border)
+              : BorderSide.none,
+          left: position == SidebarPosition.right
+              ? BorderSide(color: border)
+              : BorderSide.none,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (logoPosition == LogoPosition.top) logo,
           if (avatarPosition == AvatarPosition.top) ...[
-            const SizedBox(height: 8),
+            SizedBox(height: headerSpacing),
             avatar,
           ],
-          const SizedBox(height: 8),
-          ...navItems,
-          const Spacer(),
+          SizedBox(height: headerSpacing),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                ...mainItems,
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Text(
+                    l10n.library.toUpperCase(),
+                    style: TextStyle(
+                      color: textSecondary.withValues(alpha: 0.5),
+                      fontSize: 12,
+                      letterSpacing: 1.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ...viewItems,
+              ],
+            ),
+          ),
           settings,
           if (avatarPosition == AvatarPosition.bottom) ...[
             Divider(color: border),
@@ -131,16 +210,23 @@ class Sidebar extends ConsumerWidget {
     );
   }
 
-  Widget _logo(String? sidebarLogo, Color textPrimary) {
+  Widget _logo(
+    String? sidebarLogo,
+    Color textPrimary, {
+    double height = 80,
+    bool compact = false,
+  }) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+      padding: compact
+          ? EdgeInsets.zero
+          : const EdgeInsets.fromLTRB(20, 24, 20, 16),
       child: sidebarLogo != null
-          ? Image.asset(sidebarLogo, height: 80, fit: BoxFit.contain)
+          ? Image.asset(sidebarLogo, height: height, fit: BoxFit.contain)
           : Text(
               AppConstants.appName,
               style: TextStyle(
                 color: textPrimary,
-                fontSize: 22,
+                fontSize: compact ? 18 : 22,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1,
               ),
@@ -167,11 +253,47 @@ class Sidebar extends ConsumerWidget {
   }
 }
 
+/// Comportamiento de scroll para la barra horizontal: permite arrastrar con el
+/// ratón y usar la rueda sin necesidad de Shift, para que todos los items sean
+/// accesibles.
+class _HorizontalScrollBehavior extends MaterialScrollBehavior {
+  const _HorizontalScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.mouse,
+        PointerDeviceKind.trackpad,
+        PointerDeviceKind.stylus,
+        PointerDeviceKind.invertedStylus,
+      };
+
+  @override
+  Set<LogicalKeyboardKey> get pointerAxisModifiers =>
+      const <LogicalKeyboardKey>{};
+}
+
+/// Separador vertical entre grupos de la barra horizontal.
+class _SidebarDivider extends StatelessWidget {
+  const _SidebarDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+      child: VerticalDivider(width: 1, color: Colors.white24),
+    );
+  }
+}
+
 /// Avatar del usuario con menú desplegable (cerrar sesión).
 class _UserAvatar extends ConsumerWidget {
-  const _UserAvatar({required this.auth});
+  const _UserAvatar({required this.auth, this.compact = false});
 
   final AuthState auth;
+
+  /// En la barra horizontal se muestra solo el círculo del avatar.
+  final bool compact;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -189,7 +311,10 @@ class _UserAvatar extends ConsumerWidget {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 8 : 16,
+        vertical: 8,
+      ),
       child: PopupMenuButton<String>(
         tooltip: name.isEmpty ? null : name,
         position: PopupMenuPosition.under,
@@ -212,25 +337,32 @@ class _UserAvatar extends ConsumerWidget {
           ),
         ],
         child: Row(
+          mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
           children: [
             CircleAvatar(
-              radius: 28,
+              radius: compact ? 18 : 28,
               backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
               onBackgroundImageError: (_, _) {},
               child: photoUrl != null
                   ? null
                   : Text(initial, style: const TextStyle(fontSize: 16)),
             ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 14),
+            if (!compact) ...[
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white, fontSize: 14),
+                ),
               ),
-            ),
-            const Icon(Icons.arrow_drop_down, color: Colors.white54, size: 20),
+              const Icon(
+                Icons.arrow_drop_down,
+                color: Colors.white54,
+                size: 20,
+              ),
+            ],
           ],
         ),
       ),
@@ -238,7 +370,7 @@ class _UserAvatar extends ConsumerWidget {
   }
 }
 
-class _NavItem extends StatelessWidget {
+class _NavItem extends StatefulWidget {
   const _NavItem({
     required this.icon,
     required this.label,
@@ -246,8 +378,10 @@ class _NavItem extends StatelessWidget {
     required this.textPrimary,
     required this.textSecondary,
     required this.accent,
+    required this.iconSpacing,
     this.selected = false,
     this.selectedIcon,
+    this.selectedColor,
   });
 
   final IconData icon;
@@ -258,43 +392,132 @@ class _NavItem extends StatelessWidget {
   final Color textPrimary;
   final Color textSecondary;
   final Color accent;
+  final double iconSpacing;
+
+  /// Color del item seleccionado. Si no es nulo, se muestra con degradado
+  /// vertical y un pequeño flash blanco en la parte superior.
+  final Color? selectedColor;
+
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _hovered = false;
+
+  IconData get _icon =>
+      widget.selected ? (widget.selectedIcon ?? widget.icon) : widget.icon;
+
+  Widget _buildRow({required Color color, required FontWeight weight}) {
+    return Row(
+      children: [
+        Icon(_icon, color: color, size: 22),
+        SizedBox(width: widget.iconSpacing),
+        Text(
+          widget.label,
+          style: TextStyle(
+            color: color,
+            fontSize: 15,
+            fontWeight: weight,
+          ),
+        ),
+      ],
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
+    final selected = widget.selected;
+    final selectedColor = widget.selectedColor;
+    final textPrimary = widget.textPrimary;
+    final textSecondary = widget.textSecondary;
+
+    // Hover/foco: se invierten los colores (fondo blanco, contenido oscuro).
+    final Widget content;
+    if (_hovered) {
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: Colors.white,
+        ),
+        child: _buildRow(
+          color: Colors.black,
+          weight: FontWeight.w600,
+        ),
+      );
+    } else if (selected && selectedColor != null) {
+      content = Stack(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  selectedColor,
+                  Color.lerp(selectedColor, Colors.black, 0.5)!,
+                ],
+              ),
+            ),
+            child: _buildRow(color: textPrimary, weight: FontWeight.w600),
+          ),
+          // Pequeño flash blanco arriba del todo del botón seleccionado.
+          const Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(child: _TopFlash()),
+          ),
+        ],
+      );
+    } else {
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: selected
+              ? selectedColor ?? widget.accent.withValues(alpha: 0.35)
+              : Colors.transparent,
+        ),
+        child: _buildRow(
+          color: selected ? textPrimary : textSecondary,
+          weight: selected ? FontWeight.w600 : FontWeight.w400,
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
       child: ScaleButton(
         selected: selected,
         selectedScale: 1.05,
         borderRadius: BorderRadius.circular(10),
-        onPressed: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: selected
-                ? accent.withValues(alpha: 0.35)
-                : Colors.transparent,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                selected ? (selectedIcon ?? icon) : icon,
-                color: selected ? textPrimary : textSecondary,
-                size: 22,
-              ),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  color: selected ? textPrimary : textSecondary,
-                  fontSize: 15,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
+        onPressed: widget.onTap,
+        onFocusChange: (focused) {
+          if (_hovered != focused) setState(() => _hovered = focused);
+        },
+        child: content,
+      ),
+    );
+  }
+}
+
+/// Pequeña barra blanca (flash) que aparece en el borde superior del item
+/// seleccionado cuando hay un color de selección definido.
+class _TopFlash extends StatelessWidget {
+  const _TopFlash();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 2,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(1),
       ),
     );
   }

@@ -43,4 +43,14 @@ void main() {
     expect(skin.sidebarPosition, SidebarPosition.left);
     expect(skin.sidebarWidth, 260);
   });
+
+  test('Skin parses las posiciones top/bottom de la barra', () {
+    expect(Skin.fromJson({'id': 't', 'sidebarPosition': 'top'}).sidebarPosition,
+        SidebarPosition.top);
+    expect(
+        Skin.fromJson({'id': 'b', 'sidebarPosition': 'bottom'}).sidebarPosition,
+        SidebarPosition.bottom);
+    expect(Skin.fromJson({'id': 'r', 'sidebarPosition': 'right'}).sidebarPosition,
+        SidebarPosition.right);
+  });
 }
