@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/horizontal_scroll_behavior.dart';
 import '../../../../core/widgets/scroll_title.dart';
+import 'backdrop_card.dart';
 import 'poster_card.dart';
 
 /// Fila horizontal de tarjetas con un título (estilo Prime/Disney).

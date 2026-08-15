@@ -37,7 +37,8 @@ class ScrollTitle extends ConsumerWidget {
     if (onSeeMore == null) return titleWidget;
     return Row(
       children: [
-        Expanded(child: titleWidget),
+        titleWidget,
+        SizedBox(width: MediaQuery.sizeOf(context).width * 0.05),
         GestureDetector(
           onTap: onSeeMore,
           child: Padding(

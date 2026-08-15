@@ -8,9 +8,10 @@ import '../../../../core/widgets/logo_image.dart';
 import '../../application/image_url.dart';
 import 'poster_fallback.dart';
 
-/// Tarjeta de póster de un item (estilo Prime/Disney).
-class PosterCard extends ConsumerWidget {
-  const PosterCard({
+/// Tarjeta horizontal (16:9) que usa la miniatura (Thumb) del item, para filas
+/// tipo "Continuar viendo" cuando el skin prefiere imagen panorámica (Prime).
+class BackdropCard extends ConsumerWidget {
+  const BackdropCard({
     super.key,
     required this.item,
     required this.serverUrl,
@@ -36,7 +37,8 @@ class PosterCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final url = serverUrl != null ? itemImageUrl(serverUrl!, item) : null;
+    final thumbUrl = serverUrl != null ? itemThumbUrl(serverUrl!, item) : null;
+    final posterUrl = serverUrl != null ? itemImageUrl(serverUrl!, item) : null;
     final progress = item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
     final radius = skin?.cardBorderRadius ?? 10;
@@ -45,16 +47,39 @@ class PosterCard extends ConsumerWidget {
     final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final logoSize = skin?.cardLogoSize ?? 18;
     final showExtension = hoverExtension && (skin?.cardHoverExtension ?? false);
-    // Elemento de "Continuar viendo" (tiene posición de reproducción): el
-    // botón del panel muestra "Reanudar" en lugar de "Ver ahora".
-    final resume = (item.userData?.playbackPositionTicks ?? 0) > 0;
+
+    // Prefiere la miniatura (Thumb); si el item no tiene (o falla), usa el
+    // póster en la misma proporción 16:9; si tampoco hay, muestra la letra.
+    final fallback = PosterFallback(item: item, color: fallbackColor);
+    final Widget image;
+    if (thumbUrl != null) {
+      image = Image.network(
+        thumbUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => posterUrl != null
+            ? Image.network(
+                posterUrl,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => fallback,
+              )
+            : fallback,
+      );
+    } else if (posterUrl != null) {
+      image = Image.network(
+        posterUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => fallback,
+      );
+    } else {
+      image = fallback;
+    }
 
     return HoverPlayCard(
       title: item.name ?? '',
       onPlay: onTap ?? () {},
       showExtension: showExtension,
       onHoverChanged: onHoverChanged,
-      resume: resume,
+      resume: (item.userData?.playbackPositionTicks ?? 0) > 0,
       ageRating: item.officialRating,
       year: item.productionYear,
       runTimeTicks: item.runTimeTicks,
@@ -66,21 +91,13 @@ class PosterCard extends ConsumerWidget {
           // Al hacer hover (hovercard visible) las esquinas pasan a ser
           // rectas; solo sin hover conservan el radio redondeado.
           HoverPlayRadius(
-            radius: radius * 2,
+            radius: radius * 6,
             child: AspectRatio(
-              aspectRatio: 2 / 3,
+              aspectRatio: 16 / 9,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (url != null)
-                    Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          PosterFallback(item: item, color: fallbackColor),
-                    )
-                  else
-                    PosterFallback(item: item, color: fallbackColor),
+                  image,
                   // Barra de progreso de reproducción (Continuar viendo),
                   // superpuesta en la parte inferior de la tarjeta.
                   if (progress != null && progress > 0)
@@ -98,8 +115,8 @@ class PosterCard extends ConsumerWidget {
                   // Logotipo superpuesto abajo a la derecha.
                   if (cardLogo != null && cardLogo!.isNotEmpty)
                     Positioned(
-                      right: 8,
-                      bottom: 8,
+                      right: 10,
+                      bottom: 10,
                       child: LogoImage(logo: cardLogo!, height: logoSize),
                     ),
                 ],

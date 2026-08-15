@@ -9,6 +9,7 @@ import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../library/application/library_providers.dart';
+import '../../library/presentation/widgets/backdrop_card.dart';
 import '../../library/presentation/widgets/poster_card.dart';
 
 /// Pantalla con todas las películas del servidor: grid de 6 por fila con
@@ -69,6 +70,8 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
     _hasMore =
         last.isLoading || (last.value?.length ?? 0) >= kAllMoviesPageSize;
     final loadingMore = last.isLoading;
+    // Carga inicial: sin items y la primera página resolviéndose.
+    final initialLoading = items.isEmpty && pages.first.isLoading;
 
     return Scaffold(
       body: DashboardBackground(
@@ -107,40 +110,48 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
               ),
             ),
             Expanded(
-              child: GridView.builder(
-                controller: _controller,
-                padding: const EdgeInsets.all(24),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 6,
-                  mainAxisSpacing: 6,
-                  crossAxisSpacing: 20,
-                  // Backdrop (16:9) es mucho más ancho que un póster (2:3).
-                  childAspectRatio: useBackdrop ? 1.5 : 0.6,
-                ),
-                itemCount: items.length + (loadingMore ? 1 : 0),
-                itemBuilder: (context, i) {
-                  if (i >= items.length) {
-                    return const Center(child: AppLoader());
-                  }
-                  final item = items[i];
-                  final card = useBackdrop
-                      ? BackdropCard(
-                          item: item,
-                          serverUrl: serverUrl,
-                          hoverExtension: true,
-                          onTap: () =>
-                              context.push('/player/${item.id}', extra: item),
-                        )
-                      : PosterCard(
-                          item: item,
-                          serverUrl: serverUrl,
-                          hoverExtension: true,
-                          onTap: () =>
-                              context.push('/player/${item.id}', extra: item),
-                        );
-                  return card;
-                },
-              ),
+              child: initialLoading
+                  ? const Center(child: AppLoader())
+                  : GridView.builder(
+                      controller: _controller,
+                      padding: const EdgeInsets.all(24),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 6,
+                        mainAxisSpacing: 6,
+                        crossAxisSpacing: 20,
+                        // Backdrop (16:9) es mucho más ancho que un póster (2:3).
+                        childAspectRatio: useBackdrop ? 1.5 : 0.6,
+                      ),
+                      itemCount: items.length + (loadingMore ? 1 : 0),
+                      itemBuilder: (context, i) {
+                        if (i >= items.length) {
+                          return const Center(child: AppLoader());
+                        }
+                        final item = items[i];
+                        final card = useBackdrop
+                            ? BackdropCard(
+                                item: item,
+                                serverUrl: serverUrl,
+                                cardLogo: skin?.cardLogo,
+                                hoverExtension: true,
+                                onTap: () => context.push(
+                                  '/player/${item.id}',
+                                  extra: item,
+                                ),
+                              )
+                            : PosterCard(
+                                item: item,
+                                serverUrl: serverUrl,
+                                cardLogo: skin?.cardLogo,
+                                hoverExtension: true,
+                                onTap: () => context.push(
+                                  '/player/${item.id}',
+                                  extra: item,
+                                ),
+                              );
+                        return card;
+                      },
+                    ),
             ),
           ],
         ),
