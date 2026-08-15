@@ -23,6 +23,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.useBackdrop = false,
     this.cardLogo,
     this.onItemTap,
+    this.onSeeMore,
   });
 
   final String title;
@@ -43,6 +44,9 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Se invoca al pulsar una tarjeta de la fila.
   final void Function(BaseItemDto item)? onItemTap;
+
+  /// Acción de "Ver más >" en el título de la fila. Si es null no se muestra.
+  final VoidCallback? onSeeMore;
 
   @override
   ConsumerState<ContentRow> createState() => _ContentRowState();
@@ -207,7 +211,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ScrollTitle(title: widget.title),
+            child: ScrollTitle(
+              title: widget.title,
+              onSeeMore: widget.onSeeMore,
+            ),
           ),
           const SizedBox(height: 12),
           SizedBox(

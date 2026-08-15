@@ -149,8 +149,8 @@ class _PosterFallback extends StatelessWidget {
   }
 }
 
-/// Tarjeta horizontal (16:9) que usa el backdrop del item, para filas tipo
-/// "Continuar viendo" cuando el skin prefiere imagen panorámica (Prime).
+/// Tarjeta horizontal (16:9) que usa la miniatura (Thumb) del item, para filas
+/// tipo "Continuar viendo" cuando el skin prefiere imagen panorámica (Prime).
 class BackdropCard extends ConsumerWidget {
   const BackdropCard({
     super.key,
@@ -178,9 +178,7 @@ class BackdropCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final backdropUrl = serverUrl != null
-        ? itemBackdropUrl(serverUrl!, item)
-        : null;
+    final thumbUrl = serverUrl != null ? itemThumbUrl(serverUrl!, item) : null;
     final posterUrl = serverUrl != null ? itemImageUrl(serverUrl!, item) : null;
     final progress = item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
@@ -191,13 +189,13 @@ class BackdropCard extends ConsumerWidget {
     final logoSize = skin?.cardLogoSize ?? 18;
     final showExtension = hoverExtension && (skin?.cardHoverExtension ?? false);
 
-    // Prefiere el backdrop; si el item no tiene (o falla), usa el póster en la
-    // misma proporción 16:9; si tampoco hay, muestra la letra de relleno.
+    // Prefiere la miniatura (Thumb); si el item no tiene (o falla), usa el
+    // póster en la misma proporción 16:9; si tampoco hay, muestra la letra.
     final fallback = _PosterFallback(item: item, color: fallbackColor);
     final Widget image;
-    if (backdropUrl != null) {
+    if (thumbUrl != null) {
       image = Image.network(
-        backdropUrl,
+        thumbUrl,
         fit: BoxFit.cover,
         errorBuilder: (_, _, _) => posterUrl != null
             ? Image.network(
@@ -231,58 +229,63 @@ class BackdropCard extends ConsumerWidget {
         year: item.productionYear,
         runTimeTicks: item.runTimeTicks,
         overview: item.overview,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Al hacer hover (hovercard visible) las esquinas pasan a ser
-            // rectas; solo sin hover conservan el radio redondeado.
-            HoverPlayRadius(
-              radius: radius * 6,
-              child: AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    image,
-                    // Barra de progreso de reproducción (Continuar viendo),
-                    // superpuesta en la parte inferior de la tarjeta.
-                    if (progress != null && progress > 0)
-                      Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: LinearProgressIndicator(
-                          value: (progress / 100).clamp(0.0, 1.0),
-                          minHeight: 5,
-                          backgroundColor: Colors.black38,
-                          valueColor: AlwaysStoppedAnimation<Color>(accent),
+        child: ScaleButton(
+          selectedScale: 1.08,
+          borderRadius: BorderRadius.circular(radius + 2),
+          onPressed: onTap ?? () {},
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Al hacer hover (hovercard visible) las esquinas pasan a ser
+              // rectas; solo sin hover conservan el radio redondeado.
+              HoverPlayRadius(
+                radius: radius * 6,
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      image,
+                      // Barra de progreso de reproducción (Continuar viendo),
+                      // superpuesta en la parte inferior de la tarjeta.
+                      if (progress != null && progress > 0)
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          child: LinearProgressIndicator(
+                            value: (progress / 100).clamp(0.0, 1.0),
+                            minHeight: 5,
+                            backgroundColor: Colors.black38,
+                            valueColor: AlwaysStoppedAnimation<Color>(accent),
+                          ),
                         ),
-                      ),
-                    // Logotipo superpuesto abajo a la derecha.
-                    if (cardLogo != null && cardLogo!.isNotEmpty)
-                      Positioned(
-                        right: 10,
-                        bottom: 10,
-                        child: LogoImage(logo: cardLogo!, height: logoSize),
-                      ),
-                  ],
+                      // Logotipo superpuesto abajo a la derecha.
+                      if (cardLogo != null && cardLogo!.isNotEmpty)
+                        Positioned(
+                          right: 10,
+                          bottom: 10,
+                          child: LogoImage(logo: cardLogo!, height: logoSize),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            // Con el panel de extensión (Prime) el título no se muestra bajo la
-            // imagen: aparece en el propio panel al hacer hover, evitando que
-            // se vea dos veces.
-            if (!showExtension) ...[
-              const SizedBox(height: 6),
-              Text(
-                item.name ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: textPrimary, fontSize: 13),
-              ),
+              // Con el panel de extensión (Prime) el título no se muestra bajo la
+              // imagen: aparece en el propio panel al hacer hover, evitando que
+              // se vea dos veces.
+              if (!showExtension) ...[
+                const SizedBox(height: 6),
+                Text(
+                  item.name ?? '',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: textPrimary, fontSize: 13),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

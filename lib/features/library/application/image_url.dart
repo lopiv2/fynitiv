@@ -34,3 +34,15 @@ String itemLogoUrl(
   return '$serverUrl/Items/${item.id}/Images/Logo'
       '?maxWidth=$maxWidth${tag.isNotEmpty ? '&tag=$tag' : ''}';
 }
+
+/// URL de la imagen de miniatura (Thumb) de un item. Es la imagen de tarjeta
+/// panorámica que prefiere el skin estilo Prime en lugar del fondo (Backdrop).
+String itemThumbUrl(
+  String serverUrl,
+  BaseItemDto item, {
+  int maxWidth = 1280,
+}) {
+  final tag = item.imageTags?[ImageType.thumb.name] ?? '';
+  return '$serverUrl/Items/${item.id}/Images/Thumb'
+      '?maxWidth=$maxWidth${tag.isNotEmpty ? '&tag=$tag' : ''}';
+}

@@ -4,9 +4,11 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/navigation/platform_mode.dart';
+import '../../../core/skin/home_scroll.dart';
 import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
+import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/library_providers.dart';
 import 'widgets/content_row.dart';
@@ -34,9 +36,19 @@ class HomeScreen extends ConsumerWidget {
     final hoverReveal =
         (skin?.bannerHoverReveal ?? false) && platformMode == PlatformMode.desktop;
 
+    // Carga inicial: mientras los datos principales no tienen contenido y se
+    // están resolviendo, se muestra un loader.
+    final initialLoading =
+        (views.isLoading && views.value == null) ||
+        (resume.isLoading && resume.value == null) ||
+        (latest.isLoading && latest.value == null) ||
+        (latestBanner.isLoading && latestBanner.value == null);
+
     return Scaffold(
       body: DashboardBackground(
-        child: ListView(
+        child: initialLoading
+            ? const Center(child: AppLoader())
+            : ListView(
           padding: EdgeInsets.only(
             top: bannerAttached ? 0 : 54,
             bottom: 24,
@@ -111,10 +123,40 @@ class HomeScreen extends ConsumerWidget {
                   extra: item,
                 ),
               ),
+            // Scrolls extra configurados por el skin (con filtros de géneros).
+            for (final scroll in skin?.homeScrolls ?? const <HomeScroll>[])
+              ContentRow(
+                title: _scrollTitle(l10n, scroll.titleKey),
+                items:
+                    ref.watch(homeScrollItemsProvider(scroll)).value ?? const [],
+                serverUrl: serverUrl,
+                height: skin?.homeRowHeight ?? 270,
+                cardWidth: skin?.homeCardWidth ?? 150,
+                useBackdrop: useBackdrop,
+                cardLogo: skin?.cardLogo,
+                onSeeMore: () => context.push('/movies'),
+                onItemTap: (item) => context.push(
+                  '/player/${item.id}',
+                  extra: item,
+                ),
+              ),
             const SizedBox(height: 24),
           ],
         ),
       ),
     );
+  }
+
+  /// Resuelve el título de una fila de contenido a partir de su clave de
+  /// localización. Si la clave no es conocida, se muestra tal cual.
+  static String _scrollTitle(AppLocalizations l10n, String key) {
+    switch (key) {
+      case 'actionMovies':
+        return l10n.actionMovies;
+      case 'familyMovies':
+        return l10n.familyMovies;
+      default:
+        return key;
+    }
   }
 }

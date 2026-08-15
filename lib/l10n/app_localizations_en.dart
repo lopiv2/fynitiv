@@ -426,4 +426,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get resume => 'Resume';
+
+  @override
+  String get actionMovies => 'Action movies';
+
+  @override
+  String get familyMovies => 'Family & kids';
+
+  @override
+  String get seeMore => 'See more >';
+
+  @override
+  String get allMovies => 'All movies';
 }

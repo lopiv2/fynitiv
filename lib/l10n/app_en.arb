@@ -141,5 +141,9 @@
   "music": "Music Player",
   "albums": "Albums",
   "songs": "Songs",
-  "resume": "Resume"
+  "resume": "Resume",
+  "actionMovies": "Action movies",
+  "familyMovies": "Family & kids",
+  "seeMore": "See more >",
+  "allMovies": "All movies"
 }

@@ -1,5 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'home_scroll.dart';
+
 /// Posición de la barra lateral en el dashboard.
 enum SidebarPosition { left, top, right, bottom }
 
@@ -79,6 +81,7 @@ class Skin {
     this.sidebarCollapsible = true,
     this.fontFamily,
     this.cardHoverExtension = false,
+    this.homeScrolls = const [],
   });
 
   final String id;
@@ -219,6 +222,10 @@ class Skin {
   /// elemento con el nombre y un botón de reproducir.
   final bool cardHoverExtension;
 
+  /// Filas de contenido extra (scrolls) configuradas por este skin, con sus
+  /// filtros (géneros/tipos). Se muestran bajo las filas de la biblioteca.
+  final List<HomeScroll> homeScrolls;
+
   Skin copyWith({
     String? id,
     String? name,
@@ -272,6 +279,7 @@ class Skin {
     bool? sidebarCollapsible,
     String? fontFamily,
     bool? cardHoverExtension,
+    List<HomeScroll>? homeScrolls,
     bool clearSidebarLogo = false,
     bool clearCardLogo = false,
     bool clearPlayerLogo = false,
@@ -338,6 +346,7 @@ class Skin {
       fontFamily: fontFamily ?? this.fontFamily,
       cardHoverExtension:
           cardHoverExtension ?? this.cardHoverExtension,
+      homeScrolls: homeScrolls ?? this.homeScrolls,
     );
   }
 
@@ -416,6 +425,10 @@ class Skin {
       fontFamily: json['fontFamily'] as String?,
       cardHoverExtension:
           json['cardHoverExtension'] as bool? ?? false,
+      homeScrolls: (json['homeScrolls'] as List?)
+              ?.map((e) => HomeScroll.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -473,6 +486,7 @@ class Skin {
         'sidebarCollapsible': sidebarCollapsible,
         if (fontFamily != null) 'fontFamily': fontFamily,
         'cardHoverExtension': cardHoverExtension,
+        'homeScrolls': homeScrolls.map((s) => s.toJson()).toList(),
       };
 
   static Color _colorFromString(String s) {

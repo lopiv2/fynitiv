@@ -1,5 +1,6 @@
 import 'package:material_ui/material_ui.dart';
 
+import 'home_scroll.dart';
 import 'skin.dart';
 
 /// Skins predefinidos.
@@ -97,6 +98,13 @@ abstract final class SkinPresets {
     cardBorderRadius: 4,
     sidebarCollapsible: true,
     cardHoverExtension: true,
+    homeScrolls: [
+      HomeScroll(titleKey: 'actionMovies', genres: ['Action']),
+      HomeScroll(
+        titleKey: 'familyMovies',
+        genres: ['Animation', 'Family', 'Kids'],
+      ),
+    ],
   );
 
   /// Estilo Movistar+ (oscuro, acento naranja/rojo).

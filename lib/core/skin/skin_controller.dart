@@ -30,7 +30,19 @@ class SkinController extends AsyncNotifier<Skin> {
     if (raw != null) {
       try {
         final map = jsonDecode(raw) as Map<String, dynamic>;
-        return Skin.fromJson(map);
+        final skin = Skin.fromJson(map);
+        // Los skins guardados antes de añadir las filas extra no las traen.
+        // Si el skin coincide con un preset, se heredan sus scrolls para que
+        // la customización no pierda las filas definidas en el preset.
+        if (skin.homeScrolls.isEmpty) {
+          final preset = SkinPresets.all
+              .where((s) => s.id == skin.id)
+              .firstOrNull;
+          if (preset != null && preset.homeScrolls.isNotEmpty) {
+            return skin.copyWith(homeScrolls: preset.homeScrolls);
+          }
+        }
+        return skin;
       } catch (_) {
         // Skin corrupto: usamos el predeterminado.
       }

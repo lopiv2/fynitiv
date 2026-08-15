@@ -919,6 +919,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume'**
   String get resume;
+
+  /// No description provided for @actionMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Action movies'**
+  String get actionMovies;
+
+  /// No description provided for @familyMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Family & kids'**
+  String get familyMovies;
+
+  /// No description provided for @seeMore.
+  ///
+  /// In en, this message translates to:
+  /// **'See more >'**
+  String get seeMore;
+
+  /// No description provided for @allMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'All movies'**
+  String get allMovies;
 }
 
 class _AppLocalizationsDelegate

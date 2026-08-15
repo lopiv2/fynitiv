@@ -138,5 +138,9 @@
   "music": "Music Player",
   "albums": "Álbumes",
   "songs": "Canciones",
-  "resume": "Reanudar"
+  "resume": "Reanudar",
+  "actionMovies": "Películas de acción",
+  "familyMovies": "Cine infantil y para toda la familia",
+  "seeMore": "Ver más >",
+  "allMovies": "Todas las películas"
 }

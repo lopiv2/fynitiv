@@ -427,4 +427,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get resume => 'Reanudar';
+
+  @override
+  String get actionMovies => 'Películas de acción';
+
+  @override
+  String get familyMovies => 'Cine infantil y para toda la familia';
+
+  @override
+  String get seeMore => 'Ver más >';
+
+  @override
+  String get allMovies => 'Todas las películas';
 }

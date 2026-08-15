@@ -4,6 +4,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../../auth/application/auth_controller.dart';
+import '../../../core/skin/home_scroll.dart';
 
 /// userId del usuario autenticado actual.
 final currentUserIdProvider = Provider<String?>(
@@ -38,7 +39,7 @@ final resumeItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         userId: userId,
         limit: 20,
         fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.backdrop],
+        enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
       );
   return res.data?.items ?? [];
 });
@@ -55,7 +56,7 @@ final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         sortOrder: [SortOrder.descending],
         limit: 20,
         fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
       );
   return res.data?.items ?? [];
 });
@@ -101,7 +102,7 @@ final libraryItemsProvider =
         sortBy: [ItemSortBy.sortName],
         limit: 20,
         fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
       );
   return res.data?.items ?? [];
 });
@@ -162,7 +163,7 @@ final vodResumeProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         limit: 20,
         includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
         fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.backdrop],
+        enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
       );
   return res.data?.items ?? [];
 });
@@ -180,7 +181,7 @@ final vodLatestProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         sortOrder: [SortOrder.descending],
         limit: 20,
         fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
       );
   return res.data?.items ?? [];
 });
@@ -193,6 +194,52 @@ final vodLibraryViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
           v.collectionType == CollectionType.movies ||
           v.collectionType == CollectionType.tvshows)
       .toList();
+});
+
+/// Página de todas las películas del servidor, para la pantalla de "Ver más"
+/// (grid con desplazamiento infinito). Cada página trae [kAllMoviesPageSize]
+/// items empezando en [pageIndex] * página.
+const int kAllMoviesPageSize = 50;
+
+final allMoviesPageProvider =
+    FutureProvider.family<List<BaseItemDto>, int>((ref, pageIndex) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.movie],
+        startIndex: pageIndex * kAllMoviesPageSize,
+        limit: kAllMoviesPageSize,
+        sortBy: [ItemSortBy.sortName],
+        sortOrder: [SortOrder.ascending],
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
+      );
+  return res.data?.items ?? [];
+});
+
+/// Items de una fila de contenido configurada por el skin (filtrada por
+/// géneros y tipos). Se usa para los scrolls extra definidos en cada preset.
+final homeScrollItemsProvider =
+    FutureProvider.family<List<BaseItemDto>, HomeScroll>((ref, scroll) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: scroll.types,
+        // Jellyfin espera los géneros separados por "|" en un único valor.
+        genres: [scroll.genres.join('|')],
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: scroll.limit,
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
+      );
+  return res.data?.items ?? [];
 });
 
 /// Canales de Live TV del servidor.

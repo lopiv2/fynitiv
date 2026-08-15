@@ -127,9 +127,13 @@ class HoverPlayRadius extends StatelessWidget {
 
 class _HoverPlayCardState extends State<HoverPlayCard> {
   bool _hovered = false;
-  final LayerLink _layerLink = LayerLink();
+  final GlobalKey _cardKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   Timer? _hideTimer;
+  final ValueNotifier<Rect> _panelRect = ValueNotifier(
+    const Rect.fromLTWH(0, 0, 0, 0),
+  );
+  bool _tracking = false;
 
   /// Anchura de la tarjeta, capturada en el build a partir de las
   /// restricciones reales del layout. Es la anchura exacta del elemento.
@@ -167,49 +171,95 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
   void _showOverlay() {
     _removeOverlay();
     final entry = OverlayEntry(
-      builder: (_) => CompositedTransformFollower(
-        link: _layerLink,
-        showWhenUnlinked: false,
-        targetAnchor: Alignment.bottomLeft,
-        followerAnchor: Alignment.topLeft,
-        // Sube el panel unos píxeles para que quede pegado al borde inferior
-        // de la tarjeta (sin hueco).
-        offset: const Offset(0, 1),
-        child: Align(
-          alignment: Alignment.topLeft,
-          child: _HoverPanel(
-            width: _cardWidth,
-            title: widget.title,
-            onPlay: widget.onPlay,
-            onTrailer: widget.onTrailer,
-            onFavorites: widget.onFavorites,
-            resume: widget.resume,
-            ageRating: widget.ageRating,
-            year: widget.year,
-            runTimeTicks: widget.runTimeTicks,
-            overview: widget.overview,
-            onEnter: () {
-              _hideTimer?.cancel();
-              if (mounted && _hovered) setState(() {});
-            },
-            onExit: _scheduleHide,
-          ),
-        ),
+      builder: (_) => ValueListenableBuilder<Rect>(
+        valueListenable: _panelRect,
+        builder: (context, rect, _) {
+          if (rect.width <= 0) return const SizedBox.shrink();
+          return Positioned(
+            left: rect.left - 10,
+            top: rect.top - 110,
+            width: rect.width,
+            height: rect.height,
+            child: _HoverPanel(
+              width: _cardWidth,
+              title: widget.title,
+              onPlay: widget.onPlay,
+              onTrailer: widget.onTrailer,
+              onFavorites: widget.onFavorites,
+              resume: widget.resume,
+              ageRating: widget.ageRating,
+              year: widget.year,
+              runTimeTicks: widget.runTimeTicks,
+              overview: widget.overview,
+              onEnter: () {
+                _hideTimer?.cancel();
+                if (mounted && _hovered) setState(() {});
+              },
+              onExit: _scheduleHide,
+            ),
+          );
+        },
       ),
     );
     _overlayEntry = entry;
     Overlay.of(context).insert(entry);
+    _startTracking();
   }
 
+  /// Mide el borde inferior-izquierdo de la tarjeta (siguiendo su escala visual)
+  /// y coloca el panel bajo él, con el ancho del elemento. El ancho se mantiene
+  /// en el de layout para que el panel no se extienda más allá de la tarjeta.
+  void _measurePanelRect() {
+    final box = _cardKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || !box.attached) return;
+    try {
+      // Borde inferior-izquierdo global de la tarjeta (incluye la escala del
+      // ScaleButton). El -1 deja la parte superior pegada al elemento.
+      final bottomLeft = box.localToGlobal(Offset(0, box.size.height));
+      final bottomRight = box.localToGlobal(
+        Offset(box.size.width, box.size.height),
+      );
+      final scaledWidth = bottomRight.dx - bottomLeft.dx;
+      final rect = Rect.fromLTWH(
+        bottomLeft.dx,
+        bottomLeft.dy - 1,
+        scaledWidth,
+        kCardHoverExtensionHeight,
+      );
+      if (rect != _panelRect.value) _panelRect.value = rect;
+    } catch (_) {
+      // Transformación no disponible aún (layout en curso); se reintenta en el
+      // siguiente frame del rastreo.
+    }
+  }
+
+  /// Re-mide el panel cada frame mientras hay hover para seguir la animación
+  /// de escala del ScaleButton y el scroll de la fila/página.
+  void _startTracking() {
+    _tracking = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) => _trackFrame());
+  }
+
+  void _trackFrame() {
+    if (!_tracking || !mounted || !_hovered || _overlayEntry == null) return;
+    _measurePanelRect();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _trackFrame());
+  }
+
+  void _stopTracking() => _tracking = false;
+
   void _removeOverlay() {
+    _stopTracking();
     _overlayEntry?.remove();
     _overlayEntry = null;
   }
 
   @override
   void dispose() {
+    _stopTracking();
     _hideTimer?.cancel();
     _removeOverlay();
+    _panelRect.dispose();
     super.dispose();
   }
 
@@ -225,20 +275,16 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
           child: MouseRegion(
             onEnter: (_) => _setHovered(true),
             onExit: (_) => _scheduleHide(),
-            child: CompositedTransformTarget(
-              link: _layerLink,
-              child: Stack(
-                clipBehavior: Clip.hardEdge,
-                children: [
-                  widget.child,
-                  // Icono de play al hacer hover. Con el panel de extensión
-                  // (Prime) es redundante, ya que la hovercard ya lo muestra.
-                  if (_hovered && !widget.showExtension)
-                    Positioned.fill(
-                      child: IgnorePointer(child: _PlayOverlay()),
-                    ),
-                ],
-              ),
+            child: Stack(
+              key: _cardKey,
+              clipBehavior: Clip.hardEdge,
+              children: [
+                widget.child,
+                // Icono de play al hacer hover. Con el panel de extensión
+                // (Prime) es redundante, ya que la hovercard ya lo muestra.
+                if (_hovered && !widget.showExtension)
+                  Positioned.fill(child: IgnorePointer(child: _PlayOverlay())),
+              ],
             ),
           ),
         );
@@ -321,17 +367,10 @@ class _HoverPanel extends StatelessWidget {
         width: width,
         height: kCardHoverExtensionHeight,
         child: Container(
-          // El borde inferior se funde a transparente para que, al superponerse
-          // sobre la fila de debajo, no tape por completo el borde de la
-          // tarjeta inferior (se muestra a través del degradado).
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              stops: [0.0, 0.9, 1.0],
-              colors: [Color(0xFF000000), Color(0xFF000000), Color(0x00000000)],
-            ),
-          ),
+          // Opaco por completo: al superponerse sobre un grid denso (p. ej.
+          // All Movies), un borde transparente dejaba ver el contenido de
+          // debajo y daba aspecto de texto duplicado/subrayado.
+          color: const Color(0xFF000000),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
