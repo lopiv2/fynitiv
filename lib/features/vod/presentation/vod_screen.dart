@@ -31,18 +31,15 @@ class VodScreen extends ConsumerWidget {
     final showBanner = skin?.showNewReleasesBanner ?? false;
     final useBackdrop =
         (skin?.cardImageType ?? CardImageType.poster) == CardImageType.backdrop;
-    final bannerAttached =
-        showBanner && (skin?.bannerAttachedTop ?? false);
+    final bannerAttached = showBanner && (skin?.bannerAttachedTop ?? false);
     final hoverReveal =
-        (skin?.bannerHoverReveal ?? false) && platformMode == PlatformMode.desktop;
+        (skin?.bannerHoverReveal ?? false) &&
+        platformMode == PlatformMode.desktop;
 
     return Scaffold(
       body: DashboardBackground(
         child: ListView(
-          padding: EdgeInsets.only(
-            top: bannerAttached ? 0 : 54,
-            bottom: 24,
-          ),
+          padding: EdgeInsets.only(top: bannerAttached ? 0 : 54, bottom: 24),
           children: [
             if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
               FeaturedSlider(
@@ -59,14 +56,14 @@ class VodScreen extends ConsumerWidget {
                 hoverReveal: hoverReveal,
                 showActions: skin?.bannerShowActions ?? false,
                 showTrailer: skin?.showTrailerInSlider ?? false,
-                transition:
-                    skin?.bannerTransition ?? SliderTransition.slide,
+                transition: skin?.bannerTransition ?? SliderTransition.slide,
                 arrowsOnHover: skin?.bannerArrowsOnHover ?? false,
                 heightFactor: skin?.bannerHeightFactor ?? 0.38,
                 maxHeight: skin?.bannerMaxHeight ?? 440,
                 dotAlignment:
                     skin?.bannerDotAlignment ?? SliderDotAlignment.right,
-                logoWidthFactor: skin?.bannerLogoWidthFactor ??
+                logoWidthFactor:
+                    skin?.bannerLogoWidthFactor ??
                     FeaturedSlider.kDefaultLogoWidthFactor,
               ),
             if (skin?.showContinueRow ?? true)
@@ -78,10 +75,8 @@ class VodScreen extends ConsumerWidget {
                 cardWidth: skin?.homeCardWidth ?? 150,
                 useBackdrop: useBackdrop,
                 cardLogo: skin?.cardLogo,
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
-                ),
+                onItemTap: (item) =>
+                    context.push('/player/${item.id}', extra: item),
               ),
             if (!showBanner && (skin?.showNewReleasesRow ?? true))
               ContentRow(
@@ -92,10 +87,8 @@ class VodScreen extends ConsumerWidget {
                 cardWidth: skin?.homeCardWidth ?? 150,
                 useBackdrop: useBackdrop,
                 cardLogo: skin?.cardLogo,
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
-                ),
+                onItemTap: (item) =>
+                    context.push('/player/${item.id}', extra: item),
               ),
             for (final view in views.value ?? const <BaseItemDto>[])
               ContentRow(
@@ -108,27 +101,24 @@ class VodScreen extends ConsumerWidget {
                 cardWidth: skin?.homeCardWidth ?? 150,
                 useBackdrop: useBackdrop,
                 cardLogo: skin?.cardLogo,
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
-                ),
+                onItemTap: (item) =>
+                    context.push('/player/${item.id}', extra: item),
               ),
             // Scrolls extra configurados por el skin (con filtros de géneros).
             for (final scroll in skin?.homeScrolls ?? const <HomeScroll>[])
               ContentRow(
                 title: _scrollTitle(l10n, scroll.titleKey),
                 items:
-                    ref.watch(homeScrollItemsProvider(scroll)).value ?? const [],
+                    ref.watch(homeScrollItemsProvider(scroll)).value ??
+                    const [],
                 serverUrl: serverUrl,
                 height: skin?.homeRowHeight ?? 270,
                 cardWidth: skin?.homeCardWidth ?? 150,
                 useBackdrop: useBackdrop,
                 cardLogo: skin?.cardLogo,
                 onSeeMore: () => context.push('/movies'),
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
-                ),
+                onItemTap: (item) =>
+                    context.push('/player/${item.id}', extra: item),
               ),
             const SizedBox(height: 24),
           ],

@@ -9,18 +9,25 @@ import 'round_icon_button.dart';
 import 'watch_now_button.dart';
 
 /// Altura del panel de extensión que aparece bajo la tarjeta al hacer hover
-/// (estilo Prime). El panel se superpone al contenido que haya debajo.
+/// (estilo Prime).
 const double kCardHoverExtensionHeight = 240;
+
+/// Cuánto crece el ancho de la tarjeta al expandirse (estilo Prime: la
+/// tarjeta se agranda ligeramente además de mostrar el panel).
+const double kCardExpandScale = 1.3;
+
+/// Duración de la animación de expansión/colapso de la tarjeta.
+const Duration kCardExpandDuration = Duration(milliseconds: 200);
 
 /// Envuelve una tarjeta de contenido y le añade el comportamiento de hover:
 ///
 /// - En cualquier skin aparece un icono de play sobre el elemento.
-/// - Si [showExtension] está activado (skin estilo Prime), al hacer hover se
-///   muestra además un panel negro bajo la tarjeta, con el mismo ancho, que
-///   incluye el nombre del contenido y un botón de reproducir en el estilo
-///   "Ver ahora" del slider de novedades. El panel se dibuja en un [Overlay]
-///   para superponerse al contenido de debajo (estilo Amazon Prime) y se
-///   reposiciona automáticamente al hacer scroll.
+/// - Si [showExtension] está activado (skin estilo Prime), al hacer hover la
+///   tarjeta se "clona" en un [Overlay] como una única columna (imagen +
+///   panel negro), que crece desde el tamaño original hacia un tamaño
+///   ampliado. Imagen y panel son hermanos dentro del mismo [Column], así
+///   que SIEMPRE comparten exactamente el mismo ancho — no hay dos anchos
+///   independientes que sincronizar ni transformaciones que perseguir.
 class HoverPlayCard extends StatefulWidget {
   const HoverPlayCard({
     super.key,
@@ -56,9 +63,7 @@ class HoverPlayCard extends StatefulWidget {
   /// Acción al pulsar el botón de favoritos del panel de extensión.
   final VoidCallback? onFavorites;
 
-  /// Notifica cuando el hover entra/sale de la tarjeta (o su panel). Permite
-  /// que la fila reordene el pintado para que la tarjeta escalada se
-  /// superponga a las vecinas.
+  /// Notifica cuando el hover entra/sale de la tarjeta (o su panel).
   final ValueChanged<bool>? onHoverChanged;
 
   /// Si el elemento es de "Continuar viendo", el botón del panel muestra
@@ -81,18 +86,17 @@ class HoverPlayCard extends StatefulWidget {
   State<HoverPlayCard> createState() => _HoverPlayCardState();
 }
 
-/// Expone el estado de hover y el ancho de la tarjeta a sus descendientes
-/// (p. ej. para quitar el radio de las esquinas al hacer hover).
+/// Expone el estado de hover a sus descendientes (p. ej. para quitar el
+/// radio de las esquinas inferiores de la imagen cuando la tarjeta está
+/// expandida en el Overlay).
 class HoverPlayScope extends InheritedWidget {
   const HoverPlayScope({
     super.key,
     required this.hovered,
-    required this.cardWidth,
     required super.child,
   });
 
   final bool hovered;
-  final double cardWidth;
 
   static HoverPlayScope? of(BuildContext context) {
     return context.dependOnInheritedWidgetOfExactType<HoverPlayScope>();
@@ -100,12 +104,13 @@ class HoverPlayScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(HoverPlayScope oldWidget) =>
-      hovered != oldWidget.hovered || cardWidth != oldWidget.cardWidth;
+      hovered != oldWidget.hovered;
 }
 
 /// Recorta la tarjeta con las dos esquinas superiores siempre redondeadas.
-/// Solo las inferiores varían: al hacer hover (hovercard visible) pasan a ser
-/// rectas y sin hover conservan el radio.
+/// Solo las inferiores varían: cuando la tarjeta está expandida (hovercard
+/// visible en el Overlay) pasan a ser rectas; en su posición normal del grid
+/// conservan el radio completo.
 class HoverPlayRadius extends StatelessWidget {
   const HoverPlayRadius({super.key, required this.radius, required this.child});
 
@@ -130,14 +135,18 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
   final GlobalKey _cardKey = GlobalKey();
   OverlayEntry? _overlayEntry;
   Timer? _hideTimer;
-  final ValueNotifier<Rect> _panelRect = ValueNotifier(
-    const Rect.fromLTWH(0, 0, 0, 0),
-  );
+
+  /// Posición global (esquina superior-izquierda) de la tarjeta en su
+  /// tamaño ORIGINAL, sin expandir. Solo cambia por scroll, nunca por la
+  /// propia animación de expansión (por eso basta con re-medir la posición,
+  /// no el tamaño, en cada frame mientras hay hover).
+  final ValueNotifier<Offset> _origin = ValueNotifier(Offset.zero);
   bool _tracking = false;
 
-  /// Anchura de la tarjeta, capturada en el build a partir de las
-  /// restricciones reales del layout. Es la anchura exacta del elemento.
-  double _cardWidth = 0;
+  /// Tamaño original de la tarjeta (sin expandir), capturado al mostrar el
+  /// overlay. Es la base sobre la que se calculan el ancho y el
+  /// desplazamiento vertical al expandir.
+  Size _originSize = Size.zero;
 
   void _setHovered(bool value) {
     if (value) {
@@ -159,8 +168,8 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
     }
   }
 
-  /// Oculta el panel tras un pequeño retardo. Permite que el cursor pase de la
-  /// tarjeta al panel sin que desaparezca (el panel cancela el retardo).
+  /// Oculta el panel tras un pequeño retardo. Permite que el cursor pase de
+  /// la tarjeta al panel sin que desaparezca (el panel cancela el retardo).
   void _scheduleHide() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(milliseconds: 150), () {
@@ -168,35 +177,46 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
     });
   }
 
+  /// Convierte la posición global de la tarjeta a coordenadas LOCALES del
+  /// propio [Overlay]. `Positioned` dentro del Overlay interpreta left/top
+  /// como relativos a su propio Stack, no a la pantalla — si se le pasan
+  /// coordenadas globales sin convertir, la tarjeta aparece desplazada hacia
+  /// abajo (y/o a la derecha) tanto como mida todo lo que hay por encima del
+  /// Overlay (AppBar, padding del Scaffold, etc.).
+  Offset _toOverlayLocal(Offset globalOffset) {
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (overlayBox == null || !overlayBox.attached) return globalOffset;
+    return overlayBox.globalToLocal(globalOffset);
+  }
+
   void _showOverlay() {
+    final box = _cardKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize || !box.attached) return;
+    _originSize = box.size;
+    _origin.value = _toOverlayLocal(box.localToGlobal(Offset.zero));
+
     _removeOverlay();
     final entry = OverlayEntry(
-      builder: (_) => ValueListenableBuilder<Rect>(
-        valueListenable: _panelRect,
-        builder: (context, rect, _) {
-          if (rect.width <= 0) return const SizedBox.shrink();
-          return Positioned(
-            left: rect.left - 10,
-            top: rect.top - 110,
-            width: rect.width,
-            height: rect.height,
-            child: _HoverPanel(
-              width: _cardWidth,
-              title: widget.title,
-              onPlay: widget.onPlay,
-              onTrailer: widget.onTrailer,
-              onFavorites: widget.onFavorites,
-              resume: widget.resume,
-              ageRating: widget.ageRating,
-              year: widget.year,
-              runTimeTicks: widget.runTimeTicks,
-              overview: widget.overview,
-              onEnter: () {
-                _hideTimer?.cancel();
-                if (mounted && _hovered) setState(() {});
-              },
-              onExit: _scheduleHide,
-            ),
+      builder: (_) => ValueListenableBuilder<Offset>(
+        valueListenable: _origin,
+        builder: (context, origin, _) {
+          return _ExpandedHoverCard(
+            origin: origin,
+            originWidth: _originSize.width,
+            originHeight: _originSize.height,
+            image: widget.child,
+            title: widget.title,
+            onPlay: widget.onPlay,
+            onTrailer: widget.onTrailer,
+            onFavorites: widget.onFavorites,
+            resume: widget.resume,
+            ageRating: widget.ageRating,
+            year: widget.year,
+            runTimeTicks: widget.runTimeTicks,
+            overview: widget.overview,
+            onEnter: () => _hideTimer?.cancel(),
+            onExit: _scheduleHide,
           );
         },
       ),
@@ -206,35 +226,10 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
     _startTracking();
   }
 
-  /// Mide el borde inferior-izquierdo de la tarjeta (siguiendo su escala visual)
-  /// y coloca el panel bajo él, con el ancho del elemento. El ancho se mantiene
-  /// en el de layout para que el panel no se extienda más allá de la tarjeta.
-  void _measurePanelRect() {
-    final box = _cardKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize || !box.attached) return;
-    try {
-      // Borde inferior-izquierdo global de la tarjeta (incluye la escala del
-      // ScaleButton). El -1 deja la parte superior pegada al elemento.
-      final bottomLeft = box.localToGlobal(Offset(0, box.size.height));
-      final bottomRight = box.localToGlobal(
-        Offset(box.size.width, box.size.height),
-      );
-      final scaledWidth = bottomRight.dx - bottomLeft.dx;
-      final rect = Rect.fromLTWH(
-        bottomLeft.dx,
-        bottomLeft.dy - 1,
-        scaledWidth,
-        kCardHoverExtensionHeight,
-      );
-      if (rect != _panelRect.value) _panelRect.value = rect;
-    } catch (_) {
-      // Transformación no disponible aún (layout en curso); se reintenta en el
-      // siguiente frame del rastreo.
-    }
-  }
-
-  /// Re-mide el panel cada frame mientras hay hover para seguir la animación
-  /// de escala del ScaleButton y el scroll de la fila/página.
+  /// Re-mide solo la POSICIÓN (no el tamaño) de la tarjeta original cada
+  /// frame mientras hay hover, para seguir el scroll de la fila/página. El
+  /// tamaño expandido lo controla únicamente `_ExpandedHoverCard`, así que
+  /// no hay dos fuentes de verdad para el ancho compitiendo entre sí.
   void _startTracking() {
     _tracking = true;
     WidgetsBinding.instance.addPostFrameCallback((_) => _trackFrame());
@@ -242,7 +237,11 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
 
   void _trackFrame() {
     if (!_tracking || !mounted || !_hovered || _overlayEntry == null) return;
-    _measurePanelRect();
+    final box = _cardKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box != null && box.hasSize && box.attached) {
+      final newOrigin = _toOverlayLocal(box.localToGlobal(Offset.zero));
+      if (newOrigin != _origin.value) _origin.value = newOrigin;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) => _trackFrame());
   }
 
@@ -259,36 +258,198 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
     _stopTracking();
     _hideTimer?.cancel();
     _removeOverlay();
-    _panelRect.dispose();
+    _origin.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Anchura real que ocupa la tarjeta en el layout.
-        _cardWidth = constraints.maxWidth;
-        return HoverPlayScope(
-          hovered: _hovered,
-          cardWidth: _cardWidth,
-          child: MouseRegion(
-            onEnter: (_) => _setHovered(true),
-            onExit: (_) => _scheduleHide(),
+    // Mientras la tarjeta está expandida en el Overlay, la original se deja
+    // invisible pero SIN quitarla del layout (Opacity, no un if): así el
+    // hueco del grid no colapsa y no hay salto de posición para las tarjetas
+    // vecinas.
+    final hideOriginal = _hovered && widget.showExtension;
+    return HoverPlayScope(
+      hovered: false,
+      child: MouseRegion(
+        onEnter: (_) => _setHovered(true),
+        onExit: (_) => _scheduleHide(),
+        child: GestureDetector(
+          onTap: widget.onPlay,
+          child: KeyedSubtree(
+            key: _cardKey,
             child: Stack(
-              key: _cardKey,
-              clipBehavior: Clip.hardEdge,
+              clipBehavior: Clip.none,
               children: [
-                widget.child,
-                // Icono de play al hacer hover. Con el panel de extensión
-                // (Prime) es redundante, ya que la hovercard ya lo muestra.
+                Opacity(opacity: hideOriginal ? 0 : 1, child: widget.child),
                 if (_hovered && !widget.showExtension)
                   Positioned.fill(child: IgnorePointer(child: _PlayOverlay())),
               ],
             ),
           ),
-        );
-      },
+        ),
+      ),
+    );
+  }
+}
+
+/// La tarjeta "clonada" que vive en el Overlay: imagen + panel dentro del
+/// mismo [Column], creciendo desde el tamaño original hacia el ampliado.
+/// Al ser hermanos del mismo Column con `CrossAxisAlignment.stretch`, imagen
+/// y panel SIEMPRE tienen el mismo ancho — no existen dos medidas que puedan
+/// desincronizarse.
+class _ExpandedHoverCard extends StatefulWidget {
+  const _ExpandedHoverCard({
+    required this.origin,
+    required this.originWidth,
+    required this.originHeight,
+    required this.image,
+    required this.title,
+    required this.onPlay,
+    required this.onEnter,
+    required this.onExit,
+    this.onTrailer,
+    this.onFavorites,
+    this.resume = false,
+    this.ageRating,
+    this.year,
+    this.runTimeTicks,
+    this.overview,
+  });
+
+  final Offset origin;
+  final double originWidth;
+  final double originHeight;
+  final Widget image;
+  final String title;
+  final VoidCallback onPlay;
+  final VoidCallback onEnter;
+  final VoidCallback onExit;
+  final VoidCallback? onTrailer;
+  final VoidCallback? onFavorites;
+  final bool resume;
+  final String? ageRating;
+  final int? year;
+  final int? runTimeTicks;
+  final String? overview;
+
+  @override
+  State<_ExpandedHoverCard> createState() => _ExpandedHoverCardState();
+}
+
+class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
+  bool _expanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Arranca colapsada (tamaño original) y se expande un frame después,
+    // para que el AnimatedContainer anime el crecimiento en vez de aparecer
+    // ya expandida de golpe.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _expanded = true);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scale = _expanded ? kCardExpandScale : 1.0;
+    final width = widget.originWidth * scale;
+    // La imagen mantiene su aspect ratio (viene fijado dentro de widget.image
+    // vía AspectRatio), así que su alto crece EXACTAMENTE con el mismo
+    // factor que el ancho. Se calcula ese extra de alto para centrar el
+    // crecimiento de la imagen en torno a su punto medio original: la mitad
+    // del extra se resta arriba (por eso "sube") y la otra mitad se suma
+    // abajo — el panel se añade después, sin tocar este cálculo.
+    final imageHeight = widget.originHeight * scale;
+    final extraImageHeight = imageHeight - widget.originHeight;
+    final extraWidth = width - widget.originWidth;
+    final top = widget.origin.dy - (extraImageHeight / 2);
+
+    // Crecimiento centrado por defecto (mitad hacia cada lado). Si eso saca
+    // la tarjeta fuera de la pantalla por la izquierda o la derecha, se
+    // "reparte" el hueco disponible en vez de cortarla — pegándola al borde
+    // correspondiente, igual que hacen Prime/Netflix con las tarjetas de los
+    // extremos del carrusel.
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    var left = widget.origin.dx - (extraWidth / 2);
+    if (left < 0) {
+      left = 0;
+    } else if (left + width > screenWidth) {
+      left = screenWidth - width;
+    }
+
+    return AnimatedPositioned(
+      duration: kCardExpandDuration,
+      curve: Curves.easeOut,
+      left: left,
+      top: top,
+      width: width,
+      child: MouseRegion(
+        onEnter: (_) => widget.onEnter(),
+        onExit: (_) => widget.onExit(),
+        child: AnimatedContainer(
+          duration: kCardExpandDuration,
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: _expanded
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.6),
+                      blurRadius: 20,
+                      offset: const Offset(0, 8),
+                    ),
+                  ]
+                : null,
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: HoverPlayScope(
+            // Fuerza el radio "recto abajo" en la imagen mientras está
+            // expandida, para que se funda visualmente con el panel negro.
+            hovered: _expanded,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                GestureDetector(
+                  onTap: widget.onPlay,
+                  child: Stack(
+                    children: [
+                      widget.image,
+                      if (_expanded)
+                        Positioned.fill(
+                          child: IgnorePointer(child: _PlayOverlay()),
+                        ),
+                    ],
+                  ),
+                ),
+                // El panel crece en altura de 0 al tamaño real: al ser hijo
+                // del mismo Column, hereda el ancho ya estirado (stretch),
+                // así que nunca necesita que se le pase un `width` aparte.
+                AnimatedSize(
+                  duration: kCardExpandDuration,
+                  curve: Curves.easeOut,
+                  alignment: Alignment.topCenter,
+                  child: _expanded
+                      ? _HoverPanel(
+                          title: widget.title,
+                          onPlay: widget.onPlay,
+                          onTrailer: widget.onTrailer,
+                          onFavorites: widget.onFavorites,
+                          resume: widget.resume,
+                          ageRating: widget.ageRating,
+                          year: widget.year,
+                          runTimeTicks: widget.runTimeTicks,
+                          overview: widget.overview,
+                        )
+                      : const SizedBox(width: double.infinity, height: 0),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -319,15 +480,14 @@ class _PlayOverlay extends StatelessWidget {
   }
 }
 
-/// Panel negro que aparece bajo la tarjeta, con el nombre del contenido y los
-/// botones de acción en el mismo estilo que los del slider de novedades.
+/// Panel negro que aparece bajo la imagen, con el nombre del contenido y los
+/// botones de acción. Ya NO recibe un `width` explícito: hereda el ancho del
+/// [Column] padre (`CrossAxisAlignment.stretch`), que es el mismo que usa la
+/// imagen justo encima — por construcción, nunca pueden desalinearse.
 class _HoverPanel extends StatelessWidget {
   const _HoverPanel({
-    required this.width,
     required this.title,
     required this.onPlay,
-    required this.onEnter,
-    required this.onExit,
     this.onTrailer,
     this.onFavorites,
     this.resume = false,
@@ -337,7 +497,6 @@ class _HoverPanel extends StatelessWidget {
     this.overview,
   });
 
-  final double width;
   final String title;
   final VoidCallback onPlay;
   final VoidCallback? onTrailer;
@@ -351,25 +510,16 @@ class _HoverPanel extends StatelessWidget {
   final int? runTimeTicks;
   final String? overview;
 
-  /// Se llama al entrar el cursor en el panel (cancela el retardo de ocultado).
-  final VoidCallback onEnter;
-
-  /// Se llama al salir el cursor del panel (programa el ocultado).
-  final VoidCallback onExit;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return MouseRegion(
-      onEnter: (_) => onEnter(),
-      onExit: (_) => onExit(),
+    return Material(
       child: SizedBox(
-        width: width,
         height: kCardHoverExtensionHeight,
         child: Container(
           // Opaco por completo: al superponerse sobre un grid denso (p. ej.
-          // All Movies), un borde transparente dejaba ver el contenido de
-          // debajo y daba aspecto de texto duplicado/subrayado.
+          // All Movies), un fondo semitransparente dejaba ver el contenido de
+          // debajo y daba aspecto de texto duplicado.
           color: const Color(0xFF000000),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           child: Column(
@@ -387,16 +537,11 @@ class _HoverPanel extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 4),
-              // Insignia "Se incluye con Jellyfin" (la misma del slider),
-              // entre el nombre del elemento y los botones de acción.
               IncludedBadge(label: l10n.includedWithJellyfin, scale: 0.9),
               const SizedBox(height: 8),
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // El mismo botón "Ver ahora" del slider de novedades: misma
-                  // lógica (abre el reproductor) y mismo estilo. En "Continuar
-                  // viendo" muestra "Reanudar".
                   WatchNowButton(
                     label: resume ? l10n.resume : l10n.watchNow,
                     onTap: onPlay,
@@ -415,7 +560,6 @@ class _HoverPanel extends StatelessWidget {
                   ),
                 ],
               ),
-              // Fila de metadatos: edad recomendada, año y duración.
               if (ageRating != null ||
                   year != null ||
                   runTimeTicks != null) ...[
@@ -449,7 +593,6 @@ class _HoverPanel extends StatelessWidget {
                   ],
                 ),
               ],
-              // Descripción del contenido, bajo los metadatos.
               if (overview != null && overview!.trim().isNotEmpty) ...[
                 const SizedBox(height: 6),
                 Text(

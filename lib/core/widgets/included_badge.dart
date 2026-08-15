@@ -43,13 +43,6 @@ class IncludedBadge extends ConsumerWidget {
             color: Colors.white,
             fontSize: fontSize ?? 13 * s,
             fontWeight: FontWeight.w500,
-            shadows: const [
-              Shadow(
-                blurRadius: 4,
-                color: Colors.black54,
-                offset: Offset(0, 1),
-              ),
-            ],
           ),
         ),
       ],
