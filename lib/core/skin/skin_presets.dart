@@ -62,7 +62,7 @@ abstract final class SkinPresets {
     backgroundBottom: Color(0xFF121A24),
     sidebarBackground: Color(0xFF070B0F),
     accent: Color(0xFF00A8E1),
-    textPrimary: Color(0xFFFFFFFF),
+    textPrimary: Colors.white,
     textSecondary: Color(0xB3FFFFFF),
     sidebarLogo: 'assets/images/Logo_letter_jellyfinitive.png',
     sidebarPosition: SidebarPosition.top,
@@ -91,10 +91,12 @@ abstract final class SkinPresets {
     bannerContentScale: 1.5,
     bannerHeightFactor: 0.5,
     bannerMaxHeight: 580,
-    homeCardWidth: 190,
+    homeCardWidth: 350,
     homeRowHeight: 340,
+    rowSpacing: 50,
     cardBorderRadius: 4,
     sidebarCollapsible: true,
+    cardHoverExtension: true,
   );
 
   /// Estilo Movistar+ (oscuro, acento naranja/rojo).

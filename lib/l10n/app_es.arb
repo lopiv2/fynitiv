@@ -132,5 +132,11 @@
   "subtitle": "Subtítulos",
   "subtitlesOff": "Desactivados",
   "replay": "Volver a reproducir",
-  "audio": "Audio"
+  "audio": "Audio",
+  "vod": "VOD",
+  "liveTv": "Live TV",
+  "music": "Music Player",
+  "albums": "Álbumes",
+  "songs": "Canciones",
+  "resume": "Reanudar"
 }

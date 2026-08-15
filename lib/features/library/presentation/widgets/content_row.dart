@@ -1,7 +1,10 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/horizontal_scroll_behavior.dart';
+import '../../../../core/widgets/scroll_title.dart';
 import 'poster_card.dart';
 
 /// Fila horizontal de tarjetas con un título (estilo Prime/Disney).
@@ -9,7 +12,7 @@ import 'poster_card.dart';
 /// La rueda del ratón sigue desplazando la página (arriba/abajo); para
 /// desplazar la fila en horizontal se muestran flechas al hacer hover y se
 /// puede arrastrar con el ratón.
-class ContentRow extends StatefulWidget {
+class ContentRow extends ConsumerStatefulWidget {
   const ContentRow({
     super.key,
     required this.title,
@@ -19,6 +22,7 @@ class ContentRow extends StatefulWidget {
     this.cardWidth = 150,
     this.useBackdrop = false,
     this.cardLogo,
+    this.onItemTap,
   });
 
   final String title;
@@ -37,13 +41,20 @@ class ContentRow extends StatefulWidget {
   /// Logotipo superpuesto abajo a la derecha de cada tarjeta (asset o ruta).
   final String? cardLogo;
 
+  /// Se invoca al pulsar una tarjeta de la fila.
+  final void Function(BaseItemDto item)? onItemTap;
+
   @override
-  State<ContentRow> createState() => _ContentRowState();
+  ConsumerState<ContentRow> createState() => _ContentRowState();
 }
 
-class _ContentRowState extends State<ContentRow> {
+class _ContentRowState extends ConsumerState<ContentRow> {
   final ScrollController _controller = ScrollController();
   bool _hovered = false;
+
+  /// Índice de la tarjeta con hover (para reordenar el pintado y que la
+  /// tarjeta escalada se superponga a las vecinas). -1 = ninguna.
+  int _hoveredIndex = -1;
 
   @override
   void initState() {
@@ -62,12 +73,16 @@ class _ContentRowState extends State<ContentRow> {
     if (mounted) setState(() {});
   }
 
-  /// Ancho de cada tarjeta. Con backdrop se deriva del alto de la fila para
-  /// que la imagen 16:9 + título + progreso quepan sin recortarse.
-  double get _cardWidth {
-    if (!widget.useBackdrop) return widget.cardWidth;
-    final imageHeight = widget.height - 64;
-    return imageHeight * 16 / 9;
+  /// Ancho de cada tarjeta (el fijado por el skin).
+  double get _cardWidth => widget.cardWidth;
+
+  /// Altura de la fila, derivada dinámicamente del ancho de tarjeta para que
+  /// las tarjetas midan lo fijado. Con backdrop (16:9) la altura es la de la
+  /// imagen; sin backdrop se mantiene el alto del skin. El hueco entre filas
+  /// lo controla [rowSpacing].
+  double get _rowHeight {
+    if (widget.useBackdrop) return _cardWidth * 9 / 16;
+    return widget.height;
   }
 
   /// Separación entre tarjetas.
@@ -84,13 +99,65 @@ class _ContentRowState extends State<ContentRow> {
   void _scrollBy(double delta) {
     if (!_controller.hasClients) return;
     final position = _controller.position;
-    final target = (_controller.offset + delta)
-        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    final target = (_controller.offset + delta).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
     _controller.animateTo(
       target,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  /// Actualiza el índice de la tarjeta con hover.
+  void _onCardHover(int index, bool value) {
+    final next = value ? index : -1;
+    if (_hoveredIndex != next) setState(() => _hoveredIndex = next);
+  }
+
+  /// Construye las tarjetas en un único [Stack] horizontal. El orden de pintado
+  /// se reordena para que la tarjeta con hover sea la última (y quede por
+  /// encima de las vecinas al escalar con el [ScaleButton]).
+  List<Widget> _buildStackedItems() {
+    final items = widget.items;
+    final indices = List<int>.generate(items.length, (i) => i);
+    indices.sort((a, b) {
+      if (a == _hoveredIndex) return 1;
+      if (b == _hoveredIndex) return -1;
+      return a.compareTo(b);
+    });
+    final step = _cardWidth + _spacing;
+    return [
+      for (final i in indices)
+        Positioned(
+          key: ValueKey('content_card_$i'),
+          left: i * step,
+          top: 0,
+          width: _cardWidth,
+          child: widget.useBackdrop
+              ? BackdropCard(
+                  item: items[i],
+                  serverUrl: widget.serverUrl,
+                  cardLogo: widget.cardLogo,
+                  hoverExtension: true,
+                  onTap: widget.onItemTap == null
+                      ? null
+                      : () => widget.onItemTap!(items[i]),
+                  onHoverChanged: (v) => _onCardHover(i, v),
+                )
+              : PosterCard(
+                  item: items[i],
+                  serverUrl: widget.serverUrl,
+                  cardLogo: widget.cardLogo,
+                  hoverExtension: true,
+                  onTap: widget.onItemTap == null
+                      ? null
+                      : () => widget.onItemTap!(items[i]),
+                  onHoverChanged: (v) => _onCardHover(i, v),
+                ),
+        ),
+    ];
   }
 
   /// Flecha lateral con fade, visible al hacer hover sobre la fila (si queda
@@ -125,6 +192,10 @@ class _ContentRowState extends State<ContentRow> {
   Widget build(BuildContext context) {
     if (widget.items.isEmpty) return const SizedBox.shrink();
 
+    // Separación vertical entre filas, definida por el skin.
+    final rowSpacing =
+        ref.watch(skinControllerProvider).value?.rowSpacing ?? 24;
+
     final leftArrowVisible = _hovered && _canScrollLeft;
     final rightArrowVisible = _hovered && _canScrollRight;
 
@@ -136,42 +207,30 @@ class _ContentRowState extends State<ContentRow> {
         children: [
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              widget.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: ScrollTitle(title: widget.title),
           ),
           const SizedBox(height: 12),
           SizedBox(
-            height: widget.height,
+            height: _rowHeight,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 ScrollConfiguration(
                   behavior: const HorizontalScrollBehavior(),
-                  child: ListView.separated(
+                  child: SingleChildScrollView(
                     controller: _controller,
                     scrollDirection: Axis.horizontal,
+                    clipBehavior: Clip.none,
                     padding: const EdgeInsets.symmetric(horizontal: 24),
-                    itemCount: widget.items.length,
-                    separatorBuilder: (_, _) => SizedBox(width: _spacing),
-                    itemBuilder: (context, i) => SizedBox(
-                      width: _cardWidth,
-                      child: widget.useBackdrop
-                          ? BackdropCard(
-                              item: widget.items[i],
-                              serverUrl: widget.serverUrl,
-                              cardLogo: widget.cardLogo,
-                            )
-                          : PosterCard(
-                              item: widget.items[i],
-                              serverUrl: widget.serverUrl,
-                              cardLogo: widget.cardLogo,
-                            ),
+                    child: SizedBox(
+                      width:
+                          widget.items.length * _cardWidth +
+                          (widget.items.length - 1) * _spacing,
+                      height: _rowHeight,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: _buildStackedItems(),
+                      ),
                     ),
                   ),
                 ),
@@ -192,7 +251,7 @@ class _ContentRowState extends State<ContentRow> {
               ],
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: rowSpacing),
         ],
       ),
     );

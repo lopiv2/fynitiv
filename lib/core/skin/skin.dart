@@ -74,9 +74,11 @@ class Skin {
     this.bannerMaxHeight = 440,
     this.homeCardWidth = 150,
     this.homeRowHeight = 270,
+    this.rowSpacing = 24,
     this.cardBorderRadius = 10,
     this.sidebarCollapsible = true,
     this.fontFamily,
+    this.cardHoverExtension = false,
   });
 
   final String id;
@@ -203,11 +205,19 @@ class Skin {
 
   /// Alto de las filas del home.
   final double homeRowHeight;
+
+  /// Separación vertical entre filas (scrolls) de contenido.
+  final double rowSpacing;
   final double cardBorderRadius;
   final bool sidebarCollapsible;
 
   // Tipografía.
   final String? fontFamily;
+
+  /// Muestra el panel de extensión al hacer hover sobre las tarjetas de las
+  /// filas (estilo Prime): la tarjeta crece y aparece un cuadro negro bajo el
+  /// elemento con el nombre y un botón de reproducir.
+  final bool cardHoverExtension;
 
   Skin copyWith({
     String? id,
@@ -257,9 +267,11 @@ class Skin {
     double? bannerMaxHeight,
     double? homeCardWidth,
     double? homeRowHeight,
+    double? rowSpacing,
     double? cardBorderRadius,
     bool? sidebarCollapsible,
     String? fontFamily,
+    bool? cardHoverExtension,
     bool clearSidebarLogo = false,
     bool clearCardLogo = false,
     bool clearPlayerLogo = false,
@@ -320,9 +332,12 @@ class Skin {
       bannerMaxHeight: bannerMaxHeight ?? this.bannerMaxHeight,
       homeCardWidth: homeCardWidth ?? this.homeCardWidth,
       homeRowHeight: homeRowHeight ?? this.homeRowHeight,
+      rowSpacing: rowSpacing ?? this.rowSpacing,
       cardBorderRadius: cardBorderRadius ?? this.cardBorderRadius,
       sidebarCollapsible: sidebarCollapsible ?? this.sidebarCollapsible,
       fontFamily: fontFamily ?? this.fontFamily,
+      cardHoverExtension:
+          cardHoverExtension ?? this.cardHoverExtension,
     );
   }
 
@@ -394,10 +409,13 @@ class Skin {
       bannerMaxHeight: (json['bannerMaxHeight'] as num?)?.toDouble() ?? 440,
       homeCardWidth: (json['homeCardWidth'] as num?)?.toDouble() ?? 150,
       homeRowHeight: (json['homeRowHeight'] as num?)?.toDouble() ?? 270,
+      rowSpacing: (json['rowSpacing'] as num?)?.toDouble() ?? 24,
       cardBorderRadius:
           (json['cardBorderRadius'] as num?)?.toDouble() ?? 10,
       sidebarCollapsible: json['sidebarCollapsible'] as bool? ?? true,
       fontFamily: json['fontFamily'] as String?,
+      cardHoverExtension:
+          json['cardHoverExtension'] as bool? ?? false,
     );
   }
 
@@ -450,9 +468,11 @@ class Skin {
         'bannerMaxHeight': bannerMaxHeight,
         'homeCardWidth': homeCardWidth,
         'homeRowHeight': homeRowHeight,
+        'rowSpacing': rowSpacing,
         'cardBorderRadius': cardBorderRadius,
         'sidebarCollapsible': sidebarCollapsible,
         if (fontFamily != null) 'fontFamily': fontFamily,
+        'cardHoverExtension': cardHoverExtension,
       };
 
   static Color _colorFromString(String s) {

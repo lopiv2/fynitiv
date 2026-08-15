@@ -88,10 +88,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/backgrounds/splash_back.png'),
+            image: const AssetImage('assets/images/backgrounds/splash_back.png'),
             fit: BoxFit.cover,
+            // Durante un hot reload Flutter re-resuelve los assets y puede
+            // fallar momentáneamente; se ignora para no romper la vista.
+            onError: (_, _) {},
           ),
         ),
         child: Center(

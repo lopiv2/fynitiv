@@ -37,7 +37,7 @@ final resumeItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final res = await client.getItemsApi().getResumeItems(
         userId: userId,
         limit: 20,
-        fields: [ItemFields.primaryImageAspectRatio],
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
         enableImageTypes: [ImageType.primary, ImageType.backdrop],
       );
   return res.data?.items ?? [];
@@ -54,7 +54,7 @@ final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         sortBy: [ItemSortBy.dateCreated],
         sortOrder: [SortOrder.descending],
         limit: 20,
-        fields: [ItemFields.primaryImageAspectRatio],
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
         enableImageTypes: [ImageType.primary],
       );
   return res.data?.items ?? [];
@@ -100,6 +100,147 @@ final libraryItemsProvider =
         recursive: true,
         sortBy: [ItemSortBy.sortName],
         limit: 20,
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+        enableImageTypes: [ImageType.primary],
+      );
+  return res.data?.items ?? [];
+});
+
+/// VOD: películas y series a la carta (On Demand).
+final vodItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: 60,
+        fields: [ItemFields.primaryImageAspectRatio],
+        enableImageTypes: [ImageType.primary],
+      );
+  return res.data?.items ?? [];
+});
+
+/// Novedades de VOD para el carrusel de banners (solo películas y series).
+final vodLatestBannerProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: 10,
+        fields: [
+          ItemFields.dateCreated,
+          ItemFields.genres,
+          ItemFields.overview,
+          ItemFields.primaryImageAspectRatio,
+          ItemFields.providerIds,
+        ],
+        enableImageTypes: [
+          ImageType.primary,
+          ImageType.backdrop,
+          ImageType.logo,
+        ],
+      );
+  return res.data?.items ?? [];
+});
+
+/// "Continuar viendo" de VOD (solo películas y series).
+final vodResumeProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getResumeItems(
+        userId: userId,
+        limit: 20,
+        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+        enableImageTypes: [ImageType.primary, ImageType.backdrop],
+      );
+  return res.data?.items ?? [];
+});
+
+/// Novedades de VOD (fila "Novedades" cuando no hay banner).
+final vodLatestProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: 20,
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+        enableImageTypes: [ImageType.primary],
+      );
+  return res.data?.items ?? [];
+});
+
+/// Vistas de la biblioteca de películas y series (para las filas de VOD).
+final vodLibraryViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final views = await ref.watch(userViewsProvider.future);
+  return views
+      .where((v) =>
+          v.collectionType == CollectionType.movies ||
+          v.collectionType == CollectionType.tvshows)
+      .toList();
+});
+
+/// Canales de Live TV del servidor.
+final liveTvChannelsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getLiveTvApi().getLiveTvChannels(
+        userId: userId,
+        limit: 200,
+        enableImages: true,
+        enableUserData: true,
+        fields: [ItemFields.primaryImageAspectRatio],
+        enableImageTypes: [ImageType.primary],
+      );
+  return res.data?.items ?? [];
+});
+
+/// Álbumes de música de todas las bibliotecas.
+final musicAlbumsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.musicAlbum],
+        sortBy: [ItemSortBy.sortName],
+        sortOrder: [SortOrder.ascending],
+        limit: 60,
+        fields: [ItemFields.primaryImageAspectRatio],
+        enableImageTypes: [ImageType.primary],
+      );
+  return res.data?.items ?? [];
+});
+
+/// Canciones (audio) de todas las bibliotecas.
+final musicTracksProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.audio],
+        sortBy: [ItemSortBy.sortName],
+        sortOrder: [SortOrder.ascending],
+        limit: 100,
         fields: [ItemFields.primaryImageAspectRatio],
         enableImageTypes: [ImageType.primary],
       );

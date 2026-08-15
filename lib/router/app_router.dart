@@ -9,8 +9,11 @@ import '../features/household/domain/household.dart';
 import '../features/household/presentation/household_wizard_screen.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/library_view_screen.dart';
+import '../features/live_tv/presentation/live_tv_screen.dart';
+import '../features/music/presentation/music_screen.dart';
 import '../features/player/presentation/player_screen.dart';
 import '../features/search/presentation/search_screen.dart';
+import '../features/vod/presentation/vod_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/users/presentation/user_selection_screen.dart';
 import 'home_shell.dart';
@@ -93,6 +96,41 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/search',
                 builder: (_, _) => const SearchScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/vod',
+                builder: (_, _) => const VodScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/live',
+                builder: (_, _) => const LiveTvScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/music',
+                builder: (_, _) => const MusicScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'album/:albumId',
+                    builder: (context, state) => MusicAlbumScreen(
+                      albumId: state.pathParameters['albumId']!,
+                      album: state.extra is BaseItemDto
+                          ? state.extra as BaseItemDto
+                          : null,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

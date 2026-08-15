@@ -10,8 +10,12 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/app_loader.dart';
-import '../../../../core/widgets/hover_invert.dart';
+import '../../../../core/widgets/age_rating_badge.dart';
+import '../../../../core/widgets/included_badge.dart';
+import '../../../../core/widgets/round_icon_button.dart';
 import '../../../../core/widgets/scale_button.dart';
+import '../../../../core/widgets/scroll_title.dart';
+import '../../../../core/widgets/watch_now_button.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../application/image_url.dart';
 import '../../application/library_providers.dart';
@@ -123,7 +127,15 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
   Timer? _timer;
   int _currentPage = 0;
   bool _sliderHovered = false;
-  bool _autoPlayPaused = false;
+
+  /// Pausado por un trailer reproduciéndose.
+  bool _trailerPaused = false;
+
+  /// Pausado por la descripción revelada al hacer hover sobre el logo.
+  bool _hoverPaused = false;
+
+  /// El auto-play está pausado si lo está por cualquiera de los motivos.
+  bool get _autoPlayPaused => _trailerPaused || _hoverPaused;
 
   List<BaseItemDto> get _banners => widget.items.take(widget.maxItems).toList();
 
@@ -151,14 +163,32 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
     super.dispose();
   }
 
-  /// Pausa (trailer reproduciéndose) o reanuda (trailer cerrado/terminado) el
-  /// avance automático, para que el slider no cambie de elemento mientras se
-  /// reproduce un trailer.
-  void _setAutoPlayPaused(bool paused) {
-    if (_autoPlayPaused == paused) return;
-    _autoPlayPaused = paused;
-    if (paused) {
+  /// Pausa el auto-play mientras un trailer se está reproduciendo.
+  void _setTrailerPaused(bool paused) {
+    if (_trailerPaused == paused) return;
+    _trailerPaused = paused;
+    _syncAutoPlay();
+  }
+
+  /// Pausa el auto-play mientras la descripción se muestra al hacer hover
+  /// sobre el logo del banner.
+  void _setHoverPaused(bool paused) {
+    if (_hoverPaused == paused) return;
+    _hoverPaused = paused;
+    _syncAutoPlay();
+  }
+
+  /// Sincroniza el auto-play con el estado de pausa: si está pausado se
+  /// cancela el timer y se detiene cualquier animación de página en curso;
+  /// si no, se reanuda el avance automático.
+  void _syncAutoPlay() {
+    if (_autoPlayPaused) {
       _timer?.cancel();
+      // Si el timer ya disparó y hay una animación de página en curso, se
+      // cancela volviendo a la página actual para que el banner no cambie.
+      if (!_useFade && _controller.hasClients) {
+        _controller.jumpToPage(_currentPage);
+      }
     } else {
       _startAutoPlay();
     }
@@ -285,7 +315,8 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
     showAgeRating: widget.showAgeRating,
     contentScale: widget.contentScale,
     showTrailer: widget.showTrailer,
-    onTrailerPlaybackChanged: _setAutoPlayPaused,
+    onTrailerPlaybackChanged: _setTrailerPaused,
+    onHoverChanged: _setHoverPaused,
   );
 
   /// Capa de banners: PageView (deslizamiento) o AnimatedSwitcher (fade).
@@ -327,14 +358,7 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
         if (widget.showTitle) ...[
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              widget.title,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            child: ScrollTitle(title: widget.title),
           ),
           const SizedBox(height: 12),
         ],
@@ -407,6 +431,7 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     required this.contentScale,
     required this.showTrailer,
     this.onTrailerPlaybackChanged,
+    this.onHoverChanged,
   });
 
   final BaseItemDto item;
@@ -427,6 +452,10 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   /// avance automático mientras tanto).
   final ValueChanged<bool>? onTrailerPlaybackChanged;
 
+  /// Notifica al slider si la descripción está visible por el hover sobre el
+  /// logo (pausa el avance automático mientras se muestra).
+  final ValueChanged<bool>? onHoverChanged;
+
   @override
   ConsumerState<_SliderBannerCard> createState() => _SliderBannerCardState();
 }
@@ -441,6 +470,13 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   StreamSubscription<dynamic>? _trailerBufferingSub;
   StreamSubscription<dynamic>? _trailerCropSub;
 
+  /// Id del item cuyo trailer se está resolviendo/reproduciendo. Permite
+  /// descartar una carga en curso si el banner cambia o se cierra el trailer.
+  String? _trailerItemId;
+
+  /// Evita abrir un trailer mientras el reproductor anterior se está cerrando.
+  bool _closingTrailer = false;
+
   /// Ratio de aspecto objetivo para recortar los bordes negros (letterbox)
   /// incrustados en los trailers. La mayoría son 2.39:1 dentro de un
   /// contenedor 16:9, por lo que se recorta verticalmente hasta este ratio.
@@ -452,7 +488,12 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   static const double _trailerCropMaxAspect = 2.1;
 
   void _setHovered(bool value) {
-    if (_hovered != value) setState(() => _hovered = value);
+    if (_hovered != value) {
+      setState(() => _hovered = value);
+    }
+    // Notifica al slider si la descripción está visible (hover + hoverReveal +
+    // overview) para pausar o reanudar el avance automático.
+    widget.onHoverChanged?.call(_reveal && value);
   }
 
   @override
@@ -460,6 +501,9 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.item.id != widget.item.id) {
       _closeTrailer();
+      // Al cambiar de banner se suelta el hover para no dejar el auto-play
+      // pausado por la descripción de un banner que ya no se muestra.
+      _setHovered(false);
     }
   }
 
@@ -474,18 +518,27 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   }
 
   /// Reproduce el trailer en el panel derecho del banner con media_kit
-  /// (libmpv, fiable en Windows). Mientras se reproduce se pausa el avance
-  /// automático del slider.
+  /// (libmpv, fiable en Windows). Al pulsar el botón se pausa de inmediato el
+  /// avance automático del slider, para que no cambie de banner mientras se
+  /// resuelve y reproduce el trailer.
   Future<void> _openTrailer() async {
-    if (_trailerPlayer != null || _trailerLoading) return;
-    setState(() => _trailerLoading = true);
+    if (_trailerPlayer != null || _trailerLoading || _closingTrailer) return;
+    final itemId = widget.item.id;
+    setState(() {
+      _trailerLoading = true;
+      _trailerItemId = itemId;
+    });
+    // Pausa el auto-play en cuanto se pulsa el botón, no cuando el stream ya
+    // está listo. Así el slider no puede cambiar de elemento durante la carga.
+    widget.onTrailerPlaybackChanged?.call(true);
     final streamUrl = await ref.read(trailerStreamProvider(widget.item).future);
-    if (!mounted) {
-      _trailerLoading = false;
-      return;
-    }
+    // El banner cambió o el trailer se cerró mientras se resolvía el stream:
+    // se descarta la carga (el cierre ya reanudó el auto-play).
+    if (!mounted || itemId != _trailerItemId) return;
     if (streamUrl == null) {
       setState(() => _trailerLoading = false);
+      // Sin trailer disponible: se reanuda el avance automático.
+      widget.onTrailerPlaybackChanged?.call(false);
       return;
     }
     final player = Player();
@@ -524,12 +577,16 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
       );
     } catch (_) {
       await _trailerBufferingSub?.cancel();
+      _trailerBufferingSub = null;
       await player.dispose();
       if (mounted) setState(() => _trailerLoading = false);
       return;
     }
-    if (!mounted) {
+    // El trailer se cerró o el banner cambió mientras se abría el stream:
+    // se descarta el reproductor recién creado.
+    if (!mounted || itemId != _trailerItemId) {
       await _trailerBufferingSub?.cancel();
+      _trailerBufferingSub = null;
       await player.dispose();
       return;
     }
@@ -551,10 +608,13 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   }
 
   /// Abre el reproductor a pantalla completa con el contenido del banner.
-  void _openPlayer() {
+  Future<void> _openPlayer() async {
     final itemId = widget.item.id;
     if (itemId == null || itemId.isEmpty) return;
-    _closeTrailer();
+    // Se cierra el trailer por completo (liberando el stream nativo) antes de
+    // abrir el reproductor, para no dejar dos sesiones de media_kit activas.
+    await _closeTrailer();
+    if (!mounted) return;
     context.push('/player/$itemId', extra: widget.item);
   }
 
@@ -578,20 +638,33 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     }
   }
 
-  void _closeTrailer() {
+  Future<void> _closeTrailer() async {
+    if (_closingTrailer) return;
+    _closingTrailer = true;
+    final player = _trailerPlayer;
     _trailerCompletionSub?.cancel();
     _trailerCompletionSub = null;
     _trailerBufferingSub?.cancel();
     _trailerBufferingSub = null;
     _trailerCropSub?.cancel();
     _trailerCropSub = null;
-    _trailerPlayer?.dispose();
     _trailerPlayer = null;
     _trailerVideoController = null;
     _trailerLoading = false;
     _trailerBuffering = false;
+    _trailerItemId = null;
     widget.onTrailerPlaybackChanged?.call(false);
     if (mounted) setState(() {});
+    if (player != null) {
+      try {
+        // Se espera el dispose para que libmpv libere de verdad el stream
+        // antes de volver a crear otro reproductor (o de un hot reload).
+        await player.dispose();
+      } catch (_) {
+        // El dispose nativo puede fallar si el engine se está cerrando.
+      }
+    }
+    _closingTrailer = false;
   }
 
   String? get _logoUrl {
@@ -629,7 +702,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     final s = widget.contentScale;
     final logoUrl = _logoUrl;
     return AnimatedSlide(
-      offset: _reveal && _hovered ? const Offset(0, -0.3) : Offset.zero,
+      offset: _reveal && _hovered ? const Offset(0, -0.12) : Offset.zero,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
       child: logoUrl != null
@@ -773,7 +846,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                           curve: Curves.easeOut,
                           child: _reveal && _hovered
                               ? Padding(
-                                  padding: EdgeInsets.only(top: 4 * s),
+                                  padding: EdgeInsets.only(top: 1 * s),
                                   child: ConstrainedBox(
                                     constraints: BoxConstraints(
                                       maxWidth: constraints.maxWidth * 0.4,
@@ -815,8 +888,8 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                     ],
                     if (widget.showIncludedBadge) ...[
                       SizedBox(height: 10 * s),
-                      _IncludedBadge(
-                        scale: s,
+                      IncludedBadge(
+                        scale: s / 1.1,
                         label: AppLocalizations.of(
                           context,
                         )!.includedWithJellyfin,
@@ -903,7 +976,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
               Positioned(
                 right: 28,
                 bottom: 34,
-                child: _AgeRatingBadge(rating: _ageRating!),
+                child: AgeRatingBadge(rating: _ageRating!),
               ),
             // Reproductor del trailer en el lado derecho (estilo Prime).
             if (_trailerLoading || _trailerPlayer != null)
@@ -919,14 +992,13 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: _trailerVideoController != null &&
+                          child:
+                              _trailerVideoController != null &&
                                   !_trailerBuffering
                               ? _TrailerVideoPlayer(
                                   controller: _trailerVideoController!,
                                 )
-                              : const Center(
-                                  child: AppLoader(),
-                                ),
+                              : const Center(child: AppLoader()),
                         ),
                         // Degradado oscuro en el borde izquierdo que funde
                         // con el fondo del banner (estilo Amazon Prime).
@@ -1014,35 +1086,10 @@ class _ActionButtons extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        GestureDetector(
-          onTap: onWatch ?? () {},
-          child: Container(
-            height: 34 * s,
-            padding: EdgeInsets.symmetric(horizontal: 14 * s),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(4 * s),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.play_arrow, color: Colors.black, size: 20 * s),
-                SizedBox(width: 4 * s),
-                Text(
-                  watchLabel,
-                  style: TextStyle(
-                    color: Colors.black,
-                    fontSize: 13 * s,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        WatchNowButton(label: watchLabel, onTap: onWatch ?? () {}, scale: s),
         SizedBox(width: 36 * s),
         if (showTrailer) ...[
-          _RoundIconButton(
+          RoundIconButton(
             icon: Icons.play_circle_outline,
             tooltip: trailerTooltip,
             scale: s,
@@ -1050,65 +1097,20 @@ class _ActionButtons extends StatelessWidget {
           ),
           SizedBox(width: 8 * s),
         ],
-        _RoundIconButton(
+        RoundIconButton(
           icon: Icons.add,
           tooltip: favoritesTooltip,
           scale: s,
           onTap: () {},
         ),
         SizedBox(width: 8 * s),
-        _RoundIconButton(
+        RoundIconButton(
           icon: Icons.info_outline,
           tooltip: detailsTooltip,
           scale: s,
           onTap: () {},
         ),
       ],
-    );
-  }
-}
-
-/// Botón circular gris con un icono. Al pasar el ratón se invierten los
-/// colores (fondo blanco e icono oscuro) y se muestra un [Tooltip].
-class _RoundIconButton extends StatelessWidget {
-  const _RoundIconButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-    this.scale = 1.0,
-  });
-
-  final IconData icon;
-  final String tooltip;
-  final VoidCallback onTap;
-  final double scale;
-
-  @override
-  Widget build(BuildContext context) {
-    final s = scale;
-    return Tooltip(
-      message: tooltip,
-      verticalOffset: 24 * s,
-      child: HoverInvert(
-        builder: (context, hovered) => GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            width: 34 * s,
-            height: 34 * s,
-            decoration: BoxDecoration(
-              color: hovered ? Colors.white : Colors.grey.shade600,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: hovered ? Colors.grey.shade800 : Colors.white,
-              size: 20 * s,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -1151,106 +1153,6 @@ class _CloseTrailerButton extends StatelessWidget {
         ),
         child: const Icon(Icons.close, color: Colors.white, size: 18),
       ),
-    );
-  }
-}
-
-/// Recuadro de edad recomendada del contenido, coloreado según el rango.
-class _AgeRatingBadge extends StatelessWidget {
-  const _AgeRatingBadge({required this.rating});
-
-  final String rating;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: _ageRatingColor(rating),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        rating,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 12,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-/// Color del recuadro según la edad recomendada del contenido.
-Color _ageRatingColor(String rating) {
-  final r = rating.trim().toUpperCase();
-  final numMatch = RegExp(r'(\d+)').firstMatch(r);
-  if (numMatch != null) {
-    final age = int.parse(numMatch.group(1)!);
-    if (age >= 18) return const Color(0xFFE53935); // rojo
-    if (age >= 16) return const Color(0xFFFB8C00); // naranja
-    if (age >= 12) return const Color(0xFFFDD835); // amarillo
-    if (age >= 7) return const Color(0xFF43A047); // verde
-    return const Color(0xFF43A047);
-  }
-  if (r.contains('MA') ||
-      r.contains('NC-17') ||
-      r.contains('NC17') ||
-      r == 'R' ||
-      r.contains('18')) {
-    return const Color(0xFFE53935);
-  }
-  if (r.contains('14') || r.contains('PG-13') || r.contains('PG13')) {
-    return const Color(0xFFFB8C00);
-  }
-  if (r.contains('PG') || r.contains('12') || r.contains('16')) {
-    return const Color(0xFFFDD835);
-  }
-  if (r.contains('G') || r.contains('TV-Y') || r.contains('EC')) {
-    return const Color(0xFF43A047);
-  }
-  return const Color(0xFF546E7A); // azul grisáceo por defecto
-}
-
-/// Insignia "Se incluye con Jellyfin": check azul en círculo + texto.
-class _IncludedBadge extends ConsumerWidget {
-  const _IncludedBadge({required this.label, this.scale = 1.0});
-
-  final String label;
-  final double scale;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final accent =
-        ref.watch(skinControllerProvider).value?.accent ??
-        const Color(0xFF00A8E1);
-    final s = scale;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 18 * s,
-          height: 18 * s,
-          decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
-          child: Icon(Icons.check, color: Colors.white, size: 12 * s),
-        ),
-        SizedBox(width: 6 * s),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 13 * s,
-            fontWeight: FontWeight.w500,
-            shadows: const [
-              Shadow(
-                blurRadius: 4,
-                color: Colors.black54,
-                offset: Offset(0, 1),
-              ),
-            ],
-          ),
-        ),
-      ],
     );
   }
 }

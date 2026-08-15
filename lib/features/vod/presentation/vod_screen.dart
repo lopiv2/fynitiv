@@ -8,22 +8,23 @@ import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../l10n/app_localizations.dart';
-import '../application/library_providers.dart';
-import 'widgets/content_row.dart';
-import 'widgets/featured_slider.dart';
+import '../../library/application/library_providers.dart';
+import '../../library/presentation/widgets/content_row.dart';
+import '../../library/presentation/widgets/featured_slider.dart';
 
-/// Dashboard de la app: filas de contenido tipo Prime/Disney.
-class HomeScreen extends ConsumerWidget {
-  const HomeScreen({super.key});
+/// VOD (Video On Demand): dashboard de películas y series a la carta, con el
+/// mismo diseño que el home (banner + filas) usando los valores del skin.
+class VodScreen extends ConsumerWidget {
+  const VodScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
-    final resume = ref.watch(resumeItemsProvider);
-    final latest = ref.watch(latestItemsProvider);
-    final latestBanner = ref.watch(latestBannerItemsProvider);
-    final views = ref.watch(userViewsProvider);
+    final resume = ref.watch(vodResumeProvider);
+    final latest = ref.watch(vodLatestProvider);
+    final latestBanner = ref.watch(vodLatestBannerProvider);
+    final views = ref.watch(vodLibraryViewsProvider);
     final skin = ref.watch(skinControllerProvider).value;
     final platformMode = ref.watch(platformModeProvider).value;
     final showBanner = skin?.showNewReleasesBanner ?? false;
@@ -64,8 +65,8 @@ class HomeScreen extends ConsumerWidget {
                 maxHeight: skin?.bannerMaxHeight ?? 440,
                 dotAlignment:
                     skin?.bannerDotAlignment ?? SliderDotAlignment.right,
-                logoWidthFactor:
-                    skin?.bannerLogoWidthFactor ?? FeaturedSlider.kDefaultLogoWidthFactor,
+                logoWidthFactor: skin?.bannerLogoWidthFactor ??
+                    FeaturedSlider.kDefaultLogoWidthFactor,
               ),
             if (skin?.showContinueRow ?? true)
               ContentRow(
@@ -95,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
                   extra: item,
                 ),
               ),
-            for (final view in (views.value ?? const <BaseItemDto>[]).take(4))
+            for (final view in views.value ?? const <BaseItemDto>[])
               ContentRow(
                 title: view.name ?? '',
                 items:

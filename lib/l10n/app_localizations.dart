@@ -883,6 +883,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio'**
   String get audio;
+
+  /// No description provided for @vod.
+  ///
+  /// In en, this message translates to:
+  /// **'VOD'**
+  String get vod;
+
+  /// No description provided for @liveTv.
+  ///
+  /// In en, this message translates to:
+  /// **'Live TV'**
+  String get liveTv;
+
+  /// No description provided for @music.
+  ///
+  /// In en, this message translates to:
+  /// **'Music Player'**
+  String get music;
+
+  /// No description provided for @albums.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums'**
+  String get albums;
+
+  /// No description provided for @songs.
+  ///
+  /// In en, this message translates to:
+  /// **'Songs'**
+  String get songs;
+
+  /// No description provided for @resume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get resume;
 }
 
 class _AppLocalizationsDelegate

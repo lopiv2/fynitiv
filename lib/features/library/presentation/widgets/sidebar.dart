@@ -1,6 +1,7 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
@@ -76,6 +77,39 @@ class Sidebar extends ConsumerWidget {
         selectedColor: selectedColor,
         onTap: () => _goBranch(context, ref, 1),
       ),
+      _NavItem(
+        faIcon: FontAwesomeIcons.circlePlay,
+        label: l10n.vod,
+        selected: currentIndex == 2,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        accent: accent,
+        iconSpacing: iconSpacing,
+        selectedColor: selectedColor,
+        onTap: () => _goBranch(context, ref, 2),
+      ),
+      _NavItem(
+        faIcon: FontAwesomeIcons.tv,
+        label: l10n.liveTv,
+        selected: currentIndex == 3,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        accent: accent,
+        iconSpacing: iconSpacing,
+        selectedColor: selectedColor,
+        onTap: () => _goBranch(context, ref, 3),
+      ),
+      _NavItem(
+        faIcon: FontAwesomeIcons.music,
+        label: l10n.music,
+        selected: currentIndex == 4,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        accent: accent,
+        iconSpacing: iconSpacing,
+        selectedColor: selectedColor,
+        onTap: () => _goBranch(context, ref, 4),
+      ),
     ];
     final viewItems = <Widget>[
       for (var i = 0; i < views.length; i++)
@@ -95,13 +129,13 @@ class Sidebar extends ConsumerWidget {
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
       label: l10n.settings,
-      selected: currentIndex == 2,
+      selected: currentIndex == 5,
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
       iconSpacing: iconSpacing,
       selectedColor: selectedColor,
-      onTap: () => _goBranch(context, ref, 2),
+      onTap: () => _goBranch(context, ref, 5),
     );
 
     final logo = _logo(sidebarLogo, textPrimary);
@@ -374,7 +408,7 @@ class _UserAvatar extends ConsumerWidget {
 
 class _NavItem extends StatefulWidget {
   const _NavItem({
-    required this.icon,
+    this.icon,
     required this.label,
     required this.onTap,
     required this.textPrimary,
@@ -384,10 +418,16 @@ class _NavItem extends StatefulWidget {
     this.selected = false,
     this.selectedIcon,
     this.selectedColor,
+    this.faIcon,
   });
 
-  final IconData icon;
+  final IconData? icon;
   final IconData? selectedIcon;
+
+  /// Icono de Font Awesome (renderizado con [FaIcon]). Si se aporta, sustituye
+  /// a [icon] en el dibujado del item.
+  final FaIconData? faIcon;
+
   final String label;
   final bool selected;
   final VoidCallback onTap;
@@ -407,13 +447,16 @@ class _NavItem extends StatefulWidget {
 class _NavItemState extends State<_NavItem> {
   bool _hovered = false;
 
-  IconData get _icon =>
+  IconData? get _icon =>
       widget.selected ? (widget.selectedIcon ?? widget.icon) : widget.icon;
 
   Widget _buildRow({required Color color, required FontWeight weight}) {
     return Row(
       children: [
-        Icon(_icon, color: color, size: 22),
+        if (widget.faIcon != null)
+          FaIcon(widget.faIcon, color: color, size: 22)
+        else if (widget.icon != null)
+          Icon(_icon, color: color, size: 22),
         SizedBox(width: widget.iconSpacing),
         Text(
           widget.label,

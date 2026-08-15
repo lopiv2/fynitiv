@@ -408,4 +408,22 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audio => 'Audio';
+
+  @override
+  String get vod => 'VOD';
+
+  @override
+  String get liveTv => 'Live TV';
+
+  @override
+  String get music => 'Music Player';
+
+  @override
+  String get albums => 'Albums';
+
+  @override
+  String get songs => 'Songs';
+
+  @override
+  String get resume => 'Resume';
 }
