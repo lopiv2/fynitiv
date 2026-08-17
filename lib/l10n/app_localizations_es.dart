@@ -9,10 +9,10 @@ class AppLocalizationsEs extends AppLocalizations {
   AppLocalizationsEs([String locale = 'es']) : super(locale);
 
   @override
-  String get appName => 'Jellyfinitive';
+  String get appName => 'Fynitiv';
 
   @override
-  String get splashTagline => 'THE DEFINITIVE EXPERIENCE';
+  String get splashTagline => 'Watch. Read. Play. Anything';
 
   @override
   String get whoIsWatching => '¿Quién está viendo?';
@@ -204,7 +204,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Jellyfinitive es un cliente para Jellyfin, tu servidor multimedia personal.';
+      'Fynitiv es un cliente para Jellyfin, tu servidor multimedia personal.';
 
   @override
   String get signOut => 'Cerrar sesión';
@@ -415,6 +415,72 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get liveTv => 'Live TV';
+
+  @override
+  String get liveTvChannels => 'Canales';
+
+  @override
+  String get liveTvGuide => 'Guía';
+
+  @override
+  String get liveTvAll => 'Todas';
+
+  @override
+  String get liveTvNews => 'Noticias';
+
+  @override
+  String get liveTvSports => 'Deportes';
+
+  @override
+  String get liveTvKids => 'Infantil';
+
+  @override
+  String get liveTvMovies => 'Cine';
+
+  @override
+  String get liveTvSeries => 'Series';
+
+  @override
+  String get liveTvFavorites => 'Favoritos';
+
+  @override
+  String get liveTvNow => 'EN DIRECTO';
+
+  @override
+  String get liveTvHd => 'HD';
+
+  @override
+  String get liveTvSearch => 'Buscar canales';
+
+  @override
+  String get liveTvNowOnFynitiv => 'AHORA EN FYNITIV';
+
+  @override
+  String get liveTvMinimize => 'Minimizar';
+
+  @override
+  String get liveTvExpand => 'Expandir';
+
+  @override
+  String get liveTvClose => 'Cerrar';
+
+  @override
+  String get liveTvMute => 'Silenciar';
+
+  @override
+  String get liveTvUnmute => 'Con sonido';
+
+  @override
+  String get liveTvSelectChannel => 'Selecciona un canal';
+
+  @override
+  String get liveTvNoAiring => 'Sin programa en emisión';
+
+  @override
+  String get liveTvNoGuide => 'No hay datos de guía para el servidor';
+
+  @override
+  String get liveTvNoChannels => 'No hay canales disponibles';
 
   @override
   String get music => 'Music Player';

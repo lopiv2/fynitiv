@@ -7,10 +7,10 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:jellyfinitive/app.dart';
-import 'package:jellyfinitive/features/household/presentation/household_wizard_screen.dart';
-import 'package:jellyfinitive/features/users/application/users_provider.dart';
-import 'package:jellyfinitive/features/users/presentation/user_selection_screen.dart';
+import 'package:fynitiv/app.dart';
+import 'package:fynitiv/features/household/presentation/household_wizard_screen.dart';
+import 'package:fynitiv/features/users/application/users_provider.dart';
+import 'package:fynitiv/features/users/presentation/user_selection_screen.dart';
 
 void main() {
   testWidgets('Gestionar casa: guardar vuelve a la selección de usuarios',
@@ -34,7 +34,7 @@ void main() {
               UserDto(name: 'Luis', id: 'u2'),
             ]),
       ],
-      child: const JellyfinitiveApp(),
+      child: const FynitivApp(),
     ));
     await tester.pump();
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));

@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.jellyfinitive" "\0"
-            VALUE "FileDescription", "jellyfinitive" "\0"
+            VALUE "CompanyName", "com.fynitiv" "\0"
+            VALUE "FileDescription", "Fynitiv" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "jellyfinitive" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.jellyfinitive. All rights reserved." "\0"
-            VALUE "OriginalFilename", "jellyfinitive.exe" "\0"
-            VALUE "ProductName", "jellyfinitive" "\0"
+            VALUE "InternalName", "fynitiv" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.fynitiv. All rights reserved." "\0"
+            VALUE "OriginalFilename", "fynitiv.exe" "\0"
+            VALUE "ProductName", "Fynitiv" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:jellyfinitive/core/skin/skin.dart';
+import 'package:fynitiv/core/skin/skin.dart';
 
 void main() {
   test('Skin se serializa y deserializa con logoPosition', () {
@@ -17,7 +17,7 @@ void main() {
       accent: Color(0xFF2B7FFF),
       textPrimary: Color(0xFFFFFFFF),
       textSecondary: Color(0xB3FFFFFF),
-      sidebarLogo: 'assets/images/Logo_jellyfinitive.png',
+      sidebarLogo: 'assets/images/Logo_fynitiv.png',
       logoPosition: LogoPosition.bottom,
       avatarPosition: AvatarPosition.bottom,
       sidebarPosition: SidebarPosition.right,
@@ -34,7 +34,7 @@ void main() {
     expect(restored.avatarPosition, AvatarPosition.bottom);
     expect(restored.sidebarPosition, SidebarPosition.right);
     expect(restored.sidebarWidth, 280);
-    expect(restored.sidebarLogo, 'assets/images/Logo_jellyfinitive.png');
+    expect(restored.sidebarLogo, 'assets/images/Logo_fynitiv.png');
   });
 
   test('Skin fromJson usa valores por defecto si faltan', () {

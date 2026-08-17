@@ -2,7 +2,7 @@ import 'package:flutter/services.dart';
 
 /// Control nativo de la ventana de escritorio (Windows).
 class AppWindow {
-  static const MethodChannel _channel = MethodChannel('jellyfinitive/window');
+  static const MethodChannel _channel = MethodChannel('fynitiv/window');
 
   /// Pone/restaura la ventana a pantalla completa real: oculta la barra de
   /// título del sistema y cubre todo el monitor.

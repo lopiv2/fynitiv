@@ -9,6 +9,7 @@ import '../features/household/domain/household.dart';
 import '../features/household/presentation/household_wizard_screen.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/library_view_screen.dart';
+import '../features/live_tv/presentation/live_fullscreen_player.dart';
 import '../features/live_tv/presentation/live_tv_screen.dart';
 import '../features/movies/presentation/all_movies_screen.dart';
 import '../features/music/presentation/music_screen.dart';
@@ -76,6 +77,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           itemId: state.pathParameters['itemId']!,
           item: state.extra is BaseItemDto ? state.extra as BaseItemDto : null,
         ),
+      ),
+      // Live TV a pantalla completa (usa el motor compartido de Live TV).
+      GoRoute(
+        path: '/live/fullscreen',
+        builder: (_, _) => const LiveTvFullscreenPlayer(),
       ),
       // Todas las películas del servidor (grid con desplazamiento infinito).
       GoRoute(

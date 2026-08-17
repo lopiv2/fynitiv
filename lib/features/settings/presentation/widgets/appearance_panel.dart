@@ -21,16 +21,16 @@ class AppearancePanel extends ConsumerStatefulWidget {
 
 /// Assets disponibles para usar como logotipo.
 const _logoAssets = [
-  'assets/images/Logo_letter_jellyfinitive.png',
-  'assets/images/Logo_jellyfinitive.png',
+  'assets/images/Logo_letter_fynitiv.png',
+  'assets/images/Logo_fynitiv.png',
 ];
 
 /// Assets de logotipo para las tarjetas de las filas de contenido.
 const _cardLogoAssets = [
   'assets/images/jellyfin.png',
   'assets/images/jellyfin-logo.png',
-  'assets/images/Logo_letter_jellyfinitive.png',
-  'assets/images/Logo_jellyfinitive.png',
+  'assets/images/Logo_letter_fynitiv.png',
+  'assets/images/Logo_fynitiv.png',
 ];
 
 class _AppearancePanelState extends ConsumerState<AppearancePanel> {

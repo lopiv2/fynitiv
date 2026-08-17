@@ -1,5 +1,5 @@
-name: jellyfinitive
-description: "Jellyfinitive: un cliente Jellyfin multiplataforma construido con Flutter."
+name: fynitiv
+description: "Fynitiv: un cliente Jellyfin multiplataforma construido con Flutter."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -50,7 +50,6 @@ dependencies:
   # Generación de deviceId (UUID v4)
   uuid: ^4.6.0
   material_ui: ^1.0.0
-  animated_text_kit: ^4.3.0
   audioplayers: ^6.8.1
   # Localización (gen-l10n)
   flutter_localizations:
@@ -68,6 +67,8 @@ dependencies:
   # Loaders de la app (animaciones de carga)
   loading_animation_widget: ^1.3.0
   font_awesome_flutter: ^11.0.0
+  # Morphing de iconos en la splash (Watch → Read → Play → Anything)
+  morphnext: ^0.5.0
 
 dev_dependencies:
   flutter_test:
@@ -97,15 +98,15 @@ flutter:
 
   # Iconos de lanzamiento de la app
   # Generados con: flutter_launcher_icons
-  # Windows usa assets/images/Logo_jellyfinitive.ico (windows/runner/resources/app_icon.ico)
-  # Android usa assets/images/Logo_jellyfinitive.png (512x512)
+  # Windows usa assets/images/Logo_fynitiv.ico (windows/runner/resources/app_icon.ico)
+  # Android usa assets/images/Logo_fynitiv.png (512x512)
 
   # Assets de la aplicación
   assets:
     - assets/images/flares/
     - assets/images/backgrounds/splash_back.png
-    - assets/images/Logo_letter_jellyfinitive.png
-    - assets/images/Logo_jellyfinitive.png
+    - assets/images/Logo_letter_fynitiv.png
+    - assets/images/Logo_fynitiv.png
     - assets/images/jellyfin-logo.png
     - assets/images/jellyfin.png
     - assets/audio/splash_reveal.mp3
@@ -139,5 +140,5 @@ flutter:
 # Iconos de lanzamiento (flutter_launcher_icons)
 flutter_launcher_icons:
   android: true
-  image_path: "assets/images/Logo_jellyfinitive.png"
+  image_path: "assets/images/Logo_fynitiv.png"
   min_sdk_android: 24

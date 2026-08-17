@@ -7,12 +7,12 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:jellyfinitive/app.dart';
-import 'package:jellyfinitive/core/widgets/language_selector.dart';
-import 'package:jellyfinitive/features/household/presentation/household_wizard_screen.dart';
-import 'package:jellyfinitive/features/users/application/users_provider.dart';
-import 'package:jellyfinitive/features/users/presentation/user_selection_screen.dart';
-import 'package:jellyfinitive/router/splash_screen.dart';
+import 'package:fynitiv/app.dart';
+import 'package:fynitiv/core/widgets/language_selector.dart';
+import 'package:fynitiv/features/household/presentation/household_wizard_screen.dart';
+import 'package:fynitiv/features/users/application/users_provider.dart';
+import 'package:fynitiv/features/users/presentation/user_selection_screen.dart';
+import 'package:fynitiv/router/splash_screen.dart';
 
 void main() {
   testWidgets('La app sin servidor arranca con el wizard de configuración',
@@ -20,7 +20,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     FlutterSecureStorage.setMockInitialValues({});
 
-    await tester.pumpWidget(const ProviderScope(child: JellyfinitiveApp()));
+    await tester.pumpWidget(const ProviderScope(child: FynitivApp()));
 
     // La splash animada se muestra al arrancar.
     expect(find.byType(SplashScreen), findsOneWidget);
@@ -46,7 +46,7 @@ void main() {
     });
     FlutterSecureStorage.setMockInitialValues({});
 
-    await tester.pumpWidget(const ProviderScope(child: JellyfinitiveApp()));
+    await tester.pumpWidget(const ProviderScope(child: FynitivApp()));
     await tester.pump();
 
     expect(find.byType(SplashScreen), findsOneWidget);
@@ -74,7 +74,7 @@ void main() {
     });
     FlutterSecureStorage.setMockInitialValues({});
 
-    await tester.pumpWidget(const ProviderScope(child: JellyfinitiveApp()));
+    await tester.pumpWidget(const ProviderScope(child: FynitivApp()));
     await tester.pump();
 
     expect(find.byType(SplashScreen), findsOneWidget);
@@ -100,7 +100,7 @@ void main() {
     });
     FlutterSecureStorage.setMockInitialValues({});
 
-    await tester.pumpWidget(const ProviderScope(child: JellyfinitiveApp()));
+    await tester.pumpWidget(const ProviderScope(child: FynitivApp()));
     await tester.pump();
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));
     await tester.pump();
@@ -130,7 +130,7 @@ void main() {
               UserDto(name: 'Luis', id: 'u2'),
             ]),
       ],
-      child: const JellyfinitiveApp(),
+      child: const FynitivApp(),
     ));
     await tester.pump();
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));

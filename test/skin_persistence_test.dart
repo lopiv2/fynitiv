@@ -2,8 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jellyfinitive/core/skin/skin.dart';
-import 'package:jellyfinitive/core/skin/skin_controller.dart';
+import 'package:fynitiv/core/skin/skin.dart';
+import 'package:fynitiv/core/skin/skin_controller.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

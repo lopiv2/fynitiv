@@ -1,183 +1,199 @@
+import 'dart:async';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
-import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
-import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../library/application/image_url.dart';
-import '../../library/application/library_providers.dart';
+import '../application/live_state.dart';
+import '../application/live_tv_player_provider.dart';
+import '../application/live_tv_ui.dart';
+import '../domain/channel.dart';
+import 'widgets/channel_sidebar.dart';
+import 'widgets/epg_view.dart';
+import 'widgets/epg_viewport.dart';
+import 'widgets/floating_player.dart';
+import 'widgets/live_preview.dart';
+import 'widgets/mini_guide.dart';
 
-/// Live TV: canales en directo del servidor Jellyfin.
-class LiveTvScreen extends ConsumerWidget {
+/// Live TV: sidebar de canales + preview + guía EPG + reproductor flotante.
+class LiveTvScreen extends ConsumerStatefulWidget {
   const LiveTvScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final serverUrl = ref.watch(authServerUrlProvider);
-    final channels = ref.watch(liveTvChannelsProvider);
-
-    return Scaffold(
-      body: DashboardBackground(
-        child: channels.when(
-          loading: () => const Center(child: AppLoader()),
-          error: (e, _) => Center(child: Text('$e')),
-          data: (list) => list.isEmpty
-              ? Center(
-                  child: Text(
-                    l10n.noResults,
-                    style: const TextStyle(color: Colors.white54),
-                  ),
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-                      child: Text(
-                        l10n.liveTv,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: GridView.builder(
-                        padding: const EdgeInsets.all(24),
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 220,
-                          mainAxisSpacing: 20,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.5,
-                        ),
-                        itemCount: list.length,
-                        itemBuilder: (context, i) {
-                          final channel = list[i];
-                          return _ChannelCard(
-                            channel: channel,
-                            serverUrl: serverUrl,
-                            onTap: () => context.push(
-                              '/player/${channel.id}',
-                              extra: channel,
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-        ),
-      ),
-    );
-  }
+  ConsumerState<LiveTvScreen> createState() => _LiveTvScreenState();
 }
 
-/// Tarjeta de canal de TV en directo (imagen 16:9 + nombre).
-class _ChannelCard extends ConsumerWidget {
-  const _ChannelCard({
-    required this.channel,
-    required this.serverUrl,
-    required this.onTap,
-  });
-
-  final BaseItemDto channel;
-  final String? serverUrl;
-  final VoidCallback onTap;
+class _LiveTvScreenState extends ConsumerState<LiveTvScreen> {
+  final EpgViewportController _viewport = EpgViewportController();
+  late final Timer _clock = Timer.periodic(
+    const Duration(seconds: 30),
+    (_) {
+      if (mounted) setState(() => _now = DateTime.now());
+    },
+  );
+  DateTime _now = DateTime.now();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final skin = ref.watch(skinControllerProvider).value;
-    final radius = skin?.cardBorderRadius ?? 10;
-    final accent = skin?.accent ?? const Color(0xFF2B7FFF);
-    final textPrimary = skin?.textPrimary ?? Colors.white;
-    final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
-    final url =
-        serverUrl != null ? itemImageUrl(serverUrl!, channel) : null;
-
-    return ScaleButton(
-      selectedScale: 1.05,
-      borderRadius: BorderRadius.circular(radius + 2),
-      onPressed: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(radius * 1.5),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (url != null)
-                    Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _ChannelFallback(
-                        channel: channel,
-                        color: fallbackColor,
-                        accent: accent,
-                      ),
-                    )
-                  else
-                    _ChannelFallback(
-                      channel: channel,
-                      color: fallbackColor,
-                      accent: accent,
-                    ),
-                  const Positioned(
-                    top: 8,
-                    right: 8,
-                    child: Icon(Icons.circle, color: Colors.redAccent, size: 12),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            channel.name ?? '',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: textPrimary, fontSize: 13),
-          ),
-        ],
-      ),
-    );
+  void dispose() {
+    _clock.cancel();
+    _viewport.dispose();
+    super.dispose();
   }
-}
 
-/// Relleno cuando el canal no tiene imagen.
-class _ChannelFallback extends StatelessWidget {
-  const _ChannelFallback({
-    required this.channel,
-    required this.color,
-    required this.accent,
-  });
+  void _selectChannel(Channel channel) {
+    ref.read(liveTvStateProvider.notifier).selectChannel(channel.id);
+  }
 
-  final BaseItemDto channel;
-  final Color color;
-  final Color accent;
+  void _openFullscreen() {
+    context.push('/live/fullscreen');
+  }
+
+  void _closeChannel() {
+    ref.read(liveTvStateProvider.notifier).selectChannel(null);
+    ref.read(liveTvPlayerProvider.notifier).stop();
+    ref.read(liveTvUiProvider.notifier).setFloating(false);
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final visible = ref.read(liveTvStateProvider).visibleChannels;
+    final selected = ref.read(liveTvStateProvider).selectedChannelId;
+    final index = visible.indexWhere((c) => c.id == selected);
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowDown:
+        if (index >= 0 && index < visible.length - 1) {
+          _selectChannel(visible[index + 1]);
+        }
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowUp:
+        if (index > 0) _selectChannel(visible[index - 1]);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowLeft:
+        _viewport.panBy(-80, 0);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowRight:
+        _viewport.panBy(80, 0);
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.enter:
+        _openFullscreen();
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.escape:
+        if (ref.read(liveTvUiProvider).floating) {
+          ref.read(liveTvUiProvider.notifier).setFloating(false);
+        } else {
+          _closeChannel();
+        }
+        return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final initial = (channel.name ?? '?').substring(0, 1).toUpperCase();
-    return Container(
-      color: color,
-      alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: TextStyle(
-          color: accent,
-          fontSize: 48,
-          fontWeight: FontWeight.w800,
-        ),
+    final l10n = AppLocalizations.of(context)!;
+    final state = ref.watch(liveTvStateProvider);
+    final ui = ref.watch(liveTvUiProvider);
+
+    // Reproduce el canal al seleccionarlo.
+    ref.listen<String?>(
+      liveTvStateProvider.select((s) => s.selectedChannelId),
+      (_, _) {
+        final channel = ref.read(liveTvStateProvider).selectedChannel;
+        if (channel != null) {
+          ref.read(liveTvPlayerProvider.notifier).playChannel(channel);
+        }
+      },
+    );
+
+    return Scaffold(
+      body: DashboardBackground(
+        child: state.loading && state.channels.isEmpty
+            ? const Center(child: AppLoader())
+            : state.error != null && state.channels.isEmpty
+                ? Center(
+                    child: Text(
+                      '${state.error}',
+                      style: const TextStyle(color: Colors.white54),
+                    ),
+                  )
+                : Focus(
+                    autofocus: true,
+                    onKeyEvent: _onKeyEvent,
+                    child: Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 14, 16, 6),
+                          child: Row(
+                            children: [
+                              Text(
+                                l10n.liveTv,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              const Spacer(),
+                              IconButton(
+                                tooltip: l10n.retry,
+                                onPressed: () => ref
+                                    .read(liveTvStateProvider.notifier)
+                                    .reload(),
+                                icon: const Icon(
+                                  Icons.refresh_rounded,
+                                  color: Colors.white54,
+                                  size: 20,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: Stack(
+                            children: [
+                              Row(
+                                children: [
+                                  const ChannelSidebar(),
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        LivePreview(
+                                          now: _now,
+                                          onFullscreen: _openFullscreen,
+                                          onClose: _closeChannel,
+                                        ),
+                                        MiniGuide(
+                                          now: _now,
+                                          onSelect: _selectChannel,
+                                        ),
+                                        Expanded(
+                                          child: EpgView(
+                                            viewport: _viewport,
+                                            now: _now,
+                                            onSelectChannel: _selectChannel,
+                                            onOpenFullscreen: _openFullscreen,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (ui.floating)
+                                FloatingPlayer(
+                                  now: _now,
+                                  onExpand: _openFullscreen,
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
       ),
     );
   }

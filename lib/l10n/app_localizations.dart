@@ -101,13 +101,13 @@ abstract class AppLocalizations {
   /// No description provided for @appName.
   ///
   /// In en, this message translates to:
-  /// **'Jellyfinitive'**
+  /// **'Fynitiv'**
   String get appName;
 
   /// No description provided for @splashTagline.
   ///
   /// In en, this message translates to:
-  /// **'THE DEFINITIVE EXPERIENCE'**
+  /// **'Watch. Read. Play. Anything'**
   String get splashTagline;
 
   /// No description provided for @whoIsWatching.
@@ -473,7 +473,7 @@ abstract class AppLocalizations {
   /// No description provided for @aboutDescription.
   ///
   /// In en, this message translates to:
-  /// **'Jellyfinitive is a client for Jellyfin, your personal media server.'**
+  /// **'Fynitiv is a client for Jellyfin, your personal media server.'**
   String get aboutDescription;
 
   /// No description provided for @signOut.
@@ -895,6 +895,138 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Live TV'**
   String get liveTv;
+
+  /// No description provided for @liveTvChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'Channels'**
+  String get liveTvChannels;
+
+  /// No description provided for @liveTvGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'Guide'**
+  String get liveTvGuide;
+
+  /// No description provided for @liveTvAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get liveTvAll;
+
+  /// No description provided for @liveTvNews.
+  ///
+  /// In en, this message translates to:
+  /// **'News'**
+  String get liveTvNews;
+
+  /// No description provided for @liveTvSports.
+  ///
+  /// In en, this message translates to:
+  /// **'Sports'**
+  String get liveTvSports;
+
+  /// No description provided for @liveTvKids.
+  ///
+  /// In en, this message translates to:
+  /// **'Kids'**
+  String get liveTvKids;
+
+  /// No description provided for @liveTvMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get liveTvMovies;
+
+  /// No description provided for @liveTvSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get liveTvSeries;
+
+  /// No description provided for @liveTvFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get liveTvFavorites;
+
+  /// No description provided for @liveTvNow.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get liveTvNow;
+
+  /// No description provided for @liveTvHd.
+  ///
+  /// In en, this message translates to:
+  /// **'HD'**
+  String get liveTvHd;
+
+  /// No description provided for @liveTvSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search channels'**
+  String get liveTvSearch;
+
+  /// No description provided for @liveTvNowOnFynitiv.
+  ///
+  /// In en, this message translates to:
+  /// **'NOW ON FYNITIV'**
+  String get liveTvNowOnFynitiv;
+
+  /// No description provided for @liveTvMinimize.
+  ///
+  /// In en, this message translates to:
+  /// **'Minimize'**
+  String get liveTvMinimize;
+
+  /// No description provided for @liveTvExpand.
+  ///
+  /// In en, this message translates to:
+  /// **'Expand'**
+  String get liveTvExpand;
+
+  /// No description provided for @liveTvClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get liveTvClose;
+
+  /// No description provided for @liveTvMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get liveTvMute;
+
+  /// No description provided for @liveTvUnmute.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute'**
+  String get liveTvUnmute;
+
+  /// No description provided for @liveTvSelectChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a channel'**
+  String get liveTvSelectChannel;
+
+  /// No description provided for @liveTvNoAiring.
+  ///
+  /// In en, this message translates to:
+  /// **'No program airing'**
+  String get liveTvNoAiring;
+
+  /// No description provided for @liveTvNoGuide.
+  ///
+  /// In en, this message translates to:
+  /// **'No guide data available for the server'**
+  String get liveTvNoGuide;
+
+  /// No description provided for @liveTvNoChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'No channels available'**
+  String get liveTvNoChannels;
 
   /// No description provided for @music.
   ///

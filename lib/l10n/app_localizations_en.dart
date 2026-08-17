@@ -9,10 +9,10 @@ class AppLocalizationsEn extends AppLocalizations {
   AppLocalizationsEn([String locale = 'en']) : super(locale);
 
   @override
-  String get appName => 'Jellyfinitive';
+  String get appName => 'Fynitiv';
 
   @override
-  String get splashTagline => 'THE DEFINITIVE EXPERIENCE';
+  String get splashTagline => 'Watch. Read. Play. Anything';
 
   @override
   String get whoIsWatching => 'Who\'s watching?';
@@ -203,7 +203,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get aboutDescription =>
-      'Jellyfinitive is a client for Jellyfin, your personal media server.';
+      'Fynitiv is a client for Jellyfin, your personal media server.';
 
   @override
   String get signOut => 'Sign out';
@@ -414,6 +414,72 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get liveTv => 'Live TV';
+
+  @override
+  String get liveTvChannels => 'Channels';
+
+  @override
+  String get liveTvGuide => 'Guide';
+
+  @override
+  String get liveTvAll => 'All';
+
+  @override
+  String get liveTvNews => 'News';
+
+  @override
+  String get liveTvSports => 'Sports';
+
+  @override
+  String get liveTvKids => 'Kids';
+
+  @override
+  String get liveTvMovies => 'Movies';
+
+  @override
+  String get liveTvSeries => 'Series';
+
+  @override
+  String get liveTvFavorites => 'Favorites';
+
+  @override
+  String get liveTvNow => 'LIVE';
+
+  @override
+  String get liveTvHd => 'HD';
+
+  @override
+  String get liveTvSearch => 'Search channels';
+
+  @override
+  String get liveTvNowOnFynitiv => 'NOW ON FYNITIV';
+
+  @override
+  String get liveTvMinimize => 'Minimize';
+
+  @override
+  String get liveTvExpand => 'Expand';
+
+  @override
+  String get liveTvClose => 'Close';
+
+  @override
+  String get liveTvMute => 'Mute';
+
+  @override
+  String get liveTvUnmute => 'Unmute';
+
+  @override
+  String get liveTvSelectChannel => 'Select a channel';
+
+  @override
+  String get liveTvNoAiring => 'No program airing';
+
+  @override
+  String get liveTvNoGuide => 'No guide data available for the server';
+
+  @override
+  String get liveTvNoChannels => 'No channels available';
 
   @override
   String get music => 'Music Player';

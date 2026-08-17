@@ -1,4 +1,4 @@
-# jellyfinitive
+# Fynitiv
 
 A new Flutter project.
 

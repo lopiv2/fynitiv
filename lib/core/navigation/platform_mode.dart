@@ -8,7 +8,7 @@ import '../debug/debug_device.dart';
 /// Modo de ejecución según la plataforma y el dispositivo.
 enum PlatformMode { desktop, mobile, tv }
 
-const _platformChannel = MethodChannel('jellyfinitive/platform');
+const _platformChannel = MethodChannel('fynitiv/platform');
 
 /// Determina el modo de la app.
 /// - Android TV (UI_MODE_TYPE_TELEVISION) → [PlatformMode.tv]

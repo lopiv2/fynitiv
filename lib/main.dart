@@ -7,5 +7,5 @@ import 'app.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  runApp(const ProviderScope(child: JellyfinitiveApp()));
+  runApp(const ProviderScope(child: FynitivApp()));
 }

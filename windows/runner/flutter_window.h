@@ -26,7 +26,7 @@ class FlutterWindow : public Win32Window {
                          LPARAM const lparam) noexcept override;
 
  private:
-  // Handles method calls from the Dart side on the "jellyfinitive/window"
+  // Handles method calls from the Dart side on the "fynitiv/window"
   // channel (fullscreen control).
   void HandleWindowMethodCall(
       const flutter::MethodCall<flutter::EncodableValue>& method_call,

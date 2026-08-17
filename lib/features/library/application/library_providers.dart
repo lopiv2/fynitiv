@@ -242,22 +242,6 @@ final homeScrollItemsProvider =
   return res.data?.items ?? [];
 });
 
-/// Canales de Live TV del servidor.
-final liveTvChannelsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null) return const [];
-  final res = await client.getLiveTvApi().getLiveTvChannels(
-        userId: userId,
-        limit: 200,
-        enableImages: true,
-        enableUserData: true,
-        fields: [ItemFields.primaryImageAspectRatio],
-        enableImageTypes: [ImageType.primary],
-      );
-  return res.data?.items ?? [];
-});
-
 /// Álbumes de música de todas las bibliotecas.
 final musicAlbumsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final client = ref.watch(jellyfinClientProvider);
