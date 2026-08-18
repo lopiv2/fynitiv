@@ -294,12 +294,12 @@ class _RailCell extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: SizedBox(
-                  width: 40,
-                  height: 26,
+                  width: 44,
+                  height: 32,
                   child: channel.logoUrl != null
                       ? Image.network(
                           channel.logoUrl!,
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           errorBuilder: (_, _, _) =>
                               _RailFallback(channel: channel),
                         )

@@ -193,12 +193,12 @@ class _ChannelTile extends ConsumerWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: SizedBox(
-                  width: 38,
-                  height: 25,
+                  width: 42,
+                  height: 30,
                   child: channel.logoUrl != null
                       ? Image.network(
                           channel.logoUrl!,
-                          fit: BoxFit.cover,
+                          fit: BoxFit.contain,
                           errorBuilder: (_, _, _) =>
                               _TileFallback(name: channel.name),
                         )

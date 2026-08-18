@@ -122,8 +122,8 @@ class _LiveTvFullscreenPlayerState
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(4),
                               child: SizedBox(
-                                width: 72,
-                                height: 32,
+                                width: 88,
+                                height: 38,
                                 child: Image.network(
                                   channel!.logoUrl!,
                                   fit: BoxFit.contain,

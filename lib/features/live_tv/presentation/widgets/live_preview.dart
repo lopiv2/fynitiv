@@ -38,8 +38,9 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
     final playerState = ref.watch(liveTvPlayerProvider);
     final controller = ref.read(liveTvPlayerProvider.notifier).videoController;
     final channel = state.selectedChannel;
-    final program =
-        channel != null ? state.currentProgramOf(channel.id, widget.now) : null;
+    final program = channel != null
+        ? state.currentProgramOf(channel.id, widget.now)
+        : null;
     final hideVideo = ui.floating || ui.fullscreen;
 
     ref.listen<Object?>(
@@ -144,8 +145,8 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(4),
                                 child: SizedBox(
-                                  width: 64,
-                                  height: 28,
+                                  width: 240,
+                                  height: 120,
                                   child: Image.network(
                                     channel.logoUrl!,
                                     fit: BoxFit.contain,
@@ -161,11 +162,14 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFFF5252).withValues(alpha: 0.16),
+                              color: const Color(
+                                0xFFFF5252,
+                              ).withValues(alpha: 0.16),
                               borderRadius: BorderRadius.circular(6),
                               border: Border.all(
-                                color: const Color(0xFFFF5252)
-                                    .withValues(alpha: 0.55),
+                                color: const Color(
+                                  0xFFFF5252,
+                                ).withValues(alpha: 0.55),
                               ),
                             ),
                             child: Text(
@@ -205,7 +209,10 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                         ),
                       ),
                       Text(
-                        formatProgramRange(program?.startTime, program?.endTime),
+                        formatProgramRange(
+                          program?.startTime,
+                          program?.endTime,
+                        ),
                         style: const TextStyle(
                           color: Colors.white54,
                           fontSize: 12,
@@ -247,8 +254,9 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                           ),
                           IconButton(
                             tooltip: l10n.liveTvMinimize,
-                            onPressed: () =>
-                                ref.read(liveTvUiProvider.notifier).setFloating(true),
+                            onPressed: () => ref
+                                .read(liveTvUiProvider.notifier)
+                                .setFloating(true),
                             icon: const Icon(
                               Icons.picture_in_picture_alt_rounded,
                               color: Colors.white70,

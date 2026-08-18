@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/application/auth_controller.dart';
 import '../../library/application/library_providers.dart' hide jellyfinClientProvider;
+import '../../../core/debug/live_tv_log.dart';
 import '../domain/channel.dart';
 import '../domain/live_repository.dart';
 import '../domain/program.dart';
@@ -162,6 +163,12 @@ class LiveTvController extends Notifier<LiveState> {
       ]);
       final channels = results[0] as List<Channel>;
       final programs = results[1] as List<Program>;
+      liveTvLog(
+        'Live TV cargado: ${channels.length} canales, ${programs.length} programas '
+        '(jellyfin=${channels.where((c) => c.sourceType.name == 'jellyfin').length}, '
+        'iptv=${channels.where((c) => c.sourceType.name == 'iptv').length}, '
+        'con streamUrl=${channels.where((c) => c.streamUrl != null).length})',
+      );
       state = state.copyWith(
         channels: channels,
         programs: programs,
@@ -172,6 +179,7 @@ class LiveTvController extends Notifier<LiveState> {
         state = state.copyWith(selectedChannelId: () => channels.first.id);
       }
     } catch (e) {
+      liveTvLog('Live TV: fallo al cargar', error: e);
       state = state.copyWith(loading: false, error: () => e);
     }
   }
