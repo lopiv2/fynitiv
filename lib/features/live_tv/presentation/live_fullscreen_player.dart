@@ -22,23 +22,38 @@ class LiveTvFullscreenPlayer extends ConsumerStatefulWidget {
 
 class _LiveTvFullscreenPlayerState
     extends ConsumerState<LiveTvFullscreenPlayer> {
-  double _volume = 100;
+  double _volume = 1.0;
   bool _muted = false;
+  late final LiveTvUiController _ui;
+  late final LiveTvPlayerController _player;
 
   @override
   void initState() {
     super.initState();
     AppWindow.setFullscreen(true);
-    ref.read(liveTvUiProvider.notifier).setFullscreen(true);
-    ref.read(liveTvPlayerProvider.notifier).setMuted(false);
-    _volume = 100;
+    _volume = 1.0;
+    // Se capturan los notifiers en initState (lectura segura) para poder
+    // usarlos en dispose, donde `ref` ya no es seguro.
+    _ui = ref.read(liveTvUiProvider.notifier);
+    _player = ref.read(liveTvPlayerProvider.notifier);
+    // No se puede modificar providers durante initState (build); se difiere
+    // al primer frame para que la transición de ruta no reviente.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _ui.setFullscreen(true);
+      _player.setMuted(false);
+    });
   }
 
   @override
   void dispose() {
     AppWindow.setFullscreen(false);
-    ref.read(liveTvUiProvider.notifier).setFullscreen(false);
-    ref.read(liveTvPlayerProvider.notifier).setMuted(true);
+    // Dispose ocurre durante el desmontaje; las notificaciones a providers se
+    // difieren para no modificarlos en pleno build/teardown.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ui.setFullscreen(false);
+      _player.setMuted(true);
+    });
     super.dispose();
   }
 
@@ -50,7 +65,7 @@ class _LiveTvFullscreenPlayerState
   void _setVolume(double v) {
     setState(() => _volume = v);
     ref.read(liveTvPlayerProvider.notifier).setMuted(v == 0);
-    ref.read(liveTvPlayerProvider.notifier).player.setVolume(v);
+    ref.read(liveTvPlayerProvider.notifier).player.setVolume(v * 100);
   }
 
   @override
@@ -78,7 +93,12 @@ class _LiveTvFullscreenPlayerState
         body: Stack(
           children: [
             Positioned.fill(
-              child: Video(controller: controller, controls: NoVideoControls),
+              child: Video(
+                controller: controller,
+                controls: NoVideoControls,
+                fit: BoxFit.contain,
+                fill: const Color(0xFF000000),
+              ),
             ),
             SafeArea(
               child: Padding(
@@ -96,6 +116,23 @@ class _LiveTvFullscreenPlayerState
                           ),
                         ),
                         const SizedBox(width: 8),
+                        if (channel?.logoUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(4),
+                              child: SizedBox(
+                                width: 72,
+                                height: 32,
+                                child: Image.network(
+                                  channel!.logoUrl!,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) =>
+                                      const SizedBox.shrink(),
+                                ),
+                              ),
+                            ),
+                          ),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,

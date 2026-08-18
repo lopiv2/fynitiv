@@ -51,7 +51,7 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
     );
 
     return Container(
-      height: 178,
+      height: 240,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.03),
         border: const Border(bottom: BorderSide(color: Colors.white12)),
@@ -65,8 +65,12 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
               ),
             )
           : Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
+                // Vídeo limitado en ancho, pegado a la izquierda. Sin Expanded:
+                // no empuja el panel de info hacia el borde derecho.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 480),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10),
                     child: hideVideo
@@ -79,32 +83,78 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                               size: 40,
                             ),
                           )
-                        : Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              Video(
-                                controller: controller,
-                                controls: NoVideoControls,
-                              ),
-                              if (playerState.buffering)
-                                const Center(
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white54,
-                                    strokeWidth: 2,
-                                  ),
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              // media_kit necesita un tamaño TIGHT y
+                              // explícito para redimensionar su textura
+                              // Direct3D correctamente. Sin esto, en
+                              // ciertas cadenas de layout (Row sin
+                              // stretch + Stack expand) el resize interno
+                              // se queda "pegado" a 0x0 y la textura nunca
+                              // recibe contenido visible, aunque el player
+                              // siga reproduciendo.
+                              return SizedBox(
+                                width: constraints.maxWidth,
+                                height: constraints.maxHeight,
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Video(
+                                      controller: controller,
+                                      controls: NoVideoControls,
+                                      fit: BoxFit.contain,
+                                      fill: const Color(0xFF000000),
+                                    ),
+                                    if (playerState.buffering)
+                                      const Center(
+                                        child: CircularProgressIndicator(
+                                          color: Colors.white54,
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                    if (playerState.error != null)
+                                      Center(
+                                        child: Text(
+                                          '${playerState.error}',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                  ],
                                 ),
-                            ],
+                              );
+                            },
                           ),
                   ),
                 ),
                 const SizedBox(width: 14),
                 SizedBox(
-                  width: 320,
+                  width: 620,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
+                          if (channel.logoUrl != null)
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: SizedBox(
+                                  width: 64,
+                                  height: 28,
+                                  child: Image.network(
+                                    channel.logoUrl!,
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (_, _, _) =>
+                                        const SizedBox.shrink(),
+                                  ),
+                                ),
+                              ),
+                            ),
                           Container(
                             padding: const EdgeInsets.symmetric(
                               horizontal: 8,
@@ -228,6 +278,7 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                     ],
                   ),
                 ),
+                const Spacer(),
               ],
             ),
     );

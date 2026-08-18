@@ -68,6 +68,8 @@ class _FloatingPlayerState extends ConsumerState<FloatingPlayer> {
                   child: Video(
                     controller: controller,
                     controls: NoVideoControls,
+                    fit: BoxFit.contain,
+                    fill: const Color(0xFF000000),
                   ),
                 ),
                 // Barra superior con la info del programa (también arrastra).

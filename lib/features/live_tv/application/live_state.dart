@@ -152,12 +152,16 @@ class LiveTvController extends Notifier<LiveState> {
       return;
     }
     try {
-      final channels = await repo.getChannels();
       final now = DateTime.now().toUtc();
-      final programs = await repo.getGuide(
-        start: now.subtract(const Duration(hours: 1)),
-        end: now.add(const Duration(hours: 4)),
-      );
+      final results = await Future.wait([
+        repo.getChannels(),
+        repo.getGuide(
+          start: now.subtract(const Duration(hours: 1)),
+          end: now.add(const Duration(hours: 4)),
+        ),
+      ]);
+      final channels = results[0] as List<Channel>;
+      final programs = results[1] as List<Program>;
       state = state.copyWith(
         channels: channels,
         programs: programs,

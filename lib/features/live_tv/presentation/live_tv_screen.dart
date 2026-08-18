@@ -27,7 +27,8 @@ class LiveTvScreen extends ConsumerStatefulWidget {
   ConsumerState<LiveTvScreen> createState() => _LiveTvScreenState();
 }
 
-class _LiveTvScreenState extends ConsumerState<LiveTvScreen> {
+class _LiveTvScreenState extends ConsumerState<LiveTvScreen>
+    with WidgetsBindingObserver {
   final EpgViewportController _viewport = EpgViewportController();
   late final Timer _clock = Timer.periodic(
     const Duration(seconds: 30),
@@ -36,12 +37,64 @@ class _LiveTvScreenState extends ConsumerState<LiveTvScreen> {
     },
   );
   DateTime _now = DateTime.now();
+  bool _playerDisposed = false;
+  bool _wasOnLive = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _listenToRoute());
+  }
+
+  void _listenToRoute() {
+    final router = GoRouter.of(context);
+    router.routerDelegate.addListener(_onRouteChanged);
+    _onRouteChanged();
+  }
+
+  void _onRouteChanged() {
+    if (!mounted) return;
+    final location = GoRouterState.of(context).uri.toString();
+    final isOnLive = location.startsWith('/live');
+    if (_wasOnLive && !isOnLive) {
+      _closeChannel();
+      ref.read(liveTvPlayerProvider.notifier).close();
+    }
+    _wasOnLive = isOnLive;
+  }
 
   @override
   void dispose() {
+    GoRouter.of(context).routerDelegate.removeListener(_onRouteChanged);
+    WidgetsBinding.instance.removeObserver(this);
+    _stopPlayer();
     _clock.cancel();
     _viewport.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final playerState = ref.read(liveTvPlayerProvider);
+    if (playerState.channelId == null) return;
+
+    switch (state) {
+      case AppLifecycleState.detached:
+        _stopPlayer();
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+        ref.read(liveTvPlayerProvider.notifier).player.pause();
+      case AppLifecycleState.resumed:
+        break;
+    }
+  }
+
+  Future<void> _stopPlayer() async {
+    if (_playerDisposed) return;
+    _playerDisposed = true;
+    await ref.read(liveTvPlayerProvider.notifier).close();
   }
 
   void _selectChannel(Channel channel) {

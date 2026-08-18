@@ -21,7 +21,7 @@ class AuthRepository {
       BaseOptions(
         baseUrl: normalized,
         connectTimeout: const Duration(seconds: 8),
-        receiveTimeout: const Duration(seconds: 12),
+        receiveTimeout: const Duration(seconds: 30),
       ),
     );
     // Limita la concurrencia para no saturar el servidor Jellyfin.

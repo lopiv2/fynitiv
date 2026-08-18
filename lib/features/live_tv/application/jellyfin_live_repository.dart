@@ -1,6 +1,5 @@
 import 'package:jellyfin_dart/jellyfin_dart.dart' hide MediaSourceType;
 
-import '../../library/application/image_url.dart';
 import '../domain/channel.dart';
 import '../domain/channel_capabilities.dart';
 import '../domain/live_repository.dart';
@@ -64,11 +63,17 @@ class JellyfinLiveRepository implements LiveRepository {
 
 /// Mapea un canal de Jellyfin al dominio.
 Channel jellyfinChannelFromDto(BaseItemDto c, {String? serverUrl}) {
-  final logoUrl = serverUrl != null
-      ? (c.imageTags?[ImageType.primary.name] ?? '').isNotEmpty
-          ? itemImageUrl(serverUrl, c, maxWidth: 160)
-          : null
-      : null;
+  final tags = c.imageTags;
+  String? logoUrl;
+  if (serverUrl != null && tags != null && tags.isNotEmpty) {
+    final tagPrimary = tags['Primary'];
+    final tagChannel = tags['channelImage'];
+    if (tagPrimary != null && tagPrimary.isNotEmpty) {
+      logoUrl = '$serverUrl/Items/${c.id}/Images/Primary?maxWidth=160&tag=$tagPrimary';
+    } else if (tagChannel != null && tagChannel.isNotEmpty) {
+      logoUrl = '$serverUrl/Items/${c.id}/Images/channelImage?maxWidth=160&tag=$tagChannel';
+    }
+  }
   return Channel(
     id: c.id ?? '',
     name: c.name ?? '',

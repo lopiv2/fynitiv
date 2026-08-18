@@ -32,6 +32,21 @@ class EpgView extends ConsumerStatefulWidget {
 
 class _EpgViewState extends ConsumerState<EpgView> {
   double _lastScale = 1;
+  final ValueNotifier<DateTime> _nowNotifier = ValueNotifier(DateTime.now());
+
+  @override
+  void didUpdateWidget(covariant EpgView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!oldWidget.now.isAtSameMomentAs(widget.now)) {
+      _nowNotifier.value = widget.now;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nowNotifier.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +67,7 @@ class _EpgViewState extends ConsumerState<EpgView> {
         programsByChannel: byChannel,
         selectedChannelId: state.selectedChannelId,
         now: widget.now,
+        repaint: Listenable.merge([vp, _nowNotifier]),
       );
 
       return Listener(

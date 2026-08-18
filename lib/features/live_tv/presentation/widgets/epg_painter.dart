@@ -25,7 +25,8 @@ class EpgGridPainter extends CustomPainter {
     required this.programsByChannel,
     required this.selectedChannelId,
     required this.now,
-  }) : super(repaint: viewport);
+    required Listenable repaint,
+  }) : super(repaint: repaint);
 
   final EpgViewportController viewport;
   final List<Channel> channels;
