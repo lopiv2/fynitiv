@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/gestures.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -19,6 +20,8 @@ class BackdropCard extends ConsumerWidget {
     this.cardLogo,
     this.hoverExtension = false,
     this.onHoverChanged,
+    this.onPointerSignal,
+    this.overlayBelowEntry,
   });
 
   final BaseItemDto item;
@@ -34,6 +37,8 @@ class BackdropCard extends ConsumerWidget {
 
   /// Notifica el hover de la tarjeta (para reordenar el pintado en la fila).
   final ValueChanged<bool>? onHoverChanged;
+  final ValueChanged<PointerSignalEvent>? onPointerSignal;
+  final OverlayEntry? Function()? overlayBelowEntry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -79,6 +84,8 @@ class BackdropCard extends ConsumerWidget {
       onPlay: onTap ?? () {},
       showExtension: showExtension,
       onHoverChanged: onHoverChanged,
+      onPointerSignal: onPointerSignal,
+      overlayBelowEntry: overlayBelowEntry,
       resume: (item.userData?.playbackPositionTicks ?? 0) > 0,
       ageRating: item.officialRating,
       year: item.productionYear,

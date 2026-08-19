@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -38,6 +39,8 @@ class HoverPlayCard extends StatefulWidget {
     this.onTrailer,
     this.onFavorites,
     this.onHoverChanged,
+    this.onPointerSignal,
+    this.overlayBelowEntry,
     this.resume = false,
     this.ageRating,
     this.year,
@@ -65,6 +68,14 @@ class HoverPlayCard extends StatefulWidget {
 
   /// Notifica cuando el hover entra/sale de la tarjeta (o su panel).
   final ValueChanged<bool>? onHoverChanged;
+
+  /// Reenvia eventos de rueda al scroll vertical de la pagina que contiene la
+  /// tarjeta. Es necesario porque la hovercard vive en un Overlay superior.
+  final ValueChanged<PointerSignalEvent>? onPointerSignal;
+
+  /// Overlay que debe quedar por encima de esta hovercard (por ejemplo, las
+  /// flechas activas de la fila). El z-order se fija al insertar la entrada.
+  final OverlayEntry? Function()? overlayBelowEntry;
 
   /// Si el elemento es de "Continuar viendo", el botón del panel muestra
   /// "Reanudar" en lugar de "Ver ahora".
@@ -153,9 +164,9 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
       _hideTimer?.cancel();
       if (!_hovered) {
         _hovered = true;
+        widget.onHoverChanged?.call(true);
         if (widget.showExtension) _showOverlay();
         if (mounted) setState(() {});
-        widget.onHoverChanged?.call(true);
       }
     } else {
       _hideTimer?.cancel();
@@ -215,6 +226,7 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
             year: widget.year,
             runTimeTicks: widget.runTimeTicks,
             overview: widget.overview,
+            onPointerSignal: widget.onPointerSignal ?? _pagePointerSignal,
             onEnter: () => _hideTimer?.cancel(),
             onExit: _scheduleHide,
           );
@@ -222,8 +234,14 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
       ),
     );
     _overlayEntry = entry;
-    Overlay.of(context).insert(entry);
+    Overlay.of(context).insert(entry, below: widget.overlayBelowEntry?.call());
     _startTracking();
+  }
+
+  void _pagePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || event.scrollDelta.dy == 0) return;
+    final position = Scrollable.maybeOf(context)?.position;
+    position?.pointerScroll(event.scrollDelta.dy);
   }
 
   /// Re-mide solo la POSICIÓN (no el tamaño) de la tarjeta original cada
@@ -308,6 +326,7 @@ class _ExpandedHoverCard extends StatefulWidget {
     required this.onPlay,
     required this.onEnter,
     required this.onExit,
+    required this.onPointerSignal,
     this.onTrailer,
     this.onFavorites,
     this.resume = false,
@@ -325,6 +344,7 @@ class _ExpandedHoverCard extends StatefulWidget {
   final VoidCallback onPlay;
   final VoidCallback onEnter;
   final VoidCallback onExit;
+  final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final VoidCallback? onTrailer;
   final VoidCallback? onFavorites;
   final bool resume;
@@ -388,64 +408,67 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
       child: MouseRegion(
         onEnter: (_) => widget.onEnter(),
         onExit: (_) => widget.onExit(),
-        child: AnimatedContainer(
-          duration: kCardExpandDuration,
-          curve: Curves.easeOut,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: _expanded
-                ? [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.6),
-                      blurRadius: 20,
-                      offset: const Offset(0, 8),
+        child: Listener(
+          onPointerSignal: widget.onPointerSignal,
+          child: AnimatedContainer(
+            duration: kCardExpandDuration,
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: _expanded
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      ),
+                    ]
+                  : null,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: HoverPlayScope(
+              // Fuerza el radio "recto abajo" en la imagen mientras está
+              // expandida, para que se funda visualmente con el panel negro.
+              hovered: _expanded,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GestureDetector(
+                    onTap: widget.onPlay,
+                    child: Stack(
+                      children: [
+                        widget.image,
+                        if (_expanded)
+                          Positioned.fill(
+                            child: IgnorePointer(child: _PlayOverlay()),
+                          ),
+                      ],
                     ),
-                  ]
-                : null,
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: HoverPlayScope(
-            // Fuerza el radio "recto abajo" en la imagen mientras está
-            // expandida, para que se funda visualmente con el panel negro.
-            hovered: _expanded,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                GestureDetector(
-                  onTap: widget.onPlay,
-                  child: Stack(
-                    children: [
-                      widget.image,
-                      if (_expanded)
-                        Positioned.fill(
-                          child: IgnorePointer(child: _PlayOverlay()),
-                        ),
-                    ],
                   ),
-                ),
-                // El panel crece en altura de 0 al tamaño real: al ser hijo
-                // del mismo Column, hereda el ancho ya estirado (stretch),
-                // así que nunca necesita que se le pase un `width` aparte.
-                AnimatedSize(
-                  duration: kCardExpandDuration,
-                  curve: Curves.easeOut,
-                  alignment: Alignment.topCenter,
-                  child: _expanded
-                      ? _HoverPanel(
-                          title: widget.title,
-                          onPlay: widget.onPlay,
-                          onTrailer: widget.onTrailer,
-                          onFavorites: widget.onFavorites,
-                          resume: widget.resume,
-                          ageRating: widget.ageRating,
-                          year: widget.year,
-                          runTimeTicks: widget.runTimeTicks,
-                          overview: widget.overview,
-                        )
-                      : const SizedBox(width: double.infinity, height: 0),
-                ),
-              ],
+                  // El panel crece en altura de 0 al tamaño real: al ser hijo
+                  // del mismo Column, hereda el ancho ya estirado (stretch),
+                  // así que nunca necesita que se le pase un `width` aparte.
+                  AnimatedSize(
+                    duration: kCardExpandDuration,
+                    curve: Curves.easeOut,
+                    alignment: Alignment.topCenter,
+                    child: _expanded
+                        ? _HoverPanel(
+                            title: widget.title,
+                            onPlay: widget.onPlay,
+                            onTrailer: widget.onTrailer,
+                            onFavorites: widget.onFavorites,
+                            resume: widget.resume,
+                            ageRating: widget.ageRating,
+                            year: widget.year,
+                            runTimeTicks: widget.runTimeTicks,
+                            overview: widget.overview,
+                          )
+                        : const SizedBox(width: double.infinity, height: 0),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

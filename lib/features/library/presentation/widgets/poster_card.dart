@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/gestures.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,6 +19,8 @@ class PosterCard extends ConsumerWidget {
     this.cardLogo,
     this.hoverExtension = false,
     this.onHoverChanged,
+    this.onPointerSignal,
+    this.overlayBelowEntry,
   });
 
   final BaseItemDto item;
@@ -33,6 +36,8 @@ class PosterCard extends ConsumerWidget {
 
   /// Notifica el hover de la tarjeta (para reordenar el pintado en la fila).
   final ValueChanged<bool>? onHoverChanged;
+  final ValueChanged<PointerSignalEvent>? onPointerSignal;
+  final OverlayEntry? Function()? overlayBelowEntry;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -54,6 +59,8 @@ class PosterCard extends ConsumerWidget {
       onPlay: onTap ?? () {},
       showExtension: showExtension,
       onHoverChanged: onHoverChanged,
+      onPointerSignal: onPointerSignal,
+      overlayBelowEntry: overlayBelowEntry,
       resume: resume,
       ageRating: item.officialRating,
       year: item.productionYear,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -56,10 +58,19 @@ class ContentRow extends ConsumerStatefulWidget {
 
 class _ContentRowState extends ConsumerState<ContentRow> {
   final ScrollController _controller = ScrollController();
+  final LayerLink _rowLink = LayerLink();
+  final GlobalKey _rowKey = GlobalKey();
+  OverlayEntry? _arrowOverlay;
+  Timer? _arrowHideTimer;
+  ScrollPosition? _pageScrollPosition;
 
   /// Índice de la tarjeta con hover (para reordenar el pintado y que la
   /// tarjeta escalada se superponga a las vecinas). -1 = ninguna.
   int _hoveredIndex = -1;
+
+  /// Las flechas se muestran mientras el puntero está sobre la fila o sobre
+  /// una hovercard expandida.
+  bool _rowHovered = false;
 
   /// Estado del arrastre con el botón del medio del ratón (scroll horizontal).
   bool _middleDragging = false;
@@ -73,12 +84,17 @@ class _ContentRowState extends ConsumerState<ContentRow> {
 
   @override
   void dispose() {
+    _arrowHideTimer?.cancel();
+    _arrowOverlay?.remove();
     _controller.dispose();
     super.dispose();
   }
 
   void _onScroll() {
-    if (mounted) setState(() {});
+    if (mounted) {
+      setState(() {});
+      _arrowOverlay?.markNeedsBuild();
+    }
   }
 
   /// Ancho de cada tarjeta (el fijado por el skin).
@@ -110,6 +126,15 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     );
   }
 
+  void _scrollPage(double direction, double viewportWidth) {
+    _scrollBy(direction * viewportWidth * 0.8);
+  }
+
+  void _onPagePointerSignal(PointerSignalEvent event) {
+    if (event is! PointerScrollEvent || event.scrollDelta.dy == 0) return;
+    _pageScrollPosition?.pointerScroll(event.scrollDelta.dy);
+  }
+
   /// Inicia el arrastre con el botón del medio del ratón (scroll horizontal).
   void _onPointerDown(PointerDownEvent event) {
     if (event.buttons & kMiddleMouseButton != 0) {
@@ -134,7 +159,121 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   /// Actualiza el índice de la tarjeta con hover.
   void _onCardHover(int index, bool value) {
     final next = value ? index : -1;
-    if (_hoveredIndex != next) setState(() => _hoveredIndex = next);
+    if (_hoveredIndex != next || _rowHovered != value) {
+      setState(() {
+        _hoveredIndex = next;
+        if (value) _rowHovered = true;
+      });
+    }
+    if (value) {
+      _showArrowOverlay();
+      // La hovercard se inserta inmediatamente despues de esta notificacion.
+      // Volver a elevar las flechas al final del frame evita carreras durante
+      // la transicion entre dos tarjetas con hover.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _hoveredIndex == index) _showArrowOverlay();
+      });
+    }
+  }
+
+  void _showArrowOverlay() {
+    _arrowHideTimer?.cancel();
+    _arrowOverlay?.remove();
+    final entry = OverlayEntry(
+      builder: (_) {
+        final rowBox = _rowKey.currentContext?.findRenderObject() as RenderBox?;
+        final width = rowBox?.size.width ?? MediaQuery.sizeOf(context).width;
+        return CompositedTransformFollower(
+          link: _rowLink,
+          showWhenUnlinked: false,
+          child: MouseRegion(
+            hitTestBehavior: HitTestBehavior.deferToChild,
+            onEnter: (_) => _arrowHideTimer?.cancel(),
+            onExit: (_) => _scheduleArrowOverlayHide(),
+            child: SizedBox(
+              width: width,
+              height: _rowHeight,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 6,
+                    top: (_rowHeight - 44) / 2,
+                    child: _scrollArrow(
+                      icon: Icons.chevron_left,
+                      enabled:
+                          _controller.hasClients &&
+                          _controller.offset >
+                              _controller.position.minScrollExtent,
+                      onPressed: () =>
+                          _scrollPage(-1, MediaQuery.sizeOf(context).width),
+                    ),
+                  ),
+                  Positioned(
+                    right: 6,
+                    top: (_rowHeight - 44) / 2,
+                    child: _scrollArrow(
+                      icon: Icons.chevron_right,
+                      enabled:
+                          _controller.hasClients &&
+                          _controller.offset <
+                              _controller.position.maxScrollExtent,
+                      onPressed: () =>
+                          _scrollPage(1, MediaQuery.sizeOf(context).width),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    _arrowOverlay = entry;
+    Overlay.of(context).insert(entry);
+  }
+
+  /// Reubica las flechas en la cima antes de que una hovercard se inserte.
+  /// Devuelve la misma entrada que se usara como referencia `below`.
+  OverlayEntry? _prepareArrowOverlayForHover() {
+    _showArrowOverlay();
+    return _arrowOverlay;
+  }
+
+  void _scheduleArrowOverlayHide() {
+    _arrowHideTimer?.cancel();
+    _arrowHideTimer = Timer(const Duration(milliseconds: 180), () {
+      if (_hoveredIndex == -1) {
+        _arrowOverlay?.remove();
+        _arrowOverlay = null;
+        if (mounted) setState(() => _rowHovered = false);
+      }
+    });
+  }
+
+  Widget _scrollArrow({
+    required IconData icon,
+    required bool enabled,
+    required VoidCallback onPressed,
+  }) {
+    return AnimatedOpacity(
+      duration: const Duration(milliseconds: 150),
+      opacity: _rowHovered && enabled ? 1 : 0,
+      child: IgnorePointer(
+        ignoring: !_rowHovered || !enabled,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.72),
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            onPressed: onPressed,
+            icon: Icon(icon, color: Colors.white, size: 28),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+          ),
+        ),
+      ),
+    );
   }
 
   /// Construye las tarjetas en un único [Stack] horizontal. El orden de pintado
@@ -166,6 +305,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                       ? null
                       : () => widget.onItemTap!(items[i]),
                   onHoverChanged: (v) => _onCardHover(i, v),
+                  onPointerSignal: _onPagePointerSignal,
+                  overlayBelowEntry: _prepareArrowOverlayForHover,
                 )
               : PosterCard(
                   item: items[i],
@@ -176,6 +317,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                       ? null
                       : () => widget.onItemTap!(items[i]),
                   onHoverChanged: (v) => _onCardHover(i, v),
+                  onPointerSignal: _onPagePointerSignal,
+                  overlayBelowEntry: _prepareArrowOverlayForHover,
                 ),
         ),
     ];
@@ -188,57 +331,66 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     // Separación vertical entre filas, definida por el skin.
     final rowSpacing =
         ref.watch(skinControllerProvider).value?.rowSpacing ?? 24;
+    _pageScrollPosition = Scrollable.maybeOf(context)?.position;
 
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: ScrollTitle(
-              title: widget.title,
-              onSeeMore: widget.onSeeMore,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: _rowHeight,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                // Listener de bajo nivel: captura el arrastre con el botón del
-                // medio del ratón para desplazar la fila en horizontal. La rueda
-                // (PointerScrollEvent) no se intercepta, así que sigue haciendo
-                // scroll vertical de página.
-                Listener(
-                  onPointerDown: _onPointerDown,
-                  onPointerMove: _onPointerMove,
-                  onPointerUp: _onPointerUp,
-                  behavior: HitTestBehavior.translucent,
-                  child: ScrollConfiguration(
-                    behavior: const HorizontalScrollBehavior(),
-                    child: SingleChildScrollView(
-                      controller: _controller,
-                      scrollDirection: Axis.horizontal,
-                      clipBehavior: Clip.none,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      child: SizedBox(
-                        width:
-                            widget.items.length * _cardWidth +
-                            (widget.items.length - 1) * _spacing,
-                        height: _rowHeight,
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: _buildStackedItems(),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: ScrollTitle(title: widget.title, onSeeMore: widget.onSeeMore),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: _rowHeight,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Listener de bajo nivel: captura el arrastre con el botón del
+              // medio del ratón para desplazar la fila en horizontal. La rueda
+              // (PointerScrollEvent) no se intercepta, así que sigue haciendo
+              // scroll vertical de página.
+              MouseRegion(
+                onEnter: (_) {
+                  setState(() => _rowHovered = true);
+                  _showArrowOverlay();
+                },
+                onExit: (_) => _scheduleArrowOverlayHide(),
+                child: CompositedTransformTarget(
+                  key: _rowKey,
+                  link: _rowLink,
+                  child: Listener(
+                    onPointerDown: _onPointerDown,
+                    onPointerMove: _onPointerMove,
+                    onPointerUp: _onPointerUp,
+                    behavior: HitTestBehavior.translucent,
+                    child: ScrollConfiguration(
+                      behavior: const HorizontalScrollBehavior(),
+                      child: SingleChildScrollView(
+                        controller: _controller,
+                        scrollDirection: Axis.horizontal,
+                        clipBehavior: Clip.none,
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: SizedBox(
+                          width:
+                              widget.items.length * _cardWidth +
+                              (widget.items.length - 1) * _spacing,
+                          height: _rowHeight,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: _buildStackedItems(),
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          SizedBox(height: rowSpacing),
-        ],
+        ),
+        SizedBox(height: rowSpacing),
+      ],
     );
   }
 }
