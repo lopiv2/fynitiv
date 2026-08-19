@@ -17,6 +17,7 @@ class BackdropCard extends ConsumerWidget {
     required this.item,
     required this.serverUrl,
     this.onTap,
+    this.onImageTap,
     this.cardLogo,
     this.hoverExtension = false,
     this.onHoverChanged,
@@ -27,6 +28,7 @@ class BackdropCard extends ConsumerWidget {
   final BaseItemDto item;
   final String? serverUrl;
   final VoidCallback? onTap;
+  final VoidCallback? onImageTap;
 
   /// Logotipo superpuesto abajo a la derecha (asset o ruta de archivo).
   final String? cardLogo;
@@ -82,6 +84,7 @@ class BackdropCard extends ConsumerWidget {
     return HoverPlayCard(
       title: item.name ?? '',
       onPlay: onTap ?? () {},
+      onImageTap: onImageTap,
       showExtension: showExtension,
       onHoverChanged: onHoverChanged,
       onPointerSignal: onPointerSignal,

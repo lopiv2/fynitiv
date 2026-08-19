@@ -31,10 +31,10 @@ class HomeScreen extends ConsumerWidget {
     final showBanner = skin?.showNewReleasesBanner ?? false;
     final useBackdrop =
         (skin?.cardImageType ?? CardImageType.poster) == CardImageType.backdrop;
-    final bannerAttached =
-        showBanner && (skin?.bannerAttachedTop ?? false);
+    final bannerAttached = showBanner && (skin?.bannerAttachedTop ?? false);
     final hoverReveal =
-        (skin?.bannerHoverReveal ?? false) && platformMode == PlatformMode.desktop;
+        (skin?.bannerHoverReveal ?? false) &&
+        platformMode == PlatformMode.desktop;
 
     // Carga inicial: mientras los datos principales no tienen contenido y se
     // están resolviendo, se muestra un loader.
@@ -49,100 +49,106 @@ class HomeScreen extends ConsumerWidget {
         child: initialLoading
             ? const Center(child: AppLoader())
             : ListView(
-          padding: EdgeInsets.only(
-            top: bannerAttached ? 0 : 54,
-            bottom: 24,
-          ),
-          children: [
-            if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
-              FeaturedSlider(
-                title: l10n.newReleases,
-                items: latestBanner.value ?? const [],
-                serverUrl: serverUrl,
-                showTitle: skin?.bannerShowTitle ?? true,
-                showAgeRating: skin?.bannerShowAgeRating ?? false,
-                contentScale: skin?.bannerContentScale ?? 1.0,
-                showBorder: skin?.bannerBorder ?? false,
-                showArrows: skin?.bannerShowArrows ?? false,
-                showIncludedBadge: skin?.bannerShowIncludedBadge ?? false,
-                showJellyfinLogo: skin?.bannerShowJellyfinLogo ?? false,
-                hoverReveal: hoverReveal,
-                showActions: skin?.bannerShowActions ?? false,
-                showTrailer: skin?.showTrailerInSlider ?? false,
-                transition:
-                    skin?.bannerTransition ?? SliderTransition.slide,
-                arrowsOnHover: skin?.bannerArrowsOnHover ?? false,
-                heightFactor: skin?.bannerHeightFactor ?? 0.38,
-                maxHeight: skin?.bannerMaxHeight ?? 440,
-                dotAlignment:
-                    skin?.bannerDotAlignment ?? SliderDotAlignment.right,
-                logoWidthFactor:
-                    skin?.bannerLogoWidthFactor ?? FeaturedSlider.kDefaultLogoWidthFactor,
-              ),
-            if (skin?.showContinueRow ?? true)
-              ContentRow(
-                title: l10n.continueWatching,
-                items: resume.value ?? const [],
-                serverUrl: serverUrl,
-                height: skin?.homeRowHeight ?? 270,
-                cardWidth: skin?.homeCardWidth ?? 150,
-                useBackdrop: useBackdrop,
-                cardLogo: skin?.cardLogo,
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
+                padding: EdgeInsets.only(
+                  top: bannerAttached ? 0 : 54,
+                  bottom: 24,
                 ),
+                children: [
+                  if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
+                    FeaturedSlider(
+                      title: l10n.newReleases,
+                      items: latestBanner.value ?? const [],
+                      serverUrl: serverUrl,
+                      showTitle: skin?.bannerShowTitle ?? true,
+                      showAgeRating: skin?.bannerShowAgeRating ?? false,
+                      contentScale: skin?.bannerContentScale ?? 1.0,
+                      showBorder: skin?.bannerBorder ?? false,
+                      showArrows: skin?.bannerShowArrows ?? false,
+                      showIncludedBadge: skin?.bannerShowIncludedBadge ?? false,
+                      showJellyfinLogo: skin?.bannerShowJellyfinLogo ?? false,
+                      hoverReveal: hoverReveal,
+                      showActions: skin?.bannerShowActions ?? false,
+                      showTrailer: skin?.showTrailerInSlider ?? false,
+                      transition:
+                          skin?.bannerTransition ?? SliderTransition.slide,
+                      arrowsOnHover: skin?.bannerArrowsOnHover ?? false,
+                      heightFactor: skin?.bannerHeightFactor ?? 0.38,
+                      maxHeight: skin?.bannerMaxHeight ?? 440,
+                      dotAlignment:
+                          skin?.bannerDotAlignment ?? SliderDotAlignment.right,
+                      logoWidthFactor:
+                          skin?.bannerLogoWidthFactor ??
+                          FeaturedSlider.kDefaultLogoWidthFactor,
+                    ),
+                  if (skin?.showContinueRow ?? true)
+                    ContentRow(
+                      title: l10n.continueWatching,
+                      items: resume.value ?? const [],
+                      serverUrl: serverUrl,
+                      height: skin?.homeRowHeight ?? 270,
+                      cardWidth: skin?.homeCardWidth ?? 150,
+                      useBackdrop: useBackdrop,
+                      cardLogo: skin?.cardLogo,
+                      onItemTap: (item) =>
+                          context.push('/player/${item.id}', extra: item),
+                      onItemImageTap: (item) =>
+                          context.push('/home/details/${item.id}', extra: item),
+                    ),
+                  if (!showBanner && (skin?.showNewReleasesRow ?? true))
+                    ContentRow(
+                      title: l10n.newReleases,
+                      items: latest.value ?? const [],
+                      serverUrl: serverUrl,
+                      height: skin?.homeRowHeight ?? 270,
+                      cardWidth: skin?.homeCardWidth ?? 150,
+                      useBackdrop: useBackdrop,
+                      cardLogo: skin?.cardLogo,
+                      onItemTap: (item) =>
+                          context.push('/player/${item.id}', extra: item),
+                      onItemImageTap: (item) =>
+                          context.push('/home/details/${item.id}', extra: item),
+                    ),
+                  for (final view
+                      in (views.value ?? const <BaseItemDto>[]).take(4))
+                    ContentRow(
+                      title: view.name ?? '',
+                      items:
+                          ref
+                              .watch(libraryItemsProvider(view.id ?? ''))
+                              .value ??
+                          const [],
+                      serverUrl: serverUrl,
+                      height: skin?.homeRowHeight ?? 270,
+                      cardWidth: skin?.homeCardWidth ?? 150,
+                      useBackdrop: useBackdrop,
+                      cardLogo: skin?.cardLogo,
+                      onItemTap: (item) =>
+                          context.push('/player/${item.id}', extra: item),
+                      onItemImageTap: (item) =>
+                          context.push('/home/details/${item.id}', extra: item),
+                    ),
+                  // Scrolls extra configurados por el skin (con filtros de géneros).
+                  for (final scroll
+                      in skin?.homeScrolls ?? const <HomeScroll>[])
+                    ContentRow(
+                      title: _scrollTitle(l10n, scroll.titleKey),
+                      items:
+                          ref.watch(homeScrollItemsProvider(scroll)).value ??
+                          const [],
+                      serverUrl: serverUrl,
+                      height: skin?.homeRowHeight ?? 270,
+                      cardWidth: skin?.homeCardWidth ?? 150,
+                      useBackdrop: useBackdrop,
+                      cardLogo: skin?.cardLogo,
+                      onSeeMore: () => context.push('/movies'),
+                      onItemTap: (item) =>
+                          context.push('/player/${item.id}', extra: item),
+                      onItemImageTap: (item) =>
+                          context.push('/home/details/${item.id}', extra: item),
+                    ),
+                  const SizedBox(height: 24),
+                ],
               ),
-            if (!showBanner && (skin?.showNewReleasesRow ?? true))
-              ContentRow(
-                title: l10n.newReleases,
-                items: latest.value ?? const [],
-                serverUrl: serverUrl,
-                height: skin?.homeRowHeight ?? 270,
-                cardWidth: skin?.homeCardWidth ?? 150,
-                useBackdrop: useBackdrop,
-                cardLogo: skin?.cardLogo,
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
-                ),
-              ),
-            for (final view in (views.value ?? const <BaseItemDto>[]).take(4))
-              ContentRow(
-                title: view.name ?? '',
-                items:
-                    ref.watch(libraryItemsProvider(view.id ?? '')).value ??
-                    const [],
-                serverUrl: serverUrl,
-                height: skin?.homeRowHeight ?? 270,
-                cardWidth: skin?.homeCardWidth ?? 150,
-                useBackdrop: useBackdrop,
-                cardLogo: skin?.cardLogo,
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
-                ),
-              ),
-            // Scrolls extra configurados por el skin (con filtros de géneros).
-            for (final scroll in skin?.homeScrolls ?? const <HomeScroll>[])
-              ContentRow(
-                title: _scrollTitle(l10n, scroll.titleKey),
-                items:
-                    ref.watch(homeScrollItemsProvider(scroll)).value ?? const [],
-                serverUrl: serverUrl,
-                height: skin?.homeRowHeight ?? 270,
-                cardWidth: skin?.homeCardWidth ?? 150,
-                useBackdrop: useBackdrop,
-                cardLogo: skin?.cardLogo,
-                onSeeMore: () => context.push('/movies'),
-                onItemTap: (item) => context.push(
-                  '/player/${item.id}',
-                  extra: item,
-                ),
-              ),
-            const SizedBox(height: 24),
-          ],
-        ),
       ),
     );
   }

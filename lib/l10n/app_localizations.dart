@@ -800,6 +800,30 @@ abstract class AppLocalizations {
   /// **'Included with Jellyfin'**
   String get includedWithJellyfin;
 
+  /// No description provided for @adFreeEasterEggButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue without ads'**
+  String get adFreeEasterEggButton;
+
+  /// No description provided for @adFreeEasterEggTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'You found the secret button!'**
+  String get adFreeEasterEggTitle;
+
+  /// No description provided for @adFreeEasterEggMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin has no ads. So this button just gave you exactly what you already had: zero ads and a free smile.'**
+  String get adFreeEasterEggMessage;
+
+  /// No description provided for @adFreeEasterEggClose.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep enjoying'**
+  String get adFreeEasterEggClose;
+
   /// No description provided for @watchNow.
   ///
   /// In en, this message translates to:

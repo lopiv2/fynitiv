@@ -369,6 +369,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String get includedWithJellyfin => 'Se incluye con Jellyfin';
 
   @override
+  String get adFreeEasterEggButton => 'Continuar sin anuncios';
+
+  @override
+  String get adFreeEasterEggTitle => '¡Has encontrado el botón secreto!';
+
+  @override
+  String get adFreeEasterEggMessage =>
+      'Jellyfin no tiene anuncios. Así que este botón acaba de concederte exactamente lo que ya tenías: cero anuncios y una sonrisa gratis.';
+
+  @override
+  String get adFreeEasterEggClose => 'Seguir disfrutando';
+
+  @override
   String get watchNow => 'Ver ahora';
 
   @override

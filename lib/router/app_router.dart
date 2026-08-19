@@ -8,6 +8,7 @@ import '../features/household/application/household_provider.dart';
 import '../features/household/domain/household.dart';
 import '../features/household/presentation/household_wizard_screen.dart';
 import '../features/library/presentation/home_screen.dart';
+import '../features/library/presentation/item_detail_screen.dart';
 import '../features/library/presentation/library_view_screen.dart';
 import '../features/live_tv/presentation/live_fullscreen_player.dart';
 import '../features/live_tv/presentation/live_tv_screen.dart';
@@ -46,7 +47,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             return location == '/setup' ? null : '/setup';
           }
           // La casa es válida solo si coincide con el servidor actual.
-          final houseMatchesServer = household != null &&
+          final houseMatchesServer =
+              household != null &&
               household.serverId != null &&
               household.matchesServer(authState.serverId);
           // Sin casa (o casa de otro servidor) → asistente.
@@ -69,10 +71,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               : null,
         ),
       ),
-      GoRoute(
-        path: '/users',
-        builder: (_, _) => const UserSelectionScreen(),
-      ),
+      GoRoute(path: '/users', builder: (_, _) => const UserSelectionScreen()),
       // Reproductor a pantalla completa (fuera del shell para cubrir todo).
       GoRoute(
         path: '/player/:itemId',
@@ -87,47 +86,44 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, _) => const LiveTvFullscreenPlayer(),
       ),
       // Todas las películas del servidor (grid con desplazamiento infinito).
-      GoRoute(
-        path: '/movies',
-        builder: (_, _) => const AllMoviesScreen(),
-      ),
+      GoRoute(path: '/movies', builder: (_, _) => const AllMoviesScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             HomeShell(navigationShell: navigationShell),
         branches: [
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/home', builder: (_, _) => const HomeScreen()),
+              GoRoute(
+                path: '/home',
+                builder: (_, _) => const HomeScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'details/:itemId',
+                    builder: (context, state) =>
+                        ItemDetailScreen(item: state.extra as BaseItemDto),
+                  ),
+                ],
+              ),
               GoRoute(
                 path: '/library/:viewId',
-                builder: (context, state) => LibraryViewScreen(
-                  viewId: state.pathParameters['viewId']!,
-                ),
+                builder: (context, state) =>
+                    LibraryViewScreen(viewId: state.pathParameters['viewId']!),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/search',
-                builder: (_, _) => const SearchScreen(),
-              ),
+              GoRoute(path: '/search', builder: (_, _) => const SearchScreen()),
             ],
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/vod',
-                builder: (_, _) => const VodScreen(),
-              ),
+              GoRoute(path: '/vod', builder: (_, _) => const VodScreen()),
             ],
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/live',
-                builder: (_, _) => const LiveTvScreen(),
-              ),
+              GoRoute(path: '/live', builder: (_, _) => const LiveTvScreen()),
             ],
           ),
           StatefulShellBranch(
@@ -159,7 +155,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'platform/:platformId',
                     builder: (context, state) => GameListScreen(
                       platformId:
-                          int.tryParse(state.pathParameters['platformId']!) ?? 0,
+                          int.tryParse(state.pathParameters['platformId']!) ??
+                          0,
                     ),
                   ),
                   GoRoute(

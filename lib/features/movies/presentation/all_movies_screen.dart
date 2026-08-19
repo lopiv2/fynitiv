@@ -138,6 +138,10 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
                                   '/player/${item.id}',
                                   extra: item,
                                 ),
+                                onImageTap: () => context.push(
+                                  '/home/details/${item.id}',
+                                  extra: item,
+                                ),
                               )
                             : PosterCard(
                                 item: item,
@@ -146,6 +150,10 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
                                 hoverExtension: true,
                                 onTap: () => context.push(
                                   '/player/${item.id}',
+                                  extra: item,
+                                ),
+                                onImageTap: () => context.push(
+                                  '/home/details/${item.id}',
                                   extra: item,
                                 ),
                               );

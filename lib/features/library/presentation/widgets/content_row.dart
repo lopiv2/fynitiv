@@ -27,7 +27,9 @@ class ContentRow extends ConsumerStatefulWidget {
     this.useBackdrop = false,
     this.cardLogo,
     this.onItemTap,
+    this.onItemImageTap,
     this.onSeeMore,
+    this.showTitle = true,
   });
 
   final String title;
@@ -49,8 +51,14 @@ class ContentRow extends ConsumerStatefulWidget {
   /// Se invoca al pulsar una tarjeta de la fila.
   final void Function(BaseItemDto item)? onItemTap;
 
+  /// Accion al pulsar la imagen expandida de una tarjeta.
+  final void Function(BaseItemDto item)? onItemImageTap;
+
   /// Acción de "Ver más >" en el título de la fila. Si es null no se muestra.
   final VoidCallback? onSeeMore;
+
+  /// Oculta el titulo cuando la fila ya tiene una cabecera propia.
+  final bool showTitle;
 
   @override
   ConsumerState<ContentRow> createState() => _ContentRowState();
@@ -304,6 +312,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                   onTap: widget.onItemTap == null
                       ? null
                       : () => widget.onItemTap!(items[i]),
+                  onImageTap: widget.onItemImageTap == null
+                      ? null
+                      : () => widget.onItemImageTap!(items[i]),
                   onHoverChanged: (v) => _onCardHover(i, v),
                   onPointerSignal: _onPagePointerSignal,
                   overlayBelowEntry: _prepareArrowOverlayForHover,
@@ -316,6 +327,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                   onTap: widget.onItemTap == null
                       ? null
                       : () => widget.onItemTap!(items[i]),
+                  onImageTap: widget.onItemImageTap == null
+                      ? null
+                      : () => widget.onItemImageTap!(items[i]),
                   onHoverChanged: (v) => _onCardHover(i, v),
                   onPointerSignal: _onPagePointerSignal,
                   overlayBelowEntry: _prepareArrowOverlayForHover,
@@ -336,11 +350,16 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: ScrollTitle(title: widget.title, onSeeMore: widget.onSeeMore),
-        ),
-        const SizedBox(height: 12),
+        if (widget.showTitle) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: ScrollTitle(
+              title: widget.title,
+              onSeeMore: widget.onSeeMore,
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
         SizedBox(
           height: _rowHeight,
           child: Stack(

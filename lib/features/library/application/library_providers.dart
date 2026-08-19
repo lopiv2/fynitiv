@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 import '../../auth/application/auth_controller.dart';
+import '../../../core/i18n/locale_provider.dart';
 import '../../../core/skin/home_scroll.dart';
 
 /// userId del usuario autenticado actual.
@@ -36,11 +38,11 @@ final resumeItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getResumeItems(
-        userId: userId,
-        limit: 20,
-        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
-      );
+    userId: userId,
+    limit: 20,
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
+  );
   return res.data?.items ?? [];
 });
 
@@ -50,60 +52,60 @@ final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        sortBy: [ItemSortBy.dateCreated],
-        sortOrder: [SortOrder.descending],
-        limit: 20,
-        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.thumb],
-      );
+    userId: userId,
+    recursive: true,
+    sortBy: [ItemSortBy.dateCreated],
+    sortOrder: [SortOrder.descending],
+    limit: 20,
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [ImageType.primary, ImageType.thumb],
+  );
   return res.data?.items ?? [];
 });
 
 /// Novedades para el carrusel de banners del home (estilo Disney+).
 /// Máximo 10 items y con imágenes de fondo (backdrop) habilitadas.
-final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((
+  ref,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        sortBy: [ItemSortBy.dateCreated],
-        sortOrder: [SortOrder.descending],
-        limit: 10,
-        fields: [
-          ItemFields.dateCreated,
-          ItemFields.genres,
-          ItemFields.overview,
-          ItemFields.primaryImageAspectRatio,
-          ItemFields.providerIds,
-        ],
-        enableImageTypes: [
-          ImageType.primary,
-          ImageType.backdrop,
-          ImageType.logo,
-        ],
-      );
+    userId: userId,
+    recursive: true,
+    sortBy: [ItemSortBy.dateCreated],
+    sortOrder: [SortOrder.descending],
+    limit: 10,
+    fields: [
+      ItemFields.dateCreated,
+      ItemFields.genres,
+      ItemFields.overview,
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.providerIds,
+    ],
+    enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.logo],
+  );
   return res.data?.items ?? [];
 });
 
 /// Items de una vista/biblioteca concreta.
-final libraryItemsProvider =
-    FutureProvider.family<List<BaseItemDto>, String>((ref, viewId) async {
+final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
+  ref,
+  viewId,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        parentId: viewId,
-        recursive: true,
-        sortBy: [ItemSortBy.sortName],
-        limit: 20,
-        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.thumb],
-      );
+    userId: userId,
+    parentId: viewId,
+    recursive: true,
+    sortBy: [ItemSortBy.sortName],
+    limit: 20,
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [ImageType.primary, ImageType.thumb],
+  );
   return res.data?.items ?? [];
 });
 
@@ -113,16 +115,72 @@ final vodItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
-        sortBy: [ItemSortBy.dateCreated],
-        sortOrder: [SortOrder.descending],
-        limit: 60,
-        fields: [ItemFields.primaryImageAspectRatio],
-        enableImageTypes: [ImageType.primary],
-      );
+    userId: userId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+    sortBy: [ItemSortBy.dateCreated],
+    sortOrder: [SortOrder.descending],
+    limit: 60,
+    fields: [ItemFields.primaryImageAspectRatio],
+    enableImageTypes: [ImageType.primary],
+  );
   return res.data?.items ?? [];
+});
+
+/// Contenidos similares al item actual, para la fila de relacionados del
+/// detalle Prime.
+final similarItemsProvider =
+    FutureProvider.family<List<BaseItemDto>, BaseItemDto>((ref, item) async {
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      final itemId = item.id ?? '';
+      if (client == null || userId == null || itemId.isEmpty) return const [];
+      try {
+        final res = await client.getItemsApi().getItems(
+          userId: userId,
+          recursive: true,
+          limit: 10,
+          excludeItemIds: [itemId],
+          genres: item.genres,
+          includeItemTypes: item.type == BaseItemKind.movie
+              ? [BaseItemKind.movie]
+              : item.type == BaseItemKind.series
+              ? [BaseItemKind.series]
+              : null,
+          fields: [
+            ItemFields.overview,
+            ItemFields.providerIds,
+            ItemFields.primaryImageAspectRatio,
+          ],
+          enableImageTypes: [
+            ImageType.primary,
+            ImageType.thumb,
+            ImageType.backdrop,
+          ],
+        );
+        return (res.data?.items ?? const []).take(10).toList();
+      } catch (_) {
+        return const [];
+      }
+    });
+
+/// Detalle completo de un item, incluidos reparto, estudio y pistas.
+final itemDetailProvider = FutureProvider.family<BaseItemDto?, String>((
+  ref,
+  itemId,
+) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || itemId.isEmpty) return null;
+  try {
+    final res = await client.getUserLibraryApi().getItem(
+      itemId: itemId,
+      userId: userId,
+    );
+    return res.data;
+  } catch (_) {
+    return null;
+  }
 });
 
 /// Novedades de VOD para el carrusel de banners (solo películas y series).
@@ -131,25 +189,21 @@ final vodLatestBannerProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
-        sortBy: [ItemSortBy.dateCreated],
-        sortOrder: [SortOrder.descending],
-        limit: 10,
-        fields: [
-          ItemFields.dateCreated,
-          ItemFields.genres,
-          ItemFields.overview,
-          ItemFields.primaryImageAspectRatio,
-          ItemFields.providerIds,
-        ],
-        enableImageTypes: [
-          ImageType.primary,
-          ImageType.backdrop,
-          ImageType.logo,
-        ],
-      );
+    userId: userId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+    sortBy: [ItemSortBy.dateCreated],
+    sortOrder: [SortOrder.descending],
+    limit: 10,
+    fields: [
+      ItemFields.dateCreated,
+      ItemFields.genres,
+      ItemFields.overview,
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.providerIds,
+    ],
+    enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.logo],
+  );
   return res.data?.items ?? [];
 });
 
@@ -159,12 +213,12 @@ final vodResumeProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getResumeItems(
-        userId: userId,
-        limit: 20,
-        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
-        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
-      );
+    userId: userId,
+    limit: 20,
+    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
+  );
   return res.data?.items ?? [];
 });
 
@@ -174,15 +228,15 @@ final vodLatestProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
-        sortBy: [ItemSortBy.dateCreated],
-        sortOrder: [SortOrder.descending],
-        limit: 20,
-        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.thumb],
-      );
+    userId: userId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+    sortBy: [ItemSortBy.dateCreated],
+    sortOrder: [SortOrder.descending],
+    limit: 20,
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [ImageType.primary, ImageType.thumb],
+  );
   return res.data?.items ?? [];
 });
 
@@ -190,9 +244,11 @@ final vodLatestProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 final vodLibraryViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final views = await ref.watch(userViewsProvider.future);
   return views
-      .where((v) =>
-          v.collectionType == CollectionType.movies ||
-          v.collectionType == CollectionType.tvshows)
+      .where(
+        (v) =>
+            v.collectionType == CollectionType.movies ||
+            v.collectionType == CollectionType.tvshows,
+      )
       .toList();
 });
 
@@ -201,22 +257,24 @@ final vodLibraryViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 /// items empezando en [pageIndex] * página.
 const int kAllMoviesPageSize = 50;
 
-final allMoviesPageProvider =
-    FutureProvider.family<List<BaseItemDto>, int>((ref, pageIndex) async {
+final allMoviesPageProvider = FutureProvider.family<List<BaseItemDto>, int>((
+  ref,
+  pageIndex,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        includeItemTypes: [BaseItemKind.movie],
-        startIndex: pageIndex * kAllMoviesPageSize,
-        limit: kAllMoviesPageSize,
-        sortBy: [ItemSortBy.sortName],
-        sortOrder: [SortOrder.ascending],
-        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-        enableImageTypes: [ImageType.primary, ImageType.thumb],
-      );
+    userId: userId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.movie],
+    startIndex: pageIndex * kAllMoviesPageSize,
+    limit: kAllMoviesPageSize,
+    sortBy: [ItemSortBy.sortName],
+    sortOrder: [SortOrder.ascending],
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [ImageType.primary, ImageType.thumb],
+  );
   return res.data?.items ?? [];
 });
 
@@ -224,10 +282,10 @@ final allMoviesPageProvider =
 /// géneros y tipos). Se usa para los scrolls extra definidos en cada preset.
 final homeScrollItemsProvider =
     FutureProvider.family<List<BaseItemDto>, HomeScroll>((ref, scroll) async {
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null) return const [];
-  final res = await client.getItemsApi().getItems(
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null) return const [];
+      final res = await client.getItemsApi().getItems(
         userId: userId,
         recursive: true,
         includeItemTypes: scroll.types,
@@ -239,8 +297,8 @@ final homeScrollItemsProvider =
         fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
         enableImageTypes: [ImageType.primary, ImageType.thumb],
       );
-  return res.data?.items ?? [];
-});
+      return res.data?.items ?? [];
+    });
 
 /// Álbumes de música de todas las bibliotecas.
 final musicAlbumsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
@@ -248,15 +306,15 @@ final musicAlbumsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        includeItemTypes: [BaseItemKind.musicAlbum],
-        sortBy: [ItemSortBy.sortName],
-        sortOrder: [SortOrder.ascending],
-        limit: 60,
-        fields: [ItemFields.primaryImageAspectRatio],
-        enableImageTypes: [ImageType.primary],
-      );
+    userId: userId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.musicAlbum],
+    sortBy: [ItemSortBy.sortName],
+    sortOrder: [SortOrder.ascending],
+    limit: 60,
+    fields: [ItemFields.primaryImageAspectRatio],
+    enableImageTypes: [ImageType.primary],
+  );
   return res.data?.items ?? [];
 });
 
@@ -266,43 +324,74 @@ final musicTracksProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final res = await client.getItemsApi().getItems(
-        userId: userId,
-        recursive: true,
-        includeItemTypes: [BaseItemKind.audio],
-        sortBy: [ItemSortBy.sortName],
-        sortOrder: [SortOrder.ascending],
-        limit: 100,
-        fields: [ItemFields.primaryImageAspectRatio],
-        enableImageTypes: [ImageType.primary],
-      );
+    userId: userId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.audio],
+    sortBy: [ItemSortBy.sortName],
+    sortOrder: [SortOrder.ascending],
+    limit: 100,
+    fields: [ItemFields.primaryImageAspectRatio],
+    enableImageTypes: [ImageType.primary],
+  );
   return res.data?.items ?? [];
 });
 
 /// Trailer (id de YouTube) de un item usando la API pública de KinoCheck.
 /// Requiere tmdb_id o imdb_id del item.
-final kinocheckTrailerProvider =
-    FutureProvider.family<String?, BaseItemDto>((ref, item) async {
+final kinocheckTrailerProvider = FutureProvider.family<String?, BaseItemDto>((
+  ref,
+  item,
+) async {
   final dio = Dio()..options.headers = _kinoHeaders;
+  final language = ref.watch(localeProvider).value?.languageCode ?? 'es';
   try {
-    final tmdbId = item.providerIds?['Tmdb'];
-    final imdbId = item.providerIds?['Imdb'];
+    final providerIds = item.providerIds ?? const <String, String>{};
+    String? providerId(String name) {
+      for (final entry in providerIds.entries) {
+        if (entry.key.toLowerCase() == name.toLowerCase()) return entry.value;
+      }
+      return null;
+    }
+
+    final tmdbId = providerId('Tmdb');
+    final imdbId = providerId('Imdb');
+    debugPrint(
+      '[KinoCheck] item=${item.id} tmdb=$tmdbId imdb=$imdbId language=$language',
+    );
+    Future<String?> requestTrailer(String parameter, String value) async {
+      Future<String?> request(String requestedLanguage) async {
+        final res = await dio.get(
+          'https://api.kinocheck.de/movies',
+          queryParameters: {parameter: value, 'language': requestedLanguage},
+        );
+        final trailerId = _kinocheckYoutubeId(
+          res.data,
+          preferredLanguage: requestedLanguage,
+        );
+        debugPrint(
+          '[KinoCheck] $parameter=$value language=$requestedLanguage '
+          'status=${res.statusCode} trailer=$trailerId',
+        );
+        return trailerId;
+      }
+
+      for (final requestedLanguage in <String>{language, 'en', 'de'}) {
+        final trailer = await request(requestedLanguage);
+        if (trailer != null) return trailer;
+      }
+      return null;
+    }
+
     if (tmdbId != null && tmdbId.isNotEmpty) {
-      final res = await dio.get(
-        'https://api.kinocheck.de/movies',
-        queryParameters: {'tmdb_id': tmdbId},
-      );
-      final trailer = _kinocheckYoutubeId(res.data);
+      final trailer = await requestTrailer('tmdb_id', tmdbId);
       if (trailer != null) return trailer;
     }
     if (imdbId != null && imdbId.isNotEmpty) {
-      final res = await dio.get(
-        'https://api.kinocheck.de/movies',
-        queryParameters: {'imdb_id': imdbId},
-      );
-      return _kinocheckYoutubeId(res.data);
+      return await requestTrailer('imdb_id', imdbId);
     }
     return null;
-  } catch (_) {
+  } catch (error) {
+    debugPrint('[KinoCheck] request failed for item=${item.id}: $error');
     return null;
   }
 });
@@ -310,36 +399,92 @@ final kinocheckTrailerProvider =
 const _kinoHeaders = <String, String>{
   'User-Agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-          '(KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+      '(KHTML, like Gecko) Chrome/124.0 Safari/537.36',
 };
 
-String? _kinocheckYoutubeId(dynamic data) {
+String? _kinocheckYoutubeId(dynamic data, {String? preferredLanguage}) {
   // Respuesta como lista de trailers directamente.
-  if (data is List) return _firstTrailerId(data);
+  if (data is List) {
+    return _firstTrailerId(data, preferredLanguage: preferredLanguage);
+  }
   if (data is! Map<String, dynamic>) return null;
+  final videos = data['videos'];
+  if (videos is List) {
+    final localized = _firstTrailerId(
+      videos,
+      preferredLanguage: preferredLanguage,
+      onlyPreferredLanguage: true,
+    );
+    if (localized != null) return localized;
+  }
   // Trailer principal.
   final trailer = data['trailer'];
   if (trailer is Map<String, dynamic>) {
-    final id = trailer['youtube_id'];
-    if (id is String && id.isNotEmpty) return id;
+    final id = trailer['youtube_video_id'] ?? trailer['youtube_id'];
+    final language = '${trailer['language'] ?? ''}'.toLowerCase();
+    if (id is String &&
+        id.isNotEmpty &&
+        (preferredLanguage == null ||
+            language.isEmpty ||
+            language == preferredLanguage.toLowerCase())) {
+      return id;
+    }
   }
   // Videos relacionados que sean trailers.
-  final videos = data['videos'];
-  if (videos is List) return _firstTrailerId(videos);
+  if (videos is List) {
+    return _firstTrailerId(videos, preferredLanguage: preferredLanguage);
+  }
   return null;
 }
 
-String? _firstTrailerId(List list) {
+String? _firstTrailerId(
+  List list, {
+  String? preferredLanguage,
+  bool onlyPreferredLanguage = false,
+}) {
+  String? findId(dynamic value) {
+    if (value is! Map<String, dynamic>) return null;
+    final id = value['youtube_video_id'] ?? value['youtube_id'];
+    return id is String && id.isNotEmpty ? id : null;
+  }
+
+  // KinoCheck normally marks the selected videos with the Trailer category.
   for (final v in list) {
     if (v is Map<String, dynamic>) {
       final categories = v['categories'];
-      final isTrailer = categories is List &&
-          categories.any((c) => '$c'.toLowerCase().contains('trailer'));
-      // Si no declara categorías, se asume que es un trailer.
-      if (isTrailer || categories is! List) {
-        final id = v['youtube_video_id'] ?? v['youtube_id'];
-        if (id is String && id.isNotEmpty) return id;
-      }
+      final isTrailer =
+          categories is List &&
+          categories.any((c) => '$c'.toLowerCase() == 'trailer');
+      final language = '${v['language'] ?? ''}'.toLowerCase();
+      final isPreferred =
+          preferredLanguage == null ||
+          language == preferredLanguage.toLowerCase();
+      if (isTrailer && isPreferred) return findId(v);
+    }
+  }
+  // Compatibilidad con respuestas antiguas que no incluyen categorías.
+  for (final v in list) {
+    final categories = v is Map<String, dynamic> ? v['categories'] : null;
+    final language = v is Map<String, dynamic>
+        ? '${v['language'] ?? ''}'.toLowerCase()
+        : '';
+    final isPreferred =
+        preferredLanguage == null ||
+        language == preferredLanguage.toLowerCase();
+    if (categories is! List && isPreferred) {
+      final id = findId(v);
+      if (id != null) return id;
+    }
+  }
+  if (onlyPreferredLanguage) return null;
+  // Último recurso: cualquier trailer disponible en la respuesta.
+  for (final v in list) {
+    if (v is Map<String, dynamic>) {
+      final categories = v['categories'];
+      final isTrailer =
+          categories is List &&
+          categories.any((c) => '$c'.toLowerCase() == 'trailer');
+      if (isTrailer) return findId(v);
     }
   }
   return null;
@@ -354,72 +499,19 @@ Future<String?> _resolveYoutubeStream(String youtubeId) async {
     final muxed = manifest.muxed;
     if (muxed.isNotEmpty) return muxed.first.url.toString();
     return null;
-  } catch (_) {
+  } catch (error) {
+    debugPrint('[KinoCheck] YouTube stream failed for id=$youtubeId: $error');
     return null;
   }
 }
 
-bool _isYouTubeUrl(String url) {
-  final u = url.toLowerCase();
-  return u.contains('youtube.com') ||
-      u.contains('youtu.be') ||
-      u.contains('/embed/');
-}
-
-String? _youtubeIdFromUrl(String url) {
-  final uri = Uri.tryParse(url);
-  if (uri == null) return null;
-  if (uri.host.contains('youtu.be')) {
-    final seg = uri.pathSegments.isNotEmpty ? uri.pathSegments.first : '';
-    return seg.isEmpty ? null : seg;
-  }
-  final v = uri.queryParameters['v'];
-  if (v != null && v.isNotEmpty) return v;
-  final segs = uri.pathSegments;
-  if (segs.isNotEmpty && segs.first == 'embed' && segs.length > 1) {
-    return segs[1];
-  }
-  return null;
-}
-
-/// Obtiene una URL de vídeo reproducible del trailer de un item.
-/// Prioriza los trailers remotos de Jellyfin (Power Toys); si el trailer es de
-/// YouTube se extrae la URL directa. Como respaldo usa KinoCheck.
-final trailerStreamProvider =
-    FutureProvider.family<String?, BaseItemDto>((ref, item) async {
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-
-  // 1) Trailers remotos de Jellyfin (del item o de su detalle).
-  String? remote = item.remoteTrailers
-      ?.where((t) => (t.url ?? '').isNotEmpty)
-      .firstOrNull
-      ?.url;
-  if ((remote ?? '').isEmpty &&
-      client != null &&
-      userId != null &&
-      (item.id ?? '').isNotEmpty) {
-    try {
-      final detail = await client
-          .getUserLibraryApi()
-          .getItem(itemId: item.id!, userId: userId);
-      remote = detail.data?.remoteTrailers
-          ?.where((t) => (t.url ?? '').isNotEmpty)
-          .firstOrNull
-          ?.url;
-    } catch (_) {}
-  }
-  if (remote != null && remote.isNotEmpty) {
-    // URL directa (p. ej. vídeo servido por Jellyfin).
-    if (!_isYouTubeUrl(remote)) return remote;
-    final youtubeId = _youtubeIdFromUrl(remote);
-    if (youtubeId != null) {
-      final direct = await _resolveYoutubeStream(youtubeId);
-      if (direct != null) return direct;
-    }
-  }
-
-  // 2) Respaldo: KinoCheck (tmdb/imdb).
+/// Obtiene una URL de vídeo reproducible del trailer de un item desde KinoCheck.
+/// Así se evita reproducir accidentalmente el video principal desde
+/// RemoteTrailers cuando el servidor devuelve una URL incorrecta.
+final trailerStreamProvider = FutureProvider.family<String?, BaseItemDto>((
+  ref,
+  item,
+) async {
   final youtubeId = await ref.read(kinocheckTrailerProvider(item).future);
   if (youtubeId != null) {
     final direct = await _resolveYoutubeStream(youtubeId);

@@ -77,6 +77,8 @@ class VodScreen extends ConsumerWidget {
                 cardLogo: skin?.cardLogo,
                 onItemTap: (item) =>
                     context.push('/player/${item.id}', extra: item),
+                onItemImageTap: (item) =>
+                    context.push('/home/details/${item.id}', extra: item),
               ),
             if (!showBanner && (skin?.showNewReleasesRow ?? true))
               ContentRow(
@@ -89,6 +91,8 @@ class VodScreen extends ConsumerWidget {
                 cardLogo: skin?.cardLogo,
                 onItemTap: (item) =>
                     context.push('/player/${item.id}', extra: item),
+                onItemImageTap: (item) =>
+                    context.push('/home/details/${item.id}', extra: item),
               ),
             for (final view in views.value ?? const <BaseItemDto>[])
               ContentRow(
@@ -103,6 +107,8 @@ class VodScreen extends ConsumerWidget {
                 cardLogo: skin?.cardLogo,
                 onItemTap: (item) =>
                     context.push('/player/${item.id}', extra: item),
+                onItemImageTap: (item) =>
+                    context.push('/home/details/${item.id}', extra: item),
               ),
             // Scrolls extra configurados por el skin (con filtros de géneros).
             for (final scroll in skin?.homeScrolls ?? const <HomeScroll>[])
@@ -119,6 +125,8 @@ class VodScreen extends ConsumerWidget {
                 onSeeMore: () => context.push('/movies'),
                 onItemTap: (item) =>
                     context.push('/player/${item.id}', extra: item),
+                onItemImageTap: (item) =>
+                    context.push('/home/details/${item.id}', extra: item),
               ),
             const SizedBox(height: 24),
           ],

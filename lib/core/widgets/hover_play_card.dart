@@ -35,6 +35,7 @@ class HoverPlayCard extends StatefulWidget {
     required this.child,
     required this.title,
     required this.onPlay,
+    this.onImageTap,
     this.showExtension = false,
     this.onTrailer,
     this.onFavorites,
@@ -56,6 +57,10 @@ class HoverPlayCard extends StatefulWidget {
 
   /// Acción al pulsar reproducir (o la tarjeta).
   final VoidCallback onPlay;
+
+  /// Accion al pulsar la imagen de la hovercard. Si no se proporciona, usa
+  /// la misma accion de reproduccion.
+  final VoidCallback? onImageTap;
 
   /// Muestra el panel de extensión negro al hacer hover.
   final bool showExtension;
@@ -218,6 +223,7 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
             originHeight: _originSize.height,
             image: widget.child,
             title: widget.title,
+            onImageTap: widget.onImageTap,
             onPlay: widget.onPlay,
             onTrailer: widget.onTrailer,
             onFavorites: widget.onFavorites,
@@ -323,6 +329,7 @@ class _ExpandedHoverCard extends StatefulWidget {
     required this.originHeight,
     required this.image,
     required this.title,
+    this.onImageTap,
     required this.onPlay,
     required this.onEnter,
     required this.onExit,
@@ -341,6 +348,7 @@ class _ExpandedHoverCard extends StatefulWidget {
   final double originHeight;
   final Widget image;
   final String title;
+  final VoidCallback? onImageTap;
   final VoidCallback onPlay;
   final VoidCallback onEnter;
   final VoidCallback onExit;
@@ -435,16 +443,8 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   GestureDetector(
-                    onTap: widget.onPlay,
-                    child: Stack(
-                      children: [
-                        widget.image,
-                        if (_expanded)
-                          Positioned.fill(
-                            child: IgnorePointer(child: _PlayOverlay()),
-                          ),
-                      ],
-                    ),
+                    onTap: widget.onImageTap ?? widget.onPlay,
+                    child: Stack(children: [widget.image]),
                   ),
                   // El panel crece en altura de 0 al tamaño real: al ser hijo
                   // del mismo Column, hereda el ancho ya estirado (stretch),
