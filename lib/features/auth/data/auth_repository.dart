@@ -20,7 +20,7 @@ class AuthRepository {
     final dio = Dio(
       BaseOptions(
         baseUrl: normalized,
-        connectTimeout: const Duration(seconds: 8),
+        connectTimeout: const Duration(seconds: 15),
         receiveTimeout: const Duration(seconds: 30),
       ),
     );

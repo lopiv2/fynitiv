@@ -1075,6 +1075,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All movies'**
   String get allMovies;
+
+  /// No description provided for @games.
+  ///
+  /// In en, this message translates to:
+  /// **'Online games'**
+  String get games;
+
+  /// No description provided for @gamesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your game library (ROMM)'**
+  String get gamesSubtitle;
+
+  /// No description provided for @gamesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'There are no platforms in the ROMM library.'**
+  String get gamesEmpty;
+
+  /// No description provided for @gamesNoServer.
+  ///
+  /// In en, this message translates to:
+  /// **'No ROMM server is configured. Connect your game library to play online.'**
+  String get gamesNoServer;
+
+  /// No description provided for @gamesConfigure.
+  ///
+  /// In en, this message translates to:
+  /// **'Configure server'**
+  String get gamesConfigure;
+
+  /// No description provided for @gamesConfigTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'ROMM server'**
+  String get gamesConfigTitle;
+
+  /// No description provided for @gamesConfigSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save and connect'**
+  String get gamesConfigSave;
+
+  /// No description provided for @gamesConfigSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected successfully'**
+  String get gamesConfigSaved;
+
+  /// No description provided for @gamesConfigFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect. Check your details.'**
+  String get gamesConfigFailed;
+
+  /// No description provided for @gamesConfigRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill in URL, username and password.'**
+  String get gamesConfigRequired;
+
+  /// No description provided for @gamesServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL'**
+  String get gamesServerUrl;
+
+  /// No description provided for @gamesUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Username'**
+  String get gamesUsername;
+
+  /// No description provided for @gamesPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Password'**
+  String get gamesPassword;
+
+  /// No description provided for @gamesConnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Connected'**
+  String get gamesConnected;
+
+  /// No description provided for @gamesDisconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Disconnect'**
+  String get gamesDisconnect;
+
+  /// No description provided for @gamesPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get gamesPlay;
+
+  /// No description provided for @gamesDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get gamesDownload;
+
+  /// No description provided for @gamesNoStreaming.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming is not available for this game. Use Download.'**
+  String get gamesNoStreaming;
+
+  /// No description provided for @gamesNoFile.
+  ///
+  /// In en, this message translates to:
+  /// **'This game has no downloadable file.'**
+  String get gamesNoFile;
+
+  /// No description provided for @gamesDownloaded.
+  ///
+  /// In en, this message translates to:
+  /// **'Download complete'**
+  String get gamesDownloaded;
+
+  /// No description provided for @gamesLaunchError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the web player.'**
+  String get gamesLaunchError;
 }
 
 class _AppLocalizationsDelegate

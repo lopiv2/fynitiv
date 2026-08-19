@@ -60,15 +60,14 @@ class PosterCard extends ConsumerWidget {
       runTimeTicks: item.runTimeTicks,
       overview: item.overview,
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Al hacer hover (hovercard visible) las esquinas pasan a ser
-          // rectas; solo sin hover conservan el radio redondeado.
-          HoverPlayRadius(
-            radius: radius * 2,
-            child: AspectRatio(
-              aspectRatio: 2 / 3,
+          // La imagen ocupa todo el alto disponible (menos el título) y se
+          // recorta con cover para mantener la relación de aspecto del póster
+          // sin desbordar la altura fija de la fila/grid.
+          Expanded(
+            child: HoverPlayRadius(
+              radius: radius * 2,
               child: Stack(
                 fit: StackFit.expand,
                 children: [

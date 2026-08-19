@@ -13,6 +13,9 @@ import '../features/live_tv/presentation/live_fullscreen_player.dart';
 import '../features/live_tv/presentation/live_tv_screen.dart';
 import '../features/movies/presentation/all_movies_screen.dart';
 import '../features/music/presentation/music_screen.dart';
+import '../features/games/presentation/game_detail_screen.dart';
+import '../features/games/presentation/game_list_screen.dart';
+import '../features/games/presentation/games_screen.dart';
 import '../features/player/presentation/player_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 import '../features/vod/presentation/vod_screen.dart';
@@ -140,6 +143,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       album: state.extra is BaseItemDto
                           ? state.extra as BaseItemDto
                           : null,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/games',
+                builder: (_, _) => const GamesScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'platform/:platformId',
+                    builder: (context, state) => GameListScreen(
+                      platformId:
+                          int.tryParse(state.pathParameters['platformId']!) ?? 0,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'rom/:romId',
+                    builder: (context, state) => GameDetailScreen(
+                      gameId: int.tryParse(state.pathParameters['romId']!) ?? 0,
                     ),
                   ),
                 ],

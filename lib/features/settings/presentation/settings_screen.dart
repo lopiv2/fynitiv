@@ -11,8 +11,9 @@ import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../household/application/household_provider.dart';
 import 'widgets/appearance_panel.dart';
+import 'widgets/games_panel.dart';
 
-enum SettingsSection { preferences, appearance, home, account, about }
+enum SettingsSection { preferences, appearance, home, games, account, about }
 
 /// Pantalla de ajustes de la app. Adaptativa: menú lateral en pantallas anchas
 /// (TV/escritorio) y pestañas superiores en móvil.
@@ -36,6 +37,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       (SettingsSection.preferences, Icons.tune, l10n.preferences),
       (SettingsSection.appearance, Icons.palette_outlined, l10n.appearance),
       (SettingsSection.home, Icons.home_outlined, l10n.currentHome),
+      (SettingsSection.games, Icons.sports_esports, l10n.games),
       (SettingsSection.account, Icons.person_outline, l10n.account),
       (SettingsSection.about, Icons.info_outline, l10n.about),
     ];
@@ -142,6 +144,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return const AppearancePanel();
       case SettingsSection.home:
         return _HomePanel();
+      case SettingsSection.games:
+        return const GamesPanel();
       case SettingsSection.account:
         return _AccountPanel();
       case SettingsSection.about:

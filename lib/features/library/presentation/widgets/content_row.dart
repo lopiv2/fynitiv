@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
@@ -55,16 +56,18 @@ class ContentRow extends ConsumerStatefulWidget {
 
 class _ContentRowState extends ConsumerState<ContentRow> {
   final ScrollController _controller = ScrollController();
-  bool _hovered = false;
 
   /// Índice de la tarjeta con hover (para reordenar el pintado y que la
   /// tarjeta escalada se superponga a las vecinas). -1 = ninguna.
   int _hoveredIndex = -1;
 
+  /// Estado del arrastre con el botón del medio del ratón (scroll horizontal).
+  bool _middleDragging = false;
+  double _lastDragX = 0;
+
   @override
   void initState() {
     super.initState();
-    // Actualiza la visibilidad de las flechas al desplazarse (drag o animación).
     _controller.addListener(_onScroll);
   }
 
@@ -93,14 +96,6 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   /// Separación entre tarjetas.
   double get _spacing => widget.useBackdrop ? 20 : 12;
 
-  bool get _canScrollLeft =>
-      _controller.hasClients &&
-      _controller.offset > _controller.position.minScrollExtent;
-
-  bool get _canScrollRight =>
-      _controller.hasClients &&
-      _controller.offset < _controller.position.maxScrollExtent;
-
   void _scrollBy(double delta) {
     if (!_controller.hasClients) return;
     final position = _controller.position;
@@ -113,6 +108,27 @@ class _ContentRowState extends ConsumerState<ContentRow> {
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeOutCubic,
     );
+  }
+
+  /// Inicia el arrastre con el botón del medio del ratón (scroll horizontal).
+  void _onPointerDown(PointerDownEvent event) {
+    if (event.buttons & kMiddleMouseButton != 0) {
+      _middleDragging = true;
+      _lastDragX = event.position.dx;
+    }
+  }
+
+  /// Desplaza la fila horizontalmente mientras se arrastra con el botón medio.
+  void _onPointerMove(PointerMoveEvent event) {
+    if (!_middleDragging) return;
+    final delta = event.position.dx - _lastDragX;
+    _lastDragX = event.position.dx;
+    if (delta != 0) _scrollBy(-delta);
+  }
+
+  /// Finaliza el arrastre con el botón del medio.
+  void _onPointerUp(PointerUpEvent event) {
+    _middleDragging = false;
   }
 
   /// Actualiza el índice de la tarjeta con hover.
@@ -165,34 +181,6 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     ];
   }
 
-  /// Flecha lateral con fade, visible al hacer hover sobre la fila (si queda
-  /// contenido por desplazar en esa dirección).
-  Widget _buildArrow({
-    required IconData icon,
-    required bool visible,
-    required VoidCallback onTap,
-    required Alignment align,
-    required EdgeInsets padding,
-  }) {
-    return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: !visible,
-        child: AnimatedOpacity(
-          opacity: visible ? 1 : 0,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
-          child: Align(
-            alignment: align,
-            child: Padding(
-              padding: padding,
-              child: _RowArrow(icon: icon, onTap: onTap),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (widget.items.isEmpty) return const SizedBox.shrink();
@@ -201,13 +189,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     final rowSpacing =
         ref.watch(skinControllerProvider).value?.rowSpacing ?? 24;
 
-    final leftArrowVisible = _hovered && _canScrollLeft;
-    final rightArrowVisible = _hovered && _canScrollRight;
-
-    return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
-      onExit: (_) => setState(() => _hovered = false),
-      child: Column(
+    return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
@@ -223,70 +205,40 @@ class _ContentRowState extends ConsumerState<ContentRow> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                ScrollConfiguration(
-                  behavior: const HorizontalScrollBehavior(),
-                  child: SingleChildScrollView(
-                    controller: _controller,
-                    scrollDirection: Axis.horizontal,
-                    clipBehavior: Clip.none,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: SizedBox(
-                      width:
-                          widget.items.length * _cardWidth +
-                          (widget.items.length - 1) * _spacing,
-                      height: _rowHeight,
-                      child: Stack(
-                        clipBehavior: Clip.none,
-                        children: _buildStackedItems(),
+                // Listener de bajo nivel: captura el arrastre con el botón del
+                // medio del ratón para desplazar la fila en horizontal. La rueda
+                // (PointerScrollEvent) no se intercepta, así que sigue haciendo
+                // scroll vertical de página.
+                Listener(
+                  onPointerDown: _onPointerDown,
+                  onPointerMove: _onPointerMove,
+                  onPointerUp: _onPointerUp,
+                  behavior: HitTestBehavior.translucent,
+                  child: ScrollConfiguration(
+                    behavior: const HorizontalScrollBehavior(),
+                    child: SingleChildScrollView(
+                      controller: _controller,
+                      scrollDirection: Axis.horizontal,
+                      clipBehavior: Clip.none,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: SizedBox(
+                        width:
+                            widget.items.length * _cardWidth +
+                            (widget.items.length - 1) * _spacing,
+                        height: _rowHeight,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: _buildStackedItems(),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                _buildArrow(
-                  icon: Icons.chevron_left,
-                  visible: leftArrowVisible,
-                  onTap: () => _scrollBy(-_cardWidth - _spacing),
-                  align: Alignment.centerLeft,
-                  padding: const EdgeInsets.only(left: 8),
-                ),
-                _buildArrow(
-                  icon: Icons.chevron_right,
-                  visible: rightArrowVisible,
-                  onTap: () => _scrollBy(_cardWidth + _spacing),
-                  align: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 8),
                 ),
               ],
             ),
           ),
           SizedBox(height: rowSpacing),
         ],
-      ),
-    );
-  }
-}
-
-/// Flecha lateral de desplazamiento de la fila.
-class _RowArrow extends StatelessWidget {
-  const _RowArrow({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          color: Colors.black54,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white38),
-        ),
-        child: Icon(icon, color: Colors.white, size: 30),
-      ),
     );
   }
 }

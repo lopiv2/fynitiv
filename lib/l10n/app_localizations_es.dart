@@ -505,4 +505,69 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get allMovies => 'Todas las películas';
+
+  @override
+  String get games => 'Juego online';
+
+  @override
+  String get gamesSubtitle => 'Tu biblioteca de juegos (ROMM)';
+
+  @override
+  String get gamesEmpty => 'No hay plataformas en la biblioteca de ROMM.';
+
+  @override
+  String get gamesNoServer =>
+      'No hay un servidor ROMM configurado. Conecta tu biblioteca de juegos para jugar online.';
+
+  @override
+  String get gamesConfigure => 'Configurar servidor';
+
+  @override
+  String get gamesConfigTitle => 'Servidor ROMM';
+
+  @override
+  String get gamesConfigSave => 'Guardar y conectar';
+
+  @override
+  String get gamesConfigSaved => 'Conectado correctamente';
+
+  @override
+  String get gamesConfigFailed => 'No se pudo conectar. Revisa los datos.';
+
+  @override
+  String get gamesConfigRequired => 'Completa URL, usuario y contraseña.';
+
+  @override
+  String get gamesServerUrl => 'URL del servidor';
+
+  @override
+  String get gamesUsername => 'Usuario';
+
+  @override
+  String get gamesPassword => 'Contraseña';
+
+  @override
+  String get gamesConnected => 'Conectado';
+
+  @override
+  String get gamesDisconnect => 'Desconectar';
+
+  @override
+  String get gamesPlay => 'Jugar';
+
+  @override
+  String get gamesDownload => 'Descargar';
+
+  @override
+  String get gamesNoStreaming =>
+      'El streaming no está disponible para este juego. Usa Descargar.';
+
+  @override
+  String get gamesNoFile => 'Este juego no tiene un archivo descargable.';
+
+  @override
+  String get gamesDownloaded => 'Descarga completada';
+
+  @override
+  String get gamesLaunchError => 'No se pudo abrir el reproductor web.';
 }

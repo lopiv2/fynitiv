@@ -504,4 +504,69 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get allMovies => 'All movies';
+
+  @override
+  String get games => 'Online games';
+
+  @override
+  String get gamesSubtitle => 'Your game library (ROMM)';
+
+  @override
+  String get gamesEmpty => 'There are no platforms in the ROMM library.';
+
+  @override
+  String get gamesNoServer =>
+      'No ROMM server is configured. Connect your game library to play online.';
+
+  @override
+  String get gamesConfigure => 'Configure server';
+
+  @override
+  String get gamesConfigTitle => 'ROMM server';
+
+  @override
+  String get gamesConfigSave => 'Save and connect';
+
+  @override
+  String get gamesConfigSaved => 'Connected successfully';
+
+  @override
+  String get gamesConfigFailed => 'Could not connect. Check your details.';
+
+  @override
+  String get gamesConfigRequired => 'Fill in URL, username and password.';
+
+  @override
+  String get gamesServerUrl => 'Server URL';
+
+  @override
+  String get gamesUsername => 'Username';
+
+  @override
+  String get gamesPassword => 'Password';
+
+  @override
+  String get gamesConnected => 'Connected';
+
+  @override
+  String get gamesDisconnect => 'Disconnect';
+
+  @override
+  String get gamesPlay => 'Play';
+
+  @override
+  String get gamesDownload => 'Download';
+
+  @override
+  String get gamesNoStreaming =>
+      'Streaming is not available for this game. Use Download.';
+
+  @override
+  String get gamesNoFile => 'This game has no downloadable file.';
+
+  @override
+  String get gamesDownloaded => 'Download complete';
+
+  @override
+  String get gamesLaunchError => 'Could not open the web player.';
 }

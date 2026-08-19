@@ -110,6 +110,18 @@ class Sidebar extends ConsumerWidget {
         selectedColor: selectedColor,
         onTap: () => _goBranch(context, ref, 4),
       ),
+      _NavItem(
+        icon: Icons.sports_esports,
+        selectedIcon: Icons.sports_esports_rounded,
+        label: l10n.games,
+        selected: currentIndex == 5,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        accent: accent,
+        iconSpacing: iconSpacing,
+        selectedColor: selectedColor,
+        onTap: () => _goBranch(context, ref, 5),
+      ),
     ];
     final viewItems = <Widget>[
       for (var i = 0; i < views.length; i++)
@@ -129,13 +141,13 @@ class Sidebar extends ConsumerWidget {
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
       label: l10n.settings,
-      selected: currentIndex == 5,
+      selected: currentIndex == 6,
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
       iconSpacing: iconSpacing,
       selectedColor: selectedColor,
-      onTap: () => _goBranch(context, ref, 5),
+      onTap: () => _goBranch(context, ref, 6),
     );
 
     final logo = _logo(sidebarLogo, textPrimary);

@@ -168,9 +168,32 @@ class _LiveTvScreenState extends ConsumerState<LiveTvScreen>
             ? const Center(child: AppLoader())
             : state.error != null && state.channels.isEmpty
                 ? Center(
-                    child: Text(
-                      '${state.error}',
-                      style: const TextStyle(color: Colors.white54),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.live_tv_rounded,
+                          color: Colors.white24,
+                          size: 48,
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 32),
+                          child: Text(
+                            '${state.error}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        FilledButton.icon(
+                          onPressed: () => ref
+                              .read(liveTvStateProvider.notifier)
+                              .reload(),
+                          icon: const Icon(Icons.refresh_rounded, size: 18),
+                          label: Text(l10n.retry),
+                        ),
+                      ],
                     ),
                   )
                 : Focus(
