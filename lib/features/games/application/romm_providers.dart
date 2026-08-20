@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/di/providers.dart';
@@ -84,7 +86,17 @@ class RommAuthController extends Notifier<RommAuthState> {
       state = const RommAuthState(authenticated: true);
       ref.invalidate(rommConfigProvider);
       return true;
-    } catch (_) {
+    } on DioException catch (e) {
+      debugPrint('--- ERROR EN ROMM LOGIN ---');
+      debugPrint('Status Code: ${e.response?.statusCode}');
+      debugPrint('Headers: ${e.response?.headers}');
+      debugPrint('Data/Body: ${e.response?.data}');
+      debugPrint('Error Message: ${e.message}');
+      state = const RommAuthState();
+      rethrow;
+    } catch (e, stackTrace) {
+      debugPrint('Error inesperado: $e');
+      debugPrint(stackTrace.toString());
       state = const RommAuthState();
       rethrow;
     }
@@ -99,8 +111,9 @@ class RommAuthController extends Notifier<RommAuthState> {
   }
 }
 
-final rommAuthProvider =
-    NotifierProvider<RommAuthController, RommAuthState>(RommAuthController.new);
+final rommAuthProvider = NotifierProvider<RommAuthController, RommAuthState>(
+  RommAuthController.new,
+);
 
 /// Repositorio ROMM autenticado (null si no hay sesión).
 final rommRepositoryProvider = Provider<RommRepository?>((ref) {
@@ -118,13 +131,13 @@ final rommPlatformsProvider = FutureProvider<List<RommPlatform>>((ref) async {
 });
 
 /// Juegos de una plataforma concreta (o toda la biblioteca si id es null).
-final rommGamesProvider =
-    FutureProvider.family<RommGamesPage, int?>((ref, platformId) async {
+final rommGamesProvider = FutureProvider.family<RommGamesPage, int?>((
+  ref,
+  platformId,
+) async {
   final repo = ref.watch(rommRepositoryProvider);
   if (repo == null) return const RommGamesPage(items: [], total: 0);
-  return repo.getGames(
-    platformIds: platformId == null ? null : [platformId],
-  );
+  return repo.getGames(platformIds: platformId == null ? null : [platformId]);
 });
 
 /// Detalle de un juego.
@@ -135,8 +148,10 @@ final rommGameProvider = FutureProvider.family<RommGame, int>((ref, id) async {
 });
 
 /// Indica si una plataforma tiene streaming disponible.
-final rommStreamingProvider =
-    FutureProvider.family<bool, String>((ref, platformSlug) async {
+final rommStreamingProvider = FutureProvider.family<bool, String>((
+  ref,
+  platformSlug,
+) async {
   final repo = ref.watch(rommRepositoryProvider);
   if (repo == null) return false;
   return repo.hasStreamingFor(platformSlug);

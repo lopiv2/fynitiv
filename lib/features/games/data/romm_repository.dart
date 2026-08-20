@@ -13,8 +13,7 @@ class RommGamesPage {
 
 /// Cliente de la API REST de ROMM (RomM).
 class RommRepository {
-  RommRepository({required this.serverUrl, Dio? dio})
-      : _dio = dio ?? Dio() {
+  RommRepository({required this.serverUrl, Dio? dio}) : _dio = dio ?? Dio() {
     _dio.options.baseUrl = serverUrl.replaceAll(RegExp(r'/$'), '');
     _dio.options.connectTimeout = const Duration(seconds: 15);
     _dio.options.receiveTimeout = const Duration(seconds: 30);
@@ -30,11 +29,11 @@ class RommRepository {
   void setToken(String? token) => _token = token;
 
   Options get _authOptions => Options(
-        headers: {
-          if (_token != null && _token!.isNotEmpty)
-            'Authorization': 'Bearer $_token',
-        },
-      );
+    headers: {
+      if (_token != null && _token!.isNotEmpty)
+        'Authorization': 'Bearer $_token',
+    },
+  );
 
   /// Normaliza una ruta de asset de ROMM (relativa) a una URL absoluta.
   String assetUrl(String? path) {
@@ -48,18 +47,20 @@ class RommRepository {
   Future<void> login({
     required String username,
     required String password,
-    List<String> scopes = const ['me', 'roms.read', 'platforms.read'],
   }) async {
     final res = await _dio.post(
-      '/token',
-      data: {
-        'grant_type': 'password',
-        'username': username,
-        'password': password,
-        'scope': scopes.join(' '),
-      },
+      '/api/token',
+      data: Uri(
+        queryParameters: {
+          'grant_type': 'password',
+          'username': username,
+          'password': password,
+          // No enviamos 'scope' para que RomM asigne los permisos por defecto de tu rol
+        },
+      ).query,
       options: Options(contentType: Headers.formUrlEncodedContentType),
     );
+
     final accessToken = res.data?['access_token'];
     if (accessToken == null || accessToken.toString().isEmpty) {
       throw DioException(
@@ -99,7 +100,8 @@ class RommRepository {
       queryParameters: {
         if (platformIds != null && platformIds.isNotEmpty)
           for (final id in platformIds) 'platform_ids': id,
-        if (searchTerm != null && searchTerm.isNotEmpty) 'search_term': searchTerm,
+        if (searchTerm != null && searchTerm.isNotEmpty)
+          'search_term': searchTerm,
         'limit': limit,
         'offset': offset,
         'with_files': true,
@@ -127,8 +129,9 @@ class RommRepository {
 
   RommGame _mapGame(Map<String, dynamic>? g) {
     final files = g?['files'] as List? ?? const [];
-    final firstFile =
-        files.isNotEmpty ? (files.first['file_name'] as String?) : null;
+    final firstFile = files.isNotEmpty
+        ? (files.first['file_name'] as String?)
+        : null;
     return RommGame(
       id: (g?['id'] as num?)?.toInt() ?? 0,
       name: g?['name'] as String? ?? g?['fs_name'] as String? ?? '',
@@ -155,7 +158,9 @@ class RommRepository {
       final containers = data['containers'] as List? ?? const [];
       return containers.any(
         (c) =>
-            (c as Map<String, dynamic>?)?['platform']?.toString().toLowerCase() ==
+            (c as Map<String, dynamic>?)?['platform']
+                ?.toString()
+                .toLowerCase() ==
             platformSlug.toLowerCase(),
       );
     } catch (_) {
