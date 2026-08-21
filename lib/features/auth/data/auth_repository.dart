@@ -45,6 +45,9 @@ class AuthRepository {
     while (u.endsWith('/')) {
       u = u.substring(0, u.length - 1);
     }
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      u = 'http://$u';
+    }
     return u;
   }
 
@@ -56,10 +59,13 @@ class AuthRepository {
   }) async {
     final client = await createClient(serverUrl);
     final api = client.getUserApi();
+    // Jellyfin: para usuarios sin contraseña, algunos servidores prefieren
+    // omitir el campo Pw en lugar de enviar cadena vacía.
+    final pw = password.isEmpty ? null : password;
     final response = await api.authenticateUserByName(
       authenticateUserByName: AuthenticateUserByName(
         username: username,
-        pw: password,
+        pw: pw,
       ),
     );
     final result = response.data;

@@ -36,9 +36,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         case AuthStatus.unknown:
           return location == '/splash' ? null : '/splash';
         case AuthStatus.authenticated:
-          return (location == '/splash' ||
-                  location == '/users' ||
-                  location == '/setup')
+          return (location == '/splash' || location == '/users')
               ? '/home'
               : null;
         case AuthStatus.unauthenticated:

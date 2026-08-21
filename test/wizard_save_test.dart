@@ -3,13 +3,11 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fynitiv/app.dart';
 import 'package:fynitiv/features/household/presentation/household_wizard_screen.dart';
-import 'package:fynitiv/features/users/application/users_provider.dart';
 import 'package:fynitiv/features/users/presentation/user_selection_screen.dart';
 
 void main() {
@@ -20,21 +18,17 @@ void main() {
       'jellyfin.server_id': 'server-1',
       'jellyfin.household': jsonEncode({
         'name': 'Casa Test',
-        'userIds': <String>['u1'],
+        'members': [
+          {'id': 'u1', 'name': 'Ana'}
+        ],
         'serverId': 'server-1',
         'pinHash': null,
       }),
     });
     FlutterSecureStorage.setMockInitialValues({});
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        publicUsersProvider.overrideWith((ref) async => [
-              UserDto(name: 'Ana', id: 'u1'),
-              UserDto(name: 'Luis', id: 'u2'),
-            ]),
-      ],
-      child: const FynitivApp(),
+    await tester.pumpWidget(const ProviderScope(
+      child: FynitivApp(),
     ));
     await tester.pump();
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));
@@ -49,7 +43,7 @@ void main() {
 
     expect(find.byType(HouseholdWizardScreen), findsOneWidget);
 
-    // Paso de usuarios → siguiente.
+    // Paso de usuarios → siguiente (ya hay Ana agregada).
     await tester.tap(find.text('Siguiente'));
     await tester.pumpAndSettle();
 

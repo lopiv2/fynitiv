@@ -3,14 +3,12 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:fynitiv/app.dart';
 import 'package:fynitiv/core/widgets/language_selector.dart';
 import 'package:fynitiv/features/household/presentation/household_wizard_screen.dart';
-import 'package:fynitiv/features/users/application/users_provider.dart';
 import 'package:fynitiv/features/users/presentation/user_selection_screen.dart';
 import 'package:fynitiv/router/splash_screen.dart';
 
@@ -68,7 +66,7 @@ void main() {
       'jellyfin.server_id': 'server-1',
       'jellyfin.household': jsonEncode({
         'name': 'Casa Test',
-        'userIds': <String>[],
+        'members': [],
         'serverId': 'server-1',
       }),
     });
@@ -94,7 +92,7 @@ void main() {
       'jellyfin.server_id': 'server-2',
       'jellyfin.household': jsonEncode({
         'name': 'Casa Antigua',
-        'userIds': <String>[],
+        'members': [],
         'serverId': 'server-1',
       }),
     });
@@ -117,21 +115,13 @@ void main() {
       'jellyfin.server_id': 'server-1',
       'jellyfin.household': jsonEncode({
         'name': 'Casa Test',
-        'userIds': <String>[],
+        'members': [],
         'serverId': 'server-1',
       }),
     });
     FlutterSecureStorage.setMockInitialValues({});
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [
-        publicUsersProvider.overrideWith((ref) async => [
-              UserDto(name: 'Ana', id: 'u1'),
-              UserDto(name: 'Luis', id: 'u2'),
-            ]),
-      ],
-      child: const FynitivApp(),
-    ));
+    await tester.pumpWidget(const ProviderScope(child: FynitivApp()));
     await tester.pump();
     await tester.tap(find.byIcon(Icons.play_arrow_rounded));
     await tester.pump();
@@ -147,5 +137,28 @@ void main() {
     expect(find.byType(HouseholdWizardScreen), findsOneWidget);
     expect(find.text('¿Quiénes son de esta casa?'), findsOneWidget);
   });
-}
 
+  testWidgets('Migración desde formato antiguo userIds funciona',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'jellyfin.server_url': 'https://jellyfin.example.com',
+      'jellyfin.server_id': 'server-1',
+      'jellyfin.household': jsonEncode({
+        'name': 'Casa Antigua',
+        'userIds': <String>['old1'],
+        'serverId': 'server-1',
+      }),
+    });
+    FlutterSecureStorage.setMockInitialValues({});
+
+    await tester.pumpWidget(const ProviderScope(child: FynitivApp()));
+    await tester.pump();
+    await tester.tap(find.byIcon(Icons.play_arrow_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
+
+    // Debe migrar y entrar a selección de usuarios.
+    expect(find.byType(UserSelectionScreen), findsOneWidget);
+  });
+}

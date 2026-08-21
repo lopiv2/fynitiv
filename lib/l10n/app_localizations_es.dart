@@ -60,10 +60,35 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get selectHouseholdUsers =>
-      'Marca los perfiles que usará la gente de este hogar. Los demás no aparecerán aquí.';
+      'Añade los usuarios con su usuario y contraseña. Nadie verá la lista completa del servidor.';
 
   @override
   String get noPublicUsers => 'Este servidor no expone usuarios públicos.';
+
+  @override
+  String get noHouseholdMembers =>
+      'Aún no hay usuarios en esta casa. Pulsa Agregar usuario para añadir el primero.';
+
+  @override
+  String get addUser => 'Agregar usuario';
+
+  @override
+  String get addUserTitle => 'Agregar usuario a la casa';
+
+  @override
+  String get add => 'Agregar';
+
+  @override
+  String get removeUser => 'Quitar';
+
+  @override
+  String get addAtLeastOneUser => 'Agrega al menos un usuario para continuar';
+
+  @override
+  String get userAlreadyAdded => 'Ese usuario ya está en la casa';
+
+  @override
+  String get invalidCredentials => 'Usuario o contraseña incorrectos';
 
   @override
   String get homeName => '¿Cómo se llama esta casa?';

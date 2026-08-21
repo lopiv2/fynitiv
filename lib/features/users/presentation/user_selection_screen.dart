@@ -37,7 +37,7 @@ class UserSelectionScreen extends ConsumerWidget {
             loading: () => const Center(child: AppLoader()),
             error: (e, _) => _ErrorView(
               error: e.toString(),
-              onRetry: () => ref.invalidate(publicUsersProvider),
+              onRetry: () => ref.invalidate(householdUsersProvider),
             ),
             data: (list) => _buildContent(context, ref, auth, list),
           ),

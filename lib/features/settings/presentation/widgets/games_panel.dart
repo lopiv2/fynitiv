@@ -6,6 +6,7 @@ import '../../../games/application/romm_providers.dart';
 import '../../../games/domain/romm_config.dart';
 
 /// Panel de configuración del servidor ROMM (juego online).
+/// Soporta dos modos: usuario/contraseña y API key (Bearer directo).
 class GamesPanel extends ConsumerStatefulWidget {
   const GamesPanel({super.key});
 
@@ -15,33 +16,31 @@ class GamesPanel extends ConsumerStatefulWidget {
 
 class _GamesPanelState extends ConsumerState<GamesPanel> {
   final _urlController = TextEditingController();
-  final _usernameController = TextEditingController();
-  final _passwordController = TextEditingController();
-  bool _obscurePassword = true;
+  final _apiKeyController = TextEditingController();
+  bool _obscureApiKey = true;
   bool _saving = false;
   String? _message;
 
   @override
   void dispose() {
     _urlController.dispose();
-    _usernameController.dispose();
-    _passwordController.dispose();
+    _apiKeyController.dispose();
     super.dispose();
   }
 
   void _prefill(RommConfig? config) {
     if (config == null) return;
     _urlController.text = config.serverUrl;
-    _usernameController.text = config.username;
+    _apiKeyController.text = config.apiKey ?? '';
   }
 
   Future<void> _save() async {
     final l10n = AppLocalizations.of(context)!;
     final url = _urlController.text.trim();
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text;
-    if (url.isEmpty || username.isEmpty || password.isEmpty) {
-      setState(() => _message = l10n.gamesConfigRequired);
+    final apiKey = _apiKeyController.text.trim();
+
+    if (url.isEmpty || apiKey.isEmpty) {
+      setState(() => _message = apiKey.isEmpty ? 'Introduce la API Key' : l10n.gamesConfigRequired);
       return;
     }
     setState(() {
@@ -49,14 +48,18 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
       _message = null;
     });
     try {
-      final ok = await ref
-          .read(rommAuthProvider.notifier)
-          .login(serverUrl: url, username: username, password: password);
+      final ok = await ref.read(rommAuthProvider.notifier).login(
+            serverUrl: url,
+            username: 'api',
+            password: '',
+            apiKey: apiKey,
+            useApiKey: true,
+          );
       setState(() {
         _message = ok ? l10n.gamesConfigSaved : l10n.gamesConfigFailed;
       });
-    } catch (_) {
-      setState(() => _message = l10n.gamesConfigFailed);
+    } catch (e) {
+      setState(() => _message = '${l10n.gamesConfigFailed}\n$e');
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -66,7 +69,7 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
     await ref.read(rommAuthProvider.notifier).logout();
     if (mounted) {
       setState(() {
-        _passwordController.clear();
+        _apiKeyController.clear();
         _message = null;
       });
     }
@@ -95,6 +98,11 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                 ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Conéctate con tu API Key de RomM (Bearer). Genera la API Key en RomM → Perfil → API Keys.',
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
               const SizedBox(height: 24),
               if (auth.authenticated && config.value != null) ...[
@@ -147,41 +155,37 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
           ),
           const SizedBox(height: 12),
           TextField(
-            controller: _usernameController,
+            controller: _apiKeyController,
+            obscureText: _obscureApiKey,
             decoration: InputDecoration(
-              labelText: l10n.gamesUsername,
+              labelText: 'API Key (Bearer)',
+              hintText: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...',
               labelStyle: const TextStyle(color: Colors.white54),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.white24),
-              ),
-            ),
-            style: const TextStyle(color: Colors.white),
-          ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _passwordController,
-            obscureText: _obscurePassword,
-            decoration: InputDecoration(
-              labelText: l10n.gamesPassword,
-              labelStyle: const TextStyle(color: Colors.white54),
+              hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
               enabledBorder: const UnderlineInputBorder(
                 borderSide: BorderSide(color: Colors.white24),
               ),
               suffixIcon: IconButton(
                 onPressed: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
+                    setState(() => _obscureApiKey = !_obscureApiKey),
                 icon: Icon(
-                  _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                  _obscureApiKey ? Icons.visibility : Icons.visibility_off,
                   color: Colors.white54,
                   size: 20,
                 ),
               ),
             ),
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Colors.white, fontSize: 13),
+            maxLines: 1,
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Genera la API Key en RomM → Perfil → API Keys.',
+            style: TextStyle(color: Colors.white38, fontSize: 11),
           ),
           const SizedBox(height: 16),
           if (_message != null) ...[
-            Text(
+            SelectableText(
               _message!,
               style: TextStyle(
                 color: _message == l10n.gamesConfigSaved
@@ -224,6 +228,7 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isApiKey = config.isApiKeyMode;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -248,7 +253,9 @@ class _StatusCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${l10n.gamesConnected} · ${config.username}',
+                  isApiKey
+                      ? '${l10n.gamesConnected} · API Key'
+                      : '${l10n.gamesConnected} · ${config.username}',
                   style: const TextStyle(color: Colors.white54, fontSize: 13),
                 ),
               ],

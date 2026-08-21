@@ -117,6 +117,8 @@ class _GameCard extends ConsumerWidget {
     final skin = ref.watch(skinControllerProvider).value;
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final fallback = skin?.backgroundBottom ?? const Color(0xFF1A2568);
+    final token = ref.watch(rommRepositoryProvider)?.token;
+    final headers = token != null && token.isNotEmpty ? <String, String>{'Authorization': 'Bearer $token'} : null;
 
     return ScaleButton(
       onPressed: () => context.push('/games/rom/${game.id}'),
@@ -130,6 +132,7 @@ class _GameCard extends ConsumerWidget {
                   ? Image.network(
                       game.coverSmallUrl!,
                       fit: BoxFit.cover,
+                      headers: headers,
                       errorBuilder: (_, _, _) =>
                           _GameFallback(game: game, color: fallback),
                     )

@@ -70,48 +70,53 @@ class PosterCard extends ConsumerWidget {
       runTimeTicks: item.runTimeTicks,
       overview: item.overview,
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // La imagen ocupa todo el alto disponible (menos el título) y se
-          // recorta con cover para mantener la relación de aspecto del póster
-          // sin desbordar la altura fija de la fila/grid.
-          Expanded(
-            child: HoverPlayRadius(
-              radius: radius * 2,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (url != null)
-                    Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          PosterFallback(item: item, color: fallbackColor),
-                    )
-                  else
-                    PosterFallback(item: item, color: fallbackColor),
-                  // Barra de progreso de reproducción (Continuar viendo),
-                  // superpuesta en la parte inferior de la tarjeta.
-                  if (progress != null && progress > 0)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: LinearProgressIndicator(
-                        value: (progress / 100).clamp(0.0, 1.0),
-                        minHeight: 5,
-                        backgroundColor: Colors.black38,
-                        valueColor: AlwaysStoppedAnimation<Color>(accent),
+          // La imagen usa AspectRatio para no requerir altura finita del padre.
+          // Así funciona tanto en GridView (con constraints finitas) como en
+          // ListView vertical sin altura fija (evita Expanded con h=Infinity).
+          Flexible(
+            fit: FlexFit.loose,
+            child: AspectRatio(
+              aspectRatio: 2 / 3,
+              child: HoverPlayRadius(
+                radius: radius * 2,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (url != null)
+                      Image.network(
+                        url,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) =>
+                            PosterFallback(item: item, color: fallbackColor),
+                      )
+                    else
+                      PosterFallback(item: item, color: fallbackColor),
+                    // Barra de progreso de reproducción (Continuar viendo),
+                    // superpuesta en la parte inferior de la tarjeta.
+                    if (progress != null && progress > 0)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        child: LinearProgressIndicator(
+                          value: (progress / 100).clamp(0.0, 1.0),
+                          minHeight: 5,
+                          backgroundColor: Colors.black38,
+                          valueColor: AlwaysStoppedAnimation<Color>(accent),
+                        ),
                       ),
-                    ),
-                  // Logotipo superpuesto abajo a la derecha.
-                  if (cardLogo != null && cardLogo!.isNotEmpty)
-                    Positioned(
-                      right: 8,
-                      bottom: 8,
-                      child: LogoImage(logo: cardLogo!, height: logoSize),
-                    ),
-                ],
+                    // Logotipo superpuesto abajo a la derecha.
+                    if (cardLogo != null && cardLogo!.isNotEmpty)
+                      Positioned(
+                        right: 8,
+                        bottom: 8,
+                        child: LogoImage(logo: cardLogo!, height: logoSize),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

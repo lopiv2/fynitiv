@@ -119,32 +119,6 @@ class AuthController extends Notifier<AuthState> {
     }
   }
 
-  /// Devuelve los usuarios públicos del servidor configurado.
-  Future<List<UserDto>> fetchPublicUsers() async {
-    final client = await _ensureClient();
-    final response = await client
-        .getUserApi()
-        .getPublicUsers()
-        .timeout(const Duration(seconds: 10));
-    return response.data ?? [];
-  }
-
-  /// Asegura que existe un cliente sin token basado en la URL guardada.
-  Future<JellyfinDart> _ensureClient() async {
-    final existing = _client;
-    if (existing != null) return existing;
-
-    final storage = ref.read(sessionStorageProvider);
-    final serverUrl = await storage.readServerUrl();
-    if (serverUrl == null) {
-      throw StateError('No hay servidor configurado.');
-    }
-    final client =
-        await ref.read(authRepositoryProvider).createClient(serverUrl);
-    _client = client;
-    return client;
-  }
-
   /// Guarda (o actualiza) la URL del servidor, consulta su serverId y recrea
   /// el cliente.
   Future<void> saveServerUrl(String serverUrl) async {
@@ -354,14 +328,30 @@ class AuthController extends Notifier<AuthState> {
     while (u.endsWith('/')) {
       u = u.substring(0, u.length - 1);
     }
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      u = 'http://$u';
+    }
     return u;
   }
 
   String _dioErrorMessage(DioException e) {
+    final status = e.response?.statusCode;
+    if (status == 401 || status == 400) {
+      return 'Usuario o contraseña incorrectos';
+    }
     final data = e.response?.data;
     if (data is String && data.isNotEmpty) return data;
-    if (data is Map && data.isNotEmpty) return data.toString();
-    return '${e.response?.statusCode ?? ''} ${e.message ?? 'Error de conexión con el servidor.'}'
+    if (data is Map && data.isNotEmpty) {
+      // Jellyfin a veces devuelve {error: "..."} o similar
+      final msg = data['error'] ?? data['message'];
+      if (msg is String && msg.isNotEmpty) return msg;
+      return data.toString();
+    }
+    if (e.error != null) {
+      final errStr = e.error.toString();
+      if (errStr.isNotEmpty && errStr != 'null') return errStr;
+    }
+    return '${status ?? ''} ${e.message ?? 'Error de conexión con el servidor.'}'
         .trim();
   }
 }

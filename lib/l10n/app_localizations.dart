@@ -197,7 +197,7 @@ abstract class AppLocalizations {
   /// No description provided for @selectHouseholdUsers.
   ///
   /// In en, this message translates to:
-  /// **'Mark the profiles used by the people of this home. Others won\'t appear here.'**
+  /// **'Add users with their username and password. No one will see the full server user list.'**
   String get selectHouseholdUsers;
 
   /// No description provided for @noPublicUsers.
@@ -205,6 +205,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This server doesn\'t expose public users.'**
   String get noPublicUsers;
+
+  /// No description provided for @noHouseholdMembers.
+  ///
+  /// In en, this message translates to:
+  /// **'No users in this home yet. Tap Add user to add the first one.'**
+  String get noHouseholdMembers;
+
+  /// No description provided for @addUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Add user'**
+  String get addUser;
+
+  /// No description provided for @addUserTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Add user to home'**
+  String get addUserTitle;
+
+  /// No description provided for @add.
+  ///
+  /// In en, this message translates to:
+  /// **'Add'**
+  String get add;
+
+  /// No description provided for @removeUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get removeUser;
+
+  /// No description provided for @addAtLeastOneUser.
+  ///
+  /// In en, this message translates to:
+  /// **'Add at least one user to continue'**
+  String get addAtLeastOneUser;
+
+  /// No description provided for @userAlreadyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'That user is already in the home'**
+  String get userAlreadyAdded;
+
+  /// No description provided for @invalidCredentials.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid username or password'**
+  String get invalidCredentials;
 
   /// No description provided for @homeName.
   ///

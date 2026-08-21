@@ -8,6 +8,7 @@ import '../../../core/skin/home_scroll.dart';
 import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
+import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/content_row.dart';
@@ -36,9 +37,17 @@ class VodScreen extends ConsumerWidget {
         (skin?.bannerHoverReveal ?? false) &&
         platformMode == PlatformMode.desktop;
 
+    final initialLoading =
+        (views.isLoading && views.value == null) ||
+        (resume.isLoading && resume.value == null) ||
+        (latest.isLoading && latest.value == null) ||
+        (latestBanner.isLoading && latestBanner.value == null);
+
     return Scaffold(
       body: DashboardBackground(
-        child: ListView(
+        child: initialLoading
+            ? const Center(child: AppLoader())
+            : ListView(
           padding: EdgeInsets.only(top: bannerAttached ? 0 : 54, bottom: 24),
           children: [
             if (showBanner && (latestBanner.value?.isNotEmpty ?? false))

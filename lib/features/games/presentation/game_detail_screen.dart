@@ -116,6 +116,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final textSecondary = skin?.textSecondary ?? Colors.white70;
     final fallback = skin?.backgroundBottom ?? const Color(0xFF1A2568);
+    final token = ref.watch(rommRepositoryProvider)?.token;
+    final headers = token != null && token.isNotEmpty ? <String, String>{'Authorization': 'Bearer $token'} : null;
 
     return Scaffold(
       body: DashboardBackground(
@@ -158,6 +160,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                               ? Image.network(
                                   g.coverLargeUrl!,
                                   fit: BoxFit.cover,
+                                  headers: headers,
                                   errorBuilder: (_, _, _) => _DetailFallback(
                                     game: g,
                                     color: fallback,

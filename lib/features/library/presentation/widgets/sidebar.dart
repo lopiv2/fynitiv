@@ -390,7 +390,7 @@ class _UserAvatar extends ConsumerWidget {
             CircleAvatar(
               radius: compact ? 18 : 28,
               backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-              onBackgroundImageError: (_, _) {},
+              onBackgroundImageError: photoUrl != null ? (_, _) {} : null,
               child: photoUrl != null
                   ? null
                   : Text(initial, style: const TextStyle(fontSize: 16)),
