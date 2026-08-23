@@ -42,13 +42,42 @@ class AuthRepository {
 
   String _normalizeUrl(String url) {
     var u = url.trim();
-    while (u.endsWith('/')) {
-      u = u.substring(0, u.length - 1);
+    if (u.isEmpty) {
+      throw const FormatException('URL del servidor vacía');
     }
-    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+    // Casos borde como "https://" que el loop anterior convertía en "http://https:"
+    if (u == 'http://' ||
+        u == 'https://' ||
+        u == 'http:/' ||
+        u == 'https:/' ||
+        u == 'https:' ||
+        u == 'http:') {
+      throw const FormatException('URL del servidor no válida');
+    }
+    if (!u.contains('://')) {
       u = 'http://$u';
     }
-    return u;
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      throw const FormatException('La URL debe empezar por http:// o https://');
+    }
+    final uri = Uri.tryParse(u);
+    if (uri == null || uri.host.isEmpty) {
+      throw const FormatException('URL del servidor no válida');
+    }
+    if (uri.host == 'https' || uri.host == 'http') {
+      throw const FormatException('URL del servidor no válida: falta el host');
+    }
+    // Reconstruir sin barra final, pero conservando sub-path si existe (p.ej. /jellyfin)
+    var normalized = uri.toString();
+    final hostBase = '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+    while (normalized.endsWith('/') && normalized.length > hostBase.length) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    // Si queda exactamente "https://host/" lo dejamos sin barra.
+    if (normalized.endsWith('/') && normalized == '$hostBase/') {
+      normalized = hostBase;
+    }
+    return normalized;
   }
 
   /// Autentica por nombre de usuario y contraseña.

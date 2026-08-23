@@ -352,6 +352,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get effectBars => 'Barras';
 
   @override
+  String get effectSurfer => 'Surfista';
+
+  @override
   String get preview => 'Vista previa';
 
   @override

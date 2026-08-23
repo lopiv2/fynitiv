@@ -73,6 +73,8 @@ dependencies:
   url_launcher: ^6.3.2
   # Carpeta de descargas para guardar los ROMs descargados de ROMM
   path_provider: ^2.1.5
+  # Renderizado de SVG (icono surfer del progreso)
+  flutter_svg: ^2.2.2
 
 dev_dependencies:
   flutter_test:
@@ -113,6 +115,8 @@ flutter:
     - assets/images/Logo_fynitiv.png
     - assets/images/jellyfin-logo.png
     - assets/images/jellyfin.png
+    - assets/images/icons/surfer.svg
+    - assets/images/icons/spaceship.svg
     - assets/audio/splash_reveal.mp3
 
   # An image asset can refer to one or more resolution-specific "variants", see

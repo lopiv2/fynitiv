@@ -9,6 +9,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import 'package:flutter_svg/flutter_svg.dart';
+
 import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -118,50 +120,108 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         ? null
         : VideoController(
             _player,
-            configuration: const VideoControllerConfiguration(hwdec: 'auto-copy'),
+            configuration: const VideoControllerConfiguration(
+              hwdec: 'auto-copy',
+            ),
           );
     _subscribe();
     _open();
   }
 
   void _subscribe() {
-    _subs.add(_player.stream.playing.listen((v) {
-      if (mounted) setState(() => _playing = v);
-    }));
-    _subs.add(_player.stream.position.listen((p) {
-      if (mounted && !_dragging) setState(() => _position = p);
-    }));
-    _subs.add(_player.stream.duration.listen((d) {
-      if (mounted) setState(() => _duration = d);
-    }));
-    _subs.add(_player.stream.buffering.listen((b) {
-      if (mounted) setState(() => _buffering = b);
-    }));
-    _subs.add(_player.stream.volume.listen((v) {
-      if (mounted) setState(() => _volume = v);
-    }));
-    _subs.add(_player.stream.tracks.listen((t) {
-      if (mounted) setState(() => _tracks = t);
-    }));
-    _subs.add(_player.stream.track.listen((t) {
-      if (mounted) {
+    _subs.add(
+      _player.stream.playing.listen((v) {
+        if (mounted) setState(() => _playing = v);
+      }),
+    );
+    _subs.add(
+      _player.stream.position.listen((p) {
+        if (mounted && !_dragging) setState(() => _position = p);
+      }),
+    );
+    _subs.add(
+      _player.stream.duration.listen((d) {
+        if (mounted) setState(() => _duration = d);
+      }),
+    );
+    _subs.add(
+      _player.stream.buffering.listen((b) {
+        if (mounted) setState(() => _buffering = b);
+      }),
+    );
+    _subs.add(
+      _player.stream.volume.listen((v) {
+        if (mounted) setState(() => _volume = v);
+      }),
+    );
+    _subs.add(
+      _player.stream.tracks.listen((t) {
+        if (mounted) setState(() => _tracks = t);
+      }),
+    );
+    _subs.add(
+      _player.stream.track.listen((t) {
+        if (mounted) {
+          setState(() {
+            _selectedAudio = t.audio;
+            _selectedSubtitle = t.subtitle;
+          });
+        }
+      }),
+    );
+    _subs.add(
+      _player.stream.completed.listen((c) {
+        if (!mounted) return;
         setState(() {
-          _selectedAudio = t.audio;
-          _selectedSubtitle = t.subtitle;
+          _completed = c;
+          if (c) {
+            _error = false;
+            _errorMessage = null;
+            _buffering = false;
+          }
         });
-      }
-    }));
-    _subs.add(_player.stream.completed.listen((c) {
-      if (mounted) setState(() => _completed = c);
-    }));
-    _subs.add(_player.stream.error.listen((e) {
-      if (mounted) {
+      }),
+    );
+    _subs.add(
+      _player.stream.error.listen((e) {
+        if (!mounted) return;
+        final lower = e.toLowerCase();
+        final nearEnd =
+            _duration.inMilliseconds > 0 &&
+            (_duration - _position).inMilliseconds.abs() < 1500;
+        // Errores de EOF / decoding al cerrar la pista son benignos: trátalos como fin.
+        if (_completed ||
+            nearEnd ||
+            lower.contains('eof') ||
+            lower.contains('end of file')) {
+          setState(() {
+            _completed = true;
+            _error = false;
+            _errorMessage = null;
+            _buffering = false;
+          });
+          return;
+        }
+        // "error decoding audio" suelto al final también se convierte en completado
+        // si ya estamos al 98% del progreso.
+        final progress = _duration.inMilliseconds > 0
+            ? _position.inMilliseconds / _duration.inMilliseconds
+            : 0.0;
+        if (lower.contains('decoding') && progress > 0.98) {
+          setState(() {
+            _completed = true;
+            _error = false;
+            _errorMessage = null;
+            _buffering = false;
+          });
+          return;
+        }
         setState(() {
           _error = true;
           _errorMessage = e;
         });
-      }
-    }));
+      }),
+    );
   }
 
   @override
@@ -354,12 +414,14 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
               child: _isAudio
                   ? _AudioCover(
                       url: _coverUrl,
-                      title: _session.itemName,
+                      title: widget.item?.name ?? _session.itemName,
+                      artist: widget.item?.artists?.join(', ') ?? '',
+                      album: widget.item?.album ?? '',
                       playing: _playing,
                       progress: _duration.inMilliseconds > 0
                           ? (_position.inMilliseconds /
-                                  _duration.inMilliseconds)
-                              .clamp(0.0, 1.0)
+                                    _duration.inMilliseconds)
+                                .clamp(0.0, 1.0)
                           : 0,
                     )
                   : Video(
@@ -371,12 +433,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
             ),
             if (_buffering && !_error && !_completed)
               const Center(child: AppLoader()),
-            if (_completed && !_error)
-              _ReplayOverlay(
-                onReplay: () => _togglePlay(),
-                onClose: _close,
-              ),
-            if (_error)
+            if (_completed)
+              _ReplayOverlay(onReplay: () => _togglePlay(), onClose: _close),
+            if (_error && !_completed)
               _PlayerError(
                 title: _session.itemName,
                 message: _errorMessage,
@@ -421,9 +480,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     final skin = ref.watch(skinControllerProvider).value;
     final position = skin?.playerLogoPosition ?? LogoOverlayPosition.none;
     final logo = skin?.playerLogo ?? skin?.cardLogo;
-    if (position == LogoOverlayPosition.none ||
-        logo == null ||
-        logo.isEmpty) {
+    if (position == LogoOverlayPosition.none || logo == null || logo.isEmpty) {
       return const SizedBox.shrink();
     }
     final size = (skin?.cardLogoSize ?? 18) * 2;
@@ -448,15 +505,16 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   }
 
   Widget _buildOverlay() {
-    final l10n = AppLocalizations.of(context)!;    final title = _session.itemName.isNotEmpty
+    final l10n = AppLocalizations.of(context)!;
+    final title = _session.itemName.isNotEmpty
         ? _session.itemName
         : (widget.item?.name ?? '');
 
     final audioTracks = _tracks.audio
         .where((t) => t.id != 'auto' && t.id != 'no' && t.title != null)
         .toList();
-    final hasSubtitles = _tracks.subtitle
-            .any((t) => t.id != 'auto' && t.id != 'no') ||
+    final hasSubtitles =
+        _tracks.subtitle.any((t) => t.id != 'auto' && t.id != 'no') ||
         _session.externalSubtitles.isNotEmpty;
 
     return Stack(
@@ -537,8 +595,10 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       children: [
                         Text(
                           _formatDuration(_position),
-                          style:
-                              const TextStyle(color: Colors.white, fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
                         ),
                         Expanded(
                           child: Slider(
@@ -548,7 +608,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                                 : 1,
                             value: _position.inMilliseconds > 0
                                 ? (_position.inMilliseconds / 1000).clamp(
-                                    0, _duration.inMilliseconds / 1000)
+                                    0,
+                                    _duration.inMilliseconds / 1000,
+                                  )
                                 : 0,
                             onChanged: _duration.inMilliseconds > 0
                                 ? _onSliderChanged
@@ -563,8 +625,10 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                         ),
                         Text(
                           _formatDuration(_duration),
-                          style:
-                              const TextStyle(color: Colors.white, fontSize: 13),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                          ),
                         ),
                       ],
                     ),
@@ -794,7 +858,10 @@ class _ReplayOverlay extends StatelessWidget {
           const SizedBox(height: 12),
           TextButton(
             onPressed: onClose,
-            child: Text(l10n.back, style: const TextStyle(color: Colors.white70)),
+            child: Text(
+              l10n.back,
+              style: const TextStyle(color: Colors.white70),
+            ),
           ),
         ],
       ),
@@ -804,16 +871,21 @@ class _ReplayOverlay extends StatelessWidget {
 
 /// Carátula del contenido cuando se reproduce solo audio (sin pista de vídeo),
 /// con la onda animada entre la portada y la barra de progreso.
+/// Bajo la carátula: artista → canción → álbum (resto igual).
 class _AudioCover extends ConsumerWidget {
   const _AudioCover({
     required this.url,
     required this.title,
+    required this.artist,
+    required this.album,
     required this.playing,
     required this.progress,
   });
 
   final String url;
   final String title;
+  final String artist;
+  final String album;
   final bool playing;
   final double progress;
 
@@ -834,11 +906,39 @@ class _AudioCover extends ConsumerWidget {
       child: Stack(
         fit: StackFit.expand,
         children: [
+          // Botón atrás persistente en modo audio (lista de reproducción)
+          // arriba y a la izquierda, encima de la canción.
+          Positioned(
+            top: 0,
+            left: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: IconButton(
+                  tooltip: AppLocalizations.of(context)!.back,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.black45,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/music');
+                    }
+                  },
+                ),
+              ),
+            ),
+          ),
           Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final size =
-                    (constraints.maxWidth * 0.4).clamp(180.0, 340.0).toDouble() *
+                    (constraints.maxWidth * 0.4)
+                        .clamp(180.0, 340.0)
+                        .toDouble() *
                     1.5;
                 return Column(
                   mainAxisSize: MainAxisSize.min,
@@ -865,8 +965,25 @@ class _AudioCover extends ConsumerWidget {
                         errorBuilder: (_, _, _) => _CoverFallback(),
                       ),
                     ),
-                    if (title.isNotEmpty) ...[
+                    if (artist.isNotEmpty) ...[
                       const SizedBox(height: 28),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Text(
+                          artist,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (title.isNotEmpty) ...[
+                      SizedBox(height: artist.isNotEmpty ? 6 : 28),
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 480),
                         child: Text(
@@ -877,7 +994,24 @@ class _AudioCover extends ConsumerWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 18,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                    if (album.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 480),
+                        child: Text(
+                          album,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                       ),
@@ -889,14 +1023,14 @@ class _AudioCover extends ConsumerWidget {
           ),
           // Onda animada, entre la portada y la barra de progreso inferior.
           Positioned(
-            bottom: 120,
+            bottom: 110,
             left: 40,
             right: 40,
             child: _AudioWaveform(
               playing: playing,
               progress: progress,
-              effect: skin?.audioWaveformEffect ??
-                  AudioWaveformEffect.equalizer,
+              effect:
+                  skin?.audioWaveformEffect ?? AudioWaveformEffect.equalizer,
               color: skin?.accent ?? const Color(0xFF2B7FFF),
             ),
           ),
@@ -972,6 +1106,23 @@ class _AudioWaveformState extends State<_AudioWaveform>
 
   @override
   Widget build(BuildContext context) {
+    // Efecto surfista: oceano con el icono surfer.svg deslizandose sobre la ola.
+    if (widget.effect == AudioWaveformEffect.surfer) {
+      return AnimatedBuilder(
+        animation: Listenable.merge([_controller, _explosionController]),
+        builder: (context, _) => SizedBox(
+          height: 72,
+          width: double.infinity,
+          child: _SurferWave(
+            phase: _controller.value,
+            progress: widget.progress,
+            color: widget.color,
+            trackColor: widget.color.withValues(alpha: 0.18),
+            explosion: _explosionController.value,
+          ),
+        ),
+      );
+    }
     return AnimatedBuilder(
       animation: Listenable.merge([_controller, _explosionController]),
       builder: (context, _) => SizedBox(
@@ -991,6 +1142,287 @@ class _AudioWaveformState extends State<_AudioWaveform>
       ),
     );
   }
+}
+
+/// Ola surfera: el [surfer.svg] se desliza sobre la cresta siguiendo el progreso.
+/// La ola es una senoide animada con [phase]; el surfista se inclina según la
+/// pendiente y deja estela/rocío por detrás.
+class _SurferWave extends StatelessWidget {
+  const _SurferWave({
+    required this.phase,
+    required this.progress,
+    required this.color,
+    required this.trackColor,
+    this.explosion = 0,
+  });
+
+  final double phase;
+  final double progress;
+  final Color color;
+  final Color trackColor;
+  final double explosion;
+
+  // Función de altura de la ola. Debe coincidir con la usada en el painter.
+  // Coeficientes temporales enteros (1, -2, 1) para bucle perfecto 0→1 sin tirón.
+  static double waveY(double x, Size size, double phase) {
+    final center = size.height * 0.58;
+    final amp = size.height * 0.22;
+    final t = phase * 2 * math.pi;
+    final u = (x / size.width).clamp(0.0, 1.0);
+    return center +
+        amp *
+            (math.sin(u * math.pi * 2.6 + t) * 0.55 +
+                math.sin(u * math.pi * 5.2 - 2 * t) * 0.28 +
+                math.sin(u * math.pi * 8 + t) * 0.17);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final size = Size(constraints.maxWidth, 72);
+        final w = size.width;
+        final h = size.height;
+        final p = progress.clamp(0.0, 1.0);
+        final bx = (p * w).clamp(0.0, w);
+        final by = waveY(bx, size, phase);
+        // Pendiente para inclinación del surfista.
+        const dx = 8.0;
+        final y1 = waveY((bx - dx).clamp(0.0, w), size, phase);
+        final y2 = waveY((bx + dx).clamp(0.0, w), size, phase);
+        final slope = (y2 - y1) / (dx * 2);
+        final angle = math.atan(slope) * 0.85;
+        // Bote vertical sutil. Coeficiente 2 entero → bucle sin salto.
+        final bob = math.sin(phase * 2 * math.pi * 2 + p * math.pi * 4) * 2.5;
+
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned.fill(
+              child: CustomPaint(
+                painter: _SurferWavePainter(
+                  phase: phase,
+                  progress: p,
+                  color: color,
+                  trackColor: trackColor,
+                  explosion: explosion,
+                ),
+              ),
+            ),
+            // Estela/rocío detrás del surfista (pintada aquí como widgets no, sino en painter)
+            // Surfista SVG.
+            Positioned(
+              left: (bx - 22).clamp(-6.0, w - 38),
+              top: (by - 28 + bob).clamp(-2.0, h - 40),
+              child: Transform.rotate(
+                angle: angle,
+                alignment: Alignment.center,
+                child: SvgPicture.asset(
+                  'assets/images/icons/surfer.svg',
+                  width: 38,
+                  height: 38,
+                  colorFilter: ColorFilter.mode(Colors.white, BlendMode.srcIn),
+                ),
+              ),
+            ),
+            // Tabla de surf bajo el surfista (elipse).
+            Positioned(
+              left: (bx - 16).clamp(0.0, w - 28),
+              top: (by + 6 + bob * 0.3).clamp(0.0, h - 8),
+              child: Transform.rotate(
+                angle: angle,
+                child: Container(
+                  width: 28,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(3),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.25),
+                        blurRadius: 3,
+                        offset: const Offset(0, 1),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SurferWavePainter extends CustomPainter {
+  _SurferWavePainter({
+    required this.phase,
+    required this.progress,
+    required this.color,
+    required this.trackColor,
+    this.explosion = 0,
+  });
+
+  final double phase;
+  final double progress;
+  final Color color;
+  final Color trackColor;
+  final double explosion;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.height * 0.58;
+    final amp = size.height * 0.22;
+    final t = phase * 2 * math.pi;
+    const points = 120;
+
+    double yAt(double x) {
+      final u = (x / size.width).clamp(0.0, 1.0);
+      return center +
+          amp *
+              (math.sin(u * math.pi * 2.6 + t) * 0.55 +
+                  math.sin(u * math.pi * 5.2 - 2 * t) * 0.28 +
+                  math.sin(u * math.pi * 8 + t) * 0.17);
+    }
+
+    // --- Mar: relleno degradado bajo la ola ---
+    final fill = Path()..moveTo(0, yAt(0));
+    for (var i = 0; i <= points; i++) {
+      final x = size.width * i / points;
+      fill.lineTo(x, yAt(x));
+    }
+    fill
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(
+      fill,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            color.withValues(alpha: 0.55),
+            color.withValues(alpha: 0.12),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+
+    // Línea de la ola.
+    final wave = Path();
+    for (var i = 0; i <= points; i++) {
+      final x = size.width * i / points;
+      final y = yAt(x);
+      if (i == 0) {
+        wave.moveTo(x, y);
+      } else {
+        wave.lineTo(x, y);
+      }
+    }
+    // Tramo surfeado vs por surfear (colores distintos).
+    final progressX = (progress * size.width).clamp(0.0, size.width);
+    // Trazo de fondo (por surfear).
+    canvas.drawPath(
+      wave,
+      Paint()
+        ..color = trackColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+    // Trazo surfeado (clip).
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, progressX, size.height));
+    canvas.drawPath(
+      wave,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.restore();
+
+    // Espuma en la cresta surfeada.
+    final foam = Paint()
+      ..color = Colors.white.withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    final foamPath = Path();
+    for (var i = 0; i <= points; i++) {
+      final x = size.width * i / points;
+      if (x > progressX) break;
+      if (i % 3 == 0) {
+        final y = yAt(x) - 1.2;
+        if (i == 0) {
+          foamPath.moveTo(x, y);
+        } else {
+          foamPath.lineTo(x, y);
+        }
+      }
+    }
+    canvas.drawPath(foamPath, foam);
+
+    // Estela detrás del surfista: pequeñas gotas que se van disipando.
+    final bx = progressX;
+    final tailLen = (size.width * 0.18).clamp(40.0, 120.0);
+    const sprayCount = 14;
+    for (var i = 0; i < sprayCount; i++) {
+      final em = ((i / sprayCount) + phase) % 1.0;
+      final x = bx - em * tailLen;
+      if (x < 0) continue;
+      final scatterY =
+          (math.sin(em * math.pi * 6 + i * 1.7) * 3.5 +
+              math.sin(phase * 2 * math.pi * 2 + i) * 2) *
+          (0.5 + em * 0.7);
+      final y = yAt(x.clamp(0.0, size.width)) + scatterY - 2;
+      final fade = 1 - em;
+      final alpha = fade * fade * 0.65;
+      final r = 1.2 + fade * 2.2;
+      canvas.drawCircle(
+        Offset(x, y),
+        r,
+        Paint()..color = Colors.white.withValues(alpha: alpha),
+      );
+    }
+
+    // Explosión al final.
+    if (explosion > 0 && explosion < 1) {
+      final by = yAt(bx);
+      const n = 20;
+      for (var i = 0; i < n; i++) {
+        final a = (i / n) * 2 * math.pi + math.sin(i * 5.3) * 0.3;
+        final dist = (22 + (i % 4) * 10) * explosion;
+        final px = bx + math.cos(a) * dist;
+        final py = by + math.sin(a) * dist;
+        final fade = 1 - explosion;
+        final r = (1.8 + (i % 3) * 1.2) * (0.7 + 0.3 * explosion);
+        canvas.drawCircle(
+          Offset(px, py),
+          r,
+          Paint()
+            ..color = Colors.white.withValues(
+              alpha: fade.clamp(0.0, 1.0) * 0.9,
+            ),
+        );
+      }
+      canvas.drawCircle(
+        Offset(bx, by),
+        5 + explosion * 26,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = (1 - explosion) * 2.5 + 0.6
+          ..color = Colors.white.withValues(alpha: (1 - explosion) * 0.75),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SurferWavePainter oldDelegate) => true;
 }
 
 /// Painter de la onda. Dibuja barras u ondas según el efecto, usando la fase
@@ -1028,6 +1460,8 @@ class _WaveformPainter extends CustomPainter {
         _paintBars(canvas, size, mirrored: false, animated: false);
       case AudioWaveformEffect.wave:
         _paintWave(canvas, size);
+      case AudioWaveformEffect.surfer:
+        _paintWave(canvas, size);
     }
   }
 
@@ -1039,18 +1473,24 @@ class _WaveformPainter extends CustomPainter {
           0.6 *
               (0.5 +
                   0.5 *
-                      math.sin(x * math.pi * 5 +
-                          math.sin(x * math.pi * 9) * 1.2));
+                      math.sin(
+                        x * math.pi * 5 + math.sin(x * math.pi * 9) * 1.2,
+                      ));
     }
     final t = phase * 2 * math.pi;
-    final noise = math.sin(t + index * 0.9) * 0.5 +
-        math.sin(t * 1.9 + index * 0.5) * 0.3 +
-        math.sin(t * 3.1 + index * 1.3) * 0.2;
+    final noise =
+        math.sin(t + index * 0.9) * 0.5 +
+        math.sin(2 * t + index * 0.5) * 0.3 +
+        math.sin(3 * t + index * 1.3) * 0.2;
     return (0.5 + noise * 0.5).clamp(0.0, 1.0);
   }
 
-  void _paintBars(Canvas canvas, Size size,
-      {required bool mirrored, required bool animated}) {
+  void _paintBars(
+    Canvas canvas,
+    Size size, {
+    required bool mirrored,
+    required bool animated,
+  }) {
     const gap = 3.0;
     final bw = (size.width - gap * (_bars - 1)) / _bars;
     final center = size.height / 2;
@@ -1105,13 +1545,12 @@ class _WaveformPainter extends CustomPainter {
       return center +
           amp *
               (math.sin(u * math.pi * 3 + t) * 0.6 +
-                  math.sin(u * math.pi * 5 - t * 1.3) * 0.25 +
-                  math.sin(u * math.pi * 7 + t * 0.7) * 0.15);
+                  math.sin(u * math.pi * 5 - 2 * t) * 0.25 +
+                  math.sin(u * math.pi * 7 + t) * 0.15);
     }
 
     // Relleno degradado bajo la línea.
-    final fill = Path()
-      ..moveTo(0, center);
+    final fill = Path()..moveTo(0, center);
     for (var i = 0; i <= points; i++) {
       final x = size.width * i / points;
       fill.lineTo(x, yAt(x));
@@ -1126,10 +1565,7 @@ class _WaveformPainter extends CustomPainter {
         ..shader = LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            color.withValues(alpha: 0.5),
-            color.withValues(alpha: 0.0),
-          ],
+          colors: [color.withValues(alpha: 0.5), color.withValues(alpha: 0.0)],
         ).createShader(Offset.zero & size),
     );
 
@@ -1177,8 +1613,8 @@ class _WaveformPainter extends CustomPainter {
       // más una pequeña dispersión propia para que se aprecie mejor.
       final scatter =
           (math.sin(em * math.pi * 5 + i * 1.9) * 2.5 +
-                  math.sin(phase * 2 * math.pi * 2.3 + i * 2.7) * 2.0) *
-              (0.4 + em * 0.9);
+              math.sin(phase * 2 * math.pi * 2 + i * 2.7) * 2.0) *
+          (0.4 + em * 0.9);
       final y = yAt(x.clamp(0.0, size.width)) + bobAt(x) + scatter;
       final fade = 1 - em;
       final alpha = fade * fade * 0.7;
@@ -1271,15 +1707,23 @@ class _BigButton extends StatelessWidget {
 }
 
 /// Botón de volumen con deslizador desplegable.
-class _VolumeButton extends StatelessWidget {
+/// Usa [StatefulBuilder] dentro del [PopupMenuItem] para que el arrastre del
+/// [Slider] se refleje en el propio overlay (el menú es una ruta aparte y no
+/// se reconstruye con el padre). Sin esto el thumb parece "no reaccionar".
+class _VolumeButton extends StatefulWidget {
   const _VolumeButton({required this.volume, required this.onChanged});
 
   final double volume;
   final ValueChanged<double> onChanged;
 
-  IconData get _icon {
-    if (volume <= 0) return Icons.volume_off_rounded;
-    if (volume < 50) return Icons.volume_down_rounded;
+  @override
+  State<_VolumeButton> createState() => _VolumeButtonState();
+}
+
+class _VolumeButtonState extends State<_VolumeButton> {
+  IconData _iconFor(double v) {
+    if (v <= 0) return Icons.volume_off_rounded;
+    if (v < 50) return Icons.volume_down_rounded;
     return Icons.volume_up_rounded;
   }
 
@@ -1291,32 +1735,47 @@ class _VolumeButton extends StatelessWidget {
       offset: const Offset(0, -140),
       color: const Color(0xEE1A1A1A),
       onSelected: (_) {},
-      itemBuilder: (context) => [
-        PopupMenuItem<double>(
-          enabled: false,
-          child: SizedBox(
-            width: 160,
-            child: Row(
-              children: [
-                Icon(_icon, color: Colors.white, size: 20),
-                Expanded(
-                  child: Slider(
-                    value: volume.clamp(0, 100),
-                    min: 0,
-                    max: 100,
-                    onChanged: onChanged,
-                    activeColor: Colors.white,
-                    inactiveColor: Colors.white24,
+      // Evita que el menú se cierre al interactuar con el Slider.
+      onCanceled: () {},
+      itemBuilder: (context) {
+        // Valor local mutable para el overlay; se sincroniza con widget.volume.
+        double current = widget.volume.clamp(0, 100);
+        return [
+          PopupMenuItem<double>(
+            enabled: false,
+            // Evita que el InkWell del item intercepte el drag horizontal.
+            child: StatefulBuilder(
+              builder: (context, setMenu) {
+                return SizedBox(
+                  width: 200,
+                  child: Row(
+                    children: [
+                      Icon(_iconFor(current), color: Colors.white, size: 20),
+                      Expanded(
+                        child: Slider(
+                          value: current,
+                          min: 0,
+                          max: 100,
+                          activeColor: Colors.white,
+                          inactiveColor: Colors.white24,
+                          thumbColor: Colors.white,
+                          onChanged: (v) {
+                            setMenu(() => current = v);
+                            widget.onChanged(v);
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
           ),
-        ),
-      ],
+        ];
+      },
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: Icon(_icon, color: Colors.white),
+        child: Icon(_iconFor(widget.volume), color: Colors.white),
       ),
     );
   }
@@ -1376,7 +1835,10 @@ class _SubtitleButton extends StatelessWidget {
                 size: 18,
               ),
               const SizedBox(width: 8),
-              Text(l10n.subtitlesOff, style: const TextStyle(color: Colors.white)),
+              Text(
+                l10n.subtitlesOff,
+                style: const TextStyle(color: Colors.white),
+              ),
             ],
           ),
         ),

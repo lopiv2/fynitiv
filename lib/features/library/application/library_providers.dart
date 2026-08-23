@@ -336,6 +336,54 @@ final musicTracksProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   return res.data?.items ?? [];
 });
 
+/// Más álbumes del mismo artista (para la vista detalle estilo Jellyfin).
+final artistAlbumsProvider =
+    FutureProvider.family<List<BaseItemDto>, BaseItemDto>((ref, album) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final albumId = album.id ?? '';
+  final artist = (album.albumArtist?.trim().isNotEmpty == true
+          ? album.albumArtist!.trim()
+          : (album.artists?.firstOrNull?.trim() ?? ''))
+      .trim();
+  final artistId = album.albumArtists?.firstOrNull?.id;
+  if (artist.isEmpty && (artistId == null || artistId.isEmpty)) return const [];
+  try {
+    final res = await client.getItemsApi().getItems(
+      userId: userId,
+      recursive: true,
+      includeItemTypes: [BaseItemKind.musicAlbum],
+      artists: artist.isNotEmpty ? [artist] : null,
+      albumArtistIds: artistId != null && artistId.isNotEmpty ? [artistId] : null,
+      excludeItemIds: albumId.isNotEmpty ? [albumId] : null,
+      limit: 10,
+      sortBy: [ItemSortBy.productionYear],
+      sortOrder: [SortOrder.descending],
+      fields: [ItemFields.primaryImageAspectRatio],
+      enableImageTypes: [ImageType.primary],
+    );
+    var items = res.data?.items ?? const <BaseItemDto>[];
+    // Fallback por si el filtro por artista no devolvió nada: búsqueda por término.
+    if (items.isEmpty && artist.isNotEmpty) {
+      final fallback = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.musicAlbum],
+        searchTerm: artist,
+        excludeItemIds: albumId.isNotEmpty ? [albumId] : null,
+        limit: 10,
+        fields: [ItemFields.primaryImageAspectRatio],
+        enableImageTypes: [ImageType.primary],
+      );
+      items = fallback.data?.items ?? const <BaseItemDto>[];
+    }
+    return items;
+  } catch (_) {
+    return const [];
+  }
+});
+
 /// Trailer (id de YouTube) de un item usando la API pública de KinoCheck.
 /// Requiere tmdb_id o imdb_id del item.
 final kinocheckTrailerProvider = FutureProvider.family<String?, BaseItemDto>((

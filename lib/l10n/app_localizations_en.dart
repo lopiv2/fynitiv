@@ -351,6 +351,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get effectBars => 'Bars';
 
   @override
+  String get effectSurfer => 'Surfer';
+
+  @override
   String get preview => 'Preview';
 
   @override

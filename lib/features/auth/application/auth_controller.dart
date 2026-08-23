@@ -122,10 +122,24 @@ class AuthController extends Notifier<AuthState> {
   /// Guarda (o actualiza) la URL del servidor, consulta su serverId y recrea
   /// el cliente.
   Future<void> saveServerUrl(String serverUrl) async {
-    final normalized = _normalizeUrl(serverUrl);
+    String normalized;
+    try {
+      normalized = _normalizeUrl(serverUrl);
+    } on FormatException catch (e) {
+      state = state.copyWith(error: e.message);
+      rethrow;
+    }
     final storage = ref.read(sessionStorageProvider);
-    await storage.writeServerUrl(normalized);
-    _client = await ref.read(authRepositoryProvider).createClient(normalized);
+    try {
+      await storage.writeServerUrl(normalized);
+      _client = await ref.read(authRepositoryProvider).createClient(normalized);
+    } on FormatException catch (e) {
+      state = state.copyWith(error: e.message);
+      rethrow;
+    } on DioException catch (e) {
+      state = state.copyWith(error: _dioErrorMessage(e));
+      rethrow;
+    }
 
     String? serverId;
     try {
@@ -325,13 +339,39 @@ class AuthController extends Notifier<AuthState> {
 
   String _normalizeUrl(String url) {
     var u = url.trim();
-    while (u.endsWith('/')) {
-      u = u.substring(0, u.length - 1);
+    if (u.isEmpty) {
+      throw const FormatException('URL del servidor vacía');
     }
-    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+    if (u == 'http://' ||
+        u == 'https://' ||
+        u == 'http:/' ||
+        u == 'https:/' ||
+        u == 'https:' ||
+        u == 'http:') {
+      throw const FormatException('URL del servidor no válida');
+    }
+    if (!u.contains('://')) {
       u = 'http://$u';
     }
-    return u;
+    if (!u.startsWith('http://') && !u.startsWith('https://')) {
+      throw const FormatException('La URL debe empezar por http:// o https://');
+    }
+    final uri = Uri.tryParse(u);
+    if (uri == null || uri.host.isEmpty) {
+      throw const FormatException('URL del servidor no válida');
+    }
+    if (uri.host == 'https' || uri.host == 'http') {
+      throw const FormatException('URL del servidor no válida: falta el host');
+    }
+    var normalized = uri.toString();
+    final hostBase = '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+    while (normalized.endsWith('/') && normalized.length > hostBase.length) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    if (normalized.endsWith('/') && normalized == '$hostBase/') {
+      normalized = hostBase;
+    }
+    return normalized;
   }
 
   String _dioErrorMessage(DioException e) {
@@ -339,17 +379,35 @@ class AuthController extends Notifier<AuthState> {
     if (status == 401 || status == 400) {
       return 'Usuario o contraseña incorrectos';
     }
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.error.toString().contains('SocketException') ||
+        e.error.toString().contains('Failed host lookup')) {
+      final host = e.requestOptions.uri.host;
+      final hint = host.isNotEmpty && host != 'https' && host != 'http'
+          ? ' ($host)'
+          : '';
+      return 'No se pudo conectar al servidor$hint. Revisa la URL (ej. https://jellyfin.ejemplo.com) y tu conexión.';
+    }
     final data = e.response?.data;
     if (data is String && data.isNotEmpty) return data;
     if (data is Map && data.isNotEmpty) {
-      // Jellyfin a veces devuelve {error: "..."} o similar
       final msg = data['error'] ?? data['message'];
       if (msg is String && msg.isNotEmpty) return msg;
       return data.toString();
     }
     if (e.error != null) {
       final errStr = e.error.toString();
-      if (errStr.isNotEmpty && errStr != 'null') return errStr;
+      if (errStr.isNotEmpty && errStr != 'null') {
+        if (errStr.contains('SocketException') || errStr.contains('Failed host lookup')) {
+          return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+        }
+        return errStr;
+      }
+    }
+    final msg = e.message;
+    if (msg != null && msg.contains('Failed host lookup')) {
+      return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
     }
     return '${status ?? ''} ${e.message ?? 'Error de conexión con el servidor.'}'
         .trim();

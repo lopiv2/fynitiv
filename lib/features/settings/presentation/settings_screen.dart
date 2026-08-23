@@ -713,6 +713,13 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
       }
       if (!mounted) return;
       Navigator.of(context).pop(HouseholdMember(id: user.id!, name: user.name ?? username, primaryImageTag: user.primaryImageTag));
+    } on FormatException catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.message;
+        });
+      }
     } on DioException catch (e) {
       debugPrint('authenticate DioException: status=${e.response?.statusCode} data=${e.response?.data} error=${e.error} message=${e.message}');
       final msg = _dioMessage(e);
@@ -727,7 +734,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
       if (mounted) {
         setState(() {
         _loading = false;
-        _error = e.toString();
+        _error = e.toString().replaceFirst('FormatException: ', '');
       });
       }
     }
@@ -735,7 +742,20 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
 
   String _dioMessage(DioException e) {
     final status = e.response?.statusCode;
-    if (status == 401 || status == 400) return AppLocalizations.of(context)!.invalidCredentials;
+    if (status == 401 || status == 400) {
+      return AppLocalizations.of(context)!.invalidCredentials;
+    }
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.error.toString().contains('SocketException') ||
+        e.error.toString().contains('Failed host lookup') ||
+        (e.message?.contains('Failed host lookup') ?? false)) {
+      final host = e.requestOptions.uri.host;
+      final hint = host.isNotEmpty && host != 'https' && host != 'http'
+          ? ' ($host)'
+          : '';
+      return 'No se pudo conectar al servidor$hint. Revisa la URL (ej. https://jellyfin.ejemplo.com) y tu conexión.';
+    }
     final data = e.response?.data;
     if (data is String && data.isNotEmpty) return data;
     if (data is Map && data.isNotEmpty) {
@@ -745,10 +765,19 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
     }
     if (e.error != null) {
       final errStr = e.error.toString();
-      if (errStr.isNotEmpty && errStr != 'null') return errStr;
+      if (errStr.isNotEmpty && errStr != 'null') {
+        if (errStr.contains('SocketException') ||
+            errStr.contains('Failed host lookup')) {
+          return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+        }
+        return errStr;
+      }
     }
     final msg = e.message;
     if (msg != null && msg.isNotEmpty) {
+      if (msg.contains('Failed host lookup')) {
+        return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+      }
       if (msg == 'Error processing request' && status != null) return '$status $msg';
       return msg;
     }

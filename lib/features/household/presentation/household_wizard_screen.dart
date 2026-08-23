@@ -416,8 +416,13 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
       final url = _serverController.text.trim();
       if (url.isEmpty) return;
       setState(() => _saving = true);
-      await ref.read(authControllerProvider.notifier).saveServerUrl(url);
-      setState(() => _saving = false);
+      try {
+        await ref.read(authControllerProvider.notifier).saveServerUrl(url);
+      } catch (_) {
+        if (mounted) setState(() => _saving = false);
+        return;
+      }
+      if (mounted) setState(() => _saving = false);
       if (mounted) setState(() => _step = 1);
       return;
     }
@@ -627,13 +632,21 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
           _error = msg;
         });
       }
+    } on FormatException catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _error = e.message;
+        });
+      }
     } catch (e, st) {
       // ignore: avoid_print
       print('authenticate error: $e stack=$st');
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = e.toString();
+          final msg = e.toString().replaceFirst('FormatException: ', '');
+          _error = msg;
         });
       }
     }
@@ -644,6 +657,17 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
     if (status == 401 || status == 400) {
       return AppLocalizations.of(context)!.invalidCredentials;
     }
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.connectionTimeout ||
+        e.error.toString().contains('SocketException') ||
+        e.error.toString().contains('Failed host lookup') ||
+        (e.message?.contains('Failed host lookup') ?? false)) {
+      final host = e.requestOptions.uri.host;
+      final hint = host.isNotEmpty && host != 'https' && host != 'http'
+          ? ' ($host)'
+          : '';
+      return 'No se pudo conectar al servidor$hint. Revisa la URL (ej. https://jellyfin.ejemplo.com) y tu conexión.';
+    }
     final data = e.response?.data;
     if (data is String && data.isNotEmpty) return data;
     if (data is Map && data.isNotEmpty) {
@@ -653,12 +677,19 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
     }
     if (e.error != null) {
       final errStr = e.error.toString();
-      if (errStr.isNotEmpty && errStr != 'null') return errStr;
+      if (errStr.isNotEmpty && errStr != 'null') {
+        if (errStr.contains('SocketException') ||
+            errStr.contains('Failed host lookup')) {
+          return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+        }
+        return errStr;
+      }
     }
     final msg = e.message;
-    // Dio a veces pone "Error processing request" como message genérico con
-    // response.data vacío; en ese caso mostramos status + data si existe
     if (msg != null && msg.isNotEmpty) {
+      if (msg.contains('Failed host lookup')) {
+        return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+      }
       if (msg == 'Error processing request' && status != null) {
         return '$status $msg';
       }

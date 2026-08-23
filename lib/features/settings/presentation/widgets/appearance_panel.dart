@@ -471,12 +471,13 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                   dropdownColor: const Color(0xFF1A2568),
                   style: const TextStyle(color: Colors.white),
                   items: [
-                    for (final (effect, label) in [
-                      (AudioWaveformEffect.equalizer, l10n.effectEqualizer),
-                      (AudioWaveformEffect.wave, l10n.effectWave),
-                      (AudioWaveformEffect.mirror, l10n.effectMirror),
-                      (AudioWaveformEffect.bars, l10n.effectBars),
-                    ])
+                     for (final (effect, label) in [
+                       (AudioWaveformEffect.equalizer, l10n.effectEqualizer),
+                       (AudioWaveformEffect.wave, l10n.effectWave),
+                       (AudioWaveformEffect.mirror, l10n.effectMirror),
+                       (AudioWaveformEffect.bars, l10n.effectBars),
+                       (AudioWaveformEffect.surfer, l10n.effectSurfer),
+                     ])
                       DropdownMenuItem(
                         value: effect,
                         child: Text(

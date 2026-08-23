@@ -764,6 +764,12 @@ abstract class AppLocalizations {
   /// **'Bars'**
   String get effectBars;
 
+  /// No description provided for @effectSurfer.
+  ///
+  /// In en, this message translates to:
+  /// **'Surfer'**
+  String get effectSurfer;
+
   /// No description provided for @preview.
   ///
   /// In en, this message translates to:
