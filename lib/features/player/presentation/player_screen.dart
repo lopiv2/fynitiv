@@ -11,6 +11,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
 
+import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -892,15 +893,19 @@ class _AudioCover extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = ref.watch(skinControllerProvider).value;
+    final musicSkin = ref.watch(musicPlayerSkinControllerProvider).value;
+    final bgTop = musicSkin?.backgroundTop ?? skin?.backgroundTop ?? const Color(0xFF0B1030);
+    final bgBottom = musicSkin?.backgroundBottom ?? skin?.backgroundBottom ?? const Color(0xFF1A2568);
+    final accent = musicSkin?.accent ?? skin?.accent ?? const Color(0xFF2B7FFF);
+    final waveform = musicSkin?.waveformEffect ?? skin?.audioWaveformEffect ?? AudioWaveformEffect.equalizer;
+    final textPrimary = musicSkin?.textPrimary ?? skin?.textPrimary ?? Colors.white;
+    final textSecondary = musicSkin?.textSecondary ?? skin?.textSecondary ?? Colors.white70;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [
-            skin?.backgroundTop ?? const Color(0xFF0B1030),
-            skin?.backgroundBottom ?? const Color(0xFF1A2568),
-          ],
+          colors: [bgTop, bgBottom],
         ),
       ),
       child: Stack(
@@ -974,8 +979,8 @@ class _AudioCover extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w500,
                           ),
@@ -991,8 +996,8 @@ class _AudioCover extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white,
+                          style: TextStyle(
+                            color: textPrimary,
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1008,8 +1013,8 @@ class _AudioCover extends ConsumerWidget {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
-                          style: const TextStyle(
-                            color: Colors.white70,
+                          style: TextStyle(
+                            color: textSecondary,
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                           ),
@@ -1021,7 +1026,7 @@ class _AudioCover extends ConsumerWidget {
               },
             ),
           ),
-          // Onda animada, entre la portada y la barra de progreso inferior.
+          // Onda animada tematizable por music skin.
           Positioned(
             bottom: 110,
             left: 40,
@@ -1029,9 +1034,8 @@ class _AudioCover extends ConsumerWidget {
             child: _AudioWaveform(
               playing: playing,
               progress: progress,
-              effect:
-                  skin?.audioWaveformEffect ?? AudioWaveformEffect.equalizer,
-              color: skin?.accent ?? const Color(0xFF2B7FFF),
+              effect: waveform,
+              color: accent,
             ),
           ),
         ],

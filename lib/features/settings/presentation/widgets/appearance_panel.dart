@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/skin/music_player_skin.dart';
+import '../../../../core/skin/music_player_skin_controller.dart';
+import '../../../../core/skin/music_player_skin_presets.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/skin/skin_presets.dart';
@@ -90,6 +93,44 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                     ),
                 ],
               ),
+              const SizedBox(height: 24),
+              // Estilos del Music Player (independiente del skin global).
+              Builder(builder: (context) {
+                final musicSkin = ref.watch(musicPlayerSkinControllerProvider).value;
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.musicPlayerStyle,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        for (final preset in MusicPlayerSkinPresets.all)
+                          _MusicPresetChip(
+                            preset: preset,
+                            selected: musicSkin?.id == preset.id,
+                            onTap: () => ref
+                                .read(musicPlayerSkinControllerProvider.notifier)
+                                .applyPreset(preset.id),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      l10n.musicPlayerStyleHint,
+                      style: const TextStyle(color: Colors.white38, fontSize: 11),
+                    ),
+                  ],
+                );
+              }),
               const SizedBox(height: 24),
               // Editor de colores.
               Text(
@@ -698,6 +739,58 @@ class _PresetChip extends StatelessWidget {
               preset.name,
               style: const TextStyle(color: Colors.white),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MusicPresetChip extends StatelessWidget {
+  const _MusicPresetChip({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final MusicPlayerSkin preset;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleButton(
+      selected: selected,
+      selectedScale: 1.05,
+      borderRadius: BorderRadius.circular(12),
+      onPressed: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: selected
+              ? Colors.white.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.06),
+          border: Border.all(
+            color: selected ? Colors.white : Colors.white24,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 14,
+              height: 14,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [preset.primary, preset.accent],
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(preset.name, style: const TextStyle(color: Colors.white)),
           ],
         ),
       ),

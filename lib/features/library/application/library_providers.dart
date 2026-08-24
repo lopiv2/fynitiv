@@ -7,6 +7,7 @@ import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/skin/home_scroll.dart';
+import '../../../core/skin/music_player_skin.dart';
 
 /// userId del usuario autenticado actual.
 final currentUserIdProvider = Provider<String?>(
@@ -552,6 +553,138 @@ Future<String?> _resolveYoutubeStream(String youtubeId) async {
     return null;
   }
 }
+
+/// Items de una fila del music player configurada por el skin de música.
+final musicScrollItemsProvider =
+    FutureProvider.family<List<BaseItemDto>, MusicScroll>((ref, scroll) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  // Map string types to BaseItemKind where possible.
+  final kinds = scroll.includeItemTypes
+      .map((e) => BaseItemKind.values.asNameMap()[e])
+      .whereType<BaseItemKind>()
+      .toList();
+  final res = await client.getItemsApi().getItems(
+    userId: userId,
+    recursive: true,
+    includeItemTypes: kinds.isEmpty ? null : kinds,
+    genres: scroll.genres.isEmpty ? null : [scroll.genres.join('|')],
+    sortBy: [ItemSortBy.dateCreated],
+    sortOrder: [SortOrder.descending],
+    limit: scroll.limit,
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [ImageType.primary, ImageType.thumb],
+  );
+  return res.data?.items ?? [];
+});
+
+/// Spotify: canciones en tendencia (audio recientes / más reproducidas).
+final spotifyTrendingSongsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  try {
+    final res = await client.getItemsApi().getItems(
+      userId: userId,
+      recursive: true,
+      includeItemTypes: [BaseItemKind.audio],
+      sortBy: [ItemSortBy.dateCreated],
+      sortOrder: [SortOrder.descending],
+      limit: 20,
+      fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.genres],
+      enableImageTypes: [ImageType.primary, ImageType.thumb],
+    );
+    return res.data?.items ?? [];
+  } catch (_) {
+    return const [];
+  }
+});
+
+/// Spotify: artistas populares (MusicArtist) - trendy local server-side.
+/// Orden: PlayCount desc → DatePlayed desc. Sin Random, solo server-side via ArtistsApi.
+final spotifyPopularArtistsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+
+  Future<List<BaseItemDto>> fetchBySort(List<ItemSortBy> sortBy) async {
+    final res = await client.getArtistsApi().getAlbumArtists(
+          userId: userId,
+          sortBy: sortBy,
+          sortOrder: [SortOrder.descending],
+          limit: 20,
+          fields: [ItemFields.primaryImageAspectRatio],
+          enableUserData: true,
+          enableImageTypes: [ImageType.primary, ImageType.thumb],
+        );
+    return res.data?.items ?? const <BaseItemDto>[];
+  }
+
+  try {
+    // 1) Más reproducidos (PlayCount)
+    var items = await fetchBySort([ItemSortBy.playCount]);
+    // Filtra artistas sin playCount si todos son 0 → prueba DatePlayed
+    final hasPlays = items.any((a) => (a.userData?.playCount ?? 0) > 0);
+    if (items.isEmpty || !hasPlays) {
+      final byDatePlayed = await fetchBySort([ItemSortBy.datePlayed]);
+      if (byDatePlayed.isNotEmpty) items = byDatePlayed;
+    }
+    if (items.isNotEmpty) return items;
+
+    // Fallback server-side agregación local: suma PlayCount por artista desde audio
+    final tracksRes = await client.getItemsApi().getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.audio],
+          limit: 200,
+          fields: [ItemFields.primaryImageAspectRatio],
+          enableUserData: true,
+          enableImageTypes: [ImageType.primary],
+        );
+    final tracks = tracksRes.data?.items ?? const <BaseItemDto>[];
+    if (tracks.isNotEmpty) {
+      final playByArtist = <String, int>{};
+      final sampleByArtist = <String, BaseItemDto>{};
+      for (final t in tracks) {
+        final name = t.artists?.firstOrNull ?? t.albumArtists?.firstOrNull?.name ?? '';
+        if (name.isEmpty) continue;
+        final pc = t.userData?.playCount ?? 0;
+        playByArtist[name] = (playByArtist[name] ?? 0) + pc;
+        sampleByArtist.putIfAbsent(name, () => t);
+      }
+      if (playByArtist.isNotEmpty) {
+        final sorted = playByArtist.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        // Si todo 0, ordena por aparición (mantiene trendy local sin random)
+        return sorted.take(20).map((e) {
+          final sample = sampleByArtist[e.key];
+          // Intenta resolver id de artista si existe en la lista previa de ArtistsApi
+          return BaseItemDto(
+            id: sample?.albumArtists?.firstOrNull?.id ?? sample?.id,
+            name: e.key,
+            type: BaseItemKind.musicArtist,
+            userData: UserItemDataDto(playCount: e.value),
+          );
+        }).toList();
+      }
+    }
+    // Último fallback: artistas únicos en orden de aparición (no A-Z)
+    final tracksFallback = await ref.watch(musicTracksProvider.future);
+    final seen = <String>{};
+    final artists = <BaseItemDto>[];
+    for (final t in tracksFallback) {
+      final name = t.artists?.firstOrNull ?? t.albumArtists?.firstOrNull?.name ?? '';
+      if (name.isEmpty || seen.contains(name)) continue;
+      seen.add(name);
+      artists.add(BaseItemDto(name: name, type: BaseItemKind.musicArtist));
+      if (artists.length >= 12) break;
+    }
+    return artists;
+  } catch (_) {
+    return const [];
+  }
+});
 
 /// Obtiene una URL de vídeo reproducible del trailer de un item desde KinoCheck.
 /// Así se evita reproducir accidentalmente el video principal desde

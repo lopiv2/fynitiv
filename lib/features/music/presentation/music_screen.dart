@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -11,117 +12,64 @@ import '../../../l10n/app_localizations.dart';
 import '../../library/application/image_url.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/poster_card.dart';
+import 'widgets/music_skins/apple_music_view.dart';
+import 'widgets/music_skins/jellyfin_classic_music_view.dart';
+import 'widgets/music_skins/spotify_music_view.dart';
+import 'widgets/music_skins/tidal_music_view.dart';
+import 'widgets/music_skins/youtube_music_view.dart';
 
 /// Music Player: álbumes y canciones de la biblioteca de música.
+/// Usa exclusivamente el skin del music player (no el global).
 class MusicScreen extends ConsumerWidget {
   const MusicScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
     final albums = ref.watch(musicAlbumsProvider);
     final tracks = ref.watch(musicTracksProvider);
+    final musicSkinAsync = ref.watch(musicPlayerSkinControllerProvider);
+    final musicSkin = musicSkinAsync.value;
+
+    if (musicSkin == null) {
+      return const Scaffold(body: Center(child: AppLoader()));
+    }
+
+    final Widget view = switch (musicSkin.id) {
+      'spotify' => SpotifyMusicView(
+          skin: musicSkin,
+          serverUrl: serverUrl,
+          albumsAsync: albums,
+          tracksAsync: tracks,
+        ),
+      'apple_music' => AppleMusicView(
+          skin: musicSkin,
+          serverUrl: serverUrl,
+          albumsAsync: albums,
+          tracksAsync: tracks,
+        ),
+      'youtube_music' => YoutubeMusicView(
+          skin: musicSkin,
+          serverUrl: serverUrl,
+          albumsAsync: albums,
+          tracksAsync: tracks,
+        ),
+      'tidal' => TidalMusicView(
+          skin: musicSkin,
+          serverUrl: serverUrl,
+          albumsAsync: albums,
+          tracksAsync: tracks,
+        ),
+      _ => JellyfinClassicMusicView(
+          skin: musicSkin,
+          serverUrl: serverUrl,
+          albumsAsync: albums,
+          tracksAsync: tracks,
+        ),
+    };
 
     return Scaffold(
-      body: DashboardBackground(
-        child: ListView(
-          padding: const EdgeInsets.only(bottom: 24),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-              child: Text(
-                l10n.music,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-            _SectionTitle(title: l10n.albums),
-            albums.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(40),
-                child: Center(child: AppLoader()),
-              ),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(child: Text('$e')),
-              ),
-              data: (list) => list.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        l10n.noResults,
-                        style: const TextStyle(color: Colors.white54),
-                      ),
-                    )
-                  : GridView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      gridDelegate:
-                          const SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent: 150,
-                            mainAxisSpacing: 20,
-                            crossAxisSpacing: 12,
-                            childAspectRatio: 0.62,
-                          ),
-                      itemCount: list.length,
-                      itemBuilder: (context, i) {
-                        final album = list[i];
-                        return PosterCard(
-                          item: album,
-                          serverUrl: serverUrl,
-                          onTap: () => context.push(
-                            '/music/album/${album.id}',
-                            extra: album,
-                          ),
-                        );
-                      },
-                    ),
-            ),
-            const SizedBox(height: 24),
-            _SectionTitle(title: l10n.songs),
-            tracks.when(
-              loading: () => const Padding(
-                padding: EdgeInsets.all(40),
-                child: Center(child: AppLoader()),
-              ),
-              error: (e, _) => Padding(
-                padding: const EdgeInsets.all(24),
-                child: Center(child: Text('$e')),
-              ),
-              data: (list) => list.isEmpty
-                  ? Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        l10n.noResults,
-                        style: const TextStyle(color: Colors.white54),
-                      ),
-                    )
-                  : ListView.separated(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      itemCount: list.length,
-                      separatorBuilder: (_, _) =>
-                          const Divider(height: 1, color: Colors.white12),
-                      itemBuilder: (context, i) {
-                        final track = list[i];
-                        return _TrackTile(
-                          track: track,
-                          serverUrl: serverUrl,
-                          onTap: () =>
-                              context.push('/player/${track.id}', extra: track),
-                        );
-                      },
-                    ),
-            ),
-          ],
-        ),
-      ),
+      body: DashboardBackground(child: view),
     );
   }
 }
@@ -140,9 +88,9 @@ class MusicAlbumScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
     final tracks = ref.watch(libraryItemsProvider(albumId));
-    final skin = ref.watch(skinControllerProvider).value;
-    // Disposición Jellyfin (como la captura) solo para el skin default.
-    if (skin?.id == 'jellyfin_default') {
+    final musicSkin = ref.watch(musicPlayerSkinControllerProvider).value;
+    // Jellyfin Classic mantiene layout histórico; el resto usa skin de música.
+    if (musicSkin != null && musicSkin.id == 'jellyfin_classic') {
       return _JellyfinDefaultAlbumView(
         album: album,
         albumId: albumId,
@@ -150,12 +98,22 @@ class MusicAlbumScreen extends ConsumerWidget {
         tracks: tracks,
       );
     }
-    final textPrimary = skin?.textPrimary ?? Colors.white;
-    final textSecondary = skin?.textSecondary ?? Colors.white70;
+    final mSkin = musicSkin;
+    final textPrimary = mSkin?.textPrimary ?? Colors.white;
+    final textSecondary = mSkin?.textSecondary ?? Colors.white70;
     final title = album?.name ?? '';
+    final bgTop = mSkin?.backgroundTop ?? const Color(0xFF0A0A0A);
+    final bgBottom = mSkin?.backgroundBottom ?? const Color(0xFF1A1A1A);
 
     return Scaffold(
-      body: DashboardBackground(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [bgTop, bgBottom],
+          ),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -169,7 +127,7 @@ class MusicAlbumScreen extends ConsumerWidget {
                     child: IconButton(
                       tooltip: l10n.back,
                       style: IconButton.styleFrom(
-                        backgroundColor: Colors.white.withValues(alpha: 0.08),
+                        backgroundColor: textPrimary.withValues(alpha: 0.08),
                         foregroundColor: textPrimary,
                       ),
                       icon: const Icon(Icons.arrow_back_rounded),
@@ -187,7 +145,7 @@ class MusicAlbumScreen extends ConsumerWidget {
                     children: [
                       if (album != null && serverUrl != null)
                         ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: BorderRadius.circular(mSkin?.cardRadius ?? 10),
                           child: Image.network(
                             itemImageUrl(serverUrl, album!),
                             width: 64,
@@ -217,19 +175,19 @@ class MusicAlbumScreen extends ConsumerWidget {
             Expanded(
               child: tracks.when(
                 loading: () => const Center(child: AppLoader()),
-                error: (e, _) => Center(child: Text('$e')),
+                error: (e, _) => Center(child: Text('$e', style: TextStyle(color: textSecondary))),
                 data: (list) => list.isEmpty
                     ? Center(
                         child: Text(
                           l10n.noResults,
-                          style: const TextStyle(color: Colors.white54),
+                          style: TextStyle(color: textSecondary),
                         ),
                       )
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                         itemCount: list.length,
                         separatorBuilder: (_, _) =>
-                            const Divider(height: 1, color: Colors.white12),
+                            Divider(height: 1, color: textSecondary.withValues(alpha: 0.15)),
                         itemBuilder: (context, i) {
                           final track = list[i];
                           final index = (track.indexNumber ?? i + 1).toString();
@@ -261,9 +219,9 @@ class MusicAlbumScreen extends ConsumerWidget {
                                     ),
                                   )
                                 : null,
-                            trailing: const Icon(
+                            trailing: Icon(
                               Icons.play_arrow_rounded,
-                              color: Colors.white54,
+                              color: mSkin?.accent ?? Colors.white54,
                             ),
                             onTap: () => context.push(
                               '/player/${track.id}',

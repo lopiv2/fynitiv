@@ -1279,6 +1279,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open the web player.'**
   String get gamesLaunchError;
+
+  /// No description provided for @musicPlayerStyle.
+  ///
+  /// In en, this message translates to:
+  /// **'Music Player styles'**
+  String get musicPlayerStyle;
+
+  /// No description provided for @musicPlayerStyleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only affects the Music Player (albums, lists and audio player). Does not change the sidebar.'**
+  String get musicPlayerStyleHint;
+
+  /// No description provided for @recentlyPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently played'**
+  String get recentlyPlayed;
+
+  /// No description provided for @madeForYou.
+  ///
+  /// In en, this message translates to:
+  /// **'Made for you'**
+  String get madeForYou;
+
+  /// No description provided for @trending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending'**
+  String get trending;
+
+  /// No description provided for @topAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'Top albums'**
+  String get topAlbums;
+
+  /// No description provided for @newReleasesMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'New music'**
+  String get newReleasesMusic;
+
+  /// No description provided for @hotlist.
+  ///
+  /// In en, this message translates to:
+  /// **'Hotlist'**
+  String get hotlist;
+
+  /// No description provided for @hiFiPicks.
+  ///
+  /// In en, this message translates to:
+  /// **'HiFi picks'**
+  String get hiFiPicks;
+
+  /// No description provided for @noAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'No albums'**
+  String get noAlbums;
+
+  /// No description provided for @trendingSongs.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending songs'**
+  String get trendingSongs;
+
+  /// No description provided for @popularArtists.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular artists'**
+  String get popularArtists;
+
+  /// No description provided for @showAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Show all'**
+  String get showAll;
+
+  /// No description provided for @artist.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist'**
+  String get artist;
 }
 
 class _AppLocalizationsDelegate

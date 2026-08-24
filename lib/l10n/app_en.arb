@@ -201,5 +201,19 @@
   "gamesNoStreaming": "Streaming is not available for this game. Use Download.",
   "gamesNoFile": "This game has no downloadable file.",
   "gamesDownloaded": "Download complete",
-  "gamesLaunchError": "Could not open the web player."
+  "gamesLaunchError": "Could not open the web player.",
+  "musicPlayerStyle": "Music Player styles",
+  "musicPlayerStyleHint": "Only affects the Music Player (albums, lists and audio player). Does not change the sidebar.",
+  "recentlyPlayed": "Recently played",
+  "madeForYou": "Made for you",
+  "trending": "Trending",
+  "topAlbums": "Top albums",
+  "newReleasesMusic": "New music",
+  "hotlist": "Hotlist",
+  "hiFiPicks": "HiFi picks",
+  "noAlbums": "No albums",
+  "trendingSongs": "Trending songs",
+  "popularArtists": "Popular artists",
+  "showAll": "Show all",
+  "artist": "Artist"
 }

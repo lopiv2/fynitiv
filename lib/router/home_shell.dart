@@ -41,10 +41,13 @@ class HomeShell extends ConsumerWidget {
         : null;
     final content = Expanded(
       child: Focus(
-        autofocus: true,
+        autofocus: mode != PlatformMode.tv,
         onFocusChange: (focused) {
+          // En TV la barra lateral (skin jellyfin) debe permanecer visible.
+          // Antes se colapsaba al enfocar el contenido, lo que la ocultaba
+          // siempre por el autofocus inicial. Ya no se colapsa automáticamente.
           if (mode == PlatformMode.tv && focused) {
-            ref.read(sidebarControllerProvider.notifier).collapseForContent();
+            ref.read(sidebarControllerProvider.notifier).expand();
           }
         },
         child: navigationShell,
@@ -118,7 +121,10 @@ class HomeShell extends ConsumerWidget {
       case PlatformMode.desktop:
         return sidebar.expanded;
       case PlatformMode.tv:
-        return sidebar.visible;
+        // En TV la sidebar debe verse siempre (skin jellyfin: barra izquierda).
+        // Ignora el estado colapsado por foco para que no desaparezca al
+        // navegar con el mando.
+        return true;
       case PlatformMode.mobile:
         return sidebar.expanded && sidebar.visible;
     }

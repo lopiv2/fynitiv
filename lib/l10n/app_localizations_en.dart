@@ -610,4 +610,47 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gamesLaunchError => 'Could not open the web player.';
+
+  @override
+  String get musicPlayerStyle => 'Music Player styles';
+
+  @override
+  String get musicPlayerStyleHint =>
+      'Only affects the Music Player (albums, lists and audio player). Does not change the sidebar.';
+
+  @override
+  String get recentlyPlayed => 'Recently played';
+
+  @override
+  String get madeForYou => 'Made for you';
+
+  @override
+  String get trending => 'Trending';
+
+  @override
+  String get topAlbums => 'Top albums';
+
+  @override
+  String get newReleasesMusic => 'New music';
+
+  @override
+  String get hotlist => 'Hotlist';
+
+  @override
+  String get hiFiPicks => 'HiFi picks';
+
+  @override
+  String get noAlbums => 'No albums';
+
+  @override
+  String get trendingSongs => 'Trending songs';
+
+  @override
+  String get popularArtists => 'Popular artists';
+
+  @override
+  String get showAll => 'Show all';
+
+  @override
+  String get artist => 'Artist';
 }

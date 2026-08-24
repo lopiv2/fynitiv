@@ -198,5 +198,19 @@
   "gamesNoStreaming": "El streaming no está disponible para este juego. Usa Descargar.",
   "gamesNoFile": "Este juego no tiene un archivo descargable.",
   "gamesDownloaded": "Descarga completada",
-  "gamesLaunchError": "No se pudo abrir el reproductor web."
+  "gamesLaunchError": "No se pudo abrir el reproductor web.",
+  "musicPlayerStyle": "Estilos del Music Player",
+  "musicPlayerStyleHint": "Solo afecta al Music Player (álbumes, listas y reproductor de audio). No cambia la barra lateral.",
+  "recentlyPlayed": "Escuchado recientemente",
+  "madeForYou": "Hecho para ti",
+  "trending": "Tendencias",
+  "topAlbums": "Top álbumes",
+  "newReleasesMusic": "Novedades musicales",
+  "hotlist": "Hotlist",
+  "hiFiPicks": "Selección HiFi",
+  "noAlbums": "Sin álbumes",
+  "trendingSongs": "Canciones en tendencia",
+  "popularArtists": "Artistas populares",
+  "showAll": "Mostrar todos",
+  "artist": "Artista"
 }
