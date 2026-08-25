@@ -2,9 +2,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../../core/settings/music_chart_source.dart';
+import '../../../../../core/settings/music_chart_source_controller.dart';
 import '../../../../../core/skin/music_player_skin.dart';
 import '../../../../../core/widgets/app_loader.dart';
 import '../../../../../l10n/app_localizations.dart';
+import '../shared/deezer_trending_row.dart';
 import '../shared/music_trending_row.dart';
 
 class AppleMusicView extends ConsumerWidget {
@@ -91,7 +94,11 @@ class AppleMusicView extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 24),
-          for (final s in skin.musicScrolls) MusicTrendingRow(scroll: s, skin: skin),
+          if (ref.watch(musicChartSourceControllerProvider) == MusicChartSource.deezer) ...[
+            DeezerTrendingSongsRow(skin: skin),
+            DeezerPopularArtistsRow(skin: skin),
+          ] else
+            for (final s in skin.musicScrolls) MusicTrendingRow(scroll: s, skin: skin),
         ],
       ),
     );

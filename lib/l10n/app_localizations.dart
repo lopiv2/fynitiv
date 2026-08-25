@@ -1363,6 +1363,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Artist'**
   String get artist;
+
+  /// No description provided for @chartSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Chart source'**
+  String get chartSource;
+
+  /// No description provided for @chartSourceJellyfin.
+  ///
+  /// In en, this message translates to:
+  /// **'Jellyfin (local)'**
+  String get chartSourceJellyfin;
+
+  /// No description provided for @chartSourceDeezer.
+  ///
+  /// In en, this message translates to:
+  /// **'Deezer (global)'**
+  String get chartSourceDeezer;
+
+  /// No description provided for @chartSourceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose whether the Music Player shows your local library or the global Deezer top chart.'**
+  String get chartSourceHint;
+
+  /// No description provided for @myPlaylists.
+  ///
+  /// In en, this message translates to:
+  /// **'My playlists'**
+  String get myPlaylists;
+
+  /// No description provided for @recentlyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get recentlyAdded;
 }
 
 class _AppLocalizationsDelegate

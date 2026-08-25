@@ -212,5 +212,11 @@
   "trendingSongs": "Canciones en tendencia",
   "popularArtists": "Artistas populares",
   "showAll": "Mostrar todos",
-  "artist": "Artista"
+  "artist": "Artista",
+  "chartSource": "Fuente del chart",
+  "chartSourceJellyfin": "Jellyfin (local)",
+  "chartSourceDeezer": "Deezer (global)",
+  "chartSourceHint": "Elige si el Music Player muestra tu biblioteca local o el top global de Deezer.",
+  "myPlaylists": "Mis playlists",
+  "recentlyAdded": "Recién añadidos"
 }

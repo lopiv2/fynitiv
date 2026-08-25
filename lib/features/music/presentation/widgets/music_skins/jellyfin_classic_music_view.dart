@@ -3,9 +3,13 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../../core/settings/music_chart_source.dart';
+import '../../../../../core/settings/music_chart_source_controller.dart';
 import '../../../../../core/skin/music_player_skin.dart';
-import '../../../../../core/widgets/app_loader.dart';
+import '../../../../../core/theme/dashboard_background.dart';
 import '../../../../../l10n/app_localizations.dart';
+import '../../../../../core/widgets/app_loader.dart';
+import '../shared/deezer_trending_row.dart';
 import '../shared/music_album_grid.dart';
 import '../shared/music_trending_row.dart';
 
@@ -81,7 +85,11 @@ class JellyfinClassicMusicView extends ConsumerWidget {
                     },
                   ),
           ),
-          for (final scroll in skin.musicScrolls) MusicTrendingRow(scroll: scroll, skin: skin),
+          if (ref.watch(musicChartSourceControllerProvider) == MusicChartSource.deezer) ...[
+            DeezerTrendingSongsRow(skin: skin),
+            DeezerPopularArtistsRow(skin: skin),
+          ] else
+            for (final scroll in skin.musicScrolls) MusicTrendingRow(scroll: scroll, skin: skin),
         ],
       ),
     );

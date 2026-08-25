@@ -653,4 +653,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get artist => 'Artist';
+
+  @override
+  String get chartSource => 'Chart source';
+
+  @override
+  String get chartSourceJellyfin => 'Jellyfin (local)';
+
+  @override
+  String get chartSourceDeezer => 'Deezer (global)';
+
+  @override
+  String get chartSourceHint =>
+      'Choose whether the Music Player shows your local library or the global Deezer top chart.';
+
+  @override
+  String get myPlaylists => 'My playlists';
+
+  @override
+  String get recentlyAdded => 'Recently added';
 }

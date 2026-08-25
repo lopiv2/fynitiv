@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/settings/music_chart_source.dart';
+import '../../../../core/settings/music_chart_source_controller.dart';
 import '../../../../core/skin/music_player_skin.dart';
 import '../../../../core/skin/music_player_skin_controller.dart';
 import '../../../../core/skin/music_player_skin_presets.dart';
@@ -128,6 +130,30 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                       l10n.musicPlayerStyleHint,
                       style: const TextStyle(color: Colors.white38, fontSize: 11),
                     ),
+                    const SizedBox(height: 12),
+                    Text(
+                      l10n.chartSource,
+                      style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    Builder(builder: (context) {
+                      final source = ref.watch(musicChartSourceControllerProvider);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SegmentedButton<MusicChartSource>(
+                            segments: [
+                              ButtonSegment(value: MusicChartSource.jellyfin, label: Text(l10n.chartSourceJellyfin)),
+                              ButtonSegment(value: MusicChartSource.deezer, label: Text(l10n.chartSourceDeezer)),
+                            ],
+                            selected: {source},
+                            onSelectionChanged: (s) => ref.read(musicChartSourceControllerProvider.notifier).setSource(s.first),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(l10n.chartSourceHint, style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                        ],
+                      );
+                    }),
                   ],
                 );
               }),

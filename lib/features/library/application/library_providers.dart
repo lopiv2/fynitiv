@@ -686,6 +686,76 @@ final spotifyPopularArtistsProvider = FutureProvider<List<BaseItemDto>>((ref) as
   }
 });
 
+/// Jellyfin: mis playlists (tipo Playlist) del usuario.
+/// Son listas de reproducción (música), no bibliotecas de películas.
+/// Filtra por MediaType.audio y verifica que realmente sean de audio.
+final jellyfinPlaylistsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  try {
+    final res = await client.getItemsApi().getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.playlist],
+          mediaTypes: [MediaType.audio],
+          sortBy: [ItemSortBy.dateCreated],
+          sortOrder: [SortOrder.descending],
+          limit: 20,
+          fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+          enableImageTypes: [ImageType.primary, ImageType.thumb],
+          enableUserData: true,
+        );
+    var items = res.data?.items ?? const <BaseItemDto>[];
+    // Si el filtro por MediaType.audio no devuelve nada (algunos servidores no lo indexan),
+    // fallback sin mediaTypes y filtra en cliente por mediaType == audio si existe.
+    if (items.isEmpty) {
+      final fallback = await client.getItemsApi().getItems(
+            userId: userId,
+            recursive: true,
+            includeItemTypes: [BaseItemKind.playlist],
+            sortBy: [ItemSortBy.dateCreated],
+            sortOrder: [SortOrder.descending],
+            limit: 20,
+            fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+            enableImageTypes: [ImageType.primary, ImageType.thumb],
+            enableUserData: true,
+          );
+      final all = fallback.data?.items ?? const <BaseItemDto>[];
+      // Si el servidor devuelve playlists sin mediaType, no filtramos y mostramos todas,
+      // pero priorizamos las que sean de audio si se puede detectar.
+      final audioOnly = all.where((e) => e.mediaType == MediaType.audio).toList();
+      items = audioOnly.isNotEmpty ? audioOnly : all;
+    }
+    return items;
+  } catch (_) {
+    return const [];
+  }
+});
+
+/// Jellyfin: elementos recién añadidos (música) - últimos álbumes creados.
+final jellyfinRecentlyAddedMusicProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  try {
+    final res = await client.getItemsApi().getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.musicAlbum, BaseItemKind.audio],
+          sortBy: [ItemSortBy.dateCreated],
+          sortOrder: [SortOrder.descending],
+          limit: 20,
+          fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.dateCreated],
+          enableImageTypes: [ImageType.primary, ImageType.thumb],
+          enableUserData: true,
+        );
+    return res.data?.items ?? const [];
+  } catch (_) {
+    return const [];
+  }
+});
+
 /// Obtiene una URL de vídeo reproducible del trailer de un item desde KinoCheck.
 /// Así se evita reproducir accidentalmente el video principal desde
 /// RemoteTrailers cuando el servidor devuelve una URL incorrecta.

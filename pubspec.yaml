@@ -115,6 +115,7 @@ flutter:
     - assets/images/Logo_fynitiv.png
     - assets/images/jellyfin-logo.png
     - assets/images/jellyfin.png
+    - assets/images/logo_deezer.png
     - assets/images/icons/surfer.svg
     - assets/images/icons/spaceship.svg
     - assets/audio/splash_reveal.mp3

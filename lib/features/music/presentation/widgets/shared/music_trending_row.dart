@@ -57,7 +57,16 @@ class MusicTrendingRow extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: ScrollTitle(title: _titleFor(context, scroll.titleKey)),
+              child: Row(
+                children: [
+                  Expanded(child: ScrollTitle(title: _titleFor(context, scroll.titleKey))),
+                  InkWell(
+                    onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _MusicScrollShowAllScreen(title: _titleFor(context, scroll.titleKey), items: items, serverUrl: serverUrl, skin: skin))),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Padding(padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4), child: Text(AppLocalizations.of(context)!.showAll, style: TextStyle(color: skin.textSecondary, fontSize: 13, fontWeight: FontWeight.w600))),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -67,6 +76,8 @@ class MusicTrendingRow extends ConsumerWidget {
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 24),
+                  clipBehavior: Clip.none,
+                  physics: const BouncingScrollPhysics(),
                   itemCount: items.length,
                   separatorBuilder: (_, _) => const SizedBox(width: 12),
                   itemBuilder: (context, i) {
@@ -87,6 +98,30 @@ class MusicTrendingRow extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _MusicScrollShowAllScreen extends StatelessWidget {
+  const _MusicScrollShowAllScreen({required this.title, required this.items, required this.serverUrl, required this.skin});
+  final String title;
+  final List items;
+  final String? serverUrl;
+  final MusicPlayerSkin skin;
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: skin.backgroundTop,
+      appBar: AppBar(backgroundColor: skin.backgroundTop, title: Text(title, style: TextStyle(color: skin.textPrimary)), iconTheme: IconThemeData(color: skin.textPrimary)),
+      body: GridView.builder(
+        padding: const EdgeInsets.all(24),
+        gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 160, mainAxisSpacing: 16, crossAxisSpacing: 16, childAspectRatio: 0.72),
+        itemCount: items.length,
+        itemBuilder: (context, i) {
+          final item = items[i];
+          return PosterCard(item: item, serverUrl: serverUrl, onTap: () => context.push('/player/${item.id}', extra: item));
+        },
+      ),
     );
   }
 }
