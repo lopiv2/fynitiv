@@ -673,4 +673,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get recentlyAdded => 'Recién añadidos';
+
+  @override
+  String get populares => 'Populares';
+
+  @override
+  String monthlyListeners(Object count) {
+    return '$count oyentes mensuales';
+  }
+
+  @override
+  String get noPlayableSongs => 'Actualmente no hay canciones reproducibles';
+
+  @override
+  String get deezerSuggestions => 'Sugerencias de Deezer';
 }

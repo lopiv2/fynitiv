@@ -221,5 +221,9 @@
   "chartSourceDeezer": "Deezer (global)",
   "chartSourceHint": "Choose whether the Music Player shows your local library or the global Deezer top chart.",
   "myPlaylists": "My playlists",
-  "recentlyAdded": "Recently added"
+  "recentlyAdded": "Recently added",
+  "populares": "Popular",
+  "monthlyListeners": "{count} monthly listeners",
+  "noPlayableSongs": "No playable songs currently",
+  "deezerSuggestions": "Deezer suggestions"
 }

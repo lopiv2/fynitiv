@@ -1,3 +1,4 @@
+import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/skin/music_player_skin.dart';
@@ -56,13 +57,16 @@ class DeezerShowAllScreen extends StatelessWidget {
               itemCount: artists.length,
               itemBuilder: (context, i) {
                 final a = artists[i];
-                return Column(
-                  children: [
-                    ClipOval(child: SizedBox(width: 120, height: 120, child: a.picture.isNotEmpty ? Image.network(a.picture, fit: BoxFit.cover) : Container(color: Colors.white12))),
-                    const SizedBox(height: 8),
-                    Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: skin.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(AppLocalizations.of(context)!.artist, style: TextStyle(color: skin.textSecondary, fontSize: 11)),
-                  ],
+                return GestureDetector(
+                  onTap: () => context.push('/music/artist/${Uri.encodeComponent(a.name)}', extra: a),
+                  child: Column(
+                    children: [
+                      ClipOval(child: SizedBox(width: 120, height: 120, child: a.picture.isNotEmpty ? Image.network(a.picture, fit: BoxFit.cover) : Container(color: Colors.white12))),
+                      const SizedBox(height: 8),
+                      Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: skin.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+                      Text(AppLocalizations.of(context)!.artist, style: TextStyle(color: skin.textSecondary, fontSize: 11)),
+                    ],
+                  ),
                 );
               },
             ),

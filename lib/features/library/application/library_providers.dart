@@ -385,6 +385,45 @@ final artistAlbumsProvider =
   }
 });
 
+/// Pistas de Jellyfin para un artista concreto (solo audio reproducible).
+final artistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((ref, artistName) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || artistName.trim().isEmpty) return const [];
+  final name = artistName.trim();
+  try {
+    final res = await client.getItemsApi().getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.audio],
+          artists: [name],
+          sortBy: [ItemSortBy.sortName],
+          limit: 50,
+          fields: [ItemFields.primaryImageAspectRatio, ItemFields.genres, ItemFields.mediaSourceCount],
+          enableImageTypes: [ImageType.primary, ImageType.thumb],
+          enableUserData: true,
+        );
+    var items = res.data?.items ?? const <BaseItemDto>[];
+    if (items.isEmpty) {
+      final fallback = await client.getItemsApi().getItems(
+            userId: userId,
+            recursive: true,
+            includeItemTypes: [BaseItemKind.audio],
+            searchTerm: name,
+            limit: 50,
+            fields: [ItemFields.primaryImageAspectRatio],
+            enableImageTypes: [ImageType.primary],
+            enableUserData: true,
+          );
+      items = fallback.data?.items ?? const <BaseItemDto>[];
+    }
+    // Filtra solo los que realmente contienen al artista (evita falsos por búsqueda amplia)
+    return items.where((e) => (e.artists?.any((a) => a.toLowerCase() == name.toLowerCase()) ?? false) || (e.albumArtist?.toLowerCase() == name.toLowerCase()) || (e.name ?? '').toLowerCase().contains(name.toLowerCase())).toList();
+  } catch (_) {
+    return const [];
+  }
+});
+
 /// Trailer (id de YouTube) de un item usando la API pública de KinoCheck.
 /// Requiere tmdb_id o imdb_id del item.
 final kinocheckTrailerProvider = FutureProvider.family<String?, BaseItemDto>((
@@ -753,6 +792,39 @@ final jellyfinRecentlyAddedMusicProvider = FutureProvider<List<BaseItemDto>>((re
     return res.data?.items ?? const [];
   } catch (_) {
     return const [];
+  }
+});
+
+/// Jellyfin: pistas de una playlist (estilo Jellyfin Classic para playlist).
+final playlistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((ref, playlistId) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || playlistId.isEmpty) return const [];
+  try {
+    final res = await client.getPlaylistsApi().getPlaylistItems(
+          playlistId: playlistId,
+          userId: userId,
+          fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.genres],
+          enableImages: true,
+          enableUserData: true,
+          limit: 200,
+        );
+    return res.data?.items ?? const [];
+  } catch (_) {
+    // Fallback via ItemsApi parentId
+    try {
+      final fallback = await client.getItemsApi().getItems(
+            userId: userId,
+            parentId: playlistId,
+            recursive: true,
+            limit: 200,
+            fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.genres],
+            enableImageTypes: [ImageType.primary, ImageType.thumb],
+          );
+      return fallback.data?.items ?? const [];
+    } catch (_) {
+      return const [];
+    }
   }
 });
 

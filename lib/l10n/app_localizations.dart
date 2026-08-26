@@ -1399,6 +1399,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recently added'**
   String get recentlyAdded;
+
+  /// No description provided for @populares.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular'**
+  String get populares;
+
+  /// No description provided for @monthlyListeners.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} monthly listeners'**
+  String monthlyListeners(Object count);
+
+  /// No description provided for @noPlayableSongs.
+  ///
+  /// In en, this message translates to:
+  /// **'No playable songs currently'**
+  String get noPlayableSongs;
+
+  /// No description provided for @deezerSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Deezer suggestions'**
+  String get deezerSuggestions;
 }
 
 class _AppLocalizationsDelegate

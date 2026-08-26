@@ -11,4 +11,13 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 - Si se pide un componente que hace lo mismo que otro ya existente, generar un **widget genérico** reutilizable en lugar de duplicar código, y usarlo en los lugares que lo necesiten.
 
 ## Traduccion de cadenas
+
 - Siempre que vaya a haber texto de widgets, debe traducirse con cadenas ARB, minimo a ingles y español, como ya esta en otras partes de la aplicacion. Se reutilizaran cadenas si ya existen en dichos archivos ARB, para no duplicar claves
+
+## Utiliza siempre el widget universal de Hover en todas las tarjetas
+
+- Debes utilizar el widget universal de Hover en todas las tarjetas, y luego ya te ire yo diciendo el enrutamiento y todo eso hacia otras pantallas o reproductores
+
+## Utilizar siempre el loader cuando sea necesario
+
+- Debes utilizar el loader en cualquier parte que este haciendo una peticion DIO a una Api de Jellyfin o externa mientras carga los datos

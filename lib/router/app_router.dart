@@ -13,7 +13,10 @@ import '../features/library/presentation/library_view_screen.dart';
 import '../features/live_tv/presentation/live_fullscreen_player.dart';
 import '../features/live_tv/presentation/live_tv_screen.dart';
 import '../features/movies/presentation/all_movies_screen.dart';
+import '../features/music/application/deezer_providers.dart';
+import '../features/music/presentation/artist_detail_screen.dart';
 import '../features/music/presentation/music_screen.dart';
+import '../features/music/presentation/playlist_detail_screen.dart';
 import '../features/games/presentation/game_detail_screen.dart';
 import '../features/games/presentation/game_list_screen.dart';
 import '../features/games/presentation/games_screen.dart';
@@ -138,6 +141,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           ? state.extra as BaseItemDto
                           : null,
                     ),
+                  ),
+                  GoRoute(
+                    path: 'playlist/:playlistId',
+                    builder: (context, state) => PlaylistDetailScreen(
+                      playlistId: state.pathParameters['playlistId']!,
+                      playlist: state.extra is BaseItemDto
+                          ? state.extra as BaseItemDto
+                          : null,
+                    ),
+                  ),
+                  GoRoute(
+                    path: 'artist/:artistName',
+                    builder: (context, state) {
+                      final extra = state.extra;
+                      DeezerArtist? deezerArtist;
+                      BaseItemDto? jellyfinArtist;
+                      if (extra is DeezerArtist) deezerArtist = extra;
+                      if (extra is BaseItemDto) jellyfinArtist = extra;
+                      // Si extra es Map con ambos
+                      if (extra is Map) {
+                        deezerArtist = extra['deezer'] as DeezerArtist?;
+                        jellyfinArtist = extra['jellyfin'] as BaseItemDto?;
+                      }
+                      return ArtistDetailScreen(
+                        artistName: Uri.decodeComponent(state.pathParameters['artistName']!),
+                        deezerArtist: deezerArtist,
+                        jellyfinArtist: jellyfinArtist,
+                      );
+                    },
                   ),
                 ],
               ),

@@ -14,6 +14,7 @@ class DeezerTrack {
     required this.preview,
     required this.explicit,
     required this.position,
+    this.duration = 0,
   });
 
   final int id;
@@ -24,6 +25,7 @@ class DeezerTrack {
   final String preview;
   final bool explicit;
   final int position;
+  final int duration;
 
   factory DeezerTrack.fromJson(Map<String, dynamic> json) {
     final artist = json['artist'] as Map<String, dynamic>? ?? {};
@@ -37,6 +39,7 @@ class DeezerTrack {
       preview: (json['preview'] as String?) ?? '',
       explicit: json['explicit_lyrics'] == true,
       position: (json['position'] as num?)?.toInt() ?? 0,
+      duration: (json['duration'] as num?)?.toInt() ?? 0,
     );
   }
 }
@@ -94,6 +97,40 @@ final deezerTrendingSongsProvider = FutureProvider<List<DeezerTrack>>((ref) asyn
 final deezerPopularArtistsProvider = FutureProvider<List<DeezerArtist>>((ref) async {
   final chart = await ref.watch(deezerChartProvider.future);
   return chart.artists;
+});
+
+/// Top tracks de un artista en Deezer (máx 20) por id o por búsqueda nombre.
+final deezerArtistTopTracksProvider = FutureProvider.family<List<DeezerTrack>, String>((ref, artistQuery) async {
+  // artistQuery puede ser "id:123" o nombre
+  try {
+    if (artistQuery.startsWith('id:')) {
+      final id = artistQuery.substring(3);
+      final res = await _dioDeezer.get('https://api.deezer.com/artist/$id/top', queryParameters: {'limit': 20});
+      final data = res.data as Map<String, dynamic>;
+      final list = (data['data'] as List? ?? []).map((e) => DeezerTrack.fromJson(e as Map<String, dynamic>)).toList();
+      if (list.isNotEmpty) return list;
+    }
+    final res = await _dioDeezer.get('https://api.deezer.com/search/track', queryParameters: {'q': 'artist:"$artistQuery"', 'limit': 20});
+    final data = res.data as Map<String, dynamic>;
+    final list = (data['data'] as List? ?? []).map((e) => DeezerTrack.fromJson(e as Map<String, dynamic>)).toList();
+    return list;
+  } catch (_) {
+    return const [];
+  }
+});
+
+/// Detalle artista Deezer para nb_fan / picture.
+final deezerArtistDetailProvider = FutureProvider.family<Map<String, dynamic>?, String>((ref, artistId) async {
+  if (artistId.startsWith('id:')) {
+    final id = artistId.substring(3);
+    try {
+      final res = await _dioDeezer.get('https://api.deezer.com/artist/$id');
+      return res.data as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+  return null;
 });
 
 /// Verifica si un DeezerTrack existe en la biblioteca Jellyfin (por búsqueda título+artista).
