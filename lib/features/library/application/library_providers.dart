@@ -26,6 +26,57 @@ final jellyfinClientProvider = Provider<JellyfinDart?>(
   (ref) => ref.watch(authControllerProvider.notifier).client,
 );
 
+String _transliterateSimple(String s) {
+  const map = {
+    'á': 'a',
+    'à': 'a',
+    'ä': 'a',
+    'â': 'a',
+    'ã': 'a',
+    'å': 'a',
+    'é': 'e',
+    'è': 'e',
+    'ë': 'e',
+    'ê': 'e',
+    'í': 'i',
+    'ì': 'i',
+    'ï': 'i',
+    'î': 'i',
+    'ó': 'o',
+    'ò': 'o',
+    'ö': 'o',
+    'ô': 'o',
+    'õ': 'o',
+    'ú': 'u',
+    'ù': 'u',
+    'ü': 'u',
+    'û': 'u',
+    'ñ': 'n',
+    'ç': 'c',
+  };
+  var out = s;
+  map.forEach((k, v) {
+    out = out.replaceAll(k, v);
+    out = out.replaceAll(k.toUpperCase(), v);
+  });
+  return out;
+}
+
+bool _artistMatches(BaseItemDto e, String lowerName) {
+  bool contains(String? s) {
+    if (s == null || s.isEmpty) return false;
+    final lower = _transliterateSimple(s.toLowerCase());
+    for (final part in lower.split(RegExp(r'[;,/]'))) {
+      if (part.trim().contains(lowerName)) return true;
+    }
+    return lower.contains(lowerName);
+  }
+
+  return (e.artists?.any(contains) ?? false) ||
+      contains(e.albumArtist) ||
+      (e.albumArtists?.any((aa) => contains(aa.name)) ?? false);
+}
+
 /// Lista de vistas (bibliotecas) del usuario: Películas, Series, etc.
 final userViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final client = ref.watch(jellyfinClientProvider);
@@ -64,7 +115,11 @@ final nextUpEpisodesProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         ItemFields.people,
         ItemFields.providerIds,
       ],
-      enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
+      enableImageTypes: [
+        ImageType.primary,
+        ImageType.thumb,
+        ImageType.backdrop,
+      ],
       enableUserData: true,
     );
     return res.data?.items ?? [];
@@ -147,50 +202,50 @@ final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
 
 /// Items recientes de una biblioteca concreta (para "Reciente en ...").
 /// Ordenados por fecha de creación descendente, solo si la biblioteca existe.
-final recentLibraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
-  ref,
-  viewId,
-) async {
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null || viewId.isEmpty) return const [];
-  final res = await client.getItemsApi().getItems(
-    userId: userId,
-    parentId: viewId,
-    recursive: true,
-    sortBy: [ItemSortBy.dateCreated],
-    sortOrder: [SortOrder.descending],
-    limit: 20,
-    fields: [
-      ItemFields.primaryImageAspectRatio,
-      ItemFields.overview,
-      ItemFields.people,
-      ItemFields.dateCreated,
-    ],
-    enableImageTypes: [ImageType.primary, ImageType.thumb],
-  );
-  final items = res.data?.items ?? [];
-  // Para biblioteca de Series: deduplicar episodios por serie para mostrar
-  // solo el último capítulo añadido (evita ver 4 tarjetas de "Linternas").
-  final hasEpisode = items.any((e) => e.type == BaseItemKind.episode);
-  if (hasEpisode) {
-    final episodes = items.where((e) => e.type == BaseItemKind.episode).toList();
-    if (episodes.isNotEmpty) {
-      final seenSeries = <String>{};
-      final deduped = <BaseItemDto>[];
-      for (final ep in episodes) {
-        final key = ep.seriesId ?? ep.seriesName ?? ep.id ?? '';
-        if (key.isEmpty) continue;
-        if (seenSeries.add(key)) {
-          deduped.add(ep);
+final recentLibraryItemsProvider =
+    FutureProvider.family<List<BaseItemDto>, String>((ref, viewId) async {
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null || viewId.isEmpty) return const [];
+      final res = await client.getItemsApi().getItems(
+        userId: userId,
+        parentId: viewId,
+        recursive: true,
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: 20,
+        fields: [
+          ItemFields.primaryImageAspectRatio,
+          ItemFields.overview,
+          ItemFields.people,
+          ItemFields.dateCreated,
+        ],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
+      );
+      final items = res.data?.items ?? [];
+      // Para biblioteca de Series: deduplicar episodios por serie para mostrar
+      // solo el último capítulo añadido (evita ver 4 tarjetas de "Linternas").
+      final hasEpisode = items.any((e) => e.type == BaseItemKind.episode);
+      if (hasEpisode) {
+        final episodes = items
+            .where((e) => e.type == BaseItemKind.episode)
+            .toList();
+        if (episodes.isNotEmpty) {
+          final seenSeries = <String>{};
+          final deduped = <BaseItemDto>[];
+          for (final ep in episodes) {
+            final key = ep.seriesId ?? ep.seriesName ?? ep.id ?? '';
+            if (key.isEmpty) continue;
+            if (seenSeries.add(key)) {
+              deduped.add(ep);
+            }
+          }
+          if (deduped.isNotEmpty) return deduped;
+          return episodes;
         }
       }
-      if (deduped.isNotEmpty) return deduped;
-      return episodes;
-    }
-  }
-  return items;
-});
+      return items;
+    });
 
 /// VOD: películas y series a la carta (On Demand).
 final vodItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
@@ -424,16 +479,19 @@ final musicTracksProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 });
 
 /// Más álbumes del mismo artista (para la vista detalle estilo Jellyfin).
-final artistAlbumsProvider =
-    FutureProvider.family<List<BaseItemDto>, BaseItemDto>((ref, album) async {
+final artistAlbumsProvider = FutureProvider.family<List<BaseItemDto>, BaseItemDto>((
+  ref,
+  album,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   final albumId = album.id ?? '';
-  final artist = (album.albumArtist?.trim().isNotEmpty == true
-          ? album.albumArtist!.trim()
-          : (album.artists?.firstOrNull?.trim() ?? ''))
-      .trim();
+  final artist =
+      (album.albumArtist?.trim().isNotEmpty == true
+              ? album.albumArtist!.trim()
+              : (album.artists?.firstOrNull?.trim() ?? ''))
+          .trim();
   final artistId = album.albumArtists?.firstOrNull?.id;
   if (artist.isEmpty && (artistId == null || artistId.isEmpty)) return const [];
   try {
@@ -442,7 +500,9 @@ final artistAlbumsProvider =
       recursive: true,
       includeItemTypes: [BaseItemKind.musicAlbum],
       artists: artist.isNotEmpty ? [artist] : null,
-      albumArtistIds: artistId != null && artistId.isNotEmpty ? [artistId] : null,
+      albumArtistIds: artistId != null && artistId.isNotEmpty
+          ? [artistId]
+          : null,
       excludeItemIds: albumId.isNotEmpty ? [albumId] : null,
       limit: 10,
       sortBy: [ItemSortBy.productionYear],
@@ -475,16 +535,19 @@ final artistAlbumsProvider =
 ///
 /// Usa `artistIds`/`albumArtistIds`/`contributingArtistIds` que son índices
 /// en la DB de Jellyfin, evitando la búsqueda de texto completa.
-final artistTracksByArtistIdProvider = FutureProvider.family<List<BaseItemDto>, String>((ref, artistId) async {
-  final link = ref.keepAlive();
-  Timer(const Duration(minutes: 5), link.close);
+final artistTracksByArtistIdProvider =
+    FutureProvider.family<List<BaseItemDto>, String>((ref, artistId) async {
+      final link = ref.keepAlive();
+      Timer(const Duration(minutes: 5), link.close);
 
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null || artistId.trim().isEmpty) return const [];
-  final id = artistId.trim();
-  try {
-    final res = await client.getItemsApi().getItems(
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null || artistId.trim().isEmpty) {
+        return const [];
+      }
+      final id = artistId.trim();
+      try {
+        final res = await client.getItemsApi().getItems(
           userId: userId,
           recursive: true,
           includeItemTypes: [BaseItemKind.audio],
@@ -498,10 +561,10 @@ final artistTracksByArtistIdProvider = FutureProvider.family<List<BaseItemDto>, 
           enableImages: true,
           enableTotalRecordCount: false,
         );
-    var items = res.data?.items ?? const <BaseItemDto>[];
-    // Fallback: si el servidor no indexa alguno de los ids, probar solo albumArtistIds
-    if (items.isEmpty) {
-      final fallback = await client.getItemsApi().getItems(
+        var items = res.data?.items ?? const <BaseItemDto>[];
+        // Fallback: si el servidor no indexa alguno de los ids, probar solo albumArtistIds
+        if (items.isEmpty) {
+          final fallback = await client.getItemsApi().getItems(
             userId: userId,
             recursive: true,
             includeItemTypes: [BaseItemKind.audio],
@@ -513,42 +576,47 @@ final artistTracksByArtistIdProvider = FutureProvider.family<List<BaseItemDto>, 
             enableImages: true,
             enableTotalRecordCount: false,
           );
-      items = fallback.data?.items ?? const <BaseItemDto>[];
-    }
-    return items;
-  } catch (_) {
-    return const [];
-  }
-});
+          items = fallback.data?.items ?? const <BaseItemDto>[];
+        }
+        return items;
+      } catch (_) {
+        return const [];
+      }
+    });
 
 /// Pistas de Jellyfin para un artista concreto (solo audio reproducible).
 ///
 /// Optimizado para carga rápida: 1 sola petición (searchTerm) con `limit:20`,
 /// fields mínimos y `enableTotalRecordCount:false` para evitar COUNT(*) en DB.
 /// Cachea 5 minutos vía keepAlive para evitar refetch al volver atrás.
-final artistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((ref, artistName) async {
+final artistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((
+  ref,
+  artistName,
+) async {
   final link = ref.keepAlive();
   Timer(const Duration(minutes: 5), link.close);
 
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null || artistName.trim().isEmpty) return const [];
+  if (client == null || userId == null || artistName.trim().isEmpty) {
+    return const [];
+  }
   final name = artistName.trim();
   try {
     // Intento principal: búsqueda de texto (más tolerante que `artists:[name]` exacto)
     // Usa una única petición rápida en lugar de 2 secuenciales.
     final res = await client.getItemsApi().getItems(
-          userId: userId,
-          recursive: true,
-          includeItemTypes: [BaseItemKind.audio],
-          searchTerm: name,
-          limit: 20,
-          fields: [ItemFields.primaryImageAspectRatio],
-          enableImageTypes: [ImageType.primary],
-          enableUserData: true,
-          enableImages: true,
-          enableTotalRecordCount: false,
-        );
+      userId: userId,
+      recursive: true,
+      includeItemTypes: [BaseItemKind.audio],
+      searchTerm: name,
+      limit: 20,
+      fields: [ItemFields.primaryImageAspectRatio],
+      enableImageTypes: [ImageType.primary],
+      enableUserData: true,
+      enableImages: true,
+      enableTotalRecordCount: false,
+    );
     var items = res.data?.items ?? const <BaseItemDto>[];
     if (items.isEmpty) return const [];
 
@@ -557,14 +625,270 @@ final artistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((r
     // (ej. artista con caracteres especiales), devolver los 20 originales.
     final filtered = items.where((e) {
       final lower = name.toLowerCase();
-      return (e.artists?.any((a) => a.toLowerCase().contains(lower)) ?? false) ||
+      return (e.artists?.any((a) => a.toLowerCase().contains(lower)) ??
+              false) ||
           (e.albumArtist?.toLowerCase().contains(lower) ?? false) ||
-          (e.albumArtists?.any((aa) => (aa.name ?? '').toLowerCase().contains(lower)) ?? false);
+          (e.albumArtists?.any(
+                (aa) => (aa.name ?? '').toLowerCase().contains(lower),
+              ) ??
+              false);
     }).toList();
     return filtered.isNotEmpty ? filtered : items;
   } catch (_) {
     return const [];
   }
+});
+
+const int kArtistTracksPageSize = 50;
+
+class ArtistTracksByIdPageArgs {
+  const ArtistTracksByIdPageArgs({required this.artistId, required this.page});
+  final String artistId;
+  final int page;
+  @override
+  bool operator ==(Object other) =>
+      other is ArtistTracksByIdPageArgs &&
+      other.artistId == artistId &&
+      other.page == page;
+  @override
+  int get hashCode => Object.hash(artistId, page);
+}
+
+class ArtistTracksByNamePageArgs {
+  const ArtistTracksByNamePageArgs({
+    required this.artistName,
+    required this.page,
+  });
+  final String artistName;
+  final int page;
+  @override
+  bool operator ==(Object other) =>
+      other is ArtistTracksByNamePageArgs &&
+      other.artistName == artistName &&
+      other.page == page;
+  @override
+  int get hashCode => Object.hash(artistName, page);
+}
+
+/// Paginado por ID: todas las pistas Jellyfin de un artista con soporte infinite scroll.
+final artistTracksByArtistIdPagedProvider =
+    FutureProvider.family<List<BaseItemDto>, ArtistTracksByIdPageArgs>((
+      ref,
+      args,
+    ) async {
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null || args.artistId.trim().isEmpty) {
+        return const [];
+      }
+      final id = args.artistId.trim();
+      try {
+        final res = await client.getItemsApi().getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.audio],
+          artistIds: [id],
+          albumArtistIds: [id],
+          contributingArtistIds: [id],
+          startIndex: args.page * kArtistTracksPageSize,
+          limit: kArtistTracksPageSize,
+          fields: [ItemFields.primaryImageAspectRatio],
+          enableImageTypes: [ImageType.primary],
+          enableUserData: true,
+          enableImages: true,
+          enableTotalRecordCount: false,
+        );
+        var items = res.data?.items ?? const <BaseItemDto>[];
+        if (items.isEmpty && args.page == 0) {
+          final fallback = await client.getItemsApi().getItems(
+            userId: userId,
+            recursive: true,
+            includeItemTypes: [BaseItemKind.audio],
+            albumArtistIds: [id],
+            startIndex: 0,
+            limit: kArtistTracksPageSize,
+            fields: [ItemFields.primaryImageAspectRatio],
+            enableImageTypes: [ImageType.primary],
+            enableUserData: true,
+            enableImages: true,
+            enableTotalRecordCount: false,
+          );
+          items = fallback.data?.items ?? const <BaseItemDto>[];
+        }
+        return items;
+      } catch (_) {
+        return const [];
+      }
+    });
+
+/// Paginado por nombre: todas las pistas Jellyfin de un artista con soporte infinite scroll.
+/// Soporta Lidarr con "Shakira;Rauw Alejandro" en un solo string separado por ; , /
+final artistTracksPagedProvider =
+    FutureProvider.family<List<BaseItemDto>, ArtistTracksByNamePageArgs>((
+      ref,
+      args,
+    ) async {
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null || args.artistName.trim().isEmpty) {
+        return const [];
+      }
+      final name = args.artistName.trim();
+      final lowerName = _transliterateSimple(name.toLowerCase());
+      try {
+        final res = await client.getItemsApi().getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.audio],
+          searchTerm: name,
+          startIndex: args.page * kArtistTracksPageSize,
+          limit: kArtistTracksPageSize,
+          fields: [ItemFields.primaryImageAspectRatio],
+          enableImageTypes: [ImageType.primary],
+          enableUserData: true,
+          enableImages: true,
+          enableTotalRecordCount: false,
+        );
+        var items = res.data?.items ?? const <BaseItemDto>[];
+        if (items.isEmpty) return const [];
+        final filtered = items
+            .where((e) => _artistMatches(e, lowerName))
+            .toList();
+        return filtered.isNotEmpty ? filtered : items;
+      } catch (_) {
+        return const [];
+      }
+    });
+
+/// Índice completo Jellyfin para dedup (todas las pistas del artista, hasta 600).
+/// Usado solo para decidir si un top Deezer ya existe en Jellyfin, sin depender de paginación UI.
+final artistJellyIndexByIdProvider =
+    FutureProvider.family<List<BaseItemDto>, String>((ref, artistId) async {
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null || artistId.trim().isEmpty) {
+        return const [];
+      }
+      final id = artistId.trim();
+      final all = <BaseItemDto>[];
+      int start = 0;
+      const pageSize = 200;
+      for (int iter = 0; iter < 4; iter++) {
+        try {
+          final res = await client.getItemsApi().getItems(
+            userId: userId,
+            recursive: true,
+            includeItemTypes: [BaseItemKind.audio],
+            artistIds: [id],
+            albumArtistIds: [id],
+            contributingArtistIds: [id],
+            startIndex: start,
+            limit: pageSize,
+            fields: [ItemFields.primaryImageAspectRatio],
+            enableImageTypes: [ImageType.primary],
+            enableUserData: true,
+            enableImages: true,
+            enableTotalRecordCount: false,
+          );
+          var items = res.data?.items ?? const <BaseItemDto>[];
+          if (items.isEmpty && start == 0) {
+            final fb = await client.getItemsApi().getItems(
+              userId: userId,
+              recursive: true,
+              includeItemTypes: [BaseItemKind.audio],
+              albumArtistIds: [id],
+              startIndex: 0,
+              limit: pageSize,
+              fields: [ItemFields.primaryImageAspectRatio],
+              enableImageTypes: [ImageType.primary],
+              enableUserData: true,
+              enableImages: true,
+              enableTotalRecordCount: false,
+            );
+            items = fb.data?.items ?? const <BaseItemDto>[];
+          }
+          all.addAll(items);
+          if (items.length < pageSize) break;
+          start += pageSize;
+        } catch (_) {
+          break;
+        }
+      }
+      return all;
+    });
+
+final artistJellyIndexByNameProvider = FutureProvider.family<List<BaseItemDto>, String>((
+  ref,
+  artistName,
+) async {
+  final link = ref.keepAlive();
+  Timer(const Duration(minutes: 5), link.close);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || artistName.trim().isEmpty) {
+    return const [];
+  }
+  final name = artistName.trim();
+  final all = <BaseItemDto>[];
+  final lowerName = _transliterateSimple(name.toLowerCase());
+  try {
+    final artistRes = await client.getArtistsApi().getArtistByName(name: name, userId: userId).timeout(const Duration(seconds: 6));
+    final artist = artistRes.data;
+    if (artist?.id != null && artist!.id!.isNotEmpty) {
+      final trRes = await client
+          .getItemsApi()
+          .getItems(
+            userId: userId,
+            recursive: true,
+            includeItemTypes: [BaseItemKind.audio],
+            artistIds: [artist.id!],
+            albumArtistIds: [artist.id!],
+            limit: 80,
+            fields: const [],
+            enableImages: false,
+            enableUserData: false,
+            enableTotalRecordCount: false,
+          )
+          .timeout(const Duration(seconds: 6));
+      final tItems = trRes.data?.items ?? const [];
+      for (final t in tItems) {
+        if (!all.any((a) => a.id == t.id)) all.add(t);
+      }
+      if (all.isNotEmpty) return all;
+    }
+  } catch (_) {}
+  try {
+    final res = await client
+        .getItemsApi()
+        .getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.audio],
+          searchTerm: name,
+          limit: 80,
+          fields: const [],
+          enableImages: false,
+          enableUserData: false,
+          enableTotalRecordCount: false,
+        )
+        .timeout(const Duration(seconds: 6));
+    var items = res.data?.items ?? const <BaseItemDto>[];
+    final filtered = items.where((e) => _artistMatches(e, lowerName)).toList();
+    for (final p in (filtered.isNotEmpty ? filtered : const <BaseItemDto>[])) {
+      if (!all.any((a) => a.id == p.id)) all.add(p);
+    }
+    if (all.isNotEmpty) return all;
+  } catch (_) {}
+  try {
+    final res = await client
+        .getItemsApi()
+        .getItems(userId: userId, recursive: true, includeItemTypes: [BaseItemKind.audio], artists: [name], limit: 50, fields: const [], enableImages: false, enableUserData: false, enableTotalRecordCount: false)
+        .timeout(const Duration(seconds: 6));
+    for (final p in (res.data?.items ?? const <BaseItemDto>[])) {
+      if (!all.any((a) => a.id == p.id)) all.add(p);
+    }
+  } catch (_) {}
+  return all;
 });
 
 /// Trailer (id de YouTube) de un item usando la API pública de KinoCheck.
@@ -739,30 +1063,32 @@ Future<String?> _resolveYoutubeStream(String youtubeId) async {
 /// Items de una fila del music player configurada por el skin de música.
 final musicScrollItemsProvider =
     FutureProvider.family<List<BaseItemDto>, MusicScroll>((ref, scroll) async {
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null) return const [];
-  // Map string types to BaseItemKind where possible.
-  final kinds = scroll.includeItemTypes
-      .map((e) => BaseItemKind.values.asNameMap()[e])
-      .whereType<BaseItemKind>()
-      .toList();
-  final res = await client.getItemsApi().getItems(
-    userId: userId,
-    recursive: true,
-    includeItemTypes: kinds.isEmpty ? null : kinds,
-    genres: scroll.genres.isEmpty ? null : [scroll.genres.join('|')],
-    sortBy: [ItemSortBy.dateCreated],
-    sortOrder: [SortOrder.descending],
-    limit: scroll.limit,
-    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-    enableImageTypes: [ImageType.primary, ImageType.thumb],
-  );
-  return res.data?.items ?? [];
-});
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null) return const [];
+      // Map string types to BaseItemKind where possible.
+      final kinds = scroll.includeItemTypes
+          .map((e) => BaseItemKind.values.asNameMap()[e])
+          .whereType<BaseItemKind>()
+          .toList();
+      final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: kinds.isEmpty ? null : kinds,
+        genres: scroll.genres.isEmpty ? null : [scroll.genres.join('|')],
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: scroll.limit,
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
+      );
+      return res.data?.items ?? [];
+    });
 
 /// Spotify: canciones en tendencia (audio recientes / más reproducidas).
-final spotifyTrendingSongsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+final spotifyTrendingSongsProvider = FutureProvider<List<BaseItemDto>>((
+  ref,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -774,7 +1100,11 @@ final spotifyTrendingSongsProvider = FutureProvider<List<BaseItemDto>>((ref) asy
       sortBy: [ItemSortBy.dateCreated],
       sortOrder: [SortOrder.descending],
       limit: 20,
-      fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.genres],
+      fields: [
+        ItemFields.primaryImageAspectRatio,
+        ItemFields.overview,
+        ItemFields.genres,
+      ],
       enableImageTypes: [ImageType.primary, ImageType.thumb],
     );
     return res.data?.items ?? [];
@@ -785,21 +1115,23 @@ final spotifyTrendingSongsProvider = FutureProvider<List<BaseItemDto>>((ref) asy
 
 /// Spotify: artistas populares (MusicArtist) - trendy local server-side.
 /// Orden: PlayCount desc → DatePlayed desc. Sin Random, solo server-side via ArtistsApi.
-final spotifyPopularArtistsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+final spotifyPopularArtistsProvider = FutureProvider<List<BaseItemDto>>((
+  ref,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
 
   Future<List<BaseItemDto>> fetchBySort(List<ItemSortBy> sortBy) async {
     final res = await client.getArtistsApi().getAlbumArtists(
-          userId: userId,
-          sortBy: sortBy,
-          sortOrder: [SortOrder.descending],
-          limit: 20,
-          fields: [ItemFields.primaryImageAspectRatio],
-          enableUserData: true,
-          enableImageTypes: [ImageType.primary, ImageType.thumb],
-        );
+      userId: userId,
+      sortBy: sortBy,
+      sortOrder: [SortOrder.descending],
+      limit: 20,
+      fields: [ItemFields.primaryImageAspectRatio],
+      enableUserData: true,
+      enableImageTypes: [ImageType.primary, ImageType.thumb],
+    );
     return res.data?.items ?? const <BaseItemDto>[];
   }
 
@@ -816,20 +1148,21 @@ final spotifyPopularArtistsProvider = FutureProvider<List<BaseItemDto>>((ref) as
 
     // Fallback server-side agregación local: suma PlayCount por artista desde audio
     final tracksRes = await client.getItemsApi().getItems(
-          userId: userId,
-          recursive: true,
-          includeItemTypes: [BaseItemKind.audio],
-          limit: 200,
-          fields: [ItemFields.primaryImageAspectRatio],
-          enableUserData: true,
-          enableImageTypes: [ImageType.primary],
-        );
+      userId: userId,
+      recursive: true,
+      includeItemTypes: [BaseItemKind.audio],
+      limit: 200,
+      fields: [ItemFields.primaryImageAspectRatio],
+      enableUserData: true,
+      enableImageTypes: [ImageType.primary],
+    );
     final tracks = tracksRes.data?.items ?? const <BaseItemDto>[];
     if (tracks.isNotEmpty) {
       final playByArtist = <String, int>{};
       final sampleByArtist = <String, BaseItemDto>{};
       for (final t in tracks) {
-        final name = t.artists?.firstOrNull ?? t.albumArtists?.firstOrNull?.name ?? '';
+        final name =
+            t.artists?.firstOrNull ?? t.albumArtists?.firstOrNull?.name ?? '';
         if (name.isEmpty) continue;
         final pc = t.userData?.playCount ?? 0;
         playByArtist[name] = (playByArtist[name] ?? 0) + pc;
@@ -856,7 +1189,8 @@ final spotifyPopularArtistsProvider = FutureProvider<List<BaseItemDto>>((ref) as
     final seen = <String>{};
     final artists = <BaseItemDto>[];
     for (final t in tracksFallback) {
-      final name = t.artists?.firstOrNull ?? t.albumArtists?.firstOrNull?.name ?? '';
+      final name =
+          t.artists?.firstOrNull ?? t.albumArtists?.firstOrNull?.name ?? '';
       if (name.isEmpty || seen.contains(name)) continue;
       seen.add(name);
       artists.add(BaseItemDto(name: name, type: BaseItemKind.musicArtist));
@@ -871,42 +1205,46 @@ final spotifyPopularArtistsProvider = FutureProvider<List<BaseItemDto>>((ref) as
 /// Jellyfin: mis playlists (tipo Playlist) del usuario.
 /// Son listas de reproducción (música), no bibliotecas de películas.
 /// Filtra por MediaType.audio y verifica que realmente sean de audio.
-final jellyfinPlaylistsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+final jellyfinPlaylistsProvider = FutureProvider<List<BaseItemDto>>((
+  ref,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   try {
     final res = await client.getItemsApi().getItems(
-          userId: userId,
-          recursive: true,
-          includeItemTypes: [BaseItemKind.playlist],
-          mediaTypes: [MediaType.audio],
-          sortBy: [ItemSortBy.dateCreated],
-          sortOrder: [SortOrder.descending],
-          limit: 20,
-          fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-          enableImageTypes: [ImageType.primary, ImageType.thumb],
-          enableUserData: true,
-        );
+      userId: userId,
+      recursive: true,
+      includeItemTypes: [BaseItemKind.playlist],
+      mediaTypes: [MediaType.audio],
+      sortBy: [ItemSortBy.dateCreated],
+      sortOrder: [SortOrder.descending],
+      limit: 20,
+      fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+      enableImageTypes: [ImageType.primary, ImageType.thumb],
+      enableUserData: true,
+    );
     var items = res.data?.items ?? const <BaseItemDto>[];
     // Si el filtro por MediaType.audio no devuelve nada (algunos servidores no lo indexan),
     // fallback sin mediaTypes y filtra en cliente por mediaType == audio si existe.
     if (items.isEmpty) {
       final fallback = await client.getItemsApi().getItems(
-            userId: userId,
-            recursive: true,
-            includeItemTypes: [BaseItemKind.playlist],
-            sortBy: [ItemSortBy.dateCreated],
-            sortOrder: [SortOrder.descending],
-            limit: 20,
-            fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-            enableImageTypes: [ImageType.primary, ImageType.thumb],
-            enableUserData: true,
-          );
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.playlist],
+        sortBy: [ItemSortBy.dateCreated],
+        sortOrder: [SortOrder.descending],
+        limit: 20,
+        fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+        enableImageTypes: [ImageType.primary, ImageType.thumb],
+        enableUserData: true,
+      );
       final all = fallback.data?.items ?? const <BaseItemDto>[];
       // Si el servidor devuelve playlists sin mediaType, no filtramos y mostramos todas,
       // pero priorizamos las que sean de audio si se puede detectar.
-      final audioOnly = all.where((e) => e.mediaType == MediaType.audio).toList();
+      final audioOnly = all
+          .where((e) => e.mediaType == MediaType.audio)
+          .toList();
       items = audioOnly.isNotEmpty ? audioOnly : all;
     }
     return items;
@@ -916,22 +1254,28 @@ final jellyfinPlaylistsProvider = FutureProvider<List<BaseItemDto>>((ref) async 
 });
 
 /// Jellyfin: elementos recién añadidos (música) - últimos álbumes creados.
-final jellyfinRecentlyAddedMusicProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+final jellyfinRecentlyAddedMusicProvider = FutureProvider<List<BaseItemDto>>((
+  ref,
+) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
   try {
     final res = await client.getItemsApi().getItems(
-          userId: userId,
-          recursive: true,
-          includeItemTypes: [BaseItemKind.musicAlbum, BaseItemKind.audio],
-          sortBy: [ItemSortBy.dateCreated],
-          sortOrder: [SortOrder.descending],
-          limit: 20,
-          fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.dateCreated],
-          enableImageTypes: [ImageType.primary, ImageType.thumb],
-          enableUserData: true,
-        );
+      userId: userId,
+      recursive: true,
+      includeItemTypes: [BaseItemKind.musicAlbum, BaseItemKind.audio],
+      sortBy: [ItemSortBy.dateCreated],
+      sortOrder: [SortOrder.descending],
+      limit: 20,
+      fields: [
+        ItemFields.primaryImageAspectRatio,
+        ItemFields.overview,
+        ItemFields.dateCreated,
+      ],
+      enableImageTypes: [ImageType.primary, ImageType.thumb],
+      enableUserData: true,
+    );
     return res.data?.items ?? const [];
   } catch (_) {
     return const [];
@@ -939,37 +1283,47 @@ final jellyfinRecentlyAddedMusicProvider = FutureProvider<List<BaseItemDto>>((re
 });
 
 /// Jellyfin: pistas de una playlist (estilo Jellyfin Classic para playlist).
-final playlistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((ref, playlistId) async {
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null || playlistId.isEmpty) return const [];
-  try {
-    final res = await client.getPlaylistsApi().getPlaylistItems(
-          playlistId: playlistId,
-          userId: userId,
-          fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.genres],
-          enableImages: true,
-          enableUserData: true,
-          limit: 200,
-        );
-    return res.data?.items ?? const [];
-  } catch (_) {
-    // Fallback via ItemsApi parentId
+final playlistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>(
+  (ref, playlistId) async {
+    final client = ref.watch(jellyfinClientProvider);
+    final userId = ref.watch(currentUserIdProvider);
+    if (client == null || userId == null || playlistId.isEmpty) return const [];
     try {
-      final fallback = await client.getItemsApi().getItems(
-            userId: userId,
-            parentId: playlistId,
-            recursive: true,
-            limit: 200,
-            fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview, ItemFields.genres],
-            enableImageTypes: [ImageType.primary, ImageType.thumb],
-          );
-      return fallback.data?.items ?? const [];
+      final res = await client.getPlaylistsApi().getPlaylistItems(
+        playlistId: playlistId,
+        userId: userId,
+        fields: [
+          ItemFields.primaryImageAspectRatio,
+          ItemFields.overview,
+          ItemFields.genres,
+        ],
+        enableImages: true,
+        enableUserData: true,
+        limit: 200,
+      );
+      return res.data?.items ?? const [];
     } catch (_) {
-      return const [];
+      // Fallback via ItemsApi parentId
+      try {
+        final fallback = await client.getItemsApi().getItems(
+          userId: userId,
+          parentId: playlistId,
+          recursive: true,
+          limit: 200,
+          fields: [
+            ItemFields.primaryImageAspectRatio,
+            ItemFields.overview,
+            ItemFields.genres,
+          ],
+          enableImageTypes: [ImageType.primary, ImageType.thumb],
+        );
+        return fallback.data?.items ?? const [];
+      } catch (_) {
+        return const [];
+      }
     }
-  }
-});
+  },
+);
 
 /// Obtiene una URL de vídeo reproducible del trailer de un item desde KinoCheck.
 /// Así se evita reproducir accidentalmente el video principal desde

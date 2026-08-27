@@ -12,7 +12,7 @@ import '../../library/application/library_providers.dart';
 import '../application/deezer_providers.dart';
 import 'deezer_preview_player.dart';
 
-class ArtistDetailScreen extends ConsumerWidget {
+class ArtistDetailScreen extends ConsumerStatefulWidget {
   const ArtistDetailScreen({
     super.key,
     required this.artistName,
@@ -24,6 +24,14 @@ class ArtistDetailScreen extends ConsumerWidget {
   final DeezerArtist? deezerArtist;
   final BaseItemDto? jellyfinArtist;
 
+  @override
+  ConsumerState<ArtistDetailScreen> createState() => _ArtistDetailScreenState();
+}
+
+class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
+  final ScrollController _scrollController = ScrollController();
+  int _loadedPages = 1;
+
   String _fmtCount(int count) {
     if (count >= 1000000000) return '${(count / 1000000000).toStringAsFixed(1)}B';
     if (count >= 1000000) return '${(count / 1000000).toStringAsFixed(1)}M';
@@ -31,56 +39,128 @@ class ArtistDetailScreen extends ConsumerWidget {
     return count.toString();
   }
 
+  // Dedup interno Deezer (misma canción dos versiones) para garantizar 20 válidos
+  List<DeezerTrack> _deduplicateDeezer(List<DeezerTrack> pool, int take) {
+    final seen = <String>{};
+    final out = <DeezerTrack>[];
+    for (final d in pool) {
+      final norm = d.title.toLowerCase().trim();
+      if (norm.isEmpty) continue;
+      // simple dedup por título normalizado (sin transliterar complejo, solo para Deezer-Deezer)
+      final key = norm.replaceAll(RegExp(r'[^a-z0-9]'), '');
+      if (seen.contains(key)) continue;
+      seen.add(key);
+      out.add(d);
+      if (out.length >= take) break;
+    }
+    return out;
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void didUpdateWidget(covariant ArtistDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.artistName != widget.artistName || oldWidget.jellyfinArtist?.id != widget.jellyfinArtist?.id) {
+      _loadedPages = 1;
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scrollController.hasClients) return;
+    if (_scrollController.position.extentAfter > 500) return;
+    final artistId = widget.jellyfinArtist?.id;
+    final isById = artistId != null && artistId.isNotEmpty;
+    if (isById) {
+      final lastIndex = _loadedPages - 1;
+      final lastAsync = ref.read(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId, page: lastIndex)));
+      if (lastAsync.isLoading) return;
+      final lastLen = lastAsync.value?.length ?? 0;
+      if (lastLen < kArtistTracksPageSize) return;
+      setState(() => _loadedPages++);
+    } else {
+      final idxAsync = ref.read(artistJellyIndexByNameProvider(widget.artistName));
+      if (idxAsync.isLoading) return;
+      final total = idxAsync.value?.length ?? 0;
+      final loaded = _loadedPages * kArtistTracksPageSize;
+      if (loaded >= total) return;
+      setState(() => _loadedPages++);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final musicSkin = ref.watch(musicPlayerSkinControllerProvider).value;
     final isSpotify = musicSkin?.id == 'spotify';
 
-    // Si no es Spotify, fallback simple
-    if (!isSpotify) {
-      final artistId = jellyfinArtist?.id;
-      final tracksAsync = (artistId != null && artistId.isNotEmpty)
-          ? ref.watch(artistTracksByArtistIdProvider(artistId))
-          : ref.watch(artistTracksProvider(artistName));
-      return Scaffold(
-        backgroundColor: const Color(0xFF121212),
-        appBar: AppBar(title: Text(artistName, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)),
-        body: tracksAsync.when(
-          loading: () => const Center(child: AppLoader()),
-          error: (e, _) => Center(child: Text('$e', style: const TextStyle(color: Colors.white54))),
-          data: (list) => ListView.separated(
-            padding: const EdgeInsets.all(24),
-            itemCount: list.length,
-            separatorBuilder: (_, _) => const Divider(height: 1, color: Colors.white12),
-            itemBuilder: (context, i) {
-              final t = list[i];
-              return ListTile(title: Text(t.name ?? '', style: const TextStyle(color: Colors.white)), onTap: () => context.push('/player/${t.id}', extra: t));
-            },
-          ),
-        ),
-      );
-    }
-
     final serverUrl = ref.watch(authServerUrlProvider);
-    final artistId = jellyfinArtist?.id;
-    final jellyTracksAsync = (artistId != null && artistId.isNotEmpty)
-        ? ref.watch(artistTracksByArtistIdProvider(artistId))
-        : ref.watch(artistTracksProvider(artistName));
-    final deezerQuery = deezerArtist != null ? 'id:${deezerArtist!.id}' : artistName;
-    final deezerDetailAsync = deezerArtist != null ? ref.watch(deezerArtistDetailProvider('id:${deezerArtist!.id}')) : null;
+    final artistId = widget.jellyfinArtist?.id;
+    final isById = artistId != null && artistId.isNotEmpty;
+    final deezerQuery = widget.deezerArtist != null ? 'id:${widget.deezerArtist!.id}' : widget.artistName;
+    final deezerDetailAsync = widget.deezerArtist != null ? ref.watch(deezerArtistDetailProvider('id:${widget.deezerArtist!.id}')) : null;
 
-    // Imagen cabecera: prioriza Deezer picture_xl, luego Jellyfin imagen si tiene id
     String? headerImage;
-    if (deezerArtist != null && deezerArtist!.picture.isNotEmpty) {
-      headerImage = deezerArtist!.picture;
-    } else if (jellyfinArtist != null && serverUrl != null && jellyfinArtist!.id != null) {
-      headerImage = itemImageUrl(serverUrl, jellyfinArtist!, maxWidth: 800);
+    if (widget.deezerArtist != null && widget.deezerArtist!.picture.isNotEmpty) {
+      headerImage = widget.deezerArtist!.picture;
+    } else if (widget.jellyfinArtist != null && serverUrl != null && widget.jellyfinArtist!.id != null) {
+      headerImage = itemImageUrl(serverUrl, widget.jellyfinArtist!, maxWidth: 800);
     }
+
+    if (!isSpotify) {
+      return _buildNonSpotifyScaffold(context, ref, headerImage, isById, artistId);
+    }
+
+    // Spotify: dos secciones separadas como Spotify real
+    final jellyIndexAsync = isById
+        ? ref.watch(artistJellyIndexByIdProvider(artistId))
+        : ref.watch(artistJellyIndexByNameProvider(widget.artistName));
+    final jellyIndexFull = jellyIndexAsync.value;
+
+    List<BaseItemDto> jellyAll;
+    bool jellyLoading;
+    bool hasMore;
+    bool loadingMore;
+    if (isById) {
+      final pageAsyncs = [
+        for (int i = 0; i < _loadedPages; i++) ref.watch(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId, page: i))),
+      ];
+      jellyAll = [for (final p in pageAsyncs) ...p.value ?? const <BaseItemDto>[]];
+      jellyLoading = pageAsyncs.isNotEmpty && pageAsyncs.first.isLoading && jellyAll.isEmpty;
+      final lastAsync = pageAsyncs.isNotEmpty ? pageAsyncs.last : null;
+      final lastLen = lastAsync?.value?.length ?? 0;
+      hasMore = lastAsync != null && !lastAsync.isLoading && lastLen >= kArtistTracksPageSize;
+      loadingMore = lastAsync?.isLoading ?? false;
+    } else {
+      final total = jellyIndexFull?.length ?? 0;
+      jellyLoading = jellyIndexAsync.isLoading && total == 0;
+      final take = (_loadedPages * kArtistTracksPageSize).clamp(0, total);
+      jellyAll = jellyIndexFull != null ? jellyIndexFull.take(take).toList() : const <BaseItemDto>[];
+      hasMore = total > jellyAll.length;
+      loadingMore = jellyIndexAsync.isLoading;
+    }
+
+    final deezerAsync = ref.watch(deezerArtistTopTracksWithLimitProvider(DeezerTopTracksArgs(query: deezerQuery, limit: 40)));
+    final deezerLoading = deezerAsync.isLoading && (deezerAsync.value == null);
+    final deezerRaw = deezerAsync.value ?? const <DeezerTrack>[];
+    final deezerTop20 = _deduplicateDeezer(deezerRaw, 20);
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
       body: CustomScrollView(
+        controller: _scrollController,
         slivers: [
           SliverAppBar(
             pinned: true,
@@ -91,35 +171,27 @@ class ArtistDetailScreen extends ConsumerWidget {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (headerImage != null)
-                    Image.network(headerImage, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(color: const Color(0xFF2A2A2A))),
+                  if (headerImage != null) Image.network(headerImage, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(color: const Color(0xFF2A2A2A))),
                   if (headerImage == null) Container(color: const Color(0xFF2A2A2A)),
-                  Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xFF121212)]),
-                    ),
-                  ),
+                  Container(decoration: const BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Colors.transparent, Color(0xFF121212)]))),
                   Positioned(
                     left: 24,
                     bottom: 32,
                     right: 24,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(artistName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: -1)),
-                        const SizedBox(height: 6),
-                        if (deezerDetailAsync != null)
-                          deezerDetailAsync.when(
-                            loading: () => const SizedBox.shrink(),
-                            error: (_, _) => const SizedBox.shrink(),
-                            data: (data) {
-                              final fans = data?['nb_fan'] as int?;
-                              if (fans == null || fans == 0) return const SizedBox.shrink();
-                              return Text(l10n.monthlyListeners(_fmtCount(fans)), style: const TextStyle(color: Colors.white70, fontSize: 13));
-                            },
-                          ),
-                      ],
-                    ),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text(widget.artistName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                      const SizedBox(height: 6),
+                      if (deezerDetailAsync != null)
+                        deezerDetailAsync.when(
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, _) => const SizedBox.shrink(),
+                          data: (data) {
+                            final fans = data?['nb_fan'] as int?;
+                            if (fans == null || fans == 0) return const SizedBox.shrink();
+                            return Text(l10n.monthlyListeners(_fmtCount(fans)), style: const TextStyle(color: Colors.white70, fontSize: 13));
+                          },
+                        ),
+                    ]),
                   ),
                 ],
               ),
@@ -128,103 +200,160 @@ class ArtistDetailScreen extends ConsumerWidget {
           SliverToBoxAdapter(
             child: Container(
               color: const Color(0xFF121212),
-              child: Column(
-                children: [
-                  // Controles: play + shuffle + more (sin Seguir)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                    child: Row(
-                      children: [
-                        // Play primera canción si hay
-                        jellyTracksAsync.when(
-                          data: (list) => IconButton(
-                            onPressed: list.isEmpty ? null : () => context.push('/player/${list.first.id}', extra: list.first),
-                            icon: Container(width: 56, height: 56, decoration: const BoxDecoration(color: Color(0xFF1DB954), shape: BoxShape.circle), child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 32)),
-                            iconSize: 56,
-                            padding: EdgeInsets.zero,
-                          ),
-                          loading: () => const SizedBox(width: 56, height: 56, child: Center(child: AppLoader())),
-                          error: (_, _) => const SizedBox.shrink(),
-                        ),
-                        const SizedBox(width: 16),
-                        IconButton(onPressed: () {}, icon: const Icon(Icons.shuffle_rounded, color: Colors.white70, size: 28)),
-                        const SizedBox(width: 8),
-                        IconButton(onPressed: () {}, icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  // Populares
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-                    child: Align(alignment: Alignment.centerLeft, child: Text(l10n.populares, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700))),
-                  ),
-                  jellyTracksAsync.when(
-                    loading: () => const Padding(padding: EdgeInsets.all(32), child: Center(child: AppLoader())),
-                    error: (e, _) => Padding(padding: const EdgeInsets.all(24), child: Text('$e', style: const TextStyle(color: Colors.white54))),
-                    data: (jellyList) {
-                      if (jellyList.isNotEmpty) {
-                        return ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: jellyList.length > 20 ? 20 : jellyList.length,
-                          separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFF1A1A1A)),
-                          itemBuilder: (context, i) {
-                            final track = jellyList[i];
-                            final rank = (i + 1).toString();
-                            final playCount = track.userData?.playCount ?? 0;
-                            final playCountStr = playCount > 0 ? _fmtCount(playCount) : '';
-                            return _ArtistTrackRow(
-                              rank: rank,
-                              track: track,
-                              serverUrl: serverUrl,
-                              playCountStr: playCountStr,
-                              onTap: () => context.push('/player/${track.id}', extra: track),
-                            );
-                          },
-                        );
-                      }
-                      // Vacío: mensaje + sugerencias Deezer (lazy: solo se pide a Deezer si Jellyfin no tiene canciones)
-                      return Column(
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                            child: Text(l10n.noPlayableSongs, style: const TextStyle(color: Colors.white54, fontSize: 14), textAlign: TextAlign.center),
-                          ),
-                          Consumer(
-                            builder: (context, ref, _) {
-                              final deezerTopAsync = ref.watch(deezerArtistTopTracksProvider(deezerQuery));
-                              return deezerTopAsync.when(
-                                loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: AppLoader())),
-                                error: (e, _) => const SizedBox.shrink(),
-                                data: (deezerList) {
-                                  if (deezerList.isEmpty) return const SizedBox.shrink();
-                                  final take = deezerList.length > 20 ? deezerList.sublist(0, 20) : deezerList;
-                                  return ListView.separated(
-                                    shrinkWrap: true,
-                                    physics: const NeverScrollableScrollPhysics(),
-                                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                                    itemCount: take.length,
-                                    separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFF1A1A1A)),
-                                    itemBuilder: (context, j) {
-                                      final dt = take[j];
-                                      return _DeezerSuggestionRow(track: dt, rank: (j + 1).toString());
-                                    },
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 32),
-                ],
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                child: Row(children: [
+                  Builder(builder: (_) {
+                    final firstJelly = jellyAll.isNotEmpty ? jellyAll.first : null;
+                    return IconButton(
+                      onPressed: firstJelly == null ? null : () => context.push('/player/${firstJelly.id}', extra: firstJelly),
+                      icon: Container(width: 56, height: 56, decoration: const BoxDecoration(color: Color(0xFF1DB954), shape: BoxShape.circle), child: const Icon(Icons.play_arrow_rounded, color: Colors.black, size: 32)),
+                      iconSize: 56,
+                      padding: EdgeInsets.zero,
+                    );
+                  }),
+                  const SizedBox(width: 16),
+                  IconButton(onPressed: () {}, icon: const Icon(Icons.shuffle_rounded, color: Colors.white70, size: 28)),
+                  const SizedBox(width: 8),
+                  IconButton(onPressed: () {}, icon: const Icon(Icons.more_horiz_rounded, color: Colors.white70)),
+                ]),
               ),
             ),
           ),
+          // Sección 1: Populares Deezer (20)
+          SliverToBoxAdapter(
+            child: Container(
+              color: const Color(0xFF121212),
+              child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Align(alignment: Alignment.centerLeft, child: Text(l10n.populares, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700)))),
+            ),
+          ),
+          if (deezerLoading)
+            const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(32), child: Center(child: AppLoader())))
+          else if (deezerTop20.isEmpty)
+            SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Text(l10n.noPlayableSongs, style: const TextStyle(color: Colors.white54, fontSize: 13)))),
+          if (!deezerLoading && deezerTop20.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList.separated(
+                itemCount: deezerTop20.length,
+                separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFF1A1A1A)),
+                itemBuilder: (context, i) {
+                  final dt = deezerTop20[i];
+                  return _DeezerSuggestionRow(track: dt, rank: (i + 1).toString());
+                },
+              ),
+            ),
+          // Sección 2: En tu biblioteca (Jellyfin)
+          SliverToBoxAdapter(
+            child: Container(
+              color: const Color(0xFF121212),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+                child: Align(alignment: Alignment.centerLeft, child: Text('En tu biblioteca', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700))),
+              ),
+            ),
+          ),
+          if (jellyLoading)
+            const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(32), child: Center(child: AppLoader())))
+          else if (jellyAll.isEmpty)
+            SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Text('No tienes canciones de este artista en tu biblioteca', style: TextStyle(color: Colors.white54, fontSize: 13)))),
+          if (!jellyLoading && jellyAll.isNotEmpty)
+            SliverPadding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              sliver: SliverList.separated(
+                itemCount: jellyAll.length,
+                separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFF1A1A1A)),
+                itemBuilder: (context, i) {
+                  final track = jellyAll[i];
+                  final playCount = track.userData?.playCount ?? 0;
+                  final playCountStr = playCount > 0 ? _fmtCount(playCount) : '';
+                  return _ArtistTrackRow(rank: (i + 1).toString(), track: track, serverUrl: serverUrl, playCountStr: playCountStr, onTap: () => context.push('/player/${track.id}', extra: track));
+                },
+              ),
+            ),
+          if (loadingMore) const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(16), child: Center(child: AppLoader()))),
+          SliverToBoxAdapter(
+            child: Container(
+              color: const Color(0xFF121212),
+              child: Column(children: [
+                if (!hasMore && (jellyAll.isNotEmpty || deezerTop20.isNotEmpty)) Padding(padding: const EdgeInsets.all(16), child: Text('${jellyAll.length} en tu biblioteca • ${deezerTop20.length} populares', style: const TextStyle(color: Colors.white38, fontSize: 12))),
+                const SizedBox(height: 32),
+              ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNonSpotifyScaffold(BuildContext context, WidgetRef ref, String? headerImage, bool isById, String? artistId) {
+    final serverUrl = ref.watch(authServerUrlProvider);
+    final deezerQuery = widget.deezerArtist != null ? 'id:${widget.deezerArtist!.id}' : widget.artistName;
+    final deezerAsync = ref.watch(deezerArtistTopTracksWithLimitProvider(DeezerTopTracksArgs(query: deezerQuery, limit: 40)));
+    final deezerRaw = deezerAsync.value ?? const <DeezerTrack>[];
+    final deezerTop20 = _deduplicateDeezer(deezerRaw, 20);
+    final jellyIndexAsync = isById
+        ? ref.watch(artistJellyIndexByIdProvider(artistId!))
+        : ref.watch(artistJellyIndexByNameProvider(widget.artistName));
+    final jellyIndexFull = jellyIndexAsync.value;
+
+    List<BaseItemDto> jellyAll;
+    bool firstLoading;
+    bool hasMore;
+    bool lastLoading;
+    if (isById) {
+      final pageAsyncs = [
+        for (int i = 0; i < _loadedPages; i++) ref.watch(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId!, page: i))),
+      ];
+      jellyAll = [for (final p in pageAsyncs) ...p.value ?? const <BaseItemDto>[]];
+      firstLoading = pageAsyncs.first.isLoading && jellyAll.isEmpty;
+      final lastLen = pageAsyncs.isNotEmpty ? (pageAsyncs.last.value?.length ?? 0) : 0;
+      lastLoading = pageAsyncs.isNotEmpty ? pageAsyncs.last.isLoading : false;
+      hasMore = !lastLoading && lastLen >= kArtistTracksPageSize;
+    } else {
+      final total = jellyIndexFull?.length ?? 0;
+      firstLoading = jellyIndexAsync.isLoading && total == 0;
+      final take = (_loadedPages * kArtistTracksPageSize).clamp(0, total);
+      jellyAll = jellyIndexFull != null ? jellyIndexFull.take(take).toList() : const <BaseItemDto>[];
+      lastLoading = jellyIndexAsync.isLoading;
+      hasMore = total > jellyAll.length;
+    }
+    final isLoading = firstLoading || deezerAsync.isLoading;
+    if (isLoading) {
+      return Scaffold(backgroundColor: const Color(0xFF121212), appBar: AppBar(title: Text(widget.artistName, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)), body: const Center(child: AppLoader()));
+    }
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      appBar: AppBar(title: Text(widget.artistName, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)),
+      body: ListView(
+        controller: _scrollController,
+        padding: const EdgeInsets.all(24),
+        children: [
+          if (headerImage != null) ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(headerImage, height: 180, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink())),
+          const SizedBox(height: 16),
+          Text('Populares', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          if (deezerTop20.isEmpty) const Text('Sin populares', style: TextStyle(color: Colors.white54)),
+          for (int i = 0; i < deezerTop20.length; i++) ...[
+            _DeezerSuggestionRow(track: deezerTop20[i], rank: (i + 1).toString()),
+            if (i != deezerTop20.length - 1) const Divider(height: 1, color: Colors.white12),
+          ],
+          const SizedBox(height: 24),
+          Text('En tu biblioteca (${jellyAll.length})', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          if (jellyAll.isEmpty) const Text('No tienes canciones de este artista', style: TextStyle(color: Colors.white54)),
+          for (int i = 0; i < jellyAll.length; i++) ...[
+            ListTile(
+              leading: serverUrl != null ? ClipRRect(borderRadius: BorderRadius.circular(4), child: Image.network(itemImageUrl(serverUrl, jellyAll[i], maxWidth: 200), width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(width: 40, height: 40, color: const Color(0xFF2A2A2A)))) : null,
+              title: Text(jellyAll[i].name ?? '', style: const TextStyle(color: Colors.white)),
+              subtitle: Text('${i + 1}', style: const TextStyle(color: Colors.white54)),
+              trailing: Image.asset('assets/images/jellyfin.png', height: 14, errorBuilder: (_, _, _) => const SizedBox.shrink()),
+              onTap: () => context.push('/player/${jellyAll[i].id}', extra: jellyAll[i]),
+            ),
+            if (i != jellyAll.length - 1) const Divider(height: 1, color: Colors.white12),
+          ],
+          if (lastLoading) const Padding(padding: EdgeInsets.all(16), child: Center(child: AppLoader())),
+          if (hasMore) FilledButton(onPressed: () => setState(() => _loadedPages++), child: const Text('Cargar más')),
         ],
       ),
     );
@@ -257,26 +386,22 @@ class _ArtistTrackRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Builder(builder: (context) {
           final hovered = AppHoverScope.of(context)?.hovered ?? false;
-          return Row(
-            children: [
-              SizedBox(
-                width: 24,
-                child: hovered
-                    ? const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16)
-                    : Text(rank, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
-              ),
-              const SizedBox(width: 8),
+          return Row(children: [
+            SizedBox(width: 24, child: hovered ? const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16) : Text(rank, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center)),
+            const SizedBox(width: 8),
+            Stack(children: [
               ClipRRect(borderRadius: BorderRadius.circular(4), child: SizedBox(width: 40, height: 40, child: serverUrl != null ? Image.network(itemImageUrl(serverUrl!, track, maxWidth: 200), fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(color: const Color(0xFF2A2A2A))) : Container(color: const Color(0xFF2A2A2A)))),
-              const SizedBox(width: 12),
-              Expanded(child: Row(children: [Flexible(child: Text(track.name ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 14))), if (hasE) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1), decoration: BoxDecoration(color: const Color(0xFF6A6A6A), borderRadius: BorderRadius.circular(2)), child: const Text('E', style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w800)))] ])),
-              if (playCountStr.isNotEmpty) ...[const SizedBox(width: 12), Text(playCountStr, style: TextStyle(color: hovered ? Colors.white : Colors.white54, fontSize: 12, fontWeight: hovered ? FontWeight.w700 : FontWeight.w400))],
-              const SizedBox(width: 12),
-              if (hovered) ...[const Icon(Icons.add_circle_outline_rounded, color: Colors.white70, size: 18), const SizedBox(width: 12)],
-              Text(durStr, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-              const SizedBox(width: 12),
-              const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
-            ],
-          );
+              Positioned(right: 2, bottom: 2, child: Image.asset('assets/images/jellyfin.png', height: 10, errorBuilder: (_, _, _) => const SizedBox.shrink())),
+            ]),
+            const SizedBox(width: 12),
+            Expanded(child: Row(children: [Flexible(child: Text(track.name ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 14))), if (hasE) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1), decoration: BoxDecoration(color: const Color(0xFF6A6A6A), borderRadius: BorderRadius.circular(2)), child: const Text('E', style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w800)))] ])),
+            if (playCountStr.isNotEmpty) ...[const SizedBox(width: 12), Text(playCountStr, style: TextStyle(color: hovered ? Colors.white : Colors.white54, fontSize: 12, fontWeight: hovered ? FontWeight.w700 : FontWeight.w400))],
+            const SizedBox(width: 12),
+            if (hovered) ...[const Icon(Icons.add_circle_outline_rounded, color: Colors.white70, size: 18), const SizedBox(width: 12)],
+            Text(durStr, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(width: 12),
+            const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
+          ]);
         }),
       ),
     );
@@ -292,6 +417,7 @@ class _DeezerSuggestionRow extends StatelessWidget {
     final s = (sec % 60).toString().padLeft(2, '0');
     return '$m:$s';
   }
+
   @override
   Widget build(BuildContext context) {
     return AppHover(
@@ -302,30 +428,21 @@ class _DeezerSuggestionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
         child: Builder(builder: (context) {
           final hovered = AppHoverScope.of(context)?.hovered ?? false;
-          return Row(
-            children: [
-              SizedBox(
-                width: 24,
-                child: hovered
-                    ? const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16)
-                    : Text(rank, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center),
-              ),
-              const SizedBox(width: 8),
-              Stack(
-                children: [
-                  ClipRRect(borderRadius: BorderRadius.circular(4), child: SizedBox(width: 40, height: 40, child: track.cover.isNotEmpty ? Image.network(track.cover, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(color: const Color(0xFF2A2A2A))) : Container(color: const Color(0xFF2A2A2A)))),
-                  Positioned(right: 2, bottom: 2, child: Image.asset('assets/images/logo_deezer.png', height: 12, errorBuilder: (_, _, _) => const SizedBox.shrink())),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: Row(children: [Flexible(child: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 14))), if (track.explicit) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1), decoration: BoxDecoration(color: const Color(0xFF6A6A6A), borderRadius: BorderRadius.circular(2)), child: const Text('E', style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w800)))] ])),
-              const SizedBox(width: 16),
-              Text(_fmt(track.duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
-              const SizedBox(width: 12),
-              if (hovered) ...[const Icon(Icons.add_circle_outline_rounded, color: Colors.white70, size: 18), const SizedBox(width: 12)],
-              const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
-            ],
-          );
+          return Row(children: [
+            SizedBox(width: 24, child: hovered ? const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 16) : Text(rank, style: const TextStyle(color: Colors.white70, fontSize: 14), textAlign: TextAlign.center)),
+            const SizedBox(width: 8),
+            Stack(children: [
+              ClipRRect(borderRadius: BorderRadius.circular(4), child: SizedBox(width: 40, height: 40, child: track.cover.isNotEmpty ? Image.network(track.cover, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(color: const Color(0xFF2A2A2A))) : Container(color: const Color(0xFF2A2A2A)))),
+              Positioned(right: 2, bottom: 2, child: Image.asset('assets/images/logo_deezer.png', height: 12, errorBuilder: (_, _, _) => const SizedBox.shrink())),
+            ]),
+            const SizedBox(width: 12),
+            Expanded(child: Row(children: [Flexible(child: Text(track.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 14))), if (track.explicit) ...[const SizedBox(width: 6), Container(padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1), decoration: BoxDecoration(color: const Color(0xFF6A6A6A), borderRadius: BorderRadius.circular(2)), child: const Text('E', style: TextStyle(color: Colors.black, fontSize: 9, fontWeight: FontWeight.w800)))] ])),
+            const SizedBox(width: 16),
+            Text(_fmt(track.duration), style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            const SizedBox(width: 12),
+            if (hovered) ...[const Icon(Icons.add_circle_outline_rounded, color: Colors.white70, size: 18), const SizedBox(width: 12)],
+            const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
+          ]);
         }),
       ),
     );

@@ -245,7 +245,8 @@ class _PlatformCard extends ConsumerWidget {
                   color: fallback,
                   padding: const EdgeInsets.all(12),
                   alignment: Alignment.center,
-                  child: platform.logoUrl != null && platform.logoUrl!.isNotEmpty
+                  child:
+                      platform.logoUrl != null && platform.logoUrl!.isNotEmpty
                       ? _PlatformLogoImage(
                           url: platform.logoUrl!,
                           headers: headers,
@@ -298,6 +299,51 @@ class _PlatformCard extends ConsumerWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _PlatformLogoImage extends StatelessWidget {
+  const _PlatformLogoImage({
+    required this.url,
+    required this.headers,
+    required this.fallback,
+  });
+
+  final String url;
+  final Map<String, String>? headers;
+  final Widget fallback;
+
+  bool get _isSvg {
+    final lower = url.toLowerCase();
+    return lower.endsWith('.svg') || lower.contains('.svg?');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isSvg) {
+      return SvgPicture.network(
+        url,
+        headers: headers,
+        fit: BoxFit.contain,
+        placeholderBuilder: (_) => fallback,
+      );
+    }
+    return Image.network(
+      url,
+      headers: headers,
+      fit: BoxFit.contain,
+      errorBuilder: (_, _, _) => fallback,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return const Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+        );
+      },
     );
   }
 }

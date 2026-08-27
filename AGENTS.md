@@ -21,3 +21,7 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 ## Utilizar siempre el loader cuando sea necesario
 
 - Debes utilizar el loader en cualquier parte que este haciendo una peticion DIO a una Api de Jellyfin o externa mientras carga los datos
+
+## Utilizar siempre metodos de la api de jellyfin_dart
+
+- Debes utilizar metodos de la api del paquete jellyfin_dart con funciones para obtener datos de la api de Jellyfin cuando se pueda, para agilizar las llamadas a la api, y la obtencion de datos

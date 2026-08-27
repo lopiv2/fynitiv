@@ -164,8 +164,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                         deezerArtist = extra['deezer'] as DeezerArtist?;
                         jellyfinArtist = extra['jellyfin'] as BaseItemDto?;
                       }
+                      final rawName = state.pathParameters['artistName'] ?? '';
+                      String artistName;
+                      try {
+                        artistName = Uri.decodeComponent(rawName);
+                      } catch (_) {
+                        artistName = rawName;
+                      }
                       return ArtistDetailScreen(
-                        artistName: Uri.decodeComponent(state.pathParameters['artistName']!),
+                        artistName: artistName,
                         deezerArtist: deezerArtist,
                         jellyfinArtist: jellyfinArtist,
                       );

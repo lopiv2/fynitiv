@@ -101,16 +101,33 @@ final deezerPopularArtistsProvider = FutureProvider<List<DeezerArtist>>((ref) as
 
 /// Top tracks de un artista en Deezer (máx 20) por id o por búsqueda nombre.
 final deezerArtistTopTracksProvider = FutureProvider.family<List<DeezerTrack>, String>((ref, artistQuery) async {
-  // artistQuery puede ser "id:123" o nombre
+  return ref.watch(deezerArtistTopTracksWithLimitProvider(DeezerTopTracksArgs(query: artistQuery, limit: 20)).future);
+});
+
+class DeezerTopTracksArgs {
+  const DeezerTopTracksArgs({required this.query, required this.limit});
+  final String query;
+  final int limit;
+  @override
+  bool operator ==(Object other) => other is DeezerTopTracksArgs && other.query == query && other.limit == limit;
+  @override
+  int get hashCode => Object.hash(query, limit);
+}
+
+/// Top tracks con límite configurable (para rellenar huecos por duplicados internos Deezer).
+final deezerArtistTopTracksWithLimitProvider =
+    FutureProvider.family<List<DeezerTrack>, DeezerTopTracksArgs>((ref, args) async {
+  final artistQuery = args.query;
+  final limit = args.limit;
   try {
     if (artistQuery.startsWith('id:')) {
       final id = artistQuery.substring(3);
-      final res = await _dioDeezer.get('https://api.deezer.com/artist/$id/top', queryParameters: {'limit': 20});
+      final res = await _dioDeezer.get('https://api.deezer.com/artist/$id/top', queryParameters: {'limit': limit});
       final data = res.data as Map<String, dynamic>;
       final list = (data['data'] as List? ?? []).map((e) => DeezerTrack.fromJson(e as Map<String, dynamic>)).toList();
       if (list.isNotEmpty) return list;
     }
-    final res = await _dioDeezer.get('https://api.deezer.com/search/track', queryParameters: {'q': 'artist:"$artistQuery"', 'limit': 20});
+    final res = await _dioDeezer.get('https://api.deezer.com/search/track', queryParameters: {'q': 'artist:"$artistQuery"', 'limit': limit});
     final data = res.data as Map<String, dynamic>;
     final list = (data['data'] as List? ?? []).map((e) => DeezerTrack.fromJson(e as Map<String, dynamic>)).toList();
     return list;
