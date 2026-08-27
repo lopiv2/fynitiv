@@ -25,6 +25,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.height = 270,
     this.cardWidth = 150,
     this.useBackdrop = false,
+    this.useSeriesPoster = false,
     this.cardLogo,
     this.onItemTap,
     this.onItemImageTap,
@@ -44,6 +45,10 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Muestra tarjetas horizontales (backdrop 16:9) en lugar de pósteres.
   final bool useBackdrop;
+
+  /// Para episodios (A continuación): usa el póster principal de la serie en
+  /// lugar del capítulo, como pide el diseño.
+  final bool useSeriesPoster;
 
   /// Logotipo superpuesto abajo a la derecha de cada tarjeta (asset o ruta).
   final String? cardLogo;
@@ -309,6 +314,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                   serverUrl: widget.serverUrl,
                   cardLogo: widget.cardLogo,
                   hoverExtension: true,
+                  useSeriesPoster: widget.useSeriesPoster,
                   onTap: widget.onItemTap == null
                       ? null
                       : () => widget.onItemTap!(items[i]),
@@ -324,6 +330,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                   serverUrl: widget.serverUrl,
                   cardLogo: widget.cardLogo,
                   hoverExtension: true,
+                  useSeriesPoster: widget.useSeriesPoster,
                   onTap: widget.onItemTap == null
                       ? null
                       : () => widget.onItemTap!(items[i]),

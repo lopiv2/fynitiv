@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -240,17 +241,21 @@ class _PlatformCard extends ConsumerWidget {
                 borderRadius: const BorderRadius.vertical(
                   top: Radius.circular(14),
                 ),
-                child: platform.logoUrl != null && platform.logoUrl!.isNotEmpty
-                    ? Image.network(
-                        platform.logoUrl!,
-                        fit: BoxFit.cover,
-                        headers: headers,
-                        errorBuilder: (_, _, _) => _PlatformFallback(
-                          platform: platform,
-                          color: fallback,
-                        ),
-                      )
-                    : _PlatformFallback(platform: platform, color: fallback),
+                child: Container(
+                  color: fallback,
+                  padding: const EdgeInsets.all(12),
+                  alignment: Alignment.center,
+                  child: platform.logoUrl != null && platform.logoUrl!.isNotEmpty
+                      ? _PlatformLogoImage(
+                          url: platform.logoUrl!,
+                          headers: headers,
+                          fallback: _PlatformFallback(
+                            platform: platform,
+                            color: fallback,
+                          ),
+                        )
+                      : _PlatformFallback(platform: platform, color: fallback),
+                ),
               ),
             ),
             Padding(

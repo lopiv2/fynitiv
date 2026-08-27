@@ -4,10 +4,8 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/skin/music_player_skin_controller.dart';
-import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
-import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../library/application/image_url.dart';
 import '../../library/application/library_providers.dart';
@@ -752,122 +750,4 @@ class _MoreArtistAlbums extends ConsumerWidget {
   }
 }
 
-/// Título de sección dentro de una pantalla.
-class _SectionTitle extends ConsumerWidget {
-  const _SectionTitle({required this.title});
 
-  final String title;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final skin = ref.watch(skinControllerProvider).value;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
-      child: Text(
-        title,
-        style: TextStyle(
-          color: skin?.textPrimary ?? Colors.white,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-/// Fila de una canción en la lista de canciones.
-class _TrackTile extends ConsumerWidget {
-  const _TrackTile({
-    required this.track,
-    required this.serverUrl,
-    required this.onTap,
-  });
-
-  final BaseItemDto track;
-  final String? serverUrl;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final skin = ref.watch(skinControllerProvider).value;
-    final textPrimary = skin?.textPrimary ?? Colors.white;
-    final textSecondary = skin?.textSecondary ?? Colors.white70;
-    final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
-    final subtitle = <String>[
-      if (track.artists?.isNotEmpty == true) track.artists!.join(', '),
-      if (track.album != null) track.album!,
-    ].join(' · ');
-
-    return ScaleButton(
-      onPressed: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: SizedBox(
-                width: 48,
-                height: 48,
-                child: serverUrl != null
-                    ? Image.network(
-                        itemImageUrl(serverUrl!, track),
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) =>
-                            _TrackFallback(track: track, color: fallbackColor),
-                      )
-                    : _TrackFallback(track: track, color: fallbackColor),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    track.name ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: textPrimary, fontSize: 15),
-                  ),
-                  if (subtitle.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: textSecondary, fontSize: 12),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            const Icon(Icons.play_arrow_rounded, color: Colors.white54),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Relleno de una canción sin carátula.
-class _TrackFallback extends StatelessWidget {
-  const _TrackFallback({required this.track, required this.color});
-
-  final BaseItemDto track;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    final initial = (track.name ?? '?').substring(0, 1).toUpperCase();
-    return Container(
-      color: color,
-      alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: const TextStyle(color: Colors.white, fontSize: 18),
-      ),
-    );
-  }
-}

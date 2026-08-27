@@ -39,7 +39,10 @@ class ArtistDetailScreen extends ConsumerWidget {
 
     // Si no es Spotify, fallback simple
     if (!isSpotify) {
-      final tracksAsync = ref.watch(artistTracksProvider(artistName));
+      final artistId = jellyfinArtist?.id;
+      final tracksAsync = (artistId != null && artistId.isNotEmpty)
+          ? ref.watch(artistTracksByArtistIdProvider(artistId))
+          : ref.watch(artistTracksProvider(artistName));
       return Scaffold(
         backgroundColor: const Color(0xFF121212),
         appBar: AppBar(title: Text(artistName, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)),
@@ -60,9 +63,11 @@ class ArtistDetailScreen extends ConsumerWidget {
     }
 
     final serverUrl = ref.watch(authServerUrlProvider);
-    final jellyTracksAsync = ref.watch(artistTracksProvider(artistName));
+    final artistId = jellyfinArtist?.id;
+    final jellyTracksAsync = (artistId != null && artistId.isNotEmpty)
+        ? ref.watch(artistTracksByArtistIdProvider(artistId))
+        : ref.watch(artistTracksProvider(artistName));
     final deezerQuery = deezerArtist != null ? 'id:${deezerArtist!.id}' : artistName;
-    final deezerTopAsync = ref.watch(deezerArtistTopTracksProvider(deezerQuery));
     final deezerDetailAsync = deezerArtist != null ? ref.watch(deezerArtistDetailProvider('id:${deezerArtist!.id}')) : null;
 
     // Imagen cabecera: prioriza Deezer picture_xl, luego Jellyfin imagen si tiene id
@@ -180,28 +185,33 @@ class ArtistDetailScreen extends ConsumerWidget {
                           },
                         );
                       }
-                      // Vacío: mensaje + sugerencias Deezer
+                      // Vacío: mensaje + sugerencias Deezer (lazy: solo se pide a Deezer si Jellyfin no tiene canciones)
                       return Column(
                         children: [
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                             child: Text(l10n.noPlayableSongs, style: const TextStyle(color: Colors.white54, fontSize: 14), textAlign: TextAlign.center),
                           ),
-                          deezerTopAsync.when(
-                            loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: AppLoader())),
-                            error: (e, _) => const SizedBox.shrink(),
-                            data: (deezerList) {
-                              if (deezerList.isEmpty) return const SizedBox.shrink();
-                              final take = deezerList.length > 20 ? deezerList.sublist(0, 20) : deezerList;
-                              return ListView.separated(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                padding: const EdgeInsets.symmetric(horizontal: 16),
-                                itemCount: take.length,
-                                separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFF1A1A1A)),
-                                itemBuilder: (context, j) {
-                                  final dt = take[j];
-                                  return _DeezerSuggestionRow(track: dt, rank: (j + 1).toString());
+                          Consumer(
+                            builder: (context, ref, _) {
+                              final deezerTopAsync = ref.watch(deezerArtistTopTracksProvider(deezerQuery));
+                              return deezerTopAsync.when(
+                                loading: () => const Padding(padding: EdgeInsets.all(24), child: Center(child: AppLoader())),
+                                error: (e, _) => const SizedBox.shrink(),
+                                data: (deezerList) {
+                                  if (deezerList.isEmpty) return const SizedBox.shrink();
+                                  final take = deezerList.length > 20 ? deezerList.sublist(0, 20) : deezerList;
+                                  return ListView.separated(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    itemCount: take.length,
+                                    separatorBuilder: (_, _) => const Divider(height: 1, color: Color(0xFF1A1A1A)),
+                                    itemBuilder: (context, j) {
+                                      final dt = take[j];
+                                      return _DeezerSuggestionRow(track: dt, rank: (j + 1).toString());
+                                    },
+                                  );
                                 },
                               );
                             },

@@ -34,6 +34,7 @@ class HoverPlayCard extends StatefulWidget {
     super.key,
     required this.child,
     required this.title,
+    this.subtitle,
     required this.onPlay,
     this.onImageTap,
     this.showExtension = false,
@@ -54,6 +55,9 @@ class HoverPlayCard extends StatefulWidget {
 
   /// Nombre del contenido (se muestra en el panel de extensión).
   final String title;
+
+  /// Artista / subtítulo para canciones (se muestra bajo el título en el panel).
+  final String? subtitle;
 
   /// Acción al pulsar reproducir (o la tarjeta).
   final VoidCallback onPlay;
@@ -223,6 +227,7 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
             originHeight: _originSize.height,
             image: widget.child,
             title: widget.title,
+            subtitle: widget.subtitle,
             onImageTap: widget.onImageTap,
             onPlay: widget.onPlay,
             onTrailer: widget.onTrailer,
@@ -329,6 +334,7 @@ class _ExpandedHoverCard extends StatefulWidget {
     required this.originHeight,
     required this.image,
     required this.title,
+    this.subtitle,
     this.onImageTap,
     required this.onPlay,
     required this.onEnter,
@@ -348,6 +354,7 @@ class _ExpandedHoverCard extends StatefulWidget {
   final double originHeight;
   final Widget image;
   final String title;
+  final String? subtitle;
   final VoidCallback? onImageTap;
   final VoidCallback onPlay;
   final VoidCallback onEnter;
@@ -456,6 +463,7 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
                     child: _expanded
                         ? _HoverPanel(
                             title: widget.title,
+                            subtitle: widget.subtitle,
                             onPlay: widget.onPlay,
                             onTrailer: widget.onTrailer,
                             onFavorites: widget.onFavorites,
@@ -510,6 +518,7 @@ class _PlayOverlay extends StatelessWidget {
 class _HoverPanel extends StatelessWidget {
   const _HoverPanel({
     required this.title,
+    this.subtitle,
     required this.onPlay,
     this.onTrailer,
     this.onFavorites,
@@ -521,6 +530,7 @@ class _HoverPanel extends StatelessWidget {
   });
 
   final String title;
+  final String? subtitle;
   final VoidCallback onPlay;
   final VoidCallback? onTrailer;
   final VoidCallback? onFavorites;
@@ -559,6 +569,19 @@ class _HoverPanel extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
+                const SizedBox(height: 2),
+                Text(
+                  subtitle!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+              ],
               const SizedBox(height: 4),
               IncludedBadge(label: l10n.includedWithJellyfin, scale: 0.9),
               const SizedBox(height: 8),

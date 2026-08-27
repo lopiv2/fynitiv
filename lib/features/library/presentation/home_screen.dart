@@ -23,6 +23,7 @@ class HomeScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
     final resume = ref.watch(resumeItemsProvider);
+    final nextUp = ref.watch(nextUpEpisodesProvider);
     final latest = ref.watch(latestItemsProvider);
     final latestBanner = ref.watch(latestBannerItemsProvider);
     final views = ref.watch(userViewsProvider);
@@ -41,6 +42,7 @@ class HomeScreen extends ConsumerWidget {
     final initialLoading =
         (views.isLoading && views.value == null) ||
         (resume.isLoading && resume.value == null) ||
+        (nextUp.isLoading && nextUp.value == null) ||
         (latest.isLoading && latest.value == null) ||
         (latestBanner.isLoading && latestBanner.value == null);
 
@@ -94,39 +96,50 @@ class HomeScreen extends ConsumerWidget {
                       onItemImageTap: (item) =>
                           context.push('/home/details/${item.id}', extra: item),
                     ),
-                  if (!showBanner && (skin?.showNewReleasesRow ?? true))
+                  // Fila solo para series: siguiente episodio (Shows/NextUp)
+                  // Usa siempre imagen principal vertical (póster) de la serie, no del capítulo.
+                  if ((nextUp.value?.isNotEmpty ?? false))
                     ContentRow(
-                      title: l10n.newReleases,
-                      items: latest.value ?? const [],
+                      title: l10n.upNext,
+                      items: nextUp.value ?? const [],
                       serverUrl: serverUrl,
                       height: skin?.homeRowHeight ?? 270,
                       cardWidth: skin?.homeCardWidth ?? 150,
-                      useBackdrop: useBackdrop,
+                      useBackdrop: false,
+                      useSeriesPoster: true,
                       cardLogo: skin?.cardLogo,
                       onItemTap: (item) =>
                           context.push('/player/${item.id}', extra: item),
                       onItemImageTap: (item) =>
                           context.push('/home/details/${item.id}', extra: item),
                     ),
-                  for (final view
-                      in (views.value ?? const <BaseItemDto>[]).take(4))
-                    ContentRow(
-                      title: view.name ?? '',
-                      items:
-                          ref
-                              .watch(libraryItemsProvider(view.id ?? ''))
-                              .value ??
-                          const [],
-                      serverUrl: serverUrl,
-                      height: skin?.homeRowHeight ?? 270,
-                      cardWidth: skin?.homeCardWidth ?? 150,
-                      useBackdrop: useBackdrop,
-                      cardLogo: skin?.cardLogo,
-                      onItemTap: (item) =>
-                          context.push('/player/${item.id}', extra: item),
-                      onItemImageTap: (item) =>
-                          context.push('/home/details/${item.id}', extra: item),
-                    ),
+                  // Reciente por biblioteca: sustituye los scrolls de Libros/Comics/Música
+                  // por Reciente en Música/Películas/Series/Libros. Solo si la biblioteca existe.
+                  for (final type in const [
+                    CollectionType.music,
+                    CollectionType.movies,
+                    CollectionType.tvshows,
+                    CollectionType.books,
+                  ])
+                    for (final view in (views.value ?? const <BaseItemDto>[])
+                        .where((v) => v.collectionType == type))
+                      ContentRow(
+                        title: l10n.recentIn(view.name ?? ''),
+                        items:
+                            ref
+                                .watch(recentLibraryItemsProvider(view.id ?? ''))
+                                .value ??
+                            const [],
+                        serverUrl: serverUrl,
+                        height: skin?.homeRowHeight ?? 270,
+                        cardWidth: skin?.homeCardWidth ?? 150,
+                        useBackdrop: useBackdrop,
+                        cardLogo: skin?.cardLogo,
+                        onItemTap: (item) =>
+                            context.push('/player/${item.id}', extra: item),
+                        onItemImageTap: (item) =>
+                            context.push('/home/details/${item.id}', extra: item),
+                      ),
                   // Scrolls extra configurados por el skin (con filtros de géneros).
                   for (final scroll
                       in skin?.homeScrolls ?? const <HomeScroll>[])

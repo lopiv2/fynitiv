@@ -2,7 +2,15 @@ import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 
 /// Efecto de hover universal.
-enum AppHoverEffect { none, scale, highlight, highlightWithScale }
+enum AppHoverEffect {
+  none,
+  scale,
+  highlight,
+  highlightWithScale,
+  outline,
+  outlineWithScale,
+  highlightWithOutline,
+}
 
 class AppHoverConfig {
   const AppHoverConfig({
@@ -11,6 +19,11 @@ class AppHoverConfig {
     this.scale = 1.03,
     this.highlightNormal = const Color(0xFF181818),
     this.highlightHovered = const Color(0xFF282828),
+    this.outlineColor = Colors.transparent,
+    this.outlineHoveredColor = Colors.white,
+    this.outlineWidth = 0,
+    this.outlineHoveredWidth = 3,
+    this.isCircular = false,
   });
 
   final Duration duration;
@@ -18,6 +31,11 @@ class AppHoverConfig {
   final double scale;
   final Color highlightNormal;
   final Color highlightHovered;
+  final Color outlineColor;
+  final Color outlineHoveredColor;
+  final double outlineWidth;
+  final double outlineHoveredWidth;
+  final bool isCircular;
 
   /// Config Spotify: fondo #181818 -> #282828, sin escala, radius 8.
   factory AppHoverConfig.spotify({required Color accent, double radius = 8, Duration? duration}) {
@@ -38,6 +56,29 @@ class AppHoverConfig {
       highlightHovered: Colors.transparent,
     );
   }
+
+  /// Config para avatar circular con outline blanco solo en hover/focus.
+  factory AppHoverConfig.circularOutline({
+    Color outlineColor = Colors.transparent,
+    Color outlineHoveredColor = Colors.white,
+    double outlineWidth = 0,
+    double outlineHoveredWidth = 3,
+    double scale = 1.12,
+    Duration duration = const Duration(milliseconds: 180),
+  }) {
+    return AppHoverConfig(
+      isCircular: true,
+      outlineColor: outlineColor,
+      outlineHoveredColor: outlineHoveredColor,
+      outlineWidth: outlineWidth,
+      outlineHoveredWidth: outlineHoveredWidth,
+      scale: scale,
+      duration: duration,
+      highlightNormal: Colors.transparent,
+      highlightHovered: Colors.transparent,
+      borderRadius: const BorderRadius.all(Radius.circular(999)),
+    );
+  }
 }
 
 class AppHoverScope extends InheritedWidget {
@@ -53,6 +94,7 @@ class AppHoverScope extends InheritedWidget {
 /// - `scale` agranda (para TV/preset chips)
 /// - `highlight` cambia fondo (Spotify)
 /// - `highlightWithScale` combina ambos
+/// - `outline` / `outlineWithScale` / `highlightWithOutline` añade borde
 /// - `none` sin efecto
 /// El estado hover se expone vía [AppHoverScope] para que el hijo coloque el play donde quiera.
 class AppHover extends StatefulWidget {
@@ -103,24 +145,46 @@ class _AppHoverState extends State<AppHover> {
 
   @override
   Widget build(BuildContext context) {
-    final isHighlight = widget.effect == AppHoverEffect.highlight || widget.effect == AppHoverEffect.highlightWithScale;
-    final isScale = widget.effect == AppHoverEffect.scale || widget.effect == AppHoverEffect.highlightWithScale;
+    final isHighlight = widget.effect == AppHoverEffect.highlight ||
+        widget.effect == AppHoverEffect.highlightWithScale ||
+        widget.effect == AppHoverEffect.highlightWithOutline;
+    final isScale = widget.effect == AppHoverEffect.scale ||
+        widget.effect == AppHoverEffect.highlightWithScale ||
+        widget.effect == AppHoverEffect.outlineWithScale;
+    final isOutline = widget.effect == AppHoverEffect.outline ||
+        widget.effect == AppHoverEffect.outlineWithScale ||
+        widget.effect == AppHoverEffect.highlightWithOutline;
     final highlightColor = _active && isHighlight ? widget.config.highlightHovered : widget.config.highlightNormal;
+    final outlineColor = _active && isOutline ? widget.config.outlineHoveredColor : widget.config.outlineColor;
+    final outlineWidth = _active && isOutline ? widget.config.outlineHoveredWidth : widget.config.outlineWidth;
 
     Widget content = AnimatedContainer(
       duration: widget.config.duration,
       curve: Curves.easeOut,
       decoration: BoxDecoration(
         color: isHighlight ? highlightColor : Colors.transparent,
-        borderRadius: widget.config.borderRadius,
+        shape: widget.config.isCircular ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: widget.config.isCircular ? null : widget.config.borderRadius,
+        border: isOutline && outlineWidth > 0
+            ? Border.all(color: outlineColor, width: outlineWidth)
+            : isOutline
+                ? Border.all(color: outlineColor, width: 0)
+                : null,
       ),
-      child: ClipRRect(
-        borderRadius: widget.config.borderRadius,
-        child: AppHoverScope(
-          hovered: _active,
-          child: widget.child,
-        ),
-      ),
+      child: (widget.config.isCircular
+          ? ClipOval(
+              child: AppHoverScope(
+                hovered: _active,
+                child: widget.child,
+              ),
+            )
+          : ClipRRect(
+              borderRadius: widget.config.borderRadius,
+              child: AppHoverScope(
+                hovered: _active,
+                child: widget.child,
+              ),
+            )),
     );
 
     if (isScale) {

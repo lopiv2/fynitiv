@@ -56,6 +56,7 @@
   "settingsDescription": "Configuración de servidor, cuenta y preferencias.",
   "home": "Inicio",
   "continueWatching": "Continuar viendo",
+  "upNext": "A continuación",
   "newReleases": "Novedades",
   "logout": "Cerrar sesión",
   "searchHint": "Busca películas, series, personas...",
@@ -222,5 +223,13 @@
   "populares": "Populares",
   "monthlyListeners": "{count} oyentes mensuales",
   "noPlayableSongs": "Actualmente no hay canciones reproducibles",
-  "deezerSuggestions": "Sugerencias de Deezer"
+  "deezerSuggestions": "Sugerencias de Deezer",
+  "recentIn": "Reciente en {library}",
+  "@recentIn": {
+    "placeholders": {
+      "library": {
+        "type": "String"
+      }
+    }
+  }
 }

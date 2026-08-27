@@ -20,6 +20,7 @@ class BackdropCard extends ConsumerWidget {
     this.onImageTap,
     this.cardLogo,
     this.hoverExtension = false,
+    this.useSeriesPoster = false,
     this.onHoverChanged,
     this.onPointerSignal,
     this.overlayBelowEntry,
@@ -37,6 +38,9 @@ class BackdropCard extends ConsumerWidget {
   /// activarse en filas horizontales, no en grids.
   final bool hoverExtension;
 
+  /// Para "A continuación": usa el póster de la serie en lugar del capítulo.
+  final bool useSeriesPoster;
+
   /// Notifica el hover de la tarjeta (para reordenar el pintado en la fila).
   final ValueChanged<bool>? onHoverChanged;
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
@@ -44,8 +48,20 @@ class BackdropCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final thumbUrl = serverUrl != null ? itemThumbUrl(serverUrl!, item) : null;
-    final posterUrl = serverUrl != null ? itemImageUrl(serverUrl!, item) : null;
+    String? thumbUrl = serverUrl != null ? itemThumbUrl(serverUrl!, item) : null;
+    String? posterUrl = serverUrl != null ? itemImageUrl(serverUrl!, item) : null;
+    // Para "A continuación": usar póster de la serie en lugar del capítulo
+    if (useSeriesPoster &&
+        item.type == BaseItemKind.episode &&
+        item.seriesId != null &&
+        item.seriesId!.isNotEmpty &&
+        serverUrl != null) {
+      final tag = item.seriesPrimaryImageTag;
+      posterUrl = tag != null && tag.isNotEmpty
+          ? '$serverUrl/Items/${item.seriesId}/Images/Primary?maxWidth=300&tag=$tag'
+          : '$serverUrl/Items/${item.seriesId}/Images/Primary?maxWidth=300';
+      thumbUrl = null;
+    }
     final progress = item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
     final radius = skin?.cardBorderRadius ?? 10;
@@ -54,6 +70,74 @@ class BackdropCard extends ConsumerWidget {
     final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final logoSize = skin?.cardLogoSize ?? 18;
     final showExtension = hoverExtension && (skin?.cardHoverExtension ?? false);
+    // Título y subtítulo para Novedades (cualquier skin).
+    final artist = (item.artists?.firstOrNull?.trim().isNotEmpty == true
+            ? item.artists!.first.trim()
+            : (item.albumArtist?.trim().isNotEmpty == true
+                ? item.albumArtist!.trim()
+                : item.albumArtists?.firstOrNull?.name?.trim() ?? ''))
+        .trim();
+    String cardTitle = item.name ?? '';
+    String? subtitle;
+    if (artist.isNotEmpty) {
+      subtitle = artist;
+    } else if (item.type == BaseItemKind.episode) {
+      final season = item.parentIndexNumber;
+      final epNum = item.indexNumber;
+      final epName = item.name?.trim() ?? '';
+      final series = item.seriesName?.trim() ?? '';
+      String? se;
+      if (season != null && epNum != null) {
+        se = 'S$season:E$epNum';
+      } else if (season != null) {
+        se = 'S$season';
+      } else if (epNum != null) {
+        se = 'E$epNum';
+      }
+      if (se != null) {
+        subtitle = epName.isNotEmpty ? '$se - $epName' : se;
+        if (series.isNotEmpty) cardTitle = series;
+      } else if (epName.isNotEmpty && series.isNotEmpty) {
+        subtitle = epName;
+        cardTitle = series;
+      }
+    } else if (item.type == BaseItemKind.series) {
+      final year = item.productionYear;
+      if (year != null) subtitle = '$year';
+    } else if (item.type == BaseItemKind.movie) {
+      final year = item.productionYear;
+      if (year != null) subtitle = '$year';
+    } else {
+      final people = item.people;
+      if (people != null && people.isNotEmpty) {
+        const priority = [
+          PersonKind.author,
+          PersonKind.writer,
+          PersonKind.creator,
+          PersonKind.illustrator,
+          PersonKind.artist,
+        ];
+        for (final kind in priority) {
+          final match = people.where((p) => p.type == kind).firstOrNull;
+          if (match?.name?.trim().isNotEmpty == true) {
+            subtitle = match!.name!.trim();
+            break;
+          }
+        }
+      }
+      if (subtitle == null &&
+          (item.type == BaseItemKind.book || item.type == BaseItemKind.audioBook)) {
+        final fallbackName = item.people?.firstOrNull?.name?.trim();
+        if (fallbackName != null && fallbackName.isNotEmpty) {
+          subtitle = fallbackName;
+        }
+        if (subtitle == null) {
+          final studio = item.studios?.firstOrNull?.name?.trim();
+          if (studio != null && studio.isNotEmpty) subtitle = studio;
+        }
+      }
+      if (subtitle != null && subtitle.isEmpty) subtitle = null;
+    }
 
     // Prefiere la miniatura (Thumb); si el item no tiene (o falla), usa el
     // póster en la misma proporción 16:9; si tampoco hay, muestra la letra.
@@ -82,7 +166,8 @@ class BackdropCard extends ConsumerWidget {
     }
 
     return HoverPlayCard(
-      title: item.name ?? '',
+      title: cardTitle,
+      subtitle: subtitle,
       onPlay: onTap ?? () {},
       onImageTap: onImageTap,
       showExtension: showExtension,
@@ -139,11 +224,23 @@ class BackdropCard extends ConsumerWidget {
           if (!showExtension) ...[
             const SizedBox(height: 6),
             Text(
-              item.name ?? '',
+              cardTitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(color: textPrimary, fontSize: 13),
             ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: skin?.textSecondary ?? Colors.white70,
+                  fontSize: 11,
+                ),
+              ),
+            ],
           ],
         ],
       ),

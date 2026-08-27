@@ -35,10 +35,12 @@ class PlaybackSession {
 
 /// Convierte ticks de Jellyfin (100ns) a [Duration]. Devuelve null si no hay
 /// posición válida (0 → null para no saltar).
-Duration? _durationFromTicks(int? ticks) {
+Duration? durationFromTicks(int? ticks) {
   if (ticks == null || ticks <= 0) return null;
   return Duration(microseconds: ticks ~/ 10);
 }
+
+Duration? _durationFromTicks(int? ticks) => durationFromTicks(ticks);
 
 /// Resuelve la información de reproducción de un item y construye la URL
 /// directa del stream (direct play) o HLS (transcode) para media_kit.
@@ -80,8 +82,12 @@ final playbackSessionProvider =
         '$serverUrl/Videos/$itemId/stream?static=true&MediaSourceId=${source.id}$apiKey';
   } else {
     // HLS: el servidor transcodifica lo que el cliente no soporta.
+    // Incluir PlaySessionId si existe (requerido por el servidor para HLS).
+    final sessionId = info.data?.playSessionId;
+    final sessionParam =
+        (sessionId != null && sessionId.isNotEmpty) ? '&PlaySessionId=$sessionId' : '';
     streamUrl =
-        '$serverUrl/Videos/$itemId/master.m3u8?MediaSourceId=${source.id}$apiKey';
+        '$serverUrl/Videos/$itemId/master.m3u8?MediaSourceId=${source.id}$sessionParam$apiKey';
   }
 
   // Subtítulos externos del contenedor (ficheros aparte servidos por Jellyfin).

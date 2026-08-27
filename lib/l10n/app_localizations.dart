@@ -434,6 +434,12 @@ abstract class AppLocalizations {
   /// **'Continue watching'**
   String get continueWatching;
 
+  /// No description provided for @upNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Up Next'**
+  String get upNext;
+
   /// No description provided for @newReleases.
   ///
   /// In en, this message translates to:
@@ -1423,6 +1429,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Deezer suggestions'**
   String get deezerSuggestions;
+
+  /// No description provided for @recentIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent in {library}'**
+  String recentIn(String library);
 }
 
 class _AppLocalizationsDelegate

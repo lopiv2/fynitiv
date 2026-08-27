@@ -217,6 +217,29 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
           });
           return;
         }
+        // Error de decodificación al reanudar (seek a mitad): en algunos
+        // contenedores el direct play falla al saltar. Si estamos cerca del
+        // punto de reanudación, reintentar en lugar de mostrar error.
+        if (lower.contains('decoding') && _session.start != null) {
+          final startMs = _session.start!.inMilliseconds;
+          final posMs = _position.inMilliseconds;
+          final nearStart = (posMs - startMs).abs() < 8000;
+          final isResuming = nearStart || progress < 0.05;
+          if (isResuming) {
+            setState(() {
+              _error = false;
+              _errorMessage = null;
+              _buffering = true;
+            });
+            Future.delayed(const Duration(milliseconds: 800), () {
+              if (mounted && !_playerDisposed) {
+                _player.seek(_session.start!);
+                _player.play();
+              }
+            });
+            return;
+          }
+        }
         setState(() {
           _error = true;
           _errorMessage = e;
@@ -237,8 +260,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     super.dispose();
   }
 
-  /// Pausa o detiene el reproductor según el ciclo de vida de la app, para que
-  /// nunca quede reproduciendo en segundo plano ni con la ventana cerrada.
+  /// Control de ciclo de vida: el vídeo se pausa al perder el foco para
+  /// no reproducir en segundo plano con la ventana oculta; el audio (música)
+  /// continúa en segundo plano para permitir escucha con la app minimizada.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
@@ -248,7 +272,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        if (_playing) _player.pause();
+        // Solo pausar si es vídeo; el audio debe seguir sonando en background.
+        if (_playing && !_isAudio) _player.pause();
       case AppLifecycleState.resumed:
         break;
     }
@@ -265,6 +290,11 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     }
   }
 
+  Duration? _durationFromTicks(int? ticks) {
+    if (ticks == null || ticks <= 0) return null;
+    return Duration(microseconds: ticks ~/ 10);
+  }
+
   Future<void> _open() async {
     if (mounted) setState(() => _error = false);
     try {
@@ -278,9 +308,22 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
           },
         ),
       );
-      final start = _session.start;
-      if (start != null) await _player.seek(start);
       await _player.play();
+      // Continuar viendo: reanuda desde la posición guardada en Jellyfin
+      // en todos los skins. Se usa la posición de la sesión y como fallback
+      // la del item original (por si getItem no retornó userData).
+      Duration? start = _session.start ?? _durationFromTicks(widget.item?.userData?.playbackPositionTicks);
+      if (start != null && start > Duration.zero) {
+        // Esperar a que el player conozca la duración; si no, el seek se ignora y empieza desde 0.
+        if (_duration == Duration.zero) {
+          try {
+            await _player.stream.duration
+                .firstWhere((d) => d > Duration.zero)
+                .timeout(const Duration(seconds: 5));
+          } catch (_) {}
+        }
+        await _player.seek(start);
+      }
     } catch (e) {
       if (mounted) {
         setState(() {

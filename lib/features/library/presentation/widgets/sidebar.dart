@@ -50,8 +50,8 @@ class Sidebar extends ConsumerWidget {
     final selectedColor = skin?.sidebarSelectedColor;
     // Bibliotecta activa según la ruta actual (/library/:viewId).
     final activeViewId = GoRouterState.of(context).pathParameters['viewId'];
-    final horizontal = position == SidebarPosition.top ||
-        position == SidebarPosition.bottom;
+    final horizontal =
+        position == SidebarPosition.top || position == SidebarPosition.bottom;
 
     final mainItems = <Widget>[
       _NavItem(
@@ -171,8 +171,7 @@ class Sidebar extends ConsumerWidget {
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: _logo(sidebarLogo, textPrimary,
-                  height: 36, compact: true),
+              child: _logo(sidebarLogo, textPrimary, height: 36, compact: true),
             ),
             // Inicio y Buscar quedan fijos a la izquierda; solo los elementos
             // de la biblioteca hacen scroll en la barra superior.
@@ -289,12 +288,20 @@ class Sidebar extends ConsumerWidget {
 
   IconData _viewIcon(BaseItemDto view) {
     switch (view.collectionType) {
+      case CollectionType.books:
+        return Icons.menu_book_outlined;
+      case CollectionType.playlists:
+        return Icons.queue_music_outlined;
+      case CollectionType.boxsets:
+        return Icons.collections_bookmark_outlined;
       case CollectionType.movies:
         return Icons.movie_outlined;
       case CollectionType.tvshows:
         return Icons.tv_outlined;
       case CollectionType.music:
         return Icons.music_note_outlined;
+      case CollectionType.livetv:
+        return Icons.live_tv_outlined;
       default:
         return Icons.video_library_outlined;
     }
@@ -309,12 +316,12 @@ class _HorizontalScrollBehavior extends MaterialScrollBehavior {
 
   @override
   Set<PointerDeviceKind> get dragDevices => {
-        PointerDeviceKind.touch,
-        PointerDeviceKind.mouse,
-        PointerDeviceKind.trackpad,
-        PointerDeviceKind.stylus,
-        PointerDeviceKind.invertedStylus,
-      };
+    PointerDeviceKind.touch,
+    PointerDeviceKind.mouse,
+    PointerDeviceKind.trackpad,
+    PointerDeviceKind.stylus,
+    PointerDeviceKind.invertedStylus,
+  };
 
   @override
   Set<LogicalKeyboardKey> get pointerAxisModifiers =>
@@ -359,10 +366,7 @@ class _UserAvatar extends ConsumerWidget {
     }
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 8 : 16,
-        vertical: 8,
-      ),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 16, vertical: 8),
       child: PopupMenuButton<String>(
         tooltip: name.isEmpty ? null : name,
         position: PopupMenuPosition.under,
@@ -472,11 +476,7 @@ class _NavItemState extends State<_NavItem> {
         SizedBox(width: widget.iconSpacing),
         Text(
           widget.label,
-          style: TextStyle(
-            color: color,
-            fontSize: 15,
-            fontWeight: weight,
-          ),
+          style: TextStyle(color: color, fontSize: 15, fontWeight: weight),
         ),
       ],
     );
@@ -499,10 +499,7 @@ class _NavItemState extends State<_NavItem> {
           borderRadius: BorderRadius.circular(10),
           color: Colors.white,
         ),
-        child: _buildRow(
-          color: Colors.black,
-          weight: FontWeight.w600,
-        ),
+        child: _buildRow(color: Colors.black, weight: FontWeight.w600),
       );
     } else if (selected && selectedColor != null) {
       // Mismo tamaño que el hover: contenedor con degradado vertical.
@@ -554,4 +551,3 @@ class _NavItemState extends State<_NavItem> {
     );
   }
 }
-

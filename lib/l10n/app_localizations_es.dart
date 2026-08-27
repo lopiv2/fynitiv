@@ -186,6 +186,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get continueWatching => 'Continuar viendo';
 
   @override
+  String get upNext => 'A continuación';
+
+  @override
   String get newReleases => 'Novedades';
 
   @override
@@ -687,4 +690,9 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get deezerSuggestions => 'Sugerencias de Deezer';
+
+  @override
+  String recentIn(String library) {
+    return 'Reciente en $library';
+  }
 }

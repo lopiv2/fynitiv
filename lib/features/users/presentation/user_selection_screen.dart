@@ -3,8 +3,9 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 
+import '../../../core/widgets/app_hover.dart';
+import '../../../core/widgets/app_hover_button.dart';
 import '../../../core/widgets/app_loader.dart';
-import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
@@ -33,13 +34,31 @@ class UserSelectionScreen extends ConsumerWidget {
           ),
         ),
         child: SafeArea(
-          child: users.when(
-            loading: () => const Center(child: AppLoader()),
-            error: (e, _) => _ErrorView(
-              error: e.toString(),
-              onRetry: () => ref.invalidate(householdUsersProvider),
-            ),
-            data: (list) => _buildContent(context, ref, auth, list),
+          child: Stack(
+            children: [
+              Positioned.fill(
+                top: MediaQuery.of(context).size.height * 0.25,
+                bottom: MediaQuery.of(context).size.height * 0.25,
+
+                child: users.when(
+                  loading: () => const Center(child: AppLoader()),
+                  error: (e, _) => _ErrorView(
+                    error: e.toString(),
+                    onRetry: () => ref.invalidate(householdUsersProvider),
+                  ),
+                  data: (list) => _buildContent(context, ref, auth, list),
+                ),
+              ),
+              // Overlay bloqueante mientras se autentica el usuario seleccionado.
+              // Utiliza AppLoader como en el resto de la app (peticiones DIO).
+              if (auth.isLoading)
+                const Positioned.fill(
+                  child: ColoredBox(
+                    color: Colors.black54,
+                    child: Center(child: AppLoader()),
+                  ),
+                ),
+            ],
           ),
         ),
       ),
@@ -60,6 +79,7 @@ class UserSelectionScreen extends ConsumerWidget {
         const SizedBox(height: 24),
         Text(
           AppLocalizations.of(context)!.whoIsWatching,
+          textAlign: TextAlign.center,
           style: theme.textTheme.headlineMedium?.copyWith(
             color: Colors.white,
             fontWeight: FontWeight.w600,
@@ -68,24 +88,29 @@ class UserSelectionScreen extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Flexible(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 900),
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 8),
-              child: Wrap(
-                alignment: WrapAlignment.center,
-                crossAxisAlignment: WrapCrossAlignment.start,
-                spacing: 40,
-                runSpacing: 40,
-                children: [
-                  for (final user in users)
-                    _UserProfile(
-                      user: user,
-                      serverUrl: auth.serverUrl,
-                      isLoading: auth.isLoading,
-                      onTap: () => _selectUser(context, ref, user),
-                    ),
-                ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 32,
+                  vertical: 8,
+                ),
+                child: Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.start,
+                  spacing: 40,
+                  runSpacing: 40,
+                  children: [
+                    for (final user in users)
+                      _UserProfile(
+                        user: user,
+                        serverUrl: auth.serverUrl,
+                        isLoading: auth.isLoading,
+                        onTap: () => _selectUser(context, ref, user),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -113,32 +138,23 @@ class UserSelectionScreen extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        TextButton.icon(
+        AppHoverButton.text(
+          label: l10n.manageHome,
+          icon: Icons.home_outlined,
           onPressed: () async {
             if (!await _requirePin(context, ref)) return;
             if (!context.mounted) return;
-            await context.push(
-              '/setup',
-              extra: household,
-            );
+            await context.push('/setup', extra: household);
           },
-          icon: const Icon(Icons.home_outlined, color: Colors.white70),
-          label: Text(
-            l10n.manageHome,
-            style: const TextStyle(color: Colors.white70),
-          ),
         ),
         const SizedBox(width: 8),
-        TextButton.icon(
+        AppHoverButton.text(
+          label: l10n.configureServer,
+          icon: Icons.settings_outlined,
           onPressed: () async {
             if (!await _requirePin(context, ref)) return;
             await ref.read(authControllerProvider.notifier).logout();
           },
-          icon: const Icon(Icons.settings_outlined, color: Colors.white70),
-          label: Text(
-            l10n.configureServer,
-            style: const TextStyle(color: Colors.white70),
-          ),
         ),
       ],
     );
@@ -157,9 +173,7 @@ class UserSelectionScreen extends ConsumerWidget {
       if (entered == null) return false;
       if (await controller.verifyHousePin(entered)) return true;
       if (!context.mounted) return false;
-      messenger.showSnackBar(
-        SnackBar(content: Text(l10n.wrongPin)),
-      );
+      messenger.showSnackBar(SnackBar(content: Text(l10n.wrongPin)));
     }
     return false;
   }
@@ -191,10 +205,7 @@ class UserSelectionScreen extends ConsumerWidget {
               const SizedBox(height: 4),
               Text(
                 l10n.masterPinHint,
-                style: const TextStyle(
-                  color: Colors.white54,
-                  fontSize: 12,
-                ),
+                style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
             ],
           ),
@@ -297,7 +308,6 @@ class _UserProfile extends ConsumerStatefulWidget {
 
 class _UserProfileState extends ConsumerState<_UserProfile> {
   bool? _hasValidToken;
-  bool _focused = false;
 
   @override
   void initState() {
@@ -318,71 +328,78 @@ class _UserProfileState extends ConsumerState<_UserProfile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = widget.user;
-    return ScaleButton(
-      selected: _focused,
-      selectedScale: 1.12,
-      onFocusChange: (focused) {
-        if (mounted) setState(() => _focused = focused);
-      },
-      onPressed: widget.isLoading ? () {} : widget.onTap,
-      child: AnimatedOpacity(
-        opacity: _focused ? 1.0 : 0.85,
-        duration: const Duration(milliseconds: 180),
-        child: SizedBox(
-          width: 140,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Stack(
-                clipBehavior: Clip.none,
+    return AppHover(
+      effect: AppHoverEffect.scale,
+      config: AppHoverConfig.scaleOnly(scale: 1.12),
+      onTap: widget.isLoading ? () {} : widget.onTap,
+      child: Builder(
+        builder: (context) {
+          final active = AppHoverScope.of(context)?.hovered ?? false;
+          return AnimatedOpacity(
+            opacity: active ? 1.0 : 0.85,
+            duration: const Duration(milliseconds: 180),
+            child: SizedBox(
+              width: 140,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  _Avatar(user: user, serverUrl: widget.serverUrl),
-                  // Candado: sin token válido guardado (habrá que autenticarse).
-                  // Tras resetear o la primera vez, todos los perfiles lo
-                  // muestran; al entrar se guarda el token y desaparece.
-                  if (_hasValidToken == false)
-                    Positioned(
-                      right: -4,
-                      bottom: -4,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: const BoxDecoration(
-                          color: Color(0xFF1A2568),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.lock_outline,
-                          color: Colors.white70,
-                          size: 18,
-                        ),
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      _Avatar(
+                        user: user,
+                        serverUrl: widget.serverUrl,
+                        isActive: active,
                       ),
+                      // Candado: sin token válido guardado (habrá que autenticarse).
+                      // Tras resetear o la primera vez, todos los perfiles lo
+                      // muestran; al entrar se guarda el token y desaparece.
+                      if (_hasValidToken == false)
+                        Positioned(
+                          right: -4,
+                          bottom: -4,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFF1A2568),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.lock_outline,
+                              color: Colors.white70,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    user.name ?? AppLocalizations.of(context)!.username,
+                    textAlign: TextAlign.center,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: Colors.white,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w400,
                     ),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(
-                user.name ?? AppLocalizations.of(context)!.username,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
-                  fontWeight: _focused ? FontWeight.w700 : FontWeight.w400,
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class _Avatar extends StatelessWidget {
-  const _Avatar({required this.user, required this.serverUrl});
+  const _Avatar({required this.user, required this.serverUrl, this.isActive = false});
 
   final UserDto user;
   final String? serverUrl;
+  final bool isActive;
 
   static const double _size = 110;
 
@@ -392,7 +409,9 @@ class _Avatar extends StatelessWidget {
     final initial = (user.name ?? '?').substring(0, 1).toUpperCase();
     final url = _imageUrl();
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
       width: _size,
       height: _size,
       decoration: BoxDecoration(
@@ -402,7 +421,10 @@ class _Avatar extends StatelessWidget {
           end: Alignment.bottomRight,
           colors: [theme.colorScheme.primary, theme.colorScheme.tertiary],
         ),
-        border: Border.all(color: Colors.white24, width: 2),
+        border: Border.all(
+          color: isActive ? Colors.white : Colors.transparent,
+          width: isActive ? 3 : 0,
+        ),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.4),
