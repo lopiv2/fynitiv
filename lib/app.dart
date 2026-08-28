@@ -43,7 +43,7 @@ class FynitivApp extends ConsumerWidget {
         // tienen su ancestro Material sin envolver cada pantalla.
         child: fm.Material(
           type: fm.MaterialType.transparency,
-          child: child,
+          child: child ?? const SizedBox.shrink(),
         ),
       ),
     );

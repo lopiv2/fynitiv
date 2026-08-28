@@ -18,8 +18,9 @@ import '../../household/application/household_provider.dart';
 import '../../household/domain/household.dart';
 import 'widgets/appearance_panel.dart';
 import 'widgets/games_panel.dart';
+import 'widgets/sounds_panel.dart';
 
-enum SettingsSection { preferences, appearance, home, games, account, about }
+enum SettingsSection { preferences, appearance, home, games, sounds, account, about }
 
 class _SettingsSectionNotifier extends Notifier<SettingsSection> {
   @override
@@ -58,6 +59,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       (SettingsSection.appearance, Icons.palette_outlined, l10n.appearance),
       (SettingsSection.home, Icons.home_outlined, l10n.currentHome),
       (SettingsSection.games, Icons.sports_esports, l10n.games),
+      (SettingsSection.sounds, Icons.volume_up_outlined, l10n.sounds),
       (SettingsSection.account, Icons.person_outline, l10n.account),
       (SettingsSection.about, Icons.info_outline, l10n.about),
     ];
@@ -165,6 +167,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         return _HomePanel();
       case SettingsSection.games:
         return const GamesPanel();
+      case SettingsSection.sounds:
+        return const SoundsPanel();
       case SettingsSection.account:
         return _AccountPanel();
       case SettingsSection.about:

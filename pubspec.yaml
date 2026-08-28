@@ -76,6 +76,7 @@ dependencies:
   # Renderizado de SVG (icono surfer del progreso)
   flutter_svg: ^2.2.2
   cached_network_image_ce: ^4.10.1
+  video_player: ^2.9.5
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -119,6 +120,9 @@ flutter:
     - assets/images/icons/surfer.svg
     - assets/images/icons/spaceship.svg
     - assets/audio/splash_reveal.mp3
+    - assets/audio/fx/buttons/
+    - assets/audio/themes/
+    - assets/video/
     - assets/images/videogames/platforms/Consoles/
     - assets/images/videogames/platforms/Handhelds/
     - assets/images/videogames/platforms/Computers/ScummVM.png

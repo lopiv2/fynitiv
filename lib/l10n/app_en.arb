@@ -236,5 +236,15 @@
     }
   },
   "titleMarquee": "Title marquee on hover",
-  "titleMarqueeHint": "When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)"
+  "titleMarqueeHint": "When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)",
+  "sounds": "Sounds",
+  "selectionSound": "Item selection sound",
+  "selectionSoundHint": "Sound played when hovering or focusing an item (uses system volume)",
+  "testSound": "Test",
+  "soundsSectionTitle": "Sounds",
+  "soundsSectionDescription": "Hover and selection feedback sounds",
+  "backgroundMusic": "Background music",
+  "muteBackgroundMusic": "Mute background music",
+  "backgroundVideo": "Background video",
+  "disableBackgroundVideo": "Disable background video"
 }

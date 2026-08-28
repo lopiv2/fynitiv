@@ -1447,6 +1447,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)'**
   String get titleMarqueeHint;
+
+  /// No description provided for @sounds.
+  ///
+  /// In en, this message translates to:
+  /// **'Sounds'**
+  String get sounds;
+
+  /// No description provided for @selectionSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Item selection sound'**
+  String get selectionSound;
+
+  /// No description provided for @selectionSoundHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound played when hovering or focusing an item (uses system volume)'**
+  String get selectionSoundHint;
+
+  /// No description provided for @testSound.
+  ///
+  /// In en, this message translates to:
+  /// **'Test'**
+  String get testSound;
+
+  /// No description provided for @soundsSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sounds'**
+  String get soundsSectionTitle;
+
+  /// No description provided for @soundsSectionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Hover and selection feedback sounds'**
+  String get soundsSectionDescription;
+
+  /// No description provided for @backgroundMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Background music'**
+  String get backgroundMusic;
+
+  /// No description provided for @muteBackgroundMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute background music'**
+  String get muteBackgroundMusic;
+
+  /// No description provided for @backgroundVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Background video'**
+  String get backgroundVideo;
+
+  /// No description provided for @disableBackgroundVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Disable background video'**
+  String get disableBackgroundVideo;
 }
 
 class _AppLocalizationsDelegate

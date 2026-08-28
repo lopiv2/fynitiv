@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/settings/game_bg_music_controller.dart';
+import '../../../core/settings/game_video_controller.dart';
 import '../../../core/skin/skin_controller.dart';
-import '../../../core/theme/dashboard_background.dart';
+import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
 import '../data/platform_asset_resolver.dart';
@@ -38,13 +41,13 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
     final localAsset = platform != null ? PlatformAssetResolver.resolve(platform) : null;
 
     return Scaffold(
-      body: DashboardBackground(
+      body: GameVideoBackground(
         child: CustomScrollView(
           slivers: [
             // AppBar con glassmorphism + Hero logo
             SliverAppBar(
               pinned: true,
-              expandedHeight: 180,
+              expandedHeight: 280,
               backgroundColor: Colors.transparent,
               leading: IconButton(
                 tooltip: l10n.back,
@@ -52,6 +55,45 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                 icon: const Icon(Icons.arrow_back_rounded, color: Colors.white70),
               ),
               actions: [
+                Consumer(builder: (context, ref, _) {
+                  final muted = ref.watch(gameBgMutedProvider);
+                  final videoDisabled = ref.watch(gameVideoDisabledProvider);
+                  final l10n2 = AppLocalizations.of(context)!;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: l10n2.muteBackgroundMusic,
+                        onPressed: () => ref.read(gameBgMutedProvider.notifier).toggle(),
+                        icon: Icon(muted ? Icons.music_off_rounded : Icons.music_note_rounded, color: Colors.white70, size: 20),
+                      ),
+                      Transform.scale(
+                        scale: 0.8,
+                        child: Switch.adaptive(
+                          value: !muted,
+                          onChanged: (v) => ref.read(gameBgMutedProvider.notifier).setMuted(!v),
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: const Color(0xFF2B7FFF),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        tooltip: l10n2.disableBackgroundVideo,
+                        onPressed: () => ref.read(gameVideoDisabledProvider.notifier).toggle(),
+                        icon: Icon(videoDisabled ? Icons.videocam_off_rounded : Icons.videocam_rounded, color: Colors.white70, size: 20),
+                      ),
+                      Transform.scale(
+                        scale: 0.8,
+                        child: Switch.adaptive(
+                          value: !videoDisabled,
+                          onChanged: (v) => ref.read(gameVideoDisabledProvider.notifier).setDisabled(!v),
+                          activeThumbColor: Colors.white,
+                          activeTrackColor: const Color(0xFF2B7FFF),
+                        ),
+                      ),
+                    ],
+                  );
+                }),
                 IconButton(
                   tooltip: l10n.retry,
                   onPressed: () => ref.invalidate(rommGamesProvider(widget.platformId)),
@@ -76,67 +118,45 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                     ),
                     child: FlexibleSpaceBar(
                       titlePadding: const EdgeInsets.fromLTRB(56, 0, 56, 14),
+                      centerTitle: true,
                       title: Text(
                         platform?.displayName ?? '...',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
                         style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
                       ),
                       background: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 60, 24, 48),
-                        child: Row(
-                          children: [
-                            // Hero logo - vuelo lento y visible (mismo tag que origen)
-                            Hero(
-                              tag: 'platform-logo-${widget.platformId}',
-                              createRectTween: (begin, end) => MaterialRectArcTween(begin: begin, end: end),
-                              flightShuttleBuilder: (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
-                                final hero = flightDirection == HeroFlightDirection.push ? toHeroContext.widget as Hero : fromHeroContext.widget as Hero;
-                                return FadeTransition(
-                                  opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
-                                  child: ScaleTransition(
-                                    scale: animation.drive(Tween<double>(begin: 0.92, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic))),
-                                    child: hero.child,
-                                  ),
-                                );
-                              },
-                              placeholderBuilder: (context, heroSize, child) => SizedBox.fromSize(size: heroSize, child: Opacity(opacity: 0, child: child)),
-                              child: Material(
-                                type: MaterialType.transparency,
-                                child: Container(
-                                  width: 72,
-                                  height: 72,
-                                  decoration: BoxDecoration(
-                                    color: (skin?.backgroundBottom ?? const Color(0xFF1A2568)).withValues(alpha: 0.6),
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: Colors.white12),
-                                  ),
-                                  padding: const EdgeInsets.all(10),
-                                  child: localAsset != null
-                                      ? Image.asset(localAsset, fit: BoxFit.contain)
-                                      : platform?.logoUrl != null && platform!.logoUrl!.isNotEmpty
-                                          ? Image.network(platform.logoUrl!, fit: BoxFit.contain)
-                                          : const Icon(Icons.videogame_asset, color: Colors.white70, size: 32),
+                        padding: const EdgeInsets.only(top: 56, left: 24, right: 24, bottom: 24),
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: Hero(
+                            tag: 'platform-logo-${widget.platformId}',
+                            createRectTween: (begin, end) => MaterialRectArcTween(begin: begin, end: end),
+                            flightShuttleBuilder: (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
+                              final hero = flightDirection == HeroFlightDirection.push ? toHeroContext.widget as Hero : fromHeroContext.widget as Hero;
+                              return FadeTransition(
+                                opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
+                                child: ScaleTransition(
+                                  scale: animation.drive(Tween<double>(begin: 0.92, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic))),
+                                  child: hero.child,
                                 ),
+                              );
+                            },
+                            placeholderBuilder: (context, heroSize, child) => SizedBox.fromSize(size: heroSize, child: Opacity(opacity: 0, child: child)),
+                            child: Material(
+                              type: MaterialType.transparency,
+                              child: SizedBox(
+                                width: 200,
+                                height: 200,
+                                child: localAsset != null
+                                    ? Image.asset(localAsset, fit: BoxFit.contain)
+                                    : platform?.logoUrl != null && platform!.logoUrl!.isNotEmpty
+                                        ? Image.network(platform.logoUrl!, fit: BoxFit.contain)
+                                        : const Icon(Icons.videogame_asset, color: Colors.white70, size: 72),
                               ),
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(platform?.displayName ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textPrimary, fontSize: 20, fontWeight: FontWeight.w800)),
-                                  const SizedBox(height: 4),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20), border: Border.all(color: accent.withValues(alpha: 0.3))),
-                                    child: Text('${platform?.romCount ?? 0} juegos', style: TextStyle(color: accent, fontSize: 12, fontWeight: FontWeight.w700)),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                       ),
                     ),
@@ -218,7 +238,9 @@ class _GameCard extends ConsumerWidget {
     final token = ref.watch(rommRepositoryProvider)?.token;
     final headers = token != null && token.isNotEmpty ? <String, String>{'Authorization': 'Bearer $token'} : null;
 
-    return GestureDetector(
+    return AppHover(
+      effect: AppHoverEffect.scale,
+      config: AppHoverConfig.scaleOnly(scale: 1.04, radius: BorderRadius.circular(12)),
       onTap: () => context.push('/games/rom/${game.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

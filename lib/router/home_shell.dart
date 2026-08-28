@@ -3,20 +3,71 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../core/audio/game_bg_player.dart';
 import '../core/navigation/platform_mode.dart';
 import '../core/navigation/sidebar_controller.dart';
+import '../core/settings/game_bg_music_controller.dart';
 import '../core/skin/skin.dart';
 import '../core/skin/skin_controller.dart';
 import '../core/theme/dashboard_background.dart';
 import '../features/library/presentation/widgets/sidebar.dart';
 
-class HomeShell extends ConsumerWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserver {
+  bool _insideGames = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      GameBgPlayer.instance.pauseForExternal();
+    } else if (state == AppLifecycleState.resumed) {
+      GameBgPlayer.instance.resumeIfNeeded();
+    }
+  }
+
+  bool _isInsideGames(String loc, int branchIndex) {
+    // Solo rama games (índice 5) puede tener música
+    if (branchIndex != 5) return false;
+    if (loc == '/games') return true;
+    if (loc.startsWith('/games/platform')) return true;
+    return false;
+  }
+
+  void _syncMusic(String loc, int branchIndex) {
+    final nowInside = _isInsideGames(loc, branchIndex);
+    if (nowInside == _insideGames) return;
+    _insideGames = nowInside;
+    if (_insideGames) {
+      final muted = ref.read(gameBgMutedProvider);
+      GameBgPlayer.instance.setMuted(muted);
+      GameBgPlayer.instance.enter();
+    } else {
+      GameBgPlayer.instance.leave();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final mode = ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
     final sidebar = ref.watch(sidebarControllerProvider);
     final skin = ref.watch(skinControllerProvider).value;
@@ -30,12 +81,21 @@ class HomeShell extends ConsumerWidget {
       }
     });
 
+    ref.listen<bool>(gameBgMutedProvider, (_, muted) {
+      GameBgPlayer.instance.setMuted(muted);
+    });
+
+    // Sincroniza música según rama y ubicación (hub/lista vs detalle)
+    final loc = GoRouterState.of(context).matchedLocation;
+    final branchIndex = widget.navigationShell.currentIndex;
+    _syncMusic(loc, branchIndex);
+
     final sidebarWidget = _showSidebar(mode, sidebar)
         ? Sidebar(
-            currentIndex: navigationShell.currentIndex,
-            onNavigateBranch: (index) => navigationShell.goBranch(
+            currentIndex: widget.navigationShell.currentIndex,
+            onNavigateBranch: (index) => widget.navigationShell.goBranch(
               index,
-              initialLocation: index == navigationShell.currentIndex,
+              initialLocation: index == widget.navigationShell.currentIndex,
             ),
           )
         : null;
@@ -50,7 +110,7 @@ class HomeShell extends ConsumerWidget {
             ref.read(sidebarControllerProvider.notifier).expand();
           }
         },
-        child: navigationShell,
+        child: widget.navigationShell,
       ),
     );
 

@@ -702,4 +702,35 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get titleMarqueeHint =>
       'Si el título no cabe, se desplaza de derecha a izquierda en bucle al hacer hover (como en Jellyfin Android TV)';
+
+  @override
+  String get sounds => 'Sonidos';
+
+  @override
+  String get selectionSound => 'Sonido de selección de elemento';
+
+  @override
+  String get selectionSoundHint =>
+      'Sonido que se reproduce al pasar el cursor o enfocar un elemento (usa el volumen del sistema)';
+
+  @override
+  String get testSound => 'Probar';
+
+  @override
+  String get soundsSectionTitle => 'Sonidos';
+
+  @override
+  String get soundsSectionDescription => 'Sonidos de selección y hover';
+
+  @override
+  String get backgroundMusic => 'Música de fondo';
+
+  @override
+  String get muteBackgroundMusic => 'Silenciar música de fondo';
+
+  @override
+  String get backgroundVideo => 'Video de fondo';
+
+  @override
+  String get disableBackgroundVideo => 'Desactivar video de fondo';
 }

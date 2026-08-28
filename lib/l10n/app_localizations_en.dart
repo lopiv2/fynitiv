@@ -701,4 +701,35 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get titleMarqueeHint =>
       'When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)';
+
+  @override
+  String get sounds => 'Sounds';
+
+  @override
+  String get selectionSound => 'Item selection sound';
+
+  @override
+  String get selectionSoundHint =>
+      'Sound played when hovering or focusing an item (uses system volume)';
+
+  @override
+  String get testSound => 'Test';
+
+  @override
+  String get soundsSectionTitle => 'Sounds';
+
+  @override
+  String get soundsSectionDescription => 'Hover and selection feedback sounds';
+
+  @override
+  String get backgroundMusic => 'Background music';
+
+  @override
+  String get muteBackgroundMusic => 'Mute background music';
+
+  @override
+  String get backgroundVideo => 'Background video';
+
+  @override
+  String get disableBackgroundVideo => 'Disable background video';
 }

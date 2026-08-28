@@ -312,7 +312,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       // Continuar viendo: reanuda desde la posición guardada en Jellyfin
       // en todos los skins. Se usa la posición de la sesión y como fallback
       // la del item original (por si getItem no retornó userData).
-      Duration? start = _session.start ?? _durationFromTicks(widget.item?.userData?.playbackPositionTicks);
+      Duration? start =
+          _session.start ??
+          _durationFromTicks(widget.item?.userData?.playbackPositionTicks);
       if (start != null && start > Duration.zero) {
         // Esperar a que el player conozca la duración; si no, el seek se ignora y empieza desde 0.
         if (_duration == Duration.zero) {
@@ -937,12 +939,23 @@ class _AudioCover extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = ref.watch(skinControllerProvider).value;
     final musicSkin = ref.watch(musicPlayerSkinControllerProvider).value;
-    final bgTop = musicSkin?.backgroundTop ?? skin?.backgroundTop ?? const Color(0xFF0B1030);
-    final bgBottom = musicSkin?.backgroundBottom ?? skin?.backgroundBottom ?? const Color(0xFF1A2568);
+    final bgTop =
+        musicSkin?.backgroundTop ??
+        skin?.backgroundTop ??
+        const Color(0xFF0B1030);
+    final bgBottom =
+        musicSkin?.backgroundBottom ??
+        skin?.backgroundBottom ??
+        const Color(0xFF1A2568);
     final accent = musicSkin?.accent ?? skin?.accent ?? const Color(0xFF2B7FFF);
-    final waveform = musicSkin?.waveformEffect ?? skin?.audioWaveformEffect ?? AudioWaveformEffect.equalizer;
-    final textPrimary = musicSkin?.textPrimary ?? skin?.textPrimary ?? Colors.white;
-    final textSecondary = musicSkin?.textSecondary ?? skin?.textSecondary ?? Colors.white70;
+    final waveform =
+        musicSkin?.waveformEffect ??
+        skin?.audioWaveformEffect ??
+        AudioWaveformEffect.equalizer;
+    final textPrimary =
+        musicSkin?.textPrimary ?? skin?.textPrimary ?? Colors.white;
+    final textSecondary =
+        musicSkin?.textSecondary ?? skin?.textSecondary ?? Colors.white70;
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(

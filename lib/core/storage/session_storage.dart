@@ -47,6 +47,9 @@ class SessionStorage {
   static const _kDeviceId = 'jellyfin.device_id';
   static const _kHousehold = 'jellyfin.household';
   static const _kUserTokenPrefix = 'jellyfin.user_token.';
+  static const _kButtonSoundKey = 'app.button_sound_key';
+  static const _kGameBgMuted = 'app.game_bg_muted';
+  static const _kGameVideoDisabled = 'app.game_video_disabled';
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
@@ -175,5 +178,36 @@ class SessionStorage {
       secure.delete(key: _kToken),
       secure.delete(key: _kUserId),
     ]);
+  }
+
+  /// --- Sonido de selección (hover/focus) ---
+  Future<String?> readButtonSoundKey() async {
+    final prefs = await _prefs;
+    return prefs.getString(_kButtonSoundKey);
+  }
+
+  Future<void> writeButtonSoundKey(String key) async {
+    final prefs = await _prefs;
+    await prefs.setString(_kButtonSoundKey, key);
+  }
+
+  Future<bool?> readGameBgMuted() async {
+    final prefs = await _prefs;
+    return prefs.getBool(_kGameBgMuted);
+  }
+
+  Future<void> writeGameBgMuted(bool muted) async {
+    final prefs = await _prefs;
+    await prefs.setBool(_kGameBgMuted, muted);
+  }
+
+  Future<bool?> readGameVideoDisabled() async {
+    final prefs = await _prefs;
+    return prefs.getBool(_kGameVideoDisabled);
+  }
+
+  Future<void> writeGameVideoDisabled(bool disabled) async {
+    final prefs = await _prefs;
+    await prefs.setBool(_kGameVideoDisabled, disabled);
   }
 }

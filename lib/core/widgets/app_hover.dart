@@ -1,5 +1,10 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../audio/hover_sound_player.dart';
+import '../constants/button_sounds.dart';
+import '../settings/button_sound_controller.dart';
 
 /// Efecto de hover universal.
 enum AppHoverEffect {
@@ -10,6 +15,7 @@ enum AppHoverEffect {
   outline,
   outlineWithScale,
   highlightWithOutline,
+  scaleHighlightOutline,
 }
 
 class AppHoverConfig {
@@ -57,6 +63,31 @@ class AppHoverConfig {
     );
   }
 
+  /// Combina escala + highlight + outline (triple efecto).
+  factory AppHoverConfig.scaleHighlightOutline({
+    double scale = 1.04,
+    BorderRadius? radius,
+    Color highlightNormal = Colors.transparent,
+    Color highlightHovered = const Color(0x1FFFFFFF),
+    Color outlineColor = Colors.transparent,
+    Color outlineHoveredColor = Colors.white,
+    double outlineWidth = 0,
+    double outlineHoveredWidth = 2,
+    Duration duration = const Duration(milliseconds: 180),
+  }) {
+    return AppHoverConfig(
+      scale: scale,
+      borderRadius: radius ?? const BorderRadius.all(Radius.circular(16)),
+      highlightNormal: highlightNormal,
+      highlightHovered: highlightHovered,
+      outlineColor: outlineColor,
+      outlineHoveredColor: outlineHoveredColor,
+      outlineWidth: outlineWidth,
+      outlineHoveredWidth: outlineHoveredWidth,
+      duration: duration,
+    );
+  }
+
   /// Config para avatar circular con outline blanco solo en hover/focus.
   factory AppHoverConfig.circularOutline({
     Color outlineColor = Colors.transparent,
@@ -95,9 +126,10 @@ class AppHoverScope extends InheritedWidget {
 /// - `highlight` cambia fondo (Spotify)
 /// - `highlightWithScale` combina ambos
 /// - `outline` / `outlineWithScale` / `highlightWithOutline` añade borde
+/// - `scaleHighlightOutline` combina escala + highlight + outline
 /// - `none` sin efecto
 /// El estado hover se expone vía [AppHoverScope] para que el hijo coloque el play donde quiera.
-class AppHover extends StatefulWidget {
+class AppHover extends ConsumerStatefulWidget {
   const AppHover({
     super.key,
     required this.child,
@@ -106,6 +138,7 @@ class AppHover extends StatefulWidget {
     this.config = const AppHoverConfig(),
     this.trackFocus = true,
     this.cursor = SystemMouseCursors.click,
+    this.playSoundOnHover = true,
   });
 
   final Widget child;
@@ -114,12 +147,13 @@ class AppHover extends StatefulWidget {
   final AppHoverConfig config;
   final bool trackFocus;
   final MouseCursor cursor;
+  final bool playSoundOnHover;
 
   @override
-  State<AppHover> createState() => _AppHoverState();
+  ConsumerState<AppHover> createState() => _AppHoverState();
 }
 
-class _AppHoverState extends State<AppHover> {
+class _AppHoverState extends ConsumerState<AppHover> {
   bool _hovered = false;
   bool _focused = false;
   final FocusNode _focusNode = FocusNode();
@@ -147,13 +181,16 @@ class _AppHoverState extends State<AppHover> {
   Widget build(BuildContext context) {
     final isHighlight = widget.effect == AppHoverEffect.highlight ||
         widget.effect == AppHoverEffect.highlightWithScale ||
-        widget.effect == AppHoverEffect.highlightWithOutline;
+        widget.effect == AppHoverEffect.highlightWithOutline ||
+        widget.effect == AppHoverEffect.scaleHighlightOutline;
     final isScale = widget.effect == AppHoverEffect.scale ||
         widget.effect == AppHoverEffect.highlightWithScale ||
-        widget.effect == AppHoverEffect.outlineWithScale;
+        widget.effect == AppHoverEffect.outlineWithScale ||
+        widget.effect == AppHoverEffect.scaleHighlightOutline;
     final isOutline = widget.effect == AppHoverEffect.outline ||
         widget.effect == AppHoverEffect.outlineWithScale ||
-        widget.effect == AppHoverEffect.highlightWithOutline;
+        widget.effect == AppHoverEffect.highlightWithOutline ||
+        widget.effect == AppHoverEffect.scaleHighlightOutline;
     final highlightColor = _active && isHighlight ? widget.config.highlightHovered : widget.config.highlightNormal;
     final outlineColor = _active && isOutline ? widget.config.outlineHoveredColor : widget.config.outlineColor;
     final outlineWidth = _active && isOutline ? widget.config.outlineHoveredWidth : widget.config.outlineWidth;
@@ -196,8 +233,25 @@ class _AppHoverState extends State<AppHover> {
       );
     }
 
-    void setHovered(bool v) => setState(() => _hovered = v);
-    void setFocused(bool v) => setState(() => _focused = v);
+    void playHoverSound() {
+      if (!widget.playSoundOnHover) return;
+      final key = ref.read(buttonSoundKeyProvider);
+      final asset = assetForButtonSoundKey(key);
+      if (asset.isEmpty) return;
+      HoverSoundPlayer.instance.play(asset);
+    }
+
+    void setHovered(bool v) {
+      final wasActive = _active;
+      setState(() => _hovered = v);
+      if (v && !wasActive) playHoverSound();
+    }
+
+    void setFocused(bool v) {
+      final wasActive = _active;
+      setState(() => _focused = v);
+      if (v && !wasActive) playHoverSound();
+    }
 
     Widget wrapped = MouseRegion(
       cursor: widget.cursor,
