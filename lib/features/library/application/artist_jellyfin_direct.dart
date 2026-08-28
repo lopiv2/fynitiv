@@ -1,3 +1,5 @@
+// ignore_for_file: curly_braces_in_flow_control_structures
+
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -46,7 +48,7 @@ Future<ArtistDirectResult> fetchArtistByNameExactDirect({
       urlTried = '/Artists/${Uri.encodeComponent(name)}';
       debugPrint('[DIRECT][ArtistByName] START exact GET $urlTried');
       res = await dio.get(urlTried, queryParameters: {
-        if (userId != null) 'userId': userId,
+        'userId': ?userId,
       });
       debugPrint('[DIRECT][ArtistByName] exact ${sw.elapsedMilliseconds}ms status=${res.statusCode} data=${res.data is Map ? (res.data as Map).keys.take(5).toList() : res.data.runtimeType}');
       if (res.statusCode == 200 && res.data is Map<String, dynamic>) {
@@ -74,7 +76,7 @@ Future<ArtistDirectResult> fetchArtistByNameExactDirect({
     try {
       final sw2 = Stopwatch()..start();
       final res2 = await dio.get('/Artists', queryParameters: {
-        if (userId != null) 'userId': userId,
+        'userId': ?userId,
         'SearchTerm': name,
         'Limit': 5,
       });

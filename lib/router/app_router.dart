@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -190,10 +191,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 routes: [
                   GoRoute(
                     path: 'platform/:platformId',
-                    builder: (context, state) => GameListScreen(
-                      platformId:
-                          int.tryParse(state.pathParameters['platformId']!) ??
-                          0,
+                    pageBuilder: (context, state) => CustomTransitionPage(
+                      key: state.pageKey,
+                      child: GameListScreen(
+                        platformId:
+                            int.tryParse(state.pathParameters['platformId']!) ??
+                            0,
+                      ),
+                      transitionDuration: const Duration(milliseconds: 650),
+                      reverseTransitionDuration: const Duration(milliseconds: 550),
+                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                        // Fade + slight slide, compatible con Hero
+                        final fade = FadeTransition(opacity: animation, child: child);
+                        final slide = SlideTransition(
+                          position: Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero)
+                              .chain(CurveTween(curve: Curves.easeOutCubic))
+                              .animate(animation),
+                          child: fade,
+                        );
+                        return slide;
+                      },
                     ),
                   ),
                   GoRoute(

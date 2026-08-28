@@ -695,4 +695,11 @@ class AppLocalizationsEs extends AppLocalizations {
   String recentIn(String library) {
     return 'Reciente en $library';
   }
+
+  @override
+  String get titleMarquee => 'Desplazamiento del título al pasar el ratón';
+
+  @override
+  String get titleMarqueeHint =>
+      'Si el título no cabe, se desplaza de derecha a izquierda en bucle al hacer hover (como en Jellyfin Android TV)';
 }

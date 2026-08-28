@@ -75,7 +75,7 @@ dependencies:
   path_provider: ^2.1.5
   # Renderizado de SVG (icono surfer del progreso)
   flutter_svg: ^2.2.2
-
+  cached_network_image_ce: ^4.10.1
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -119,6 +119,9 @@ flutter:
     - assets/images/icons/surfer.svg
     - assets/images/icons/spaceship.svg
     - assets/audio/splash_reveal.mp3
+    - assets/images/videogames/platforms/Consoles/
+    - assets/images/videogames/platforms/Handhelds/
+    - assets/images/videogames/platforms/Computers/ScummVM.png
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

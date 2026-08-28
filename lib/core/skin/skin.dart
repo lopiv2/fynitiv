@@ -82,6 +82,7 @@ class Skin {
     this.fontFamily,
     this.cardHoverExtension = false,
     this.homeScrolls = const [],
+    this.titleMarqueeOnHover = false,
   });
 
   final String id;
@@ -226,6 +227,10 @@ class Skin {
   /// filtros (géneros/tipos). Se muestran bajo las filas de la biblioteca.
   final List<HomeScroll> homeScrolls;
 
+  /// Cuando el título del elemento hace overflow, lo desplaza horizontalmente
+  /// en bucle al hacer hover (estilo Jellyfin Android TV). Solo si está activo.
+  final bool titleMarqueeOnHover;
+
   Skin copyWith({
     String? id,
     String? name,
@@ -280,6 +285,7 @@ class Skin {
     String? fontFamily,
     bool? cardHoverExtension,
     List<HomeScroll>? homeScrolls,
+    bool? titleMarqueeOnHover,
     bool clearSidebarLogo = false,
     bool clearCardLogo = false,
     bool clearPlayerLogo = false,
@@ -347,6 +353,8 @@ class Skin {
       cardHoverExtension:
           cardHoverExtension ?? this.cardHoverExtension,
       homeScrolls: homeScrolls ?? this.homeScrolls,
+      titleMarqueeOnHover:
+          titleMarqueeOnHover ?? this.titleMarqueeOnHover,
     );
   }
 
@@ -429,6 +437,8 @@ class Skin {
               ?.map((e) => HomeScroll.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      titleMarqueeOnHover:
+          json['titleMarqueeOnHover'] as bool? ?? false,
     );
   }
 
@@ -487,6 +497,7 @@ class Skin {
         if (fontFamily != null) 'fontFamily': fontFamily,
         'cardHoverExtension': cardHoverExtension,
         'homeScrolls': homeScrolls.map((s) => s.toJson()).toList(),
+        'titleMarqueeOnHover': titleMarqueeOnHover,
       };
 
   static Color _colorFromString(String s) {

@@ -347,6 +347,20 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                   () => _draft = _draft.copyWith(showContinueRow: v),
                 ),
               ),
+              _SwitchRow(
+                label: l10n.titleMarquee,
+                value: _draft.titleMarqueeOnHover,
+                onChanged: (v) => setState(
+                  () => _draft = _draft.copyWith(titleMarqueeOnHover: v),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  l10n.titleMarqueeHint,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ),
               _OptionRow(
                 label: l10n.cardImageType,
                 child: SegmentedButton<CardImageType>(

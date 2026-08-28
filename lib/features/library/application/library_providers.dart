@@ -121,8 +121,18 @@ final nextUpEpisodesProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         ImageType.backdrop,
       ],
       enableUserData: true,
+      enableResumable: false,
+      enableRewatching: false,
     );
-    return res.data?.items ?? [];
+    final items = res.data?.items ?? [];
+    // Solo siguientes capítulos de series sin progreso (no resumables)
+    // – excluye episodios/películas a medio ver que ya están en "Continuar viendo".
+    return items.where((e) {
+      if (e.type != BaseItemKind.episode) return false;
+      final pct = e.userData?.playedPercentage ?? 0;
+      final ticks = e.userData?.playbackPositionTicks ?? 0;
+      return pct <= 0 && ticks <= 0;
+    }).toList();
   } catch (_) {
     return const [];
   }

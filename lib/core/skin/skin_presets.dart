@@ -23,6 +23,7 @@ abstract final class SkinPresets {
     showNewReleasesRow: true,
     cardBorderRadius: 10,
     sidebarCollapsible: true,
+    titleMarqueeOnHover: true,
   );
 
   /// Estilo Disney+ (azul oscuro, acento celeste, textos claros).

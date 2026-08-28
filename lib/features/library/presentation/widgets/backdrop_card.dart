@@ -6,12 +6,13 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/hover_play_card.dart';
 import '../../../../core/widgets/logo_image.dart';
+import '../../../../core/widgets/marquee_text.dart';
 import '../../application/image_url.dart';
 import 'poster_fallback.dart';
 
 /// Tarjeta horizontal (16:9) que usa la miniatura (Thumb) del item, para filas
 /// tipo "Continuar viendo" cuando el skin prefiere imagen panorámica (Prime).
-class BackdropCard extends ConsumerWidget {
+class BackdropCard extends ConsumerStatefulWidget {
   const BackdropCard({
     super.key,
     required this.item,
@@ -47,45 +48,56 @@ class BackdropCard extends ConsumerWidget {
   final OverlayEntry? Function()? overlayBelowEntry;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    String? thumbUrl = serverUrl != null ? itemThumbUrl(serverUrl!, item) : null;
-    String? posterUrl = serverUrl != null ? itemImageUrl(serverUrl!, item) : null;
-    // Para "A continuación": usar póster de la serie en lugar del capítulo
-    if (useSeriesPoster &&
-        item.type == BaseItemKind.episode &&
-        item.seriesId != null &&
-        item.seriesId!.isNotEmpty &&
-        serverUrl != null) {
-      final tag = item.seriesPrimaryImageTag;
+  ConsumerState<BackdropCard> createState() => _BackdropCardState();
+}
+
+class _BackdropCardState extends ConsumerState<BackdropCard> {
+  bool _isHovered = false;
+
+  void _setHovered(bool v) {
+    if (_isHovered == v) return;
+    setState(() => _isHovered = v);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    String? thumbUrl = widget.serverUrl != null ? itemThumbUrl(widget.serverUrl!, widget.item) : null;
+    String? posterUrl = widget.serverUrl != null ? itemImageUrl(widget.serverUrl!, widget.item) : null;
+    if (widget.useSeriesPoster &&
+        widget.item.type == BaseItemKind.episode &&
+        widget.item.seriesId != null &&
+        widget.item.seriesId!.isNotEmpty &&
+        widget.serverUrl != null) {
+      final tag = widget.item.seriesPrimaryImageTag;
       posterUrl = tag != null && tag.isNotEmpty
-          ? '$serverUrl/Items/${item.seriesId}/Images/Primary?maxWidth=300&tag=$tag'
-          : '$serverUrl/Items/${item.seriesId}/Images/Primary?maxWidth=300';
+          ? '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300&tag=$tag'
+          : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300';
       thumbUrl = null;
     }
-    final progress = item.userData?.playedPercentage;
+    final progress = widget.item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
     final radius = skin?.cardBorderRadius ?? 10;
     final accent = skin?.accent ?? const Color(0xFF2B7FFF);
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final logoSize = skin?.cardLogoSize ?? 18;
-    final showExtension = hoverExtension && (skin?.cardHoverExtension ?? false);
-    // Título y subtítulo para Novedades (cualquier skin).
-    final artist = (item.artists?.firstOrNull?.trim().isNotEmpty == true
-            ? item.artists!.first.trim()
-            : (item.albumArtist?.trim().isNotEmpty == true
-                ? item.albumArtist!.trim()
-                : item.albumArtists?.firstOrNull?.name?.trim() ?? ''))
+    final showExtension = widget.hoverExtension && (skin?.cardHoverExtension ?? false);
+    final marqueeEnabled = skin?.titleMarqueeOnHover ?? false;
+    final artist = (widget.item.artists?.firstOrNull?.trim().isNotEmpty == true
+            ? widget.item.artists!.first.trim()
+            : (widget.item.albumArtist?.trim().isNotEmpty == true
+                ? widget.item.albumArtist!.trim()
+                : widget.item.albumArtists?.firstOrNull?.name?.trim() ?? ''))
         .trim();
-    String cardTitle = item.name ?? '';
+    String cardTitle = widget.item.name ?? '';
     String? subtitle;
     if (artist.isNotEmpty) {
       subtitle = artist;
-    } else if (item.type == BaseItemKind.episode) {
-      final season = item.parentIndexNumber;
-      final epNum = item.indexNumber;
-      final epName = item.name?.trim() ?? '';
-      final series = item.seriesName?.trim() ?? '';
+    } else if (widget.item.type == BaseItemKind.episode) {
+      final season = widget.item.parentIndexNumber;
+      final epNum = widget.item.indexNumber;
+      final epName = widget.item.name?.trim() ?? '';
+      final series = widget.item.seriesName?.trim() ?? '';
       String? se;
       if (season != null && epNum != null) {
         se = 'S$season:E$epNum';
@@ -101,14 +113,14 @@ class BackdropCard extends ConsumerWidget {
         subtitle = epName;
         cardTitle = series;
       }
-    } else if (item.type == BaseItemKind.series) {
-      final year = item.productionYear;
+    } else if (widget.item.type == BaseItemKind.series) {
+      final year = widget.item.productionYear;
       if (year != null) subtitle = '$year';
-    } else if (item.type == BaseItemKind.movie) {
-      final year = item.productionYear;
+    } else if (widget.item.type == BaseItemKind.movie) {
+      final year = widget.item.productionYear;
       if (year != null) subtitle = '$year';
     } else {
-      final people = item.people;
+      final people = widget.item.people;
       if (people != null && people.isNotEmpty) {
         const priority = [
           PersonKind.author,
@@ -126,22 +138,20 @@ class BackdropCard extends ConsumerWidget {
         }
       }
       if (subtitle == null &&
-          (item.type == BaseItemKind.book || item.type == BaseItemKind.audioBook)) {
-        final fallbackName = item.people?.firstOrNull?.name?.trim();
+          (widget.item.type == BaseItemKind.book || widget.item.type == BaseItemKind.audioBook)) {
+        final fallbackName = widget.item.people?.firstOrNull?.name?.trim();
         if (fallbackName != null && fallbackName.isNotEmpty) {
           subtitle = fallbackName;
         }
         if (subtitle == null) {
-          final studio = item.studios?.firstOrNull?.name?.trim();
+          final studio = widget.item.studios?.firstOrNull?.name?.trim();
           if (studio != null && studio.isNotEmpty) subtitle = studio;
         }
       }
       if (subtitle != null && subtitle.isEmpty) subtitle = null;
     }
 
-    // Prefiere la miniatura (Thumb); si el item no tiene (o falla), usa el
-    // póster en la misma proporción 16:9; si tampoco hay, muestra la letra.
-    final fallback = PosterFallback(item: item, color: fallbackColor);
+    final fallback = PosterFallback(item: widget.item, color: fallbackColor);
     final Widget image;
     if (thumbUrl != null) {
       image = Image.network(
@@ -165,84 +175,92 @@ class BackdropCard extends ConsumerWidget {
       image = fallback;
     }
 
-    return HoverPlayCard(
-      title: cardTitle,
-      subtitle: subtitle,
-      onPlay: onTap ?? () {},
-      onImageTap: onImageTap,
-      showExtension: showExtension,
-      onHoverChanged: onHoverChanged,
-      onPointerSignal: onPointerSignal,
-      overlayBelowEntry: overlayBelowEntry,
-      resume: (item.userData?.playbackPositionTicks ?? 0) > 0,
-      ageRating: item.officialRating,
-      year: item.productionYear,
-      runTimeTicks: item.runTimeTicks,
-      overview: item.overview,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Al hacer hover (hovercard visible) las esquinas pasan a ser
-          // rectas; solo sin hover conservan el radio redondeado.
-          HoverPlayRadius(
-            radius: radius * 6,
-            child: AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  image,
-                  // Barra de progreso de reproducción (Continuar viendo),
-                  // superpuesta en la parte inferior de la tarjeta.
-                  if (progress != null && progress > 0)
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: LinearProgressIndicator(
-                        value: (progress / 100).clamp(0.0, 1.0),
-                        minHeight: 5,
-                        backgroundColor: Colors.black38,
-                        valueColor: AlwaysStoppedAnimation<Color>(accent),
-                      ),
+    final cardContent = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        HoverPlayRadius(
+          radius: radius * 6,
+          child: AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                image,
+                if (progress != null && progress > 0)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: LinearProgressIndicator(
+                      value: (progress / 100).clamp(0.0, 1.0),
+                      minHeight: 5,
+                      backgroundColor: Colors.black38,
+                      valueColor: AlwaysStoppedAnimation<Color>(accent),
                     ),
-                  // Logotipo superpuesto abajo a la derecha.
-                  if (cardLogo != null && cardLogo!.isNotEmpty)
-                    Positioned(
-                      right: 10,
-                      bottom: 10,
-                      child: LogoImage(logo: cardLogo!, height: logoSize),
-                    ),
-                ],
-              ),
+                  ),
+                if (widget.cardLogo != null && widget.cardLogo!.isNotEmpty)
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: LogoImage(logo: widget.cardLogo!, height: logoSize),
+                  ),
+              ],
             ),
           ),
-          // Con el panel de extensión (Prime) el título no se muestra bajo la
-          // imagen: aparece en el propio panel al hacer hover, evitando que
-          // se vea dos veces.
-          if (!showExtension) ...[
-            const SizedBox(height: 6),
+        ),
+        if (!showExtension) ...[
+          const SizedBox(height: 6),
+          marqueeEnabled
+              ? MarqueeText(
+                  text: cardTitle,
+                  style: TextStyle(color: textPrimary, fontSize: 14),
+                  isHovered: _isHovered,
+                  enabled: true,
+                )
+              : Text(
+                  cardTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: textPrimary, fontSize: 13),
+                ),
+          if (subtitle != null) ...[
+            const SizedBox(height: 2),
             Text(
-              cardTitle,
+              subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: textPrimary, fontSize: 13),
-            ),
-            if (subtitle != null) ...[
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: skin?.textSecondary ?? Colors.white70,
-                  fontSize: 11,
-                ),
+              style: TextStyle(
+                color: skin?.textSecondary ?? Colors.white70,
+                fontSize: 11,
               ),
-            ],
+            ),
           ],
         ],
+      ],
+    );
+
+    return MouseRegion(
+      onEnter: (_) => _setHovered(true),
+      onExit: (_) => _setHovered(false),
+      child: HoverPlayCard(
+        title: cardTitle,
+        subtitle: subtitle,
+        onPlay: widget.onTap ?? () {},
+        onImageTap: widget.onImageTap,
+        showExtension: showExtension,
+        onHoverChanged: (v) {
+          _setHovered(v);
+          widget.onHoverChanged?.call(v);
+        },
+        onPointerSignal: widget.onPointerSignal,
+        overlayBelowEntry: widget.overlayBelowEntry,
+        resume: (widget.item.userData?.playbackPositionTicks ?? 0) > 0,
+        ageRating: widget.item.officialRating,
+        year: widget.item.productionYear,
+        runTimeTicks: widget.item.runTimeTicks,
+        overview: widget.item.overview,
+        child: cardContent,
       ),
     );
   }

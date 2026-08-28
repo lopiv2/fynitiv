@@ -137,7 +137,8 @@ class RommRepository {
               customName: p['custom_name'] as String?,
               romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0,
               logoUrl: _logoUrl(
-                (p['url_logo'] ?? p['logo_path'] ?? p['path_logo'] ?? p['img_path'] ?? p['logo']) as String?,
+                // Prioridad: logo_path interno de ROMM > url_logo externo IGDB
+                (p['logo_path'] ?? p['path_logo'] ?? p['url_logo'] ?? p['img_path'] ?? p['logo']) as String?,
               ),
             )
           else if (p is Map)
@@ -147,7 +148,7 @@ class RommRepository {
               name: (p['name'] ?? p['fs_name'])?.toString() ?? '',
               customName: p['custom_name']?.toString(),
               romCount: (p['rom_count'] ?? p['roms_count'] ?? p['count']) is num ? ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num).toInt() : 0,
-              logoUrl: _logoUrl((p['url_logo'] ?? p['logo_path'] ?? p['path_logo'])?.toString()),
+              logoUrl: _logoUrl((p['logo_path'] ?? p['path_logo'] ?? p['url_logo'])?.toString()),
             ),
       ];
       final filtered = mapped.where((p) => p.romCount > 0).toList();
@@ -163,7 +164,7 @@ class RommRepository {
             return [
               for (final p in list)
                 if (p is Map<String, dynamic>)
-                  RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['url_logo'] ?? p['logo_path']) as String?)),
+                  RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?)),
             ];
           }
         } catch (_) {}
@@ -176,7 +177,7 @@ class RommRepository {
             return [
               for (final p in list)
                 if (p is Map<String, dynamic>)
-                  RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['url_logo'] ?? p['logo_path']) as String?)),
+                  RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?)),
             ];
           }
         } catch (_) {}

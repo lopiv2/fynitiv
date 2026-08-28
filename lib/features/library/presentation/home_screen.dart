@@ -36,6 +36,14 @@ class HomeScreen extends ConsumerWidget {
     final hoverReveal =
         (skin?.bannerHoverReveal ?? false) &&
         platformMode == PlatformMode.desktop;
+    // "A continuación" solo debe mostrar siguientes capítulos de series sin
+    // progreso (no resumables). Filtra episodios a medio ver / películas.
+    final nextUpFiltered = (nextUp.value ?? const <BaseItemDto>[]).where((e) {
+      if (e.type != BaseItemKind.episode) return false;
+      final pct = e.userData?.playedPercentage ?? 0;
+      final ticks = e.userData?.playbackPositionTicks ?? 0;
+      return pct <= 0 && ticks <= 0;
+    }).toList();
 
     // Carga inicial: mientras los datos principales no tienen contenido y se
     // están resolviendo, se muestra un loader.
@@ -97,16 +105,16 @@ class HomeScreen extends ConsumerWidget {
                           context.push('/home/details/${item.id}', extra: item),
                     ),
                   // Fila solo para series: siguiente episodio (Shows/NextUp)
-                  // Usa siempre imagen principal vertical (póster) de la serie, no del capítulo.
-                  if ((nextUp.value?.isNotEmpty ?? false))
+                  // Usa imagen horizontal (backdrop/thumb) como "Continuar viendo".
+                  // Solo episodios sin progreso; los a medio ver van en "Continuar viendo".
+                  if (nextUpFiltered.isNotEmpty)
                     ContentRow(
                       title: l10n.upNext,
-                      items: nextUp.value ?? const [],
+                      items: nextUpFiltered,
                       serverUrl: serverUrl,
                       height: skin?.homeRowHeight ?? 270,
                       cardWidth: skin?.homeCardWidth ?? 150,
-                      useBackdrop: false,
-                      useSeriesPoster: true,
+                      useBackdrop: useBackdrop,
                       cardLogo: skin?.cardLogo,
                       onItemTap: (item) =>
                           context.push('/player/${item.id}', extra: item),

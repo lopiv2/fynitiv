@@ -234,5 +234,7 @@
         "type": "String"
       }
     }
-  }
+  },
+  "titleMarquee": "Title marquee on hover",
+  "titleMarqueeHint": "When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)"
 }

@@ -694,4 +694,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String recentIn(String library) {
     return 'Recent in $library';
   }
+
+  @override
+  String get titleMarquee => 'Title marquee on hover';
+
+  @override
+  String get titleMarqueeHint =>
+      'When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)';
 }

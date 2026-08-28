@@ -1435,6 +1435,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Recent in {library}'**
   String recentIn(String library);
+
+  /// No description provided for @titleMarquee.
+  ///
+  /// In en, this message translates to:
+  /// **'Title marquee on hover'**
+  String get titleMarquee;
+
+  /// No description provided for @titleMarqueeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)'**
+  String get titleMarqueeHint;
 }
 
 class _AppLocalizationsDelegate

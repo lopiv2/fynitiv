@@ -1,378 +1,484 @@
-﻿import 'package:flutter/gestures.dart';
-import 'package:flutter/services.dart';
+﻿import 'dart:ui';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
+import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
-import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
+import '../data/platform_asset_resolver.dart';
+import '../data/platform_category.dart';
 import '../domain/romm_platform.dart';
 
-/// Juego online: biblioteca de ROMM en modo consola (slider de plataformas).
-/// No carga todos los juegos de golpe para evitar 403/overhead con bibliotecas grandes.
-class GamesScreen extends ConsumerWidget {
+/// Juego online: estilo Steam / Apple Arcade
+/// Grid responsive + filtros + búsqueda + Hero + glassmorphism con fallback.
+class GamesScreen extends ConsumerStatefulWidget {
   const GamesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GamesScreen> createState() => _GamesScreenState();
+}
+
+class _GamesScreenState extends ConsumerState<GamesScreen> {
+  String _query = '';
+  PlatformCategory _filter = PlatformCategory.all;
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final auth = ref.watch(rommAuthProvider);
     final config = ref.watch(rommConfigProvider);
     final platforms = ref.watch(rommPlatformsProvider);
+
     return Scaffold(
       body: DashboardBackground(
         child: auth.loading
             ? const Center(child: AppLoader())
             : !auth.authenticated
-            ? _NoServer(onConfigure: () => context.go('/settings'))
-            : config.isLoading
-            ? const Center(child: AppLoader())
-            : platforms.when(
-                loading: () => const Center(child: AppLoader()),
-                error: (e, _) => _ErrorView(
-                  error: e,
-                  onRetry: () => ref.invalidate(rommPlatformsProvider),
+                ? _NoServer(onConfigure: () => context.go('/settings'))
+                : config.isLoading
+                    ? const Center(child: AppLoader())
+                    : platforms.when(
+                        loading: () => const Center(child: AppLoader()),
+                        error: (e, _) => _ErrorView(
+                          error: e,
+                          onRetry: () => ref.invalidate(rommPlatformsProvider),
+                        ),
+                        data: (list) {
+                          if (list.isEmpty) {
+                            return _EmptyView(
+                              message: l10n.gamesEmpty,
+                              onConfigure: () => context.go('/settings'),
+                            );
+                          }
+                          // Filtrado por búsqueda + categoría
+                          final filtered = list.where((p) {
+                            final asset = PlatformAssetResolver.resolve(p);
+                            final cat = categoryForPlatform(asset, p.slug);
+                            final matchesCategory = _filter == PlatformCategory.all || cat == _filter;
+                            if (!matchesCategory) return false;
+                            if (_query.isEmpty) return true;
+                            final q = _query.toLowerCase();
+                            return p.displayName.toLowerCase().contains(q) ||
+                                p.slug.toLowerCase().contains(q) ||
+                                p.name.toLowerCase().contains(q);
+                          }).toList();
+
+                          return CustomScrollView(
+                            slivers: [
+                              SliverToBoxAdapter(child: _HeroHeader(
+                                totalPlatforms: list.length,
+                                totalGames: list.fold<int>(0, (s, p) => s + p.romCount),
+                                query: _query,
+                                onQueryChanged: (v) => setState(() => _query = v),
+                                controller: _searchController,
+                              )),
+                              SliverToBoxAdapter(child: _FilterChips(
+                                selected: _filter,
+                                onSelected: (c) => setState(() => _filter = c),
+                                counts: _countsByCategory(list),
+                              )),
+                              if (filtered.isEmpty)
+                                SliverToBoxAdapter(
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(32),
+                                    child: Center(
+                                      child: Text(
+                                        'Sin resultados para "$_query"',
+                                        style: const TextStyle(color: Colors.white54),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else
+                                SliverPadding(
+                                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                                  sliver: SliverLayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final w = constraints.crossAxisExtent;
+                                      int crossCount;
+                                      if (w < 500) {
+                                        crossCount = 2;
+                                      } else if (w < 800) {
+                                        crossCount = 3;
+                                      } else if (w < 1100) {
+                                        crossCount = 4;
+                                      } else if (w < 1400) {
+                                        crossCount = 5;
+                                      } else {
+                                        crossCount = 6;
+                                      }
+                                      return SliverGrid(
+                                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: crossCount,
+                                          mainAxisSpacing: 14,
+                                          crossAxisSpacing: 14,
+                                          childAspectRatio: 0.95,
+                                        ),
+                                        delegate: SliverChildBuilderDelegate(
+                                          (context, i) => _PlatformCard(
+                                            platform: filtered[i],
+                                            heroTag: 'platform-logo-${filtered[i].id}',
+                                          ),
+                                          childCount: filtered.length,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                                  child: Text(
+                                    '${filtered.length} plataformas · ${filtered.fold<int>(0, (s, p) => s + p.romCount)} juegos',
+                                    style: const TextStyle(color: Colors.white38, fontSize: 12),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+      ),
+    );
+  }
+
+  Map<PlatformCategory, int> _countsByCategory(List<RommPlatform> list) {
+    final m = <PlatformCategory, int>{for (var c in PlatformCategory.values) c: 0};
+    m[PlatformCategory.all] = list.length;
+    for (final p in list) {
+      final cat = categoryForPlatform(PlatformAssetResolver.resolve(p), p.slug);
+      m[cat] = (m[cat] ?? 0) + 1;
+    }
+    return m;
+  }
+}
+
+class _HeroHeader extends ConsumerWidget {
+  const _HeroHeader({
+    required this.totalPlatforms,
+    required this.totalGames,
+    required this.query,
+    required this.onQueryChanged,
+    required this.controller,
+  });
+
+  final int totalPlatforms;
+  final int totalGames;
+  final String query;
+  final ValueChanged<String> onQueryChanged;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final skin = ref.watch(skinControllerProvider).value;
+    final textPrimary = skin?.textPrimary ?? Colors.white;
+
+    // Glassmorphism con fallback a DashboardBackground si falla el blur
+    Widget headerContent = Container(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.08),
+            Colors.white.withValues(alpha: 0.02),
+          ],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: (skin?.accent ?? const Color(0xFF2B7FFF)).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                data: (list) => list.isEmpty
-                    ? _EmptyView(
-                        message: l10n.gamesEmpty,
-                        onConfigure: () => context.go('/settings'),
-                      )
-                    : _PlatformSlider(platforms: list),
+                child: Icon(Icons.sports_esports, color: skin?.accent ?? const Color(0xFF2B7FFF), size: 28),
               ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.games,
+                      style: TextStyle(color: textPrimary, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(l10n.gamesSubtitle, style: const TextStyle(color: Colors.white60, fontSize: 13, height: 1.3)),
+                    const SizedBox(height: 8),
+                    Text('$totalPlatforms plataformas · $totalGames juegos',
+                        style: const TextStyle(color: Colors.white38, fontSize: 12)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Search
+          TextField(
+            controller: controller,
+            onChanged: onQueryChanged,
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'Buscar plataforma...',
+              hintStyle: const TextStyle(color: Colors.white38),
+              prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38, size: 20),
+              suffixIcon: query.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, color: Colors.white54, size: 18),
+                      onPressed: () {
+                        controller.clear();
+                        onQueryChanged('');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.white.withValues(alpha: 0.07),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white12)),
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white12)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: (skin?.accent ?? const Color(0xFF2B7FFF)).withValues(alpha: 0.6))),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Intento glassmorphism: si el device no soporta BackdropFilter, el fallback es el Container de arriba sin blur
+    // Envuelto en ClipRRect + BackdropFilter; si falla, se ve solo el Container (dashboardBackground detrás)
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: headerContent,
+        ),
       ),
     );
   }
 }
 
-class _HorizontalPlatformScrollBehavior extends MaterialScrollBehavior {
-  const _HorizontalPlatformScrollBehavior();
-  @override
-  Set<PointerDeviceKind> get dragDevices => {
-    PointerDeviceKind.touch,
-    PointerDeviceKind.mouse,
-    PointerDeviceKind.trackpad,
-    PointerDeviceKind.stylus,
-    PointerDeviceKind.invertedStylus,
-  };
-  @override
-  Set<LogicalKeyboardKey> get pointerAxisModifiers =>
-      const <LogicalKeyboardKey>{};
-}
+class _FilterChips extends StatelessWidget {
+  const _FilterChips({required this.selected, required this.onSelected, required this.counts});
 
-/// Slider horizontal de plataformas al estilo consola de RomM:
-/// cada consola muestra logo, nombre y nÃºmero de juegos.
-/// Scroll mejorado: arrastre con ratÃ³n/trackpad, rueda sin Shift, botones laterales y scrollbar.
-class _PlatformSlider extends ConsumerStatefulWidget {
-  const _PlatformSlider({required this.platforms});
-
-  final List<RommPlatform> platforms;
-
-  @override
-  ConsumerState<_PlatformSlider> createState() => _PlatformSliderState();
-}
-
-class _PlatformSliderState extends ConsumerState<_PlatformSlider> {
-  late final ScrollController _controller;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = ScrollController();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _scrollBy(double delta) {
-    if (!_controller.hasClients) return;
-    final target = (_controller.offset + delta).clamp(
-      0.0,
-      _controller.position.maxScrollExtent,
-    );
-    _controller.animateTo(
-      target,
-      duration: const Duration(milliseconds: 320),
-      curve: Curves.easeOutCubic,
-    );
-  }
+  final PlatformCategory selected;
+  final ValueChanged<PlatformCategory> onSelected;
+  final Map<PlatformCategory, int> counts;
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final skin = ref.watch(skinControllerProvider).value;
-    final textPrimary = skin?.textPrimary ?? Colors.white;
-
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(24, 24, 24, 24),
-      children: [
-        Text(
-          l10n.games,
-          style: TextStyle(
-            color: textPrimary,
-            fontSize: 24,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          l10n.gamesSubtitle,
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
-        ),
-        const SizedBox(height: 20),
-        SizedBox(
-          height: 170,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              Positioned.fill(
-                child: ScrollConfiguration(
-                  behavior: const _HorizontalPlatformScrollBehavior(),
-                  child: Scrollbar(
-                    controller: _controller,
-                    thumbVisibility: false,
-                    trackVisibility: false,
-                    child: ListView.separated(
-                      controller: _controller,
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(
-                        parent: AlwaysScrollableScrollPhysics(),
-                      ),
-                      padding: const EdgeInsets.symmetric(horizontal: 36),
-                      separatorBuilder: (_, _) => const SizedBox(width: 14),
-                      itemCount: widget.platforms.length,
-                      itemBuilder: (context, i) =>
-                          _PlatformCard(platform: widget.platforms[i]),
-                    ),
-                  ),
-                ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: [
+          for (final cat in PlatformCategory.values)
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Text('${cat.label} (${counts[cat] ?? 0})'),
+                selected: selected == cat,
+                onSelected: (_) => onSelected(cat),
+                selectedColor: Colors.white.withValues(alpha: 0.14),
+                backgroundColor: Colors.white.withValues(alpha: 0.06),
+                labelStyle: TextStyle(color: selected == cat ? Colors.white : Colors.white70, fontWeight: FontWeight.w600, fontSize: 13),
+                side: BorderSide(color: selected == cat ? Colors.white24 : Colors.white10),
+                showCheckmark: false,
               ),
-              if (widget.platforms.length > 3) ...[
-                Positioned(
-                  left: 0,
-                  child: _ScrollArrow(
-                    icon: Icons.chevron_left_rounded,
-                    onTap: () => _scrollBy(-320),
-                  ),
-                ),
-                Positioned(
-                  right: 0,
-                  child: _ScrollArrow(
-                    icon: Icons.chevron_right_rounded,
-                    onTap: () => _scrollBy(320),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '${widget.platforms.length} plataformas Â· ${widget.platforms.fold<int>(0, (s, p) => s + p.romCount)} juegos',
-          style: const TextStyle(color: Colors.white38, fontSize: 12),
-        ),
-      ],
-    );
-  }
-}
-
-class _ScrollArrow extends StatelessWidget {
-  const _ScrollArrow({required this.icon, required this.onTap});
-  final IconData icon;
-  final VoidCallback onTap;
-  @override
-  Widget build(BuildContext context) {
-    return ScaleButton(
-      onPressed: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.black.withValues(alpha: 0.45),
-          border: Border.all(color: Colors.white24),
-        ),
-        child: Icon(icon, color: Colors.white, size: 22),
+            ),
+        ],
       ),
     );
   }
 }
 
 class _PlatformCard extends ConsumerWidget {
-  const _PlatformCard({required this.platform});
+  const _PlatformCard({required this.platform, required this.heroTag});
 
   final RommPlatform platform;
+  final String heroTag;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final skin = ref.watch(skinControllerProvider).value;
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final textSecondary = skin?.textSecondary ?? Colors.white70;
+    final accent = skin?.accent ?? const Color(0xFF2B7FFF);
     final fallback = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final token = ref.watch(rommRepositoryProvider)?.token;
-    final headers = token != null && token.isNotEmpty
-        ? <String, String>{'Authorization': 'Bearer $token'}
-        : null;
+    final headers = token != null && token.isNotEmpty ? <String, String>{'Authorization': 'Bearer $token'} : null;
 
-    return ScaleButton(
-      onPressed: () => context.push('/games/platform/${platform.id}'),
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        width: 148,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(14),
-          color: Colors.white.withValues(alpha: 0.06),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(
-              child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(14),
-                ),
-                child: Container(
-                  color: fallback,
-                  padding: const EdgeInsets.all(12),
-                  alignment: Alignment.center,
-                  child:
-                      platform.logoUrl != null && platform.logoUrl!.isNotEmpty
-                      ? _PlatformLogoImage(
-                          url: platform.logoUrl!,
-                          headers: headers,
-                          fallback: _PlatformFallback(
-                            platform: platform,
-                            color: fallback,
-                          ),
-                        )
-                      : _PlatformFallback(platform: platform, color: fallback),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    platform.displayName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: textPrimary,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: fallback.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${platform.romCount} juegos',
-                      style: TextStyle(
-                        color: textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    final localAsset = PlatformAssetResolver.resolve(platform);
+
+    Widget logoContent;
+    if (localAsset != null) {
+      logoContent = Image.asset(localAsset, fit: BoxFit.contain, errorBuilder: (_, _, _) => _PlatformFallback(platform: platform, color: Colors.transparent));
+    } else if (platform.logoUrl != null && platform.logoUrl!.isNotEmpty) {
+      logoContent = _PlatformLogoImage(url: platform.logoUrl!, headers: headers, fallback: _PlatformFallback(platform: platform, color: Colors.transparent));
+    } else {
+      logoContent = _PlatformFallback(platform: platform, color: Colors.transparent);
+    }
+
+    // Hero visible y más lento: vuelo con arc + fade/scale, placeholder transparente
+    final heroLogo = Hero(
+      tag: heroTag,
+      createRectTween: (begin, end) => MaterialRectArcTween(begin: begin, end: end),
+      flightShuttleBuilder: (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
+        final hero = flightDirection == HeroFlightDirection.push ? toHeroContext.widget as Hero : fromHeroContext.widget as Hero;
+        return FadeTransition(
+          opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
+          child: ScaleTransition(
+            scale: animation.drive(Tween<double>(begin: 0.92, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic))),
+            child: hero.child,
+          ),
+        );
+      },
+      placeholderBuilder: (context, heroSize, child) => SizedBox.fromSize(size: heroSize, child: Opacity(opacity: 0, child: child)),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Container(
+          decoration: BoxDecoration(
+            color: fallback.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          padding: const EdgeInsets.all(14),
+          alignment: Alignment.center,
+          child: logoContent,
         ),
       ),
+    );
+
+    // Card con glassmorphism + fallback a DashboardBackground si blur falla
+    final cardChild = Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Colors.white.withValues(alpha: 0.08), Colors.white.withValues(alpha: 0.03)],
+        ),
+        border: Border.all(color: Colors.white12),
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 12, offset: const Offset(0, 6))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              margin: const EdgeInsets.all(10),
+              child: heroLogo,
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(platform.displayName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: textPrimary, fontSize: 13.5, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                      decoration: BoxDecoration(color: accent.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20), border: Border.all(color: accent.withValues(alpha: 0.3))),
+                      child: Text('${platform.romCount} juegos', style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ),
+                    const Spacer(),
+                    Icon(Icons.chevron_right_rounded, color: textSecondary.withValues(alpha: 0.6), size: 16),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    // Glass card con blur; fallback es el mismo card sin blur (DashboardBackground detrás)
+    final glassCard = ClipRRect(
+      borderRadius: BorderRadius.circular(16),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: cardChild,
+      ),
+    );
+
+    return AppHover(
+      effect: AppHoverEffect.scale,
+      config: AppHoverConfig.scaleOnly(scale: 1.04, radius: BorderRadius.circular(16)),
+      onTap: () => context.push('/games/platform/${platform.id}', extra: platform),
+      child: glassCard,
     );
   }
 }
 
 class _PlatformLogoImage extends StatelessWidget {
-  const _PlatformLogoImage({
-    required this.url,
-    required this.headers,
-    required this.fallback,
-  });
-
+  const _PlatformLogoImage({required this.url, required this.headers, required this.fallback});
   final String url;
   final Map<String, String>? headers;
   final Widget fallback;
-
-  bool get _isSvg {
-    final lower = url.toLowerCase();
-    return lower.endsWith('.svg') || lower.contains('.svg?');
-  }
-
+  bool get _isSvg => url.toLowerCase().endsWith('.svg') || url.toLowerCase().contains('.svg?');
   @override
   Widget build(BuildContext context) {
     if (_isSvg) {
-      return SvgPicture.network(
-        url,
-        headers: headers,
-        fit: BoxFit.contain,
-        placeholderBuilder: (_) => fallback,
-      );
+      return SvgPicture.network(url, headers: headers, fit: BoxFit.contain, placeholderBuilder: (_) => fallback);
     }
-    return Image.network(
-      url,
-      headers: headers,
+    return CachedNetworkImage(
+      imageUrl: url,
+      httpHeaders: headers ?? const {},
       fit: BoxFit.contain,
-      errorBuilder: (_, _, _) => fallback,
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return const Center(
-          child: SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-        );
-      },
+      placeholder: (context, _) => const Center(child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))),
+      errorBuilder: (context, error, stackTrace) => fallback,
+      memCacheWidth: 300,
+      maxWidthDiskCache: 300,
+      fadeInDuration: const Duration(milliseconds: 150),
+      useOldImageOnUrlChange: true,
     );
   }
 }
 
 class _PlatformFallback extends StatelessWidget {
   const _PlatformFallback({required this.platform, required this.color});
-
   final RommPlatform platform;
   final Color color;
-
   @override
   Widget build(BuildContext context) {
     final name = platform.displayName;
     return Container(
-      color: color,
+      color: color.withValues(alpha: 0.0),
       alignment: Alignment.center,
-      child: Text(
-        name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(),
-        style: const TextStyle(color: Colors.white70, fontSize: 28),
-      ),
+      child: Text(name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 28)),
     );
   }
 }
 
 class _NoServer extends StatelessWidget {
   const _NoServer({required this.onConfigure});
-
   final VoidCallback onConfigure;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -382,20 +488,9 @@ class _NoServer extends StatelessWidget {
         children: [
           const Icon(Icons.sports_esports, color: Colors.white24, size: 56),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              l10n.gamesNoServer,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54, fontSize: 14),
-            ),
-          ),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 32), child: Text(l10n.gamesNoServer, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 14))),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: onConfigure,
-            icon: const Icon(Icons.settings, size: 18),
-            label: Text(l10n.gamesConfigure),
-          ),
+          FilledButton.icon(onPressed: onConfigure, icon: const Icon(Icons.settings, size: 18), label: Text(l10n.gamesConfigure)),
         ],
       ),
     );
@@ -404,10 +499,8 @@ class _NoServer extends StatelessWidget {
 
 class _EmptyView extends StatelessWidget {
   const _EmptyView({required this.message, required this.onConfigure});
-
   final String message;
   final VoidCallback onConfigure;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -415,26 +508,11 @@ class _EmptyView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.videogame_asset_off,
-            color: Colors.white24,
-            size: 48,
-          ),
+          const Icon(Icons.videogame_asset_off, color: Colors.white24, size: 48),
           const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
-            child: Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54, fontSize: 14),
-            ),
-          ),
+          Padding(padding: const EdgeInsets.symmetric(horizontal: 32), child: Text(message, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 14))),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: onConfigure,
-            icon: const Icon(Icons.settings, size: 18),
-            label: Text(l10n.gamesConfigure),
-          ),
+          FilledButton.icon(onPressed: onConfigure, icon: const Icon(Icons.settings, size: 18), label: Text(l10n.gamesConfigure)),
         ],
       ),
     );
@@ -443,50 +521,26 @@ class _EmptyView extends StatelessWidget {
 
 class _ErrorView extends StatelessWidget {
   const _ErrorView({required this.error, required this.onRetry});
-
   final Object error;
   final VoidCallback onRetry;
-
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final msg = '$error';
-    final isForbidden =
-        msg.contains('403') || msg.toLowerCase().contains('forbidden');
+    final isForbidden = msg.contains('403') || msg.toLowerCase().contains('forbidden');
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isForbidden ? Icons.lock_outline : Icons.error_outline,
-              color: Colors.white38,
-              size: 48,
-            ),
+            Icon(isForbidden ? Icons.lock_outline : Icons.error_outline, color: Colors.white38, size: 48),
             const SizedBox(height: 12),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: SelectableText(
-                isForbidden
-                    ? 'Acceso denegado (403). Verifica permisos del usuario ROMM en el servidor.\n\nDetalle: $msg'
-                    : msg,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white54, fontSize: 12),
-              ),
-            ),
+            Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: SelectableText(isForbidden ? 'Acceso denegado (403). Verifica permisos del usuario ROMM en el servidor.\n\nDetalle: $msg' : msg, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54, fontSize: 12))),
             const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: Text(l10n.retry),
-            ),
+            FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh_rounded, size: 18), label: Text(l10n.retry)),
             const SizedBox(height: 8),
-            OutlinedButton.icon(
-              onPressed: () => context.go('/settings'),
-              icon: const Icon(Icons.settings, size: 16),
-              label: Text(l10n.gamesConfigure),
-            ),
+            OutlinedButton.icon(onPressed: () => context.go('/settings'), icon: const Icon(Icons.settings, size: 16), label: Text(l10n.gamesConfigure)),
           ],
         ),
       ),

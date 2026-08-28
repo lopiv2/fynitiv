@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fynitiv/features/library/application/artist_jellyfin_direct.dart';
 import 'package:fynitiv/features/library/application/library_providers.dart';
+import 'package:material_ui/material_ui.dart';
 
 /// Test manual para comparar jellyfin_dart vs API directa
 /// Uso: flutter test test/artist_direct_benchmark_test.dart -- --dart-define=SERVER_URL=... --dart-define=TOKEN=... --dart-define=USER_ID=... --dart-define=ARTIST=Aitana
@@ -21,7 +22,7 @@ void main() {
       // Para prueba rápida sin credenciales, solo verifica que la función existe y no crashea con params vacíos
       final result = await fetchArtistByNameExactDirect(serverUrl: '', token: '', userId: '', artistName: artist);
       expect(result.error, isNotNull);
-      print('Sin SERVER_URL: test de función directa OK (error esperado)');
+      debugPrint('Sin SERVER_URL: test de función directa OK (error esperado)');
       return;
     }
 
@@ -29,7 +30,7 @@ void main() {
     final container = ProviderContainer();
     final client = container.read(jellyfinClientProvider);
     final result = await fetchArtistByNameExactDirect(serverUrl: serverUrl, token: token, userId: userId.isEmpty ? null : userId, artistName: artist);
-    print('DIRECT exact sin parentId: ${result.elapsedMs}ms artist=${result.artist?.name} items=${result.items?.length} error=${result.error}');
+    debugPrint('DIRECT exact sin parentId: ${result.elapsedMs}ms artist=${result.artist?.name} items=${result.items?.length} error=${result.error}');
     expect(result.elapsedMs, greaterThanOrEqualTo(0));
 
     // Benchmark comparativo
