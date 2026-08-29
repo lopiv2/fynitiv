@@ -1,6 +1,8 @@
-﻿import 'dart:convert';
+﻿// ignore_for_file: use_null_aware_elements
+import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
@@ -127,14 +129,34 @@ class RommRepository {
       } else {
         list = const [];
       }
+      String strVal(dynamic v) => v?.toString().trim() ?? '';
+      String pickName(Map p) {
+        final n = strVal(p['name']);
+        if (n.isNotEmpty) return n;
+        final fs = strVal(p['fs_name']);
+        if (fs.isNotEmpty) return fs;
+        final cn = strVal(p['custom_name']);
+        if (cn.isNotEmpty) return cn;
+        return strVal(p['slug']).isNotEmpty ? strVal(p['slug']) : strVal(p['fs_slug']);
+      }
+
+      String pickSlug(Map p) {
+        final s = strVal(p['slug']);
+        if (s.isNotEmpty) return s;
+        return strVal(p['fs_slug']);
+      }
+
       final mapped = [
         for (final p in list)
           if (p is Map<String, dynamic>)
             RommPlatform(
               id: (p['id'] as num?)?.toInt() ?? 0,
-              slug: (p['slug'] ?? p['fs_slug']) as String? ?? '',
-              name: (p['name'] ?? p['fs_name']) as String? ?? '',
-              customName: p['custom_name'] as String?,
+              slug: pickSlug(p),
+              name: pickName(p),
+              customName: () {
+                final c = p['custom_name'] as String?;
+                return c != null && c.trim().isNotEmpty ? c.trim() : null;
+              }(),
               romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0,
               logoUrl: _logoUrl(
                 // Prioridad: logo_path interno de ROMM > url_logo externo IGDB
@@ -144,14 +166,35 @@ class RommRepository {
           else if (p is Map)
             RommPlatform(
               id: (p['id'] as num?)?.toInt() ?? 0,
-              slug: (p['slug'] ?? p['fs_slug'])?.toString() ?? '',
-              name: (p['name'] ?? p['fs_name'])?.toString() ?? '',
-              customName: p['custom_name']?.toString(),
+              slug: pickSlug(p),
+              name: pickName(p),
+              customName: () {
+                final c = p['custom_name']?.toString();
+                return c != null && c.trim().isNotEmpty ? c.trim() : null;
+              }(),
               romCount: (p['rom_count'] ?? p['roms_count'] ?? p['count']) is num ? ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num).toInt() : 0,
               logoUrl: _logoUrl((p['logo_path'] ?? p['path_logo'] ?? p['url_logo'])?.toString()),
             ),
       ];
       final filtered = mapped.where((p) => p.romCount > 0).toList();
+      // DEBUG: plataformas recibidas de ROMM (para identificar las no mapeadas)
+      debugPrint('[ROMM] GET /api/platforms -> raw=${list.length} mapped=${mapped.length} filtered(romCount>0)=${filtered.length} server=$serverUrl');
+      for (final p in filtered) {
+        debugPrint('[ROMM] platform id=${p.id} slug="${p.slug}" name="${p.name}" customName="${p.customName}" romCount=${p.romCount} logoUrl="${p.logoUrl}"');
+      }
+      // También loguea las descartadas por romCount 0 (útil para ver si faltan identificadas)
+      final zero = mapped.where((p) => p.romCount == 0).toList();
+      if (zero.isNotEmpty) {
+        debugPrint('[ROMM] zero-count platforms (${zero.length}):');
+        for (final p in zero) {
+          debugPrint('[ROMM]   zero id=${p.id} slug="${p.slug}" name="${p.name}" customName="${p.customName}"');
+        }
+      }
+      // Log crudo de claves para detectar campos nuevos (slug/fs_slug, name/fs_name, logo_path/url_logo)
+      if (list.isNotEmpty && list.first is Map) {
+        final sample = list.first as Map;
+        debugPrint('[ROMM] sample raw keys: ${sample.keys.toList()} values: id=${sample['id']} slug=${sample['slug']}/${sample['fs_slug']} name=${sample['name']}/${sample['fs_name']} logo_path=${sample['logo_path']} url_logo=${sample['url_logo']} custom_name=${sample['custom_name']}');
+      }
       return filtered;
     } on DioException catch (e) {
       final code = e.response?.statusCode;
@@ -161,11 +204,16 @@ class RommRepository {
           final noAuthRes = await noAuthDio.get('/api/platforms');
           if (noAuthRes.statusCode == 200 && noAuthRes.data is List) {
             final list = noAuthRes.data as List;
-            return [
+            final res = [
               for (final p in list)
                 if (p is Map<String, dynamic>)
                   RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?)),
             ];
+            debugPrint('[ROMM] fallback noAuth platforms count=${res.length}');
+            for (final p in res) {
+              debugPrint('[ROMM][fallback-noAuth] id=${p.id} slug="${p.slug}" name="${p.name}"');
+            }
+            return res;
           }
         } catch (_) {}
       }
@@ -174,11 +222,13 @@ class RommRepository {
           final fallback = await _dio.get('/platforms', options: _authOptions);
           if (fallback.statusCode == 200 && fallback.data is List) {
             final list = fallback.data as List;
-            return [
+            final res = [
               for (final p in list)
                 if (p is Map<String, dynamic>)
                   RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?)),
             ];
+            debugPrint('[ROMM] fallback /platforms count=${res.length}');
+            return res;
           }
         } catch (_) {}
       }
@@ -187,19 +237,25 @@ class RommRepository {
   }
 
   /// Lista paginada de juegos de una plataforma (o de toda la biblioteca).
+  /// Soporta orden por `last_played` para “Continuar jugando”:
+  /// `GET /api/roms?last_played=true&order_by=last_played&order_dir=desc`
   Future<RommGamesPage> getGames({
     List<int>? platformIds,
     String? searchTerm,
     int limit = 60,
     int offset = 0,
+    bool? lastPlayed,
+    String? orderBy,
+    String? orderDir,
   }) async {
     final res = await _dio.get(
       '/api/roms',
       queryParameters: {
-        if (platformIds != null && platformIds.isNotEmpty)
-          for (final id in platformIds) 'platform_ids': id,
-        if (searchTerm != null && searchTerm.isNotEmpty)
-          'search_term': searchTerm,
+        if (platformIds?.isNotEmpty == true) for (final id in platformIds!) 'platform_ids': id,
+        if (searchTerm != null && searchTerm.isNotEmpty) 'search_term': searchTerm,
+        if (lastPlayed != null) 'last_played': lastPlayed,
+        if (orderBy != null && orderBy.isNotEmpty) 'order_by': orderBy,
+        if (orderDir != null && orderDir.isNotEmpty) 'order_dir': orderDir,
         'limit': limit,
         'offset': offset,
         'with_files': true,
@@ -228,6 +284,12 @@ class RommRepository {
   RommGame _mapGame(Map<String, dynamic>? g) {
     final files = g?['files'] as List? ?? const [];
     final firstFile = files.isNotEmpty ? (files.first['file_name'] as String?) : null;
+    DateTime? lastPlayed;
+    final ru = g?['rom_user'] as Map<String, dynamic>?;
+    final rawLast = ru?['last_played'] as String?;
+    if (rawLast != null && rawLast.isNotEmpty) {
+      lastPlayed = DateTime.tryParse(rawLast);
+    }
     return RommGame(
       id: (g?['id'] as num?)?.toInt() ?? 0,
       name: g?['name'] as String? ?? g?['fs_name'] as String? ?? '',
@@ -238,7 +300,15 @@ class RommRepository {
       coverSmallUrl: assetUrl(g?['path_cover_small'] as String?),
       coverLargeUrl: assetUrl(g?['path_cover_large'] as String?),
       firstFile: firstFile,
+      lastPlayed: lastPlayed,
     );
+  }
+
+  /// Marca un juego como jugado: PUT /api/roms/{id}/props?update_last_played=true
+  Future<void> markPlayed(int romId) async {
+    try {
+      await _dio.put('/api/roms/$romId/props', queryParameters: {'update_last_played': true}, data: {}, options: _authOptions);
+    } catch (_) {}
   }
 
   /// Config de streaming: devuelve si hay un contenedor para una plataforma.

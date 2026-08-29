@@ -13,6 +13,7 @@ import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
 import '../data/platform_asset_resolver.dart';
+import '../data/platform_led_color.dart';
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
 
@@ -32,13 +33,17 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final platforms = ref.watch(rommPlatformsProvider).value ?? const <RommPlatform>[];
-    final platform = platforms.where((p) => p.id == widget.platformId).firstOrNull;
+    final platforms =
+        ref.watch(rommPlatformsProvider).value ?? const <RommPlatform>[];
+    final platform = platforms
+        .where((p) => p.id == widget.platformId)
+        .firstOrNull;
     final games = ref.watch(rommGamesProvider(widget.platformId));
     final skin = ref.watch(skinControllerProvider).value;
-    final textPrimary = skin?.textPrimary ?? Colors.white;
     final accent = skin?.accent ?? const Color(0xFF2B7FFF);
-    final localAsset = platform != null ? PlatformAssetResolver.resolve(platform) : null;
+    final localAsset = platform != null
+        ? PlatformAssetResolver.resolve(platform)
+        : null;
 
     return Scaffold(
       body: GameVideoBackground(
@@ -47,57 +52,92 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
             // AppBar con glassmorphism + Hero logo
             SliverAppBar(
               pinned: true,
-              expandedHeight: 280,
+              expandedHeight: 220,
               backgroundColor: Colors.transparent,
               leading: IconButton(
                 tooltip: l10n.back,
                 onPressed: () => context.pop(),
-                icon: const Icon(Icons.arrow_back_rounded, color: Colors.white70),
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Colors.white70,
+                ),
               ),
               actions: [
-                Consumer(builder: (context, ref, _) {
-                  final muted = ref.watch(gameBgMutedProvider);
-                  final videoDisabled = ref.watch(gameVideoDisabledProvider);
-                  final l10n2 = AppLocalizations.of(context)!;
-                  return Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: l10n2.muteBackgroundMusic,
-                        onPressed: () => ref.read(gameBgMutedProvider.notifier).toggle(),
-                        icon: Icon(muted ? Icons.music_off_rounded : Icons.music_note_rounded, color: Colors.white70, size: 20),
-                      ),
-                      Transform.scale(
-                        scale: 0.8,
-                        child: Switch.adaptive(
-                          value: !muted,
-                          onChanged: (v) => ref.read(gameBgMutedProvider.notifier).setMuted(!v),
-                          activeThumbColor: Colors.white,
-                          activeTrackColor: const Color(0xFF2B7FFF),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final muted = ref.watch(gameBgMutedProvider);
+                    final videoDisabled = ref.watch(gameVideoDisabledProvider);
+                    final l10n2 = AppLocalizations.of(context)!;
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: l10n2.muteBackgroundMusic,
+                          onPressed: () =>
+                              ref.read(gameBgMutedProvider.notifier).toggle(),
+                          icon: Icon(
+                            muted
+                                ? Icons.music_off_rounded
+                                : Icons.music_note_rounded,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        tooltip: l10n2.disableBackgroundVideo,
-                        onPressed: () => ref.read(gameVideoDisabledProvider.notifier).toggle(),
-                        icon: Icon(videoDisabled ? Icons.videocam_off_rounded : Icons.videocam_rounded, color: Colors.white70, size: 20),
-                      ),
-                      Transform.scale(
-                        scale: 0.8,
-                        child: Switch.adaptive(
-                          value: !videoDisabled,
-                          onChanged: (v) => ref.read(gameVideoDisabledProvider.notifier).setDisabled(!v),
-                          activeThumbColor: Colors.white,
-                          activeTrackColor: const Color(0xFF2B7FFF),
+                        Tooltip(
+                          message: l10n2.muteBackgroundMusic,
+                          child: Transform.scale(
+                            scale: 0.8,
+                            child: Switch.adaptive(
+                              value: !muted,
+                              onChanged: (v) => ref
+                                  .read(gameBgMutedProvider.notifier)
+                                  .setMuted(!v),
+                              activeThumbColor: Colors.white,
+                              activeTrackColor: const Color(0xFF2B7FFF),
+                            ),
+                          ),
                         ),
-                      ),
-                    ],
-                  );
-                }),
+                        const SizedBox(width: 4),
+                        IconButton(
+                          tooltip: l10n2.disableBackgroundVideo,
+                          onPressed: () => ref
+                              .read(gameVideoDisabledProvider.notifier)
+                              .toggle(),
+                          icon: Icon(
+                            videoDisabled
+                                ? Icons.videocam_off_rounded
+                                : Icons.videocam_rounded,
+                            color: Colors.white70,
+                            size: 20,
+                          ),
+                        ),
+                        Tooltip(
+                          message: l10n2.disableBackgroundVideo,
+                          child: Transform.scale(
+                            scale: 0.8,
+                            child: Switch.adaptive(
+                              value: !videoDisabled,
+                              onChanged: (v) => ref
+                                  .read(gameVideoDisabledProvider.notifier)
+                                  .setDisabled(!v),
+                              activeThumbColor: Colors.white,
+                              activeTrackColor: const Color(0xFF2B7FFF),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
                 IconButton(
                   tooltip: l10n.retry,
-                  onPressed: () => ref.invalidate(rommGamesProvider(widget.platformId)),
-                  icon: const Icon(Icons.refresh_rounded, color: Colors.white54, size: 20),
+                  onPressed: () =>
+                      ref.invalidate(rommGamesProvider(widget.platformId)),
+                  icon: const Icon(
+                    Icons.refresh_rounded,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 8),
               ],
@@ -119,41 +159,77 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                     child: FlexibleSpaceBar(
                       titlePadding: const EdgeInsets.fromLTRB(56, 0, 56, 14),
                       centerTitle: true,
-                      title: Text(
-                        platform?.displayName ?? '...',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: TextStyle(color: textPrimary, fontSize: 18, fontWeight: FontWeight.w800),
-                      ),
                       background: Padding(
-                        padding: const EdgeInsets.only(top: 56, left: 24, right: 24, bottom: 24),
+                        padding: const EdgeInsets.only(
+                          top: 56,
+                          left: 24,
+                          right: 24,
+                          bottom: 24,
+                        ),
                         child: Align(
                           alignment: Alignment.topCenter,
                           child: Hero(
                             tag: 'platform-logo-${widget.platformId}',
-                            createRectTween: (begin, end) => MaterialRectArcTween(begin: begin, end: end),
-                            flightShuttleBuilder: (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
-                              final hero = flightDirection == HeroFlightDirection.push ? toHeroContext.widget as Hero : fromHeroContext.widget as Hero;
-                              return FadeTransition(
-                                opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
-                                child: ScaleTransition(
-                                  scale: animation.drive(Tween<double>(begin: 0.92, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic))),
-                                  child: hero.child,
+                            createRectTween: (begin, end) =>
+                                MaterialRectArcTween(begin: begin, end: end),
+                            flightShuttleBuilder:
+                                (
+                                  flightContext,
+                                  animation,
+                                  flightDirection,
+                                  fromHeroContext,
+                                  toHeroContext,
+                                ) {
+                                  final hero =
+                                      flightDirection ==
+                                          HeroFlightDirection.push
+                                      ? toHeroContext.widget as Hero
+                                      : fromHeroContext.widget as Hero;
+                                  return FadeTransition(
+                                    opacity: animation.drive(
+                                      CurveTween(curve: Curves.easeInOut),
+                                    ),
+                                    child: ScaleTransition(
+                                      scale: animation.drive(
+                                        Tween<double>(
+                                          begin: 0.92,
+                                          end: 1.0,
+                                        ).chain(
+                                          CurveTween(
+                                            curve: Curves.easeInOutCubic,
+                                          ),
+                                        ),
+                                      ),
+                                      child: hero.child,
+                                    ),
+                                  );
+                                },
+                            placeholderBuilder: (context, heroSize, child) =>
+                                SizedBox.fromSize(
+                                  size: heroSize,
+                                  child: Opacity(opacity: 0, child: child),
                                 ),
-                              );
-                            },
-                            placeholderBuilder: (context, heroSize, child) => SizedBox.fromSize(size: heroSize, child: Opacity(opacity: 0, child: child)),
                             child: Material(
                               type: MaterialType.transparency,
                               child: SizedBox(
-                                width: 200,
-                                height: 200,
+                                width: 380,
+                                height: 380,
                                 child: localAsset != null
-                                    ? Image.asset(localAsset, fit: BoxFit.contain)
-                                    : platform?.logoUrl != null && platform!.logoUrl!.isNotEmpty
-                                        ? Image.network(platform.logoUrl!, fit: BoxFit.contain)
-                                        : const Icon(Icons.videogame_asset, color: Colors.white70, size: 72),
+                                    ? Image.asset(
+                                        localAsset,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : platform?.logoUrl != null &&
+                                          platform!.logoUrl!.isNotEmpty
+                                    ? Image.network(
+                                        platform.logoUrl!,
+                                        fit: BoxFit.contain,
+                                      )
+                                    : const Icon(
+                                        Icons.videogame_asset,
+                                        color: Colors.white70,
+                                        size: 96,
+                                      ),
                               ),
                             ),
                           ),
@@ -174,42 +250,88 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                   decoration: InputDecoration(
                     hintText: 'Buscar juego...',
                     hintStyle: const TextStyle(color: Colors.white38),
-                    prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38, size: 20),
+                    prefixIcon: const Icon(
+                      Icons.search_rounded,
+                      color: Colors.white38,
+                      size: 20,
+                    ),
                     filled: true,
                     fillColor: Colors.white.withValues(alpha: 0.07),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white12)),
-                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white12)),
-                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: accent.withValues(alpha: 0.6))),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 12,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white12),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(
+                        color: accent.withValues(alpha: 0.6),
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
             // Games grid
             games.when(
-              loading: () => const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(32), child: Center(child: AppLoader()))),
+              loading: () => const SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Center(child: AppLoader()),
+                ),
+              ),
               error: (e, _) => SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.all(24),
-                  child: Center(child: Text('$e', textAlign: TextAlign.center, style: const TextStyle(color: Colors.white54))),
+                  child: Center(
+                    child: Text(
+                      '$e',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.white54),
+                    ),
+                  ),
                 ),
               ),
               data: (page) {
                 final filtered = _query.isEmpty
                     ? page.items
-                    : page.items.where((g) => g.name.toLowerCase().contains(_query.toLowerCase())).toList();
+                    : page.items
+                          .where(
+                            (g) => g.name.toLowerCase().contains(
+                              _query.toLowerCase(),
+                            ),
+                          )
+                          .toList();
                 if (filtered.isEmpty) {
-                  return SliverToBoxAdapter(child: Center(child: Padding(padding: EdgeInsets.all(24), child: Text(l10n.noResults, style: TextStyle(color: Colors.white54)))) );
+                  return SliverToBoxAdapter(
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Text(
+                          l10n.noResults,
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ),
+                    ),
+                  );
                 }
                 return SliverPadding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                   sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                      maxCrossAxisExtent: 180,
-                      mainAxisSpacing: 14,
-                      crossAxisSpacing: 14,
-                      childAspectRatio: 0.68,
-                    ),
+                    gridDelegate:
+                        const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 180,
+                          mainAxisSpacing: 14,
+                          crossAxisSpacing: 14,
+                          childAspectRatio: 0.68,
+                        ),
                     delegate: SliverChildBuilderDelegate(
                       (context, i) => _GameCard(game: filtered[i]),
                       childCount: filtered.length,
@@ -236,11 +358,35 @@ class _GameCard extends ConsumerWidget {
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final fallback = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final token = ref.watch(rommRepositoryProvider)?.token;
-    final headers = token != null && token.isNotEmpty ? <String, String>{'Authorization': 'Bearer $token'} : null;
+    final headers = token != null && token.isNotEmpty
+        ? <String, String>{'Authorization': 'Bearer $token'}
+        : null;
+    final fakePlatform = RommPlatform(
+      id: game.platformId,
+      slug: game.platformSlug,
+      name: game.platformDisplayName,
+      romCount: 0,
+    );
+    final ledColor = platformLedColor(
+      fakePlatform,
+      fallback: const Color(0xFF2ED9A3),
+    );
 
     return AppHover(
-      effect: AppHoverEffect.scale,
-      config: AppHoverConfig.scaleOnly(scale: 1.04, radius: BorderRadius.circular(12)),
+      effect: AppHoverEffect.scaleHighlightOutlineLed,
+      config: AppHoverConfig.scaleHighlightOutlineLed(
+        scale: 1.13,
+        radius: BorderRadius.circular(12),
+        duration: const Duration(milliseconds: 180),
+        outlineHoveredWidth: 1.6,
+        outlineHoveredColor: const Color(0xFF2ED9A3),
+        ledHoveredColor: ledColor,
+        ledBlurRadius: 20,
+        ledSpreadRadius: 1.2,
+        highlightNormal: Colors.transparent,
+        highlightHovered: const Color(0xFF1A2535),
+      ),
+      playSoundOnHover: true,
       onTap: () => context.push('/games/rom/${game.id}'),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,7 +403,10 @@ class _GameCard extends ConsumerWidget {
                       gradient: LinearGradient(
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                        colors: [Colors.white.withValues(alpha: 0.07), Colors.white.withValues(alpha: 0.02)],
+                        colors: [
+                          Colors.white.withValues(alpha: 0.07),
+                          Colors.white.withValues(alpha: 0.02),
+                        ],
                       ),
                       border: Border.all(color: Colors.white12),
                     ),
@@ -272,8 +421,16 @@ class _GameCard extends ConsumerWidget {
                   // Cover
                   ClipRRect(
                     borderRadius: BorderRadius.circular(12),
-                    child: game.coverSmallUrl != null && game.coverSmallUrl!.isNotEmpty
-                        ? Image.network(game.coverSmallUrl!, fit: BoxFit.cover, headers: headers, errorBuilder: (_, _, _) => _GameFallback(game: game, color: fallback))
+                    child:
+                        game.coverSmallUrl != null &&
+                            game.coverSmallUrl!.isNotEmpty
+                        ? Image.network(
+                            game.coverSmallUrl!,
+                            fit: BoxFit.cover,
+                            headers: headers,
+                            errorBuilder: (_, _, _) =>
+                                _GameFallback(game: game, color: fallback),
+                          )
                         : _GameFallback(game: game, color: fallback),
                   ),
                 ],
@@ -281,7 +438,16 @@ class _GameCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(game.name, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
+          Text(
+            game.name,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
@@ -300,7 +466,10 @@ class _GameFallback extends StatelessWidget {
     return Container(
       color: color,
       alignment: Alignment.center,
-      child: Text(name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(), style: const TextStyle(color: Colors.white70, fontSize: 24)),
+      child: Text(
+        name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(),
+        style: const TextStyle(color: Colors.white70, fontSize: 24),
+      ),
     );
   }
 }

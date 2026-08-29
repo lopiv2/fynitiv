@@ -11,6 +11,7 @@ class RommGame {
     this.coverLargeUrl,
     this.hasStreaming = false,
     this.firstFile,
+    this.lastPlayed,
   });
 
   final int id;
@@ -29,12 +30,16 @@ class RommGame {
   /// Nombre del primer archivo del juego (para la descarga).
   final String? firstFile;
 
+  /// Última vez jugado (rom_user.last_played) – usado para “Continuar jugando”.
+  final DateTime? lastPlayed;
+
   RommGame copyWith({
     String? summary,
     String? coverSmallUrl,
     String? coverLargeUrl,
     bool? hasStreaming,
     String? firstFile,
+    DateTime? lastPlayed,
   }) {
     return RommGame(
       id: id,
@@ -47,6 +52,7 @@ class RommGame {
       coverLargeUrl: coverLargeUrl ?? this.coverLargeUrl,
       hasStreaming: hasStreaming ?? this.hasStreaming,
       firstFile: firstFile ?? this.firstFile,
+      lastPlayed: lastPlayed ?? this.lastPlayed,
     );
   }
 }

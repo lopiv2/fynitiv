@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -26,10 +28,21 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   bool _launching = false;
   bool _downloading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Marca como jugado para que aparezca en “Continuar jugando” (last_played)
+    Future.microtask(() => ref.read(rommRepositoryProvider)?.markPlayed(widget.gameId).then((_) {
+          ref.invalidate(rommContinuePlayingProvider);
+        }));
+  }
+
   Future<void> _play(RommGame game) async {
     final l10n = AppLocalizations.of(context)!;
     final repo = ref.read(rommRepositoryProvider);
     if (repo == null) return;
+    // Actualiza last_played en RomM
+    unawaited(repo.markPlayed(game.id).then((_) => ref.invalidate(rommContinuePlayingProvider)));
     setState(() => _launching = true);
     try {
       final host = await repo.claimStreamingSession(game.id);
@@ -62,6 +75,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   Future<void> _download(RommGame game) async {
     final l10n = AppLocalizations.of(context)!;
     final repo = ref.read(rommRepositoryProvider);
+    unawaited(repo?.markPlayed(game.id).then((_) => ref.invalidate(rommContinuePlayingProvider)));
     final fileName = game.firstFile;
     if (repo == null || fileName == null || fileName.isEmpty) {
       if (mounted) {

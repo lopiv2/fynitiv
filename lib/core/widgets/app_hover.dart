@@ -16,6 +16,8 @@ enum AppHoverEffect {
   outlineWithScale,
   highlightWithOutline,
   scaleHighlightOutline,
+  led,
+  scaleHighlightOutlineLed,
 }
 
 class AppHoverConfig {
@@ -30,6 +32,10 @@ class AppHoverConfig {
     this.outlineWidth = 0,
     this.outlineHoveredWidth = 3,
     this.isCircular = false,
+    this.ledColor = Colors.transparent,
+    this.ledHoveredColor = const Color(0xFF2B7FFF),
+    this.ledBlurRadius = 18,
+    this.ledSpreadRadius = 1.5,
   });
 
   final Duration duration;
@@ -42,6 +48,10 @@ class AppHoverConfig {
   final double outlineWidth;
   final double outlineHoveredWidth;
   final bool isCircular;
+  final Color ledColor;
+  final Color ledHoveredColor;
+  final double ledBlurRadius;
+  final double ledSpreadRadius;
 
   /// Config Spotify: fondo #181818 -> #282828, sin escala, radius 8.
   factory AppHoverConfig.spotify({required Color accent, double radius = 8, Duration? duration}) {
@@ -110,6 +120,61 @@ class AppHoverConfig {
       borderRadius: const BorderRadius.all(Radius.circular(999)),
     );
   }
+
+  /// Full combo: escala + highlight + outline + LED glow (neón).
+  /// `ledColor` se resuelve por plataforma (ej. PSX azul, Nintendo rojo, Xbox verde).
+  factory AppHoverConfig.scaleHighlightOutlineLed({
+    double scale = 1.04,
+    BorderRadius? radius,
+    Color highlightNormal = Colors.transparent,
+    Color highlightHovered = const Color(0x1FFFFFFF),
+    Color outlineColor = Colors.transparent,
+    Color outlineHoveredColor = const Color(0xFF2B7FFF),
+    Color ledColor = Colors.transparent,
+    Color ledHoveredColor = const Color(0xFF2B7FFF),
+    double ledBlurRadius = 18,
+    double ledSpreadRadius = 1.5,
+    double outlineWidth = 0,
+    double outlineHoveredWidth = 1.5,
+    Duration duration = const Duration(milliseconds: 180),
+  }) {
+    return AppHoverConfig(
+      scale: scale,
+      borderRadius: radius ?? const BorderRadius.all(Radius.circular(16)),
+      highlightNormal: highlightNormal,
+      highlightHovered: highlightHovered,
+      outlineColor: outlineColor,
+      outlineHoveredColor: outlineHoveredColor,
+      outlineWidth: outlineWidth,
+      outlineHoveredWidth: outlineHoveredWidth,
+      duration: duration,
+      ledColor: ledColor,
+      ledHoveredColor: ledHoveredColor,
+      ledBlurRadius: ledBlurRadius,
+      ledSpreadRadius: ledSpreadRadius,
+    );
+  }
+
+  /// Solo LED glow (sin escala/highlight) para chips ligeros.
+  factory AppHoverConfig.led({
+    BorderRadius? radius,
+    Color ledColor = Colors.transparent,
+    Color ledHoveredColor = const Color(0xFF2B7FFF),
+    double ledBlurRadius = 16,
+    double ledSpreadRadius = 1.2,
+    Duration duration = const Duration(milliseconds: 180),
+  }) {
+    return AppHoverConfig(
+      borderRadius: radius ?? const BorderRadius.all(Radius.circular(12)),
+      highlightNormal: Colors.transparent,
+      highlightHovered: Colors.transparent,
+      ledColor: ledColor,
+      ledHoveredColor: ledHoveredColor,
+      ledBlurRadius: ledBlurRadius,
+      ledSpreadRadius: ledSpreadRadius,
+      duration: duration,
+    );
+  }
 }
 
 class AppHoverScope extends InheritedWidget {
@@ -127,6 +192,8 @@ class AppHoverScope extends InheritedWidget {
 /// - `highlightWithScale` combina ambos
 /// - `outline` / `outlineWithScale` / `highlightWithOutline` añade borde
 /// - `scaleHighlightOutline` combina escala + highlight + outline
+/// - `led` glow neón exterior
+/// - `scaleHighlightOutlineLed` full combo: escala + highlight + outline + LED por plataforma
 /// - `none` sin efecto
 /// El estado hover se expone vía [AppHoverScope] para que el hijo coloque el play donde quiera.
 class AppHover extends ConsumerStatefulWidget {
@@ -138,7 +205,7 @@ class AppHover extends ConsumerStatefulWidget {
     this.config = const AppHoverConfig(),
     this.trackFocus = true,
     this.cursor = SystemMouseCursors.click,
-    this.playSoundOnHover = true,
+    this.playSoundOnHover = false,
   });
 
   final Widget child;
@@ -157,6 +224,33 @@ class _AppHoverState extends ConsumerState<AppHover> {
   bool _hovered = false;
   bool _focused = false;
   final FocusNode _focusNode = FocusNode();
+  bool _suppressInitialSound = true;
+  static DateTime? _globalMuteUntil;
+
+  @override
+  void initState() {
+    super.initState();
+    // Supresión global para el primer foco automático al aparecer una
+    // pantalla (ej. selección de perfiles al iniciar la app). El loader
+    // async de users hace que los AppHover se creen con retardo y el
+    // autofocus llegue fuera de la ventana corta de 350ms, por eso se
+    // usa una ventana global de ~1s compartida entre todas las tarjetas.
+    final now = DateTime.now();
+    if (_globalMuteUntil == null || now.isAfter(_globalMuteUntil!)) {
+      _globalMuteUntil = now.add(const Duration(milliseconds: 800));
+    }
+    final remaining = _globalMuteUntil!.difference(now);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final delay = remaining.isNegative ? const Duration(milliseconds: 350) : remaining + const Duration(milliseconds: 200);
+      Future.delayed(delay, () {
+        if (mounted) {
+          // No hace falta setState visual, solo habilitar sonido
+          _suppressInitialSound = false;
+          if (mounted) setState(() {});
+        }
+      });
+    });
+  }
 
   @override
   void dispose() {
@@ -182,15 +276,20 @@ class _AppHoverState extends ConsumerState<AppHover> {
     final isHighlight = widget.effect == AppHoverEffect.highlight ||
         widget.effect == AppHoverEffect.highlightWithScale ||
         widget.effect == AppHoverEffect.highlightWithOutline ||
-        widget.effect == AppHoverEffect.scaleHighlightOutline;
+        widget.effect == AppHoverEffect.scaleHighlightOutline ||
+        widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
     final isScale = widget.effect == AppHoverEffect.scale ||
         widget.effect == AppHoverEffect.highlightWithScale ||
         widget.effect == AppHoverEffect.outlineWithScale ||
-        widget.effect == AppHoverEffect.scaleHighlightOutline;
+        widget.effect == AppHoverEffect.scaleHighlightOutline ||
+        widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
     final isOutline = widget.effect == AppHoverEffect.outline ||
         widget.effect == AppHoverEffect.outlineWithScale ||
         widget.effect == AppHoverEffect.highlightWithOutline ||
-        widget.effect == AppHoverEffect.scaleHighlightOutline;
+        widget.effect == AppHoverEffect.scaleHighlightOutline ||
+        widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
+    final isLed = widget.effect == AppHoverEffect.led ||
+        widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
     final highlightColor = _active && isHighlight ? widget.config.highlightHovered : widget.config.highlightNormal;
     final outlineColor = _active && isOutline ? widget.config.outlineHoveredColor : widget.config.outlineColor;
     final outlineWidth = _active && isOutline ? widget.config.outlineHoveredWidth : widget.config.outlineWidth;
@@ -224,17 +323,58 @@ class _AppHoverState extends ConsumerState<AppHover> {
             )),
     );
 
+    // LED glow solo por detrás como sombra difusa (neón por plataforma).
+    // Más glow por abajo que por arriba: offset Y positivo y blur mayor hacia abajo.
+    // Se coloca fuera del Clip para no recortar el desenfoque y se anima el BoxShadow.
+    // Orden: base (highlight+outline) -> LED glow (sombra) -> escala (todo escala junto).
+    Widget withLed = content;
+    if (isLed) {
+      final ledShadows = _active
+          ? [
+              // Halo principal pegado al borde, ligeramente desplazado abajo
+              BoxShadow(
+                color: widget.config.ledHoveredColor.withValues(alpha: 0.58),
+                blurRadius: widget.config.ledBlurRadius,
+                spreadRadius: widget.config.ledSpreadRadius,
+                offset: const Offset(0, 12),
+              ),
+              // Glow difuso extendido por abajo, más suave y ancho
+              BoxShadow(
+                color: widget.config.ledHoveredColor.withValues(alpha: 0.20),
+                blurRadius: widget.config.ledBlurRadius * 2.1,
+                spreadRadius: widget.config.ledSpreadRadius + 5,
+                offset: const Offset(0, 18),
+              ),
+            ]
+          : null;
+      withLed = AnimatedContainer(
+        duration: widget.config.duration,
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          shape: widget.config.isCircular ? BoxShape.circle : BoxShape.rectangle,
+          borderRadius: widget.config.isCircular ? null : widget.config.borderRadius,
+          boxShadow: ledShadows,
+        ),
+        child: withLed,
+      );
+    }
+
     if (isScale) {
       content = AnimatedScale(
         scale: _active ? widget.config.scale : 1.0,
         duration: widget.config.duration,
         curve: Curves.easeOut,
-        child: content,
+        child: withLed,
       );
+    } else {
+      content = withLed;
     }
 
     void playHoverSound() {
       if (!widget.playSoundOnHover) return;
+      if (_suppressInitialSound) return;
+      if (_globalMuteUntil != null && DateTime.now().isBefore(_globalMuteUntil!)) return;
       final key = ref.read(buttonSoundKeyProvider);
       final asset = assetForButtonSoundKey(key);
       if (asset.isEmpty) return;

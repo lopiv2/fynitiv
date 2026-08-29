@@ -11,11 +11,14 @@ import '../../../core/settings/game_video_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/scroll_title.dart';
+import 'widgets/game_content_row.dart';
 import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
 import '../data/platform_asset_resolver.dart';
 import '../data/platform_category.dart';
+import '../data/platform_led_color.dart';
 import '../domain/romm_platform.dart';
 
 /// Juego online: estilo Steam / Apple Arcade
@@ -80,6 +83,13 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                         p.name.toLowerCase().contains(q);
                   }).toList();
 
+                  // Datos para “Continuar jugando” (ROMs con last_played, ordenados por API)
+                  final continueAsync = ref.watch(rommContinuePlayingProvider);
+                  final token = ref.watch(rommRepositoryProvider)?.token;
+                  final headers = token != null && token.isNotEmpty
+                      ? <String, String>{'Authorization': 'Bearer $token'}
+                      : null;
+
                   return CustomScrollView(
                     slivers: [
                       SliverToBoxAdapter(
@@ -92,6 +102,33 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                           query: _query,
                           onQueryChanged: (v) => setState(() => _query = v),
                           controller: _searchController,
+                        ),
+                      ),
+                      // Fila horizontal “Continuar jugando” reutilizando ContentRow/HoverPlayCard
+                      SliverToBoxAdapter(
+                        child: continueAsync.when(
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, _) => const SizedBox.shrink(),
+                          data: (games) {
+                            if (games.isEmpty) return const SizedBox.shrink();
+                            return GameContentRow(
+                              title: l10n.continuePlaying,
+                              games: games,
+                              headers: headers,
+                              // Estilo foto con AppHover universal (hover/relajado) según diseño
+                              height: 280,
+                              cardWidth: 220,
+                              useContinueStyle: true,
+                              onGameTap: (g) =>
+                                  context.push('/games/rom/${g.id}'),
+                            );
+                          },
+                        ),
+                      ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                          child: ScrollTitle(title: l10n.platforms),
                         ),
                       ),
                       SliverToBoxAdapter(
@@ -414,10 +451,13 @@ class _BgMusicSwitchCompact extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            muted ? Icons.music_off_rounded : Icons.music_note_rounded,
-            color: Colors.white70,
-            size: 18,
+          Tooltip(
+            message: l10n.muteBackgroundMusic,
+            child: Icon(
+              muted ? Icons.music_off_rounded : Icons.music_note_rounded,
+              color: Colors.white70,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 4),
           Tooltip(
@@ -456,10 +496,13 @@ class _BgVideoSwitchCompact extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            disabled ? Icons.videocam_off_rounded : Icons.videocam_rounded,
-            color: Colors.white70,
-            size: 18,
+          Tooltip(
+            message: l10n.disableBackgroundVideo,
+            child: Icon(
+              disabled ? Icons.videocam_off_rounded : Icons.videocam_rounded,
+              color: Colors.white70,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 4),
           Tooltip(
@@ -538,7 +581,6 @@ class _PlatformCard extends ConsumerWidget {
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final textSecondary = skin?.textSecondary ?? Colors.white70;
     final accent = skin?.accent ?? const Color(0xFF2B7FFF);
-    final fallback = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final token = ref.watch(rommRepositoryProvider)?.token;
     final headers = token != null && token.isNotEmpty
         ? <String, String>{'Authorization': 'Bearer $token'}
@@ -605,14 +647,9 @@ class _PlatformCard extends ConsumerWidget {
       ),
       child: Material(
         type: MaterialType.transparency,
-        child: Container(
-          decoration: BoxDecoration(
-            color: fallback.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(12),
-          ),
+        child: Padding(
           padding: const EdgeInsets.all(14),
-          alignment: Alignment.center,
-          child: logoContent,
+          child: Center(child: logoContent),
         ),
       ),
     );
@@ -710,16 +747,26 @@ class _PlatformCard extends ConsumerWidget {
       ),
     );
 
+    final ledColor = platformLedColor(platform, fallback: accent);
+    // Transparente en reposo (glass), sólida al hacer hover para que el glow resalte
+    final solidHover = const Color(0xFF1E2633);
     return AppHover(
-      effect: AppHoverEffect.scaleHighlightOutline,
-      config: AppHoverConfig.scaleHighlightOutline(
+      effect: AppHoverEffect.scaleHighlightOutlineLed,
+      config: AppHoverConfig.scaleHighlightOutlineLed(
         scale: 1.04,
         radius: BorderRadius.circular(16),
-        duration: const Duration(milliseconds: 120),
-        outlineHoveredWidth: 1.5,
+        duration: const Duration(milliseconds: 180),
+        outlineHoveredWidth: 1.8,
+        outlineHoveredColor: ledColor,
+        ledHoveredColor: ledColor,
+        ledBlurRadius: 22,
+        ledSpreadRadius: 2,
+        highlightNormal: Colors.transparent,
+        highlightHovered: solidHover,
       ),
       onTap: () =>
           context.push('/games/platform/${platform.id}', extra: platform),
+      playSoundOnHover: true,
       child: glassCard,
     );
   }

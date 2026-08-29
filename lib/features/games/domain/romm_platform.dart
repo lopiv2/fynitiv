@@ -16,7 +16,22 @@ class RommPlatform {
   final int romCount;
   final String? logoUrl;
 
-  String get displayName => customName ?? name;
+  String get displayName {
+    if (customName != null && customName!.trim().isNotEmpty) return customName!.trim();
+    if (name.trim().isNotEmpty) return name.trim();
+    if (slug.trim().isNotEmpty) return _humanizeSlug(slug);
+    return 'Desconocido';
+  }
+
+  static String _humanizeSlug(String slug) {
+    return slug
+        .replaceAll('_', ' ')
+        .replaceAll('-', ' ')
+        .split(' ')
+        .where((w) => w.isNotEmpty)
+        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase())
+        .join(' ');
+  }
 
   RommPlatform copyWith({String? customName, String? logoUrl}) {
     return RommPlatform(

@@ -434,6 +434,12 @@ abstract class AppLocalizations {
   /// **'Continue watching'**
   String get continueWatching;
 
+  /// No description provided for @continuePlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Continue playing'**
+  String get continuePlaying;
+
   /// No description provided for @upNext.
   ///
   /// In en, this message translates to:
@@ -1447,6 +1453,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'When the title overflows, it scrolls left in a loop while hovering (like Jellyfin Android TV)'**
   String get titleMarqueeHint;
+
+  /// No description provided for @platforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Platforms'**
+  String get platforms;
 
   /// No description provided for @sounds.
   ///

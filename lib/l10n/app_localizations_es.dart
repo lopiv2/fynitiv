@@ -186,6 +186,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get continueWatching => 'Continuar viendo';
 
   @override
+  String get continuePlaying => 'Continuar jugando';
+
+  @override
   String get upNext => 'A continuación';
 
   @override
@@ -702,6 +705,9 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get titleMarqueeHint =>
       'Si el título no cabe, se desplaza de derecha a izquierda en bucle al hacer hover (como en Jellyfin Android TV)';
+
+  @override
+  String get platforms => 'Plataformas';
 
   @override
   String get sounds => 'Sonidos';

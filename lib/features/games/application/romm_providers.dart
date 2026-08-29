@@ -230,3 +230,21 @@ final rommStreamingProvider = FutureProvider.family<bool, String>((
   if (repo == null) return false;
   return _withRommRecovery(ref, () => repo.hasStreamingFor(platformSlug));
 });
+
+/// “Continuar jugando” – últimos ROMs con last_played, ordenados por fecha descendente.
+/// Usa GET /api/roms?last_played=true&order_by=last_played&order_dir=desc
+final rommContinuePlayingProvider = FutureProvider<List<RommGame>>((ref) async {
+  final repo = ref.watch(rommRepositoryProvider);
+  if (repo == null) return const [];
+  return _withRommRecovery(ref, () async {
+    final page = await repo.getGames(lastPlayed: true, orderBy: 'last_played', orderDir: 'desc', limit: 20);
+    // Filtra por seguridad los que realmente tienen lastPlayed y ordena desc
+    final filtered = page.items.where((g) => g.lastPlayed != null).toList();
+    filtered.sort((a, b) => b.lastPlayed!.compareTo(a.lastPlayed!));
+    return filtered;
+  });
+}, retry: (retryCount, error) {
+  if (error.toString().contains('500')) return null;
+  if (retryCount >= 1) return null;
+  return const Duration(seconds: 2);
+});
