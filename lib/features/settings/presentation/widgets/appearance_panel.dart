@@ -962,11 +962,11 @@ class _ColorPickerDialogState extends State<_ColorPickerDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Cancelar'),
+          child: Text(AppLocalizations.of(context)!.cancel),
         ),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(_color),
-          child: const Text('Aceptar'),
+          child: Text(AppLocalizations.of(context)!.accept),
         ),
       ],
     );

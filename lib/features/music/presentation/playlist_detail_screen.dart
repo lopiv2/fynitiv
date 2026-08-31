@@ -148,7 +148,7 @@ class _PlaylistJellyfinView extends ConsumerWidget {
                                         const SizedBox(height: 4),
                                         Row(
                                           children: [
-                                            Text('$count pistas', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                                            Text(l10n.tracksCount(count), style: const TextStyle(color: Colors.white70, fontSize: 14)),
                                             if (minutes.isNotEmpty) ...[const Text('  ', style: TextStyle(color: Colors.white70)), Text(minutes, style: const TextStyle(color: Colors.white70, fontSize: 14))],
                                             if (year.isNotEmpty) ...[const SizedBox(width: 8), Text(year, style: const TextStyle(color: Colors.white70, fontSize: 14))],
                                             if (rating.isNotEmpty) ...[const SizedBox(width: 8), Text(rating, style: const TextStyle(color: Color(0xFFFFC107), fontSize: 14, fontWeight: FontWeight.w600))],
@@ -180,19 +180,19 @@ class _PlaylistJellyfinView extends ConsumerWidget {
                             children: [
                               Wrap(spacing: 4, children: [for (final t in ['MusicBrainz Album', 'MusicBrainz Album Artist', 'MusicBrainz Release Group']) Text(t, style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 11, fontWeight: FontWeight.w600))]),
                               const SizedBox(height: 12),
-                              Row(children: [const Text('Género', style: TextStyle(color: Colors.white70, fontSize: 12)), const SizedBox(width: 24), Text(genre, style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 12, fontWeight: FontWeight.w600))]),
+                              Row(children: [Text(l10n.genre, style: const TextStyle(color: Colors.white70, fontSize: 12)), const SizedBox(width: 24), Text(genre, style: const TextStyle(color: Color(0xFF2E7D32), fontSize: 12, fontWeight: FontWeight.w600))]),
                               const SizedBox(height: 16),
                               Column(
                                 children: [
                                   for (var i = 0; i < list.length; i++)
                                     _PlaylistTrackRow(index: (list[i].indexNumber ?? i + 1).toString(), track: list[i], onTap: () => context.push('/player/${list[i].id}', extra: list[i])),
-                                  if (list.isEmpty) const Padding(padding: EdgeInsets.all(24), child: Text('Sin pistas', style: TextStyle(color: Colors.white54))),
+                                  if (list.isEmpty) Padding(padding: const EdgeInsets.all(24), child: Text(l10n.noTracks, style: const TextStyle(color: Colors.white54))),
                                 ],
                               ),
                               const SizedBox(height: 56),
                               if (pl != null) _MoreArtistAlbums(album: pl, serverUrl: serverUrl),
                               const SizedBox(height: 24),
-                              const Text('Más como este', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                              Text(l10n.moreLikeThis, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                               const SizedBox(height: 12),
                             ],
                           ),
@@ -252,7 +252,8 @@ class _MoreArtistAlbums extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final more = ref.watch(artistAlbumsProvider(album));
     final artist = (album.albumArtist?.trim().isNotEmpty == true ? album.albumArtist!.trim() : (album.artists?.firstOrNull?.trim() ?? '')).trim();
-    final title = artist.isNotEmpty ? 'Más álbumes de $artist' : 'Más álbumes del artista';
+    final l10n = AppLocalizations.of(context)!;
+    final title = artist.isNotEmpty ? l10n.moreAlbumsByArtist(artist) : l10n.moreAlbumsOfArtist;
     return more.when(
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),

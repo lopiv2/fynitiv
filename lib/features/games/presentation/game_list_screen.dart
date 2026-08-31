@@ -9,6 +9,7 @@ import '../../../core/settings/game_video_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/marquee_text.dart';
 import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
@@ -159,6 +160,10 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                     child: FlexibleSpaceBar(
                       titlePadding: const EdgeInsets.fromLTRB(56, 0, 56, 14),
                       centerTitle: true,
+                      expandedTitleScale: 1.0,
+                      title: _CollapsedPlatformTitle(
+                        name: platform?.displayName ?? platform?.name ?? '',
+                      ),
                       background: Padding(
                         padding: const EdgeInsets.only(
                           top: 56,
@@ -248,7 +253,7 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                   onChanged: (v) => setState(() => _query = v),
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                   decoration: InputDecoration(
-                    hintText: 'Buscar juego...',
+                    hintText: l10n.searchGameHint,
                     hintStyle: const TextStyle(color: Colors.white38),
                     prefixIcon: const Icon(
                       Icons.search_rounded,
@@ -328,8 +333,8 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                     gridDelegate:
                         const SliverGridDelegateWithMaxCrossAxisExtent(
                           maxCrossAxisExtent: 180,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 14,
+                          mainAxisSpacing: 24,
+                          crossAxisSpacing: 24,
                           childAspectRatio: 0.68,
                         ),
                     delegate: SliverChildBuilderDelegate(
@@ -389,7 +394,7 @@ class _GameCard extends ConsumerWidget {
       playSoundOnHover: true,
       onTap: () => context.push('/games/rom/${game.id}'),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             child: ClipRRect(
@@ -438,17 +443,63 @@ class _GameCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          Text(
-            game.name,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: textPrimary,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+          SizedBox(
+            width: double.infinity,
+            child: Builder(
+              builder: (context) {
+                final hovered = AppHoverScope.of(context)?.hovered ?? false;
+                final style = TextStyle(
+                  color: textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                );
+                // Marquee siempre activo en tarjetas de juegos cuando hay overflow,
+                // independientemente del ajuste global titleMarqueeOnHover.
+                return MarqueeText(
+                  text: game.name,
+                  style: style,
+                  isHovered: hovered,
+                  enabled: true,
+                  textAlign: TextAlign.center,
+                );
+              },
             ),
           ),
+          const SizedBox(height: 8),
         ],
+      ),
+    );
+  }
+}
+
+class _CollapsedPlatformTitle extends StatelessWidget {
+  const _CollapsedPlatformTitle({required this.name});
+  final String name;
+  @override
+  Widget build(BuildContext context) {
+    final settings = context
+        .dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    // FlexibleSpaceBarSettings.currentExtent va de maxExtent (220) a minExtent (kToolbarHeight + padding)
+    const maxExtent = 220.0;
+    final minExtent = settings?.minExtent ?? kToolbarHeight;
+    final current = settings?.currentExtent ?? maxExtent;
+    final delta = (maxExtent - minExtent).clamp(1.0, double.infinity);
+    final t = ((current - minExtent) / delta).clamp(0.0, 1.0);
+    final opacity = (1.0 - t).clamp(0.0, 1.0);
+    // Sin nombre no muestra nada para evitar flash vacío
+    if (name.isEmpty) return const SizedBox.shrink();
+    return Opacity(
+      opacity: opacity,
+      child: Text(
+        name,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 26,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

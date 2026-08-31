@@ -65,13 +65,15 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     try {
       streamUrl = await ref.read(trailerStreamProvider(item).future);
     } catch (error) {
-      debugPrint('No se pudo consultar el trailer de KinoCheck: $error');
+      debugPrint('Failed to fetch KinoCheck trailer: $error');
     }
     if (!mounted) return;
     if (streamUrl == null) {
+      if (!mounted) return;
+      final l10n = AppLocalizations.of(context)!;
       setState(() {
         _trailerLoading = false;
-        _trailerError = 'KinoCheck no devolvio un trailer reproducible.';
+        _trailerError = l10n.trailerNoTrailer;
       });
       return;
     }
@@ -94,9 +96,10 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     } catch (_) {
       await player.dispose();
       if (mounted) {
+        final l10n = AppLocalizations.of(context)!;
         setState(() {
           _trailerLoading = false;
-          _trailerError = 'No se pudo abrir el video del trailer.';
+          _trailerError = l10n.trailerOpenFailed;
         });
       }
       return;
@@ -399,7 +402,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                             GestureDetector(
                               onTap: _showRelated,
                               child: _DetailTab(
-                                label: 'Relacionado',
+                                label: l10n.related,
                                 selected: !_detailsSelected,
                               ),
                             ),
@@ -525,8 +528,9 @@ class _RelatedSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return ContentRow(
-      title: 'Relacionado',
+      title: l10n.related,
       items: items,
       serverUrl: serverUrl,
       cardWidth: 320,
@@ -600,42 +604,43 @@ class _AdditionalInformation extends StatelessWidget {
         ],
       ),
     );
+    final l10n = AppLocalizations.of(context)!;
     final credits = _InfoCard(
-      title: 'Creadores y reparto',
+      title: l10n.creatorsAndCast,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _CreditRow(
-            label: 'Dirección',
+            label: l10n.director,
             value: _peopleByType(people, 'Director'),
           ),
           const SizedBox(height: 14),
           _CreditRow(
-            label: 'Productores',
+            label: l10n.producers,
             value: _peopleByType(people, 'Producer'),
           ),
           const SizedBox(height: 14),
-          _CreditRow(label: 'Reparto', value: _peopleNames(people)),
+          _CreditRow(label: l10n.castLabel, value: _peopleNames(people)),
           const SizedBox(height: 14),
-          _CreditRow(label: 'Estudio', value: studios.join(', ')),
+          _CreditRow(label: l10n.studio, value: studios.join(', ')),
         ],
       ),
     );
     final audio = _InfoCard(
-      title: 'Idiomas de audio',
+      title: l10n.audioLanguages,
       child: _LanguageInfo(
         icon: Icons.audiotrack_outlined,
         text: audioLanguages.isEmpty
-            ? 'No hay pistas de audio disponibles.'
+            ? l10n.noAudioTracks
             : audioLanguages.join(', '),
       ),
     );
     final subtitles = _InfoCard(
-      title: 'Subtítulos',
+      title: l10n.subtitlesLabel,
       child: _LanguageInfo(
         icon: Icons.subtitles_outlined,
         text: subtitleLanguages.isEmpty
-            ? 'No hay subtítulos disponibles.'
+            ? l10n.noSubtitles
             : subtitleLanguages.join(', '),
       ),
     );
@@ -758,9 +763,9 @@ class _LanguageInfo extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 6),
-        const Text(
-          'Más',
-          style: TextStyle(
+        Text(
+          AppLocalizations.of(context)!.more,
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 16,
             decoration: TextDecoration.underline,
@@ -975,16 +980,16 @@ class _DetailActions extends StatelessWidget {
           onTap: () => showAdFreeEasterEggDialog(context),
         ),
         const SizedBox(height: 14),
-        const _WideDetailButton(
-          label: 'Mas opciones para disfrutar',
+        _WideDetailButton(
+          label: l10n.moreOptionsToEnjoy,
           onTap: _noop,
         ),
         const SizedBox(height: 14),
         IncludedBadge(label: l10n.includedWithJellyfin, fontSize: 14),
         const SizedBox(height: 8),
-        const Text(
-          'Se aplican terminos',
-          style: TextStyle(color: Colors.white60, fontSize: 13),
+        Text(
+          l10n.termsApply,
+          style: const TextStyle(color: Colors.white60, fontSize: 13),
         ),
       ],
     );

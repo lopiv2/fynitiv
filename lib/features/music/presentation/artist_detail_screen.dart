@@ -249,14 +249,14 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
               color: const Color(0xFF121212),
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
-                child: Align(alignment: Alignment.centerLeft, child: Text('En tu biblioteca', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700))),
+                child: Align(alignment: Alignment.centerLeft, child: Text(l10n.inYourLibrary, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700))),
               ),
             ),
           ),
           if (jellyLoading)
             const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(32), child: Center(child: AppLoader())))
           else if (jellyAll.isEmpty)
-            SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Text('No tienes canciones de este artista en tu biblioteca', style: TextStyle(color: Colors.white54, fontSize: 13)))),
+            SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Text(l10n.noSongsInLibrary, style: const TextStyle(color: Colors.white54, fontSize: 13)))),
           if (!jellyLoading && jellyAll.isNotEmpty)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -276,7 +276,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
             child: Container(
               color: const Color(0xFF121212),
               child: Column(children: [
-                if (!hasMore && (jellyAll.isNotEmpty || deezerTop20.isNotEmpty)) Padding(padding: const EdgeInsets.all(16), child: Text('${jellyAll.length} en tu biblioteca • ${deezerTop20.length} populares', style: const TextStyle(color: Colors.white38, fontSize: 12))),
+                if (!hasMore && (jellyAll.isNotEmpty || deezerTop20.isNotEmpty)) Padding(padding: const EdgeInsets.all(16), child: Text(l10n.libraryAndPopularCounts(jellyAll.length, deezerTop20.length), style: const TextStyle(color: Colors.white38, fontSize: 12))),
                 const SizedBox(height: 32),
               ]),
             ),
@@ -331,17 +331,17 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
         children: [
           if (headerImage != null) ClipRRect(borderRadius: BorderRadius.circular(8), child: Image.network(headerImage, height: 180, fit: BoxFit.cover, errorBuilder: (_, _, _) => const SizedBox.shrink())),
           const SizedBox(height: 16),
-          Text('Populares', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(AppLocalizations.of(context)!.populares, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          if (deezerTop20.isEmpty) const Text('Sin populares', style: TextStyle(color: Colors.white54)),
+          if (deezerTop20.isEmpty) Text(AppLocalizations.of(context)!.noPopularTracks, style: const TextStyle(color: Colors.white54)),
           for (int i = 0; i < deezerTop20.length; i++) ...[
             _DeezerSuggestionRow(track: deezerTop20[i], rank: (i + 1).toString()),
             if (i != deezerTop20.length - 1) const Divider(height: 1, color: Colors.white12),
           ],
           const SizedBox(height: 24),
-          Text('En tu biblioteca (${jellyAll.length})', style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+          Text(AppLocalizations.of(context)!.inYourLibraryCount(jellyAll.length), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          if (jellyAll.isEmpty) const Text('No tienes canciones de este artista', style: TextStyle(color: Colors.white54)),
+          if (jellyAll.isEmpty) Text(AppLocalizations.of(context)!.noSongsForArtist, style: const TextStyle(color: Colors.white54)),
           for (int i = 0; i < jellyAll.length; i++) ...[
             ListTile(
               leading: serverUrl != null ? ClipRRect(borderRadius: BorderRadius.circular(4), child: Image.network(itemImageUrl(serverUrl, jellyAll[i], maxWidth: 200), width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(width: 40, height: 40, color: const Color(0xFF2A2A2A)))) : null,
@@ -353,7 +353,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
             if (i != jellyAll.length - 1) const Divider(height: 1, color: Colors.white12),
           ],
           if (lastLoading) const Padding(padding: EdgeInsets.all(16), child: Center(child: AppLoader())),
-          if (hasMore) FilledButton(onPressed: () => setState(() => _loadedPages++), child: const Text('Cargar más')),
+          if (hasMore) FilledButton(onPressed: () => setState(() => _loadedPages++), child: Text(AppLocalizations.of(context)!.loadMore)),
         ],
       ),
     );

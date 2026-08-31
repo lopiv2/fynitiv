@@ -16,7 +16,6 @@
   "@passwordFor": {},
   "cancel": "Cancel",
   "enter": "Enter",
-  "retry": "Retry",
   "whichServer": "Which server are you connecting to?",
   "whoIsFromThisHome": "Who's from this home?",
   "selectHouseholdUsers": "Add users with their username and password. No one will see the full server user list.",
@@ -41,7 +40,6 @@
   "housePinRequired": "Enter the home PIN",
   "masterPinHint": "Forgot your PIN? Enter your recovery master PIN instead.",
   "wrongPin": "Incorrect PIN, try again",
-  "back": "Back",
   "next": "Next",
   "save": "Save",
   "server": "Server",
@@ -248,5 +246,130 @@
   "backgroundMusic": "Background music",
   "muteBackgroundMusic": "Mute background music",
   "backgroundVideo": "Background video",
-  "disableBackgroundVideo": "Disable background video"
+  "disableBackgroundVideo": "Disable background video",
+  "accept": "Accept",
+  "searchPlatformHint": "Search platform...",
+  "searchGameHint": "Search game...",
+  "platformsAndGamesCount": "{platforms} platforms · {games} games",
+  "@platformsAndGamesCount": {
+    "placeholders": {
+      "platforms": { "type": "int" },
+      "games": { "type": "int" }
+    }
+  },
+  "gamesCount": "{count} games",
+  "@gamesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noResultsForQuery": "No results for \"{query}\"",
+  "@noResultsForQuery": {
+    "placeholders": {
+      "query": { "type": "String" }
+    }
+  },
+  "related": "Related",
+  "creatorsAndCast": "Creators and cast",
+  "director": "Director",
+  "producers": "Producers",
+  "castLabel": "Cast",
+  "studio": "Studio",
+  "audioLanguages": "Audio languages",
+  "noAudioTracks": "No audio tracks available.",
+  "subtitlesLabel": "Subtitles",
+  "noSubtitles": "No subtitles available.",
+  "more": "More",
+  "moreOptionsToEnjoy": "More ways to enjoy",
+  "termsApply": "Terms apply",
+  "trailerNoTrailer": "KinoCheck didn't return a playable trailer.",
+  "trailerOpenFailed": "Could not open the trailer video.",
+  "inYourLibrary": "In your library",
+  "noSongsInLibrary": "You don't have songs by this artist in your library",
+  "libraryAndPopularCounts": "{library} in your library • {popular} popular",
+  "@libraryAndPopularCounts": {
+    "placeholders": {
+      "library": { "type": "int" },
+      "popular": { "type": "int" }
+    }
+  },
+  "noSongsForArtist": "You don't have songs by this artist",
+  "inYourLibraryCount": "In your library ({count})",
+  "@inYourLibraryCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "loadMore": "Load more",
+  "noPopularTracks": "No popular tracks",
+  "tracksCount": "{count} tracks",
+  "@tracksCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "genre": "Genre",
+  "noTracks": "No tracks",
+  "moreLikeThis": "More like this",
+  "moreAlbumsByArtist": "More albums by {artist}",
+  "@moreAlbumsByArtist": {
+    "placeholders": {
+      "artist": { "type": "String" }
+    }
+  },
+  "moreAlbumsOfArtist": "More albums by the artist",
+  "enterApiKey": "Enter the API Key",
+  "rommApiKeyHelp": "Connect with your RomM API Key (Bearer). Generate the API Key in RomM → Profile → API Keys.",
+  "apiKeyBearerLabel": "API Key (Bearer)",
+  "nameCannotBeEmpty": "Name cannot be empty",
+  "pinTooShort": "PIN must be at least 4 digits",
+  "pinsDontMatch": "PINs don't match",
+  "couldNotSaveHouse": "Could not save house: {error}",
+  "@couldNotSaveHouse": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "householdMembersCount": "{count} {count, plural, =1{user} other{users}}",
+  "@householdMembersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "enterUsername": "Enter username",
+  "noServerConfigured": "No server configured",
+  "invalidServerResponse": "Invalid server response",
+  "couldNotConnectWithHint": "Could not connect to server{hint}. Check the URL (e.g. https://jellyfin.example.com) and your connection.",
+  "@couldNotConnectWithHint": {
+    "placeholders": {
+      "hint": { "type": "String" }
+    }
+  },
+  "couldNotConnectGeneric": "Could not connect to server. Check the URL and your connection.",
+  "masterPinRecovery": "Recovery master PIN",
+  "pinCopied": "PIN copied to clipboard",
+  "copy": "Copy",
+  "masterPinSaveHint": "Save it separately: it lets you recover access to this home if you forget the PIN.",
+  "invalidJsonObject": "JSON is not a valid object.",
+  "serverUrlEmpty": "Server URL is empty",
+  "serverUrlInvalid": "Invalid server URL",
+  "serverUrlMustStartWithHttp": "URL must start with http:// or https://",
+  "rommUserPassDisabled": "Username/password login disabled. Use API Key in RomM → Profile → API Keys.",
+  "apiKeyEmpty": "API Key is empty",
+  "rommForbidden": "Access denied (403). Check ROMM user permissions on the server.\n\nDetails: {details}",
+  "@rommForbidden": {
+    "placeholders": {
+      "details": { "type": "String" }
+    }
+  },
+  "rommForbiddenDetailed": "Access denied (403 Forbidden). Your ROMM user has no permission for this resource. Check permissions or log in again.",
+  "loginFailedFallback": "Failed to log in",
+  "pinRequired": "You must choose a PIN for the house",
+  "nowPlaying": "Now playing",
+  "nowPlayingTrack": "Now playing: {track}",
+  "@nowPlayingTrack": {
+    "placeholders": {
+      "track": { "type": "String" }
+    }
+  }
 }

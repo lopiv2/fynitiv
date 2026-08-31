@@ -15,6 +15,7 @@ class MarqueeText extends StatefulWidget {
     required this.style,
     required this.isHovered,
     this.enabled = true,
+    this.textAlign = TextAlign.left,
     this.velocity = 35,
     this.gap = 40,
     this.pauseDuration = const Duration(milliseconds:  500),
@@ -24,6 +25,7 @@ class MarqueeText extends StatefulWidget {
   final TextStyle style;
   final bool isHovered;
   final bool enabled;
+  final TextAlign textAlign;
 
   /// Velocidad en píxeles por segundo.
   final double velocity;
@@ -154,6 +156,7 @@ class _MarqueeTextState extends State<MarqueeText>
             widget.text,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+            textAlign: widget.textAlign,
             style: widget.style,
           );
         }

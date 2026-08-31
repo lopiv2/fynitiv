@@ -50,9 +50,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get enter => 'Enter';
 
   @override
-  String get retry => 'Retry';
-
-  @override
   String get whichServer => 'Which server are you connecting to?';
 
   @override
@@ -128,9 +125,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wrongPin => 'Incorrect PIN, try again';
-
-  @override
-  String get back => 'Back';
 
   @override
   String get next => 'Next';
@@ -428,6 +422,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get playbackFailed => 'Couldn\'t start playback.';
+
+  @override
+  String get retry => 'Retry';
+
+  @override
+  String get back => 'Back';
 
   @override
   String get play => 'Play';
@@ -738,4 +738,230 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get disableBackgroundVideo => 'Disable background video';
+
+  @override
+  String get accept => 'Accept';
+
+  @override
+  String get searchPlatformHint => 'Search platform...';
+
+  @override
+  String get searchGameHint => 'Search game...';
+
+  @override
+  String platformsAndGamesCount(int platforms, int games) {
+    return '$platforms platforms · $games games';
+  }
+
+  @override
+  String gamesCount(int count) {
+    return '$count games';
+  }
+
+  @override
+  String noResultsForQuery(String query) {
+    return 'No results for \"$query\"';
+  }
+
+  @override
+  String get related => 'Related';
+
+  @override
+  String get creatorsAndCast => 'Creators and cast';
+
+  @override
+  String get director => 'Director';
+
+  @override
+  String get producers => 'Producers';
+
+  @override
+  String get castLabel => 'Cast';
+
+  @override
+  String get studio => 'Studio';
+
+  @override
+  String get audioLanguages => 'Audio languages';
+
+  @override
+  String get noAudioTracks => 'No audio tracks available.';
+
+  @override
+  String get subtitlesLabel => 'Subtitles';
+
+  @override
+  String get noSubtitles => 'No subtitles available.';
+
+  @override
+  String get more => 'More';
+
+  @override
+  String get moreOptionsToEnjoy => 'More ways to enjoy';
+
+  @override
+  String get termsApply => 'Terms apply';
+
+  @override
+  String get trailerNoTrailer => 'KinoCheck didn\'t return a playable trailer.';
+
+  @override
+  String get trailerOpenFailed => 'Could not open the trailer video.';
+
+  @override
+  String get inYourLibrary => 'In your library';
+
+  @override
+  String get noSongsInLibrary =>
+      'You don\'t have songs by this artist in your library';
+
+  @override
+  String libraryAndPopularCounts(int library, int popular) {
+    return '$library in your library • $popular popular';
+  }
+
+  @override
+  String get noSongsForArtist => 'You don\'t have songs by this artist';
+
+  @override
+  String inYourLibraryCount(int count) {
+    return 'In your library ($count)';
+  }
+
+  @override
+  String get loadMore => 'Load more';
+
+  @override
+  String get noPopularTracks => 'No popular tracks';
+
+  @override
+  String tracksCount(int count) {
+    return '$count tracks';
+  }
+
+  @override
+  String get genre => 'Genre';
+
+  @override
+  String get noTracks => 'No tracks';
+
+  @override
+  String get moreLikeThis => 'More like this';
+
+  @override
+  String moreAlbumsByArtist(String artist) {
+    return 'More albums by $artist';
+  }
+
+  @override
+  String get moreAlbumsOfArtist => 'More albums by the artist';
+
+  @override
+  String get enterApiKey => 'Enter the API Key';
+
+  @override
+  String get rommApiKeyHelp =>
+      'Connect with your RomM API Key (Bearer). Generate the API Key in RomM → Profile → API Keys.';
+
+  @override
+  String get apiKeyBearerLabel => 'API Key (Bearer)';
+
+  @override
+  String get nameCannotBeEmpty => 'Name cannot be empty';
+
+  @override
+  String get pinTooShort => 'PIN must be at least 4 digits';
+
+  @override
+  String get pinsDontMatch => 'PINs don\'t match';
+
+  @override
+  String couldNotSaveHouse(String error) {
+    return 'Could not save house: $error';
+  }
+
+  @override
+  String householdMembersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'users',
+      one: 'user',
+    );
+    return '$count $_temp0';
+  }
+
+  @override
+  String get enterUsername => 'Enter username';
+
+  @override
+  String get noServerConfigured => 'No server configured';
+
+  @override
+  String get invalidServerResponse => 'Invalid server response';
+
+  @override
+  String couldNotConnectWithHint(String hint) {
+    return 'Could not connect to server$hint. Check the URL (e.g. https://jellyfin.example.com) and your connection.';
+  }
+
+  @override
+  String get couldNotConnectGeneric =>
+      'Could not connect to server. Check the URL and your connection.';
+
+  @override
+  String get masterPinRecovery => 'Recovery master PIN';
+
+  @override
+  String get pinCopied => 'PIN copied to clipboard';
+
+  @override
+  String get copy => 'Copy';
+
+  @override
+  String get masterPinSaveHint =>
+      'Save it separately: it lets you recover access to this home if you forget the PIN.';
+
+  @override
+  String get invalidJsonObject => 'JSON is not a valid object.';
+
+  @override
+  String get serverUrlEmpty => 'Server URL is empty';
+
+  @override
+  String get serverUrlInvalid => 'Invalid server URL';
+
+  @override
+  String get serverUrlMustStartWithHttp =>
+      'URL must start with http:// or https://';
+
+  @override
+  String get rommUserPassDisabled =>
+      'Username/password login disabled. Use API Key in RomM → Profile → API Keys.';
+
+  @override
+  String get apiKeyEmpty => 'API Key is empty';
+
+  @override
+  String rommForbidden(String details) {
+    return 'Access denied (403). Check ROMM user permissions on the server.\n\nDetails: $details';
+  }
+
+  @override
+  String get rommForbiddenDetailed =>
+      'Access denied (403 Forbidden). Your ROMM user has no permission for this resource. Check permissions or log in again.';
+
+  @override
+  String get loginFailedFallback => 'Failed to log in';
+
+  @override
+  String get pinRequired => 'You must choose a PIN for the house';
+
+  @override
+  String get nowPlaying => 'Now playing';
+
+  @override
+  String nowPlayingTrack(String track) {
+    return 'Now playing: $track';
+  }
 }

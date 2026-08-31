@@ -249,8 +249,9 @@ class UserSelectionScreen extends ConsumerWidget {
     );
     if (!ok && context.mounted) {
       final auth = ref.read(authControllerProvider);
+      final l10n = AppLocalizations.of(context)!;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.error ?? 'Error al iniciar sesión')),
+        SnackBar(content: Text(auth.error ?? l10n.loginFailedFallback)),
       );
     }
   }

@@ -6,12 +6,17 @@ import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/audio/game_bg_player.dart';
+import '../../../core/audio/khinsider_player.dart';
+import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
+import '../application/khinsider_providers.dart';
 import '../application/romm_providers.dart';
+import '../data/khinsider/khinsider_models.dart';
 import '../domain/romm_game.dart';
 
 /// Detalle de un juego de ROMM con acciones Play (streaming) y Descargar.
@@ -24,17 +29,57 @@ class GameDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<GameDetailScreen> createState() => _GameDetailScreenState();
 }
 
-class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
+class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
+    with WidgetsBindingObserver {
   bool _launching = false;
   bool _downloading = false;
+  StreamSubscription<KhinsiderTrack?>? _khinsiderSub;
+  KhinsiderTrack? _currentTrack;
+  bool _khinsiderStarted = false;
+  List<KhinsiderTrack> _khinsiderQueue = [];
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Marca como jugado para que aparezca en “Continuar jugando” (last_played)
     Future.microtask(() => ref.read(rommRepositoryProvider)?.markPlayed(widget.gameId).then((_) {
           ref.invalidate(rommContinuePlayingProvider);
         }));
+    // Parar música de fondo de /games y suscribirse a Now Playing
+    Future.microtask(() => GameBgPlayer.instance.leave());
+    _khinsiderSub = KhinsiderPlayer.instance.currentTrackStream.listen((track) {
+      if (mounted) setState(() => _currentTrack = track);
+    });
+    _currentTrack = KhinsiderPlayer.instance.currentTrack;
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _khinsiderSub?.cancel();
+    // Parar OST al salir del detalle (GameMusicScope retomará shuffle al volver a lista)
+    KhinsiderPlayer.instance.stop();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      KhinsiderPlayer.instance.pauseForExternal();
+    } else if (state == AppLifecycleState.resumed) {
+      KhinsiderPlayer.instance.resumeIfNeeded();
+    }
+  }
+
+  void _maybeStartKhinsider(List<KhinsiderTrack> tracks) {
+    if (_khinsiderStarted || tracks.isEmpty) return;
+    _khinsiderStarted = true;
+    _khinsiderQueue = tracks;
+    final muted = ref.read(gameBgMutedProvider);
+    KhinsiderPlayer.instance.setMuted(muted);
+    // streaming directo, queue completa en shuffle
+    KhinsiderPlayer.instance.playQueue(tracks);
   }
 
   Future<void> _play(RommGame game) async {
@@ -125,6 +170,28 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // Escuchar mute para Khinsider (respeta gameBgMutedProvider)
+    ref.listen<bool>(gameBgMutedProvider, (prev, muted) {
+      KhinsiderPlayer.instance.setMuted(muted);
+    });
+    // Cuando llegan las pistas de Khinsider, iniciar reproducción shuffle
+    ref.listen<AsyncValue<List<KhinsiderTrack>>>(
+      khinsiderTracksProvider(widget.gameId),
+      (prev, next) {
+        final tracks = next.value;
+        if (tracks != null && tracks.isNotEmpty) {
+          _maybeStartKhinsider(tracks);
+        }
+      },
+    );
+    final khinsiderAsync = ref.watch(khinsiderTracksProvider(widget.gameId));
+    // Fallback inicial por si ya estaba en cache (listen no dispara en primera carga sync)
+    khinsiderAsync.whenData((tracks) {
+      if (tracks.isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => _maybeStartKhinsider(tracks));
+      }
+    });
+
     final game = ref.watch(rommGameProvider(widget.gameId));
     final skin = ref.watch(skinControllerProvider).value;
     final textPrimary = skin?.textPrimary ?? Colors.white;
@@ -225,6 +292,12 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 16),
+                        _NowPlayingBar(
+                          khinsiderAsync: khinsiderAsync,
+                          currentTrack: _currentTrack,
+                          queueLength: _khinsiderQueue.length,
+                        ),
                         const SizedBox(height: 20),
                         if (g.summary != null && g.summary!.isNotEmpty)
                           Text(
@@ -301,6 +374,69 @@ class _ActionButton extends StatelessWidget {
                 ),
         ),
       ),
+    );
+  }
+}
+
+class _NowPlayingBar extends StatelessWidget {
+  const _NowPlayingBar({
+    required this.khinsiderAsync,
+    required this.currentTrack,
+    required this.queueLength,
+  });
+  final AsyncValue<List<KhinsiderTrack>> khinsiderAsync;
+  final KhinsiderTrack? currentTrack;
+  final int queueLength;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return khinsiderAsync.when(
+      loading: () => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(children: [
+          const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white54)),
+          const SizedBox(width: 10),
+          Text('${l10n.nowPlaying}...', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+        ]),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (tracks) {
+        if (tracks.isEmpty) return const SizedBox.shrink();
+        final trackName = currentTrack?.name ?? tracks.first.name;
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white12),
+          ),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(color: const Color(0xFF2B7FFF).withValues(alpha: 0.18), borderRadius: BorderRadius.circular(6)),
+              child: const Icon(Icons.music_note_rounded, color: Color(0xFF2B7FFF), size: 18),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(l10n.nowPlaying, style: const TextStyle(color: Colors.white38, fontSize: 10, letterSpacing: 0.6, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(l10n.nowPlayingTrack(trackName), maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
+                if (queueLength > 1)
+                  Text('$queueLength tracks • shuffle', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+              ]),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.equalizer_rounded, color: Colors.white38, size: 18),
+          ]),
+        );
+      },
     );
   }
 }

@@ -347,7 +347,7 @@ class _HomePanelState extends ConsumerState<_HomePanel> {
     final l10n = AppLocalizations.of(context)!;
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      setState(() => _saveError = 'El nombre no puede estar vacío');
+      setState(() => _saveError = l10n.nameCannotBeEmpty);
       return;
     }
     if (_members.isEmpty) {
@@ -358,11 +358,11 @@ class _HomePanelState extends ConsumerState<_HomePanel> {
     final pinConfirm = _pinConfirmController.text;
     if (pin.isNotEmpty || pinConfirm.isNotEmpty) {
       if (pin.length < 4 || pinConfirm.length < 4) {
-        setState(() => _pinError = 'El PIN debe tener al menos 4 dígitos');
+        setState(() => _pinError = l10n.pinTooShort);
         return;
       }
       if (pin != pinConfirm) {
-        setState(() => _pinError = 'Los PIN no coinciden');
+        setState(() => _pinError = l10n.pinsDontMatch);
         return;
       }
     }
@@ -399,7 +399,7 @@ class _HomePanelState extends ConsumerState<_HomePanel> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _saveError = 'No se pudo guardar la casa: $e';
+          _saveError = l10n.couldNotSaveHouse('$e');
         });
       }
     }
@@ -515,7 +515,7 @@ class _HomePanelState extends ConsumerState<_HomePanel> {
             const SizedBox(height: 12),
             _SettingsCard(
               title: l10n.users,
-              subtitle: '${members.length} ${members.length == 1 ? 'usuario' : 'usuarios'}',
+              subtitle: l10n.householdMembersCount(members.length),
               child: Column(
                 children: [
                   for (final m in members)
@@ -677,7 +677,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
     final username = _userController.text.trim();
     final password = _passController.text;
     if (username.isEmpty) {
-      setState(() => _error = 'Ingresa el usuario');
+      setState(() => _error = AppLocalizations.of(context)!.enterUsername);
       return;
     }
     setState(() {
@@ -688,7 +688,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
     if (serverUrl == null) {
       setState(() {
         _loading = false;
-        _error = 'Sin servidor configurado';
+        _error = AppLocalizations.of(context)!.noServerConfigured;
       });
       return;
     }
@@ -698,7 +698,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
       final user = result.user;
       final token = result.accessToken;
       if (user == null || user.id == null || token == null) {
-        throw DioException(requestOptions: RequestOptions(path: ''), error: 'Respuesta inválida del servidor');
+        throw DioException(requestOptions: RequestOptions(path: ''), error: AppLocalizations.of(context)!.invalidServerResponse);
       }
       if (widget.existingIds.contains(user.id)) {
         if (mounted) {
@@ -758,7 +758,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
       final hint = host.isNotEmpty && host != 'https' && host != 'http'
           ? ' ($host)'
           : '';
-      return 'No se pudo conectar al servidor$hint. Revisa la URL (ej. https://jellyfin.ejemplo.com) y tu conexión.';
+      return AppLocalizations.of(context)!.couldNotConnectWithHint(hint);
     }
     final data = e.response?.data;
     if (data is String && data.isNotEmpty) return data;
@@ -772,7 +772,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
       if (errStr.isNotEmpty && errStr != 'null') {
         if (errStr.contains('SocketException') ||
             errStr.contains('Failed host lookup')) {
-          return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+          return AppLocalizations.of(context)!.couldNotConnectGeneric;
         }
         return errStr;
       }
@@ -780,7 +780,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
     final msg = e.message;
     if (msg != null && msg.isNotEmpty) {
       if (msg.contains('Failed host lookup')) {
-        return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+        return AppLocalizations.of(context)!.couldNotConnectGeneric;
       }
       if (msg == 'Error processing request' && status != null) return '$status $msg';
       return msg;

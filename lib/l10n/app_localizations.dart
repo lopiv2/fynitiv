@@ -176,12 +176,6 @@ abstract class AppLocalizations {
   /// **'Enter'**
   String get enter;
 
-  /// No description provided for @retry.
-  ///
-  /// In en, this message translates to:
-  /// **'Retry'**
-  String get retry;
-
   /// No description provided for @whichServer.
   ///
   /// In en, this message translates to:
@@ -325,12 +319,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Incorrect PIN, try again'**
   String get wrongPin;
-
-  /// No description provided for @back.
-  ///
-  /// In en, this message translates to:
-  /// **'Back'**
-  String get back;
 
   /// No description provided for @next.
   ///
@@ -919,6 +907,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Couldn\'t start playback.'**
   String get playbackFailed;
+
+  /// No description provided for @retry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get retry;
+
+  /// No description provided for @back.
+  ///
+  /// In en, this message translates to:
+  /// **'Back'**
+  String get back;
 
   /// No description provided for @play.
   ///
@@ -1519,6 +1519,384 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Disable background video'**
   String get disableBackgroundVideo;
+
+  /// No description provided for @accept.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept'**
+  String get accept;
+
+  /// No description provided for @searchPlatformHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search platform...'**
+  String get searchPlatformHint;
+
+  /// No description provided for @searchGameHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search game...'**
+  String get searchGameHint;
+
+  /// No description provided for @platformsAndGamesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{platforms} platforms · {games} games'**
+  String platformsAndGamesCount(int platforms, int games);
+
+  /// No description provided for @gamesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} games'**
+  String gamesCount(int count);
+
+  /// No description provided for @noResultsForQuery.
+  ///
+  /// In en, this message translates to:
+  /// **'No results for \"{query}\"'**
+  String noResultsForQuery(String query);
+
+  /// No description provided for @related.
+  ///
+  /// In en, this message translates to:
+  /// **'Related'**
+  String get related;
+
+  /// No description provided for @creatorsAndCast.
+  ///
+  /// In en, this message translates to:
+  /// **'Creators and cast'**
+  String get creatorsAndCast;
+
+  /// No description provided for @director.
+  ///
+  /// In en, this message translates to:
+  /// **'Director'**
+  String get director;
+
+  /// No description provided for @producers.
+  ///
+  /// In en, this message translates to:
+  /// **'Producers'**
+  String get producers;
+
+  /// No description provided for @castLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast'**
+  String get castLabel;
+
+  /// No description provided for @studio.
+  ///
+  /// In en, this message translates to:
+  /// **'Studio'**
+  String get studio;
+
+  /// No description provided for @audioLanguages.
+  ///
+  /// In en, this message translates to:
+  /// **'Audio languages'**
+  String get audioLanguages;
+
+  /// No description provided for @noAudioTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'No audio tracks available.'**
+  String get noAudioTracks;
+
+  /// No description provided for @subtitlesLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles'**
+  String get subtitlesLabel;
+
+  /// No description provided for @noSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'No subtitles available.'**
+  String get noSubtitles;
+
+  /// No description provided for @more.
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get more;
+
+  /// No description provided for @moreOptionsToEnjoy.
+  ///
+  /// In en, this message translates to:
+  /// **'More ways to enjoy'**
+  String get moreOptionsToEnjoy;
+
+  /// No description provided for @termsApply.
+  ///
+  /// In en, this message translates to:
+  /// **'Terms apply'**
+  String get termsApply;
+
+  /// No description provided for @trailerNoTrailer.
+  ///
+  /// In en, this message translates to:
+  /// **'KinoCheck didn\'t return a playable trailer.'**
+  String get trailerNoTrailer;
+
+  /// No description provided for @trailerOpenFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the trailer video.'**
+  String get trailerOpenFailed;
+
+  /// No description provided for @inYourLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'In your library'**
+  String get inYourLibrary;
+
+  /// No description provided for @noSongsInLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have songs by this artist in your library'**
+  String get noSongsInLibrary;
+
+  /// No description provided for @libraryAndPopularCounts.
+  ///
+  /// In en, this message translates to:
+  /// **'{library} in your library • {popular} popular'**
+  String libraryAndPopularCounts(int library, int popular);
+
+  /// No description provided for @noSongsForArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have songs by this artist'**
+  String get noSongsForArtist;
+
+  /// No description provided for @inYourLibraryCount.
+  ///
+  /// In en, this message translates to:
+  /// **'In your library ({count})'**
+  String inYourLibraryCount(int count);
+
+  /// No description provided for @loadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get loadMore;
+
+  /// No description provided for @noPopularTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'No popular tracks'**
+  String get noPopularTracks;
+
+  /// No description provided for @tracksCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks'**
+  String tracksCount(int count);
+
+  /// No description provided for @genre.
+  ///
+  /// In en, this message translates to:
+  /// **'Genre'**
+  String get genre;
+
+  /// No description provided for @noTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'No tracks'**
+  String get noTracks;
+
+  /// No description provided for @moreLikeThis.
+  ///
+  /// In en, this message translates to:
+  /// **'More like this'**
+  String get moreLikeThis;
+
+  /// No description provided for @moreAlbumsByArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'More albums by {artist}'**
+  String moreAlbumsByArtist(String artist);
+
+  /// No description provided for @moreAlbumsOfArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'More albums by the artist'**
+  String get moreAlbumsOfArtist;
+
+  /// No description provided for @enterApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the API Key'**
+  String get enterApiKey;
+
+  /// No description provided for @rommApiKeyHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect with your RomM API Key (Bearer). Generate the API Key in RomM → Profile → API Keys.'**
+  String get rommApiKeyHelp;
+
+  /// No description provided for @apiKeyBearerLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key (Bearer)'**
+  String get apiKeyBearerLabel;
+
+  /// No description provided for @nameCannotBeEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Name cannot be empty'**
+  String get nameCannotBeEmpty;
+
+  /// No description provided for @pinTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN must be at least 4 digits'**
+  String get pinTooShort;
+
+  /// No description provided for @pinsDontMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'PINs don\'t match'**
+  String get pinsDontMatch;
+
+  /// No description provided for @couldNotSaveHouse.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not save house: {error}'**
+  String couldNotSaveHouse(String error);
+
+  /// No description provided for @householdMembersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} {count, plural, =1{user} other{users}}'**
+  String householdMembersCount(int count);
+
+  /// No description provided for @enterUsername.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter username'**
+  String get enterUsername;
+
+  /// No description provided for @noServerConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'No server configured'**
+  String get noServerConfigured;
+
+  /// No description provided for @invalidServerResponse.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid server response'**
+  String get invalidServerResponse;
+
+  /// No description provided for @couldNotConnectWithHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to server{hint}. Check the URL (e.g. https://jellyfin.example.com) and your connection.'**
+  String couldNotConnectWithHint(String hint);
+
+  /// No description provided for @couldNotConnectGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to server. Check the URL and your connection.'**
+  String get couldNotConnectGeneric;
+
+  /// No description provided for @masterPinRecovery.
+  ///
+  /// In en, this message translates to:
+  /// **'Recovery master PIN'**
+  String get masterPinRecovery;
+
+  /// No description provided for @pinCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'PIN copied to clipboard'**
+  String get pinCopied;
+
+  /// No description provided for @copy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copy;
+
+  /// No description provided for @masterPinSaveHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Save it separately: it lets you recover access to this home if you forget the PIN.'**
+  String get masterPinSaveHint;
+
+  /// No description provided for @invalidJsonObject.
+  ///
+  /// In en, this message translates to:
+  /// **'JSON is not a valid object.'**
+  String get invalidJsonObject;
+
+  /// No description provided for @serverUrlEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'Server URL is empty'**
+  String get serverUrlEmpty;
+
+  /// No description provided for @serverUrlInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid server URL'**
+  String get serverUrlInvalid;
+
+  /// No description provided for @serverUrlMustStartWithHttp.
+  ///
+  /// In en, this message translates to:
+  /// **'URL must start with http:// or https://'**
+  String get serverUrlMustStartWithHttp;
+
+  /// No description provided for @rommUserPassDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Username/password login disabled. Use API Key in RomM → Profile → API Keys.'**
+  String get rommUserPassDisabled;
+
+  /// No description provided for @apiKeyEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'API Key is empty'**
+  String get apiKeyEmpty;
+
+  /// No description provided for @rommForbidden.
+  ///
+  /// In en, this message translates to:
+  /// **'Access denied (403). Check ROMM user permissions on the server.\n\nDetails: {details}'**
+  String rommForbidden(String details);
+
+  /// No description provided for @rommForbiddenDetailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Access denied (403 Forbidden). Your ROMM user has no permission for this resource. Check permissions or log in again.'**
+  String get rommForbiddenDetailed;
+
+  /// No description provided for @loginFailedFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to log in'**
+  String get loginFailedFallback;
+
+  /// No description provided for @pinRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'You must choose a PIN for the house'**
+  String get pinRequired;
+
+  /// No description provided for @nowPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get nowPlaying;
+
+  /// No description provided for @nowPlayingTrack.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing: {track}'**
+  String nowPlayingTrack(String track);
 }
 
 class _AppLocalizationsDelegate

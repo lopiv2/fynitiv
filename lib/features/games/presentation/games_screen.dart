@@ -144,7 +144,7 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                             padding: const EdgeInsets.all(32),
                             child: Center(
                               child: Text(
-                                'Sin resultados para "$_query"',
+                                l10n.noResultsForQuery(_query),
                                 style: const TextStyle(color: Colors.white54),
                               ),
                             ),
@@ -191,7 +191,10 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                         child: Padding(
                           padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
                           child: Text(
-                            '${filtered.length} plataformas · ${filtered.fold<int>(0, (s, p) => s + p.romCount)} juegos',
+                            l10n.platformsAndGamesCount(
+                              filtered.length,
+                              filtered.fold<int>(0, (s, p) => s + p.romCount),
+                            ),
                             style: const TextStyle(
                               color: Colors.white38,
                               fontSize: 12,
@@ -301,7 +304,7 @@ class _HeroHeader extends ConsumerWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      '$totalPlatforms plataformas · $totalGames juegos',
+                      l10n.platformsAndGamesCount(totalPlatforms, totalGames),
                       style: const TextStyle(
                         color: Colors.white38,
                         fontSize: 12,
@@ -329,7 +332,7 @@ class _HeroHeader extends ConsumerWidget {
             onChanged: onQueryChanged,
             style: const TextStyle(color: Colors.white, fontSize: 14),
             decoration: InputDecoration(
-              hintText: 'Buscar plataforma...',
+              hintText: l10n.searchPlatformHint,
               hintStyle: const TextStyle(color: Colors.white38),
               prefixIcon: const Icon(
                 Icons.search_rounded,
@@ -577,6 +580,7 @@ class _PlatformCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final skin = ref.watch(skinControllerProvider).value;
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final textSecondary = skin?.textSecondary ?? Colors.white70;
@@ -712,7 +716,7 @@ class _PlatformCard extends ConsumerWidget {
                         ),
                       ),
                       child: Text(
-                        '${platform.romCount} juegos',
+                        l10n.gamesCount(platform.romCount),
                         style: TextStyle(
                           color: accent,
                           fontSize: 11,
@@ -925,9 +929,7 @@ class _ErrorView extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: SelectableText(
-                isForbidden
-                    ? 'Acceso denegado (403). Verifica permisos del usuario ROMM en el servidor.\n\nDetalle: $msg'
-                    : msg,
+                isForbidden ? l10n.rommForbidden(msg) : msg,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),

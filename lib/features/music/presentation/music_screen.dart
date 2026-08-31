@@ -425,7 +425,7 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
                                         Row(
                                           children: [
                                             Text(
-                                              '$count pistas',
+                                              l10n.tracksCount(count),
                                               style: const TextStyle(
                                                 color: Colors.white70,
                                                 fontSize: 14,
@@ -554,9 +554,9 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
                               const SizedBox(height: 12),
                               Row(
                                 children: [
-                                  const Text(
-                                    'Género',
-                                    style: TextStyle(
+                                  Text(
+                                    l10n.genre,
+                                    style: const TextStyle(
                                       color: Colors.white70,
                                       fontSize: 12,
                                     ),
@@ -587,11 +587,11 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
                                       ),
                                     ),
                                   if (list.isEmpty)
-                                    const Padding(
-                                      padding: EdgeInsets.all(24),
+                                    Padding(
+                                      padding: const EdgeInsets.all(24),
                                       child: Text(
-                                        'Sin pistas',
-                                        style: TextStyle(color: Colors.white54),
+                                        l10n.noTracks,
+                                        style: const TextStyle(color: Colors.white54),
                                       ),
                                     ),
                                 ],
@@ -603,9 +603,9 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
                                   serverUrl: serverUrl,
                                 ),
                               const SizedBox(height: 24),
-                              const Text(
-                                'Más como este',
-                                style: TextStyle(
+                              Text(
+                                l10n.moreLikeThis,
+                                style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
@@ -702,9 +702,10 @@ class _MoreArtistAlbums extends ConsumerWidget {
                 ? album.albumArtist!.trim()
                 : (album.artists?.firstOrNull?.trim() ?? ''))
             .trim();
+    final l10n = AppLocalizations.of(context)!;
     final title = artist.isNotEmpty
-        ? 'Más álbumes de $artist'
-        : 'Más álbumes del artista';
+        ? l10n.moreAlbumsByArtist(artist)
+        : l10n.moreAlbumsOfArtist;
     return more.when(
       loading: () => const SizedBox.shrink(),
       error: (_, _) => const SizedBox.shrink(),

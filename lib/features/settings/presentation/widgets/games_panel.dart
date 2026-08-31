@@ -40,7 +40,7 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
     final apiKey = _apiKeyController.text.trim();
 
     if (url.isEmpty || apiKey.isEmpty) {
-      setState(() => _message = apiKey.isEmpty ? 'Introduce la API Key' : l10n.gamesConfigRequired);
+      setState(() => _message = apiKey.isEmpty ? l10n.enterApiKey : l10n.gamesConfigRequired);
       return;
     }
     setState(() {
@@ -101,7 +101,7 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Conéctate con tu API Key de RomM (Bearer). Genera la API Key en RomM → Perfil → API Keys.',
+                l10n.rommApiKeyHelp,
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
               const SizedBox(height: 24),
@@ -158,7 +158,7 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
             controller: _apiKeyController,
             obscureText: _obscureApiKey,
             decoration: InputDecoration(
-              labelText: 'API Key (Bearer)',
+              labelText: l10n.apiKeyBearerLabel,
               hintText: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...',
               labelStyle: const TextStyle(color: Colors.white54),
               hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
@@ -179,9 +179,9 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
             maxLines: 1,
           ),
           const SizedBox(height: 6),
-          const Text(
-            'Genera la API Key en RomM → Perfil → API Keys.',
-            style: TextStyle(color: Colors.white38, fontSize: 11),
+          Text(
+            l10n.rommApiKeyHelp,
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
           const SizedBox(height: 16),
           if (_message != null) ...[

@@ -50,9 +50,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get enter => 'Entrar';
 
   @override
-  String get retry => 'Reintentar';
-
-  @override
   String get whichServer => '¿A qué servidor te conectas?';
 
   @override
@@ -128,9 +125,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get wrongPin => 'PIN incorrecto, inténtalo de nuevo';
-
-  @override
-  String get back => 'Atrás';
 
   @override
   String get next => 'Siguiente';
@@ -429,6 +423,12 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get playbackFailed => 'No se pudo iniciar la reproducción.';
+
+  @override
+  String get retry => 'Reintentar';
+
+  @override
+  String get back => 'Atrás';
 
   @override
   String get play => 'Reproducir';
@@ -739,4 +739,231 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get disableBackgroundVideo => 'Desactivar video de fondo';
+
+  @override
+  String get accept => 'Aceptar';
+
+  @override
+  String get searchPlatformHint => 'Buscar plataforma...';
+
+  @override
+  String get searchGameHint => 'Buscar juego...';
+
+  @override
+  String platformsAndGamesCount(int platforms, int games) {
+    return '$platforms plataformas · $games juegos';
+  }
+
+  @override
+  String gamesCount(int count) {
+    return '$count juegos';
+  }
+
+  @override
+  String noResultsForQuery(String query) {
+    return 'Sin resultados para \"$query\"';
+  }
+
+  @override
+  String get related => 'Relacionado';
+
+  @override
+  String get creatorsAndCast => 'Creadores y reparto';
+
+  @override
+  String get director => 'Dirección';
+
+  @override
+  String get producers => 'Productores';
+
+  @override
+  String get castLabel => 'Reparto';
+
+  @override
+  String get studio => 'Estudio';
+
+  @override
+  String get audioLanguages => 'Idiomas de audio';
+
+  @override
+  String get noAudioTracks => 'No hay pistas de audio disponibles.';
+
+  @override
+  String get subtitlesLabel => 'Subtítulos';
+
+  @override
+  String get noSubtitles => 'No hay subtítulos disponibles.';
+
+  @override
+  String get more => 'Más';
+
+  @override
+  String get moreOptionsToEnjoy => 'Más opciones para disfrutar';
+
+  @override
+  String get termsApply => 'Se aplican términos';
+
+  @override
+  String get trailerNoTrailer =>
+      'KinoCheck no devolvió un tráiler reproducible.';
+
+  @override
+  String get trailerOpenFailed => 'No se pudo abrir el video del tráiler.';
+
+  @override
+  String get inYourLibrary => 'En tu biblioteca';
+
+  @override
+  String get noSongsInLibrary =>
+      'No tienes canciones de este artista en tu biblioteca';
+
+  @override
+  String libraryAndPopularCounts(int library, int popular) {
+    return '$library en tu biblioteca • $popular populares';
+  }
+
+  @override
+  String get noSongsForArtist => 'No tienes canciones de este artista';
+
+  @override
+  String inYourLibraryCount(int count) {
+    return 'En tu biblioteca ($count)';
+  }
+
+  @override
+  String get loadMore => 'Cargar más';
+
+  @override
+  String get noPopularTracks => 'Sin populares';
+
+  @override
+  String tracksCount(int count) {
+    return '$count pistas';
+  }
+
+  @override
+  String get genre => 'Género';
+
+  @override
+  String get noTracks => 'Sin pistas';
+
+  @override
+  String get moreLikeThis => 'Más como este';
+
+  @override
+  String moreAlbumsByArtist(String artist) {
+    return 'Más álbumes de $artist';
+  }
+
+  @override
+  String get moreAlbumsOfArtist => 'Más álbumes del artista';
+
+  @override
+  String get enterApiKey => 'Introduce la API Key';
+
+  @override
+  String get rommApiKeyHelp =>
+      'Conéctate con tu API Key de RomM (Bearer). Genera la API Key en RomM → Perfil → API Keys.';
+
+  @override
+  String get apiKeyBearerLabel => 'API Key (Bearer)';
+
+  @override
+  String get nameCannotBeEmpty => 'El nombre no puede estar vacío';
+
+  @override
+  String get pinTooShort => 'El PIN debe tener al menos 4 dígitos';
+
+  @override
+  String get pinsDontMatch => 'Los PIN no coinciden';
+
+  @override
+  String couldNotSaveHouse(String error) {
+    return 'No se pudo guardar la casa: $error';
+  }
+
+  @override
+  String householdMembersCount(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'usuarios',
+      one: 'usuario',
+    );
+    return '$count $_temp0';
+  }
+
+  @override
+  String get enterUsername => 'Ingresa el usuario';
+
+  @override
+  String get noServerConfigured => 'Sin servidor configurado';
+
+  @override
+  String get invalidServerResponse => 'Respuesta inválida del servidor';
+
+  @override
+  String couldNotConnectWithHint(String hint) {
+    return 'No se pudo conectar al servidor$hint. Revisa la URL (ej. https://jellyfin.ejemplo.com) y tu conexión.';
+  }
+
+  @override
+  String get couldNotConnectGeneric =>
+      'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+
+  @override
+  String get masterPinRecovery => 'PIN maestro de recuperación';
+
+  @override
+  String get pinCopied => 'PIN copiado al portapapeles';
+
+  @override
+  String get copy => 'Copiar';
+
+  @override
+  String get masterPinSaveHint =>
+      'Guárdalo aparte: sirve para recuperar el acceso a esta casa si se olvida el PIN.';
+
+  @override
+  String get invalidJsonObject => 'El JSON no es un objeto válido.';
+
+  @override
+  String get serverUrlEmpty => 'URL del servidor vacía';
+
+  @override
+  String get serverUrlInvalid => 'URL del servidor no válida';
+
+  @override
+  String get serverUrlMustStartWithHttp =>
+      'La URL debe empezar por http:// o https://';
+
+  @override
+  String get rommUserPassDisabled =>
+      'Conexión por usuario/contraseña deshabilitada. Usa API Key en RomM → Perfil → API Keys.';
+
+  @override
+  String get apiKeyEmpty => 'API Key vacía';
+
+  @override
+  String rommForbidden(String details) {
+    return 'Acceso denegado (403). Verifica permisos del usuario ROMM en el servidor.\n\nDetalle: $details';
+  }
+
+  @override
+  String get rommForbiddenDetailed =>
+      'Acceso denegado (403 Forbidden). Tu usuario ROMM no tiene permiso para este recurso. Verifica permisos o inicia sesión de nuevo.';
+
+  @override
+  String get loginFailedFallback => 'Error al iniciar sesión';
+
+  @override
+  String get pinRequired => 'Debes elegir un PIN para la casa';
+
+  @override
+  String get nowPlaying => 'Reproduciendo ahora';
+
+  @override
+  String nowPlayingTrack(String track) {
+    return 'Reproduciendo: $track';
+  }
 }

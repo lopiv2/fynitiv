@@ -447,15 +447,15 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
 
     if (pin.isNotEmpty || pinConfirm.isNotEmpty) {
       if (pin.length < 4 || pinConfirm.length < 4) {
-        setState(() => _pinError = 'El PIN debe tener al menos 4 dígitos');
+        setState(() => _pinError = AppLocalizations.of(context)!.pinTooShort);
         return;
       }
       if (pin != pinConfirm) {
-        setState(() => _pinError = 'Los PIN no coinciden');
+        setState(() => _pinError = AppLocalizations.of(context)!.pinsDontMatch);
         return;
       }
     } else if (!editing) {
-      setState(() => _pinError = 'Debes elegir un PIN para la casa');
+      setState(() => _pinError = AppLocalizations.of(context)!.pinRequired);
       return;
     }
 
@@ -490,7 +490,7 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _pinError = 'No se pudo guardar la casa: $e';
+          _pinError = AppLocalizations.of(context)!.couldNotSaveHouse('$e');
         });
       }
       return;
@@ -548,7 +548,7 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
     final username = _userController.text.trim();
     final password = _passController.text;
     if (username.isEmpty) {
-      setState(() => _error = 'Ingresa el usuario');
+      setState(() => _error = AppLocalizations.of(context)!.enterUsername);
       return;
     }
     setState(() {
@@ -561,7 +561,7 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
     if (serverUrl == null) {
       setState(() {
         _loading = false;
-        _error = 'Sin servidor configurado';
+        _error = AppLocalizations.of(context)!.noServerConfigured;
       });
       return;
     }
@@ -578,7 +578,7 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
       if (user == null || user.id == null || token == null) {
         throw DioException(
           requestOptions: RequestOptions(path: ''),
-          error: 'Respuesta inválida del servidor',
+          error: AppLocalizations.of(context)!.invalidServerResponse,
         );
       }
       if (widget.existingIds.contains(user.id)) {
@@ -666,7 +666,7 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
       final hint = host.isNotEmpty && host != 'https' && host != 'http'
           ? ' ($host)'
           : '';
-      return 'No se pudo conectar al servidor$hint. Revisa la URL (ej. https://jellyfin.ejemplo.com) y tu conexión.';
+      return AppLocalizations.of(context)!.couldNotConnectWithHint(hint);
     }
     final data = e.response?.data;
     if (data is String && data.isNotEmpty) return data;
@@ -680,7 +680,7 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
       if (errStr.isNotEmpty && errStr != 'null') {
         if (errStr.contains('SocketException') ||
             errStr.contains('Failed host lookup')) {
-          return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+          return AppLocalizations.of(context)!.couldNotConnectGeneric;
         }
         return errStr;
       }
@@ -688,7 +688,7 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
     final msg = e.message;
     if (msg != null && msg.isNotEmpty) {
       if (msg.contains('Failed host lookup')) {
-        return 'No se pudo conectar al servidor. Revisa la URL y tu conexión.';
+        return AppLocalizations.of(context)!.couldNotConnectGeneric;
       }
       if (msg == 'Error processing request' && status != null) {
         return '$status $msg';
@@ -863,14 +863,14 @@ class _MasterPinCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Row(
+          Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.key, color: Colors.amber, size: 20),
-              SizedBox(width: 8),
+              const Icon(Icons.key, color: Colors.amber, size: 20),
+              const SizedBox(width: 8),
               Text(
-                'PIN maestro de recuperación',
-                style: TextStyle(
+                AppLocalizations.of(context)!.masterPinRecovery,
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w600,
                 ),
@@ -893,18 +893,17 @@ class _MasterPinCard extends StatelessWidget {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: pin));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('PIN copiado al portapapeles')),
+                SnackBar(content: Text(AppLocalizations.of(context)!.pinCopied)),
               );
             },
             icon: const Icon(Icons.copy, size: 16),
-            label: const Text('Copiar'),
+            label: Text(AppLocalizations.of(context)!.copy),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'Guárdalo aparte: sirve para recuperar el acceso a esta casa '
-            'si se olvida el PIN.',
+          Text(
+            AppLocalizations.of(context)!.masterPinSaveHint,
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.white70, fontSize: 12),
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
           ),
         ],
       ),

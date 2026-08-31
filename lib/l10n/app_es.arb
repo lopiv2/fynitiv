@@ -137,8 +137,6 @@
   "details": "Detalles",
   "watchTrailer": "Ver trailer",
   "playbackFailed": "No se pudo iniciar la reproducción.",
-  "retry": "Reintentar",
-  "back": "Atrás",
   "play": "Reproducir",
   "pause": "Pausar",
   "volume": "Volumen",
@@ -245,5 +243,130 @@
   "backgroundMusic": "Música de fondo",
   "muteBackgroundMusic": "Silenciar música de fondo",
   "backgroundVideo": "Video de fondo",
-  "disableBackgroundVideo": "Desactivar video de fondo"
+  "disableBackgroundVideo": "Desactivar video de fondo",
+  "accept": "Aceptar",
+  "searchPlatformHint": "Buscar plataforma...",
+  "searchGameHint": "Buscar juego...",
+  "platformsAndGamesCount": "{platforms} plataformas · {games} juegos",
+  "@platformsAndGamesCount": {
+    "placeholders": {
+      "platforms": { "type": "int" },
+      "games": { "type": "int" }
+    }
+  },
+  "gamesCount": "{count} juegos",
+  "@gamesCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "noResultsForQuery": "Sin resultados para \"{query}\"",
+  "@noResultsForQuery": {
+    "placeholders": {
+      "query": { "type": "String" }
+    }
+  },
+  "related": "Relacionado",
+  "creatorsAndCast": "Creadores y reparto",
+  "director": "Dirección",
+  "producers": "Productores",
+  "castLabel": "Reparto",
+  "studio": "Estudio",
+  "audioLanguages": "Idiomas de audio",
+  "noAudioTracks": "No hay pistas de audio disponibles.",
+  "subtitlesLabel": "Subtítulos",
+  "noSubtitles": "No hay subtítulos disponibles.",
+  "more": "Más",
+  "moreOptionsToEnjoy": "Más opciones para disfrutar",
+  "termsApply": "Se aplican términos",
+  "trailerNoTrailer": "KinoCheck no devolvió un tráiler reproducible.",
+  "trailerOpenFailed": "No se pudo abrir el video del tráiler.",
+  "inYourLibrary": "En tu biblioteca",
+  "noSongsInLibrary": "No tienes canciones de este artista en tu biblioteca",
+  "libraryAndPopularCounts": "{library} en tu biblioteca • {popular} populares",
+  "@libraryAndPopularCounts": {
+    "placeholders": {
+      "library": { "type": "int" },
+      "popular": { "type": "int" }
+    }
+  },
+  "noSongsForArtist": "No tienes canciones de este artista",
+  "inYourLibraryCount": "En tu biblioteca ({count})",
+  "@inYourLibraryCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "loadMore": "Cargar más",
+  "noPopularTracks": "Sin populares",
+  "tracksCount": "{count} pistas",
+  "@tracksCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "genre": "Género",
+  "noTracks": "Sin pistas",
+  "moreLikeThis": "Más como este",
+  "moreAlbumsByArtist": "Más álbumes de {artist}",
+  "@moreAlbumsByArtist": {
+    "placeholders": {
+      "artist": { "type": "String" }
+    }
+  },
+  "moreAlbumsOfArtist": "Más álbumes del artista",
+  "enterApiKey": "Introduce la API Key",
+  "rommApiKeyHelp": "Conéctate con tu API Key de RomM (Bearer). Genera la API Key en RomM → Perfil → API Keys.",
+  "apiKeyBearerLabel": "API Key (Bearer)",
+  "nameCannotBeEmpty": "El nombre no puede estar vacío",
+  "pinTooShort": "El PIN debe tener al menos 4 dígitos",
+  "pinsDontMatch": "Los PIN no coinciden",
+  "couldNotSaveHouse": "No se pudo guardar la casa: {error}",
+  "@couldNotSaveHouse": {
+    "placeholders": {
+      "error": { "type": "String" }
+    }
+  },
+  "householdMembersCount": "{count} {count, plural, =1{usuario} other{usuarios}}",
+  "@householdMembersCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "enterUsername": "Ingresa el usuario",
+  "noServerConfigured": "Sin servidor configurado",
+  "invalidServerResponse": "Respuesta inválida del servidor",
+  "couldNotConnectWithHint": "No se pudo conectar al servidor{hint}. Revisa la URL (ej. https://jellyfin.ejemplo.com) y tu conexión.",
+  "@couldNotConnectWithHint": {
+    "placeholders": {
+      "hint": { "type": "String" }
+    }
+  },
+  "couldNotConnectGeneric": "No se pudo conectar al servidor. Revisa la URL y tu conexión.",
+  "masterPinRecovery": "PIN maestro de recuperación",
+  "pinCopied": "PIN copiado al portapapeles",
+  "copy": "Copiar",
+  "masterPinSaveHint": "Guárdalo aparte: sirve para recuperar el acceso a esta casa si se olvida el PIN.",
+  "invalidJsonObject": "El JSON no es un objeto válido.",
+  "serverUrlEmpty": "URL del servidor vacía",
+  "serverUrlInvalid": "URL del servidor no válida",
+  "serverUrlMustStartWithHttp": "La URL debe empezar por http:// o https://",
+  "rommUserPassDisabled": "Conexión por usuario/contraseña deshabilitada. Usa API Key en RomM → Perfil → API Keys.",
+  "apiKeyEmpty": "API Key vacía",
+  "rommForbidden": "Acceso denegado (403). Verifica permisos del usuario ROMM en el servidor.\n\nDetalle: {details}",
+  "@rommForbidden": {
+    "placeholders": {
+      "details": { "type": "String" }
+    }
+  },
+  "rommForbiddenDetailed": "Acceso denegado (403 Forbidden). Tu usuario ROMM no tiene permiso para este recurso. Verifica permisos o inicia sesión de nuevo.",
+  "loginFailedFallback": "Error al iniciar sesión",
+  "pinRequired": "Debes elegir un PIN para la casa",
+  "nowPlaying": "Reproduciendo ahora",
+  "nowPlayingTrack": "Reproduciendo: {track}",
+  "@nowPlayingTrack": {
+    "placeholders": {
+      "track": { "type": "String" }
+    }
+  }
 }
