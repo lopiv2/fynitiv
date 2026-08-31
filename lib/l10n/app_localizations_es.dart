@@ -966,4 +966,37 @@ class AppLocalizationsEs extends AppLocalizations {
   String nowPlayingTrack(String track) {
     return 'Reproduciendo: $track';
   }
+
+  @override
+  String get gameTimePlayed => 'Tiempo jugado';
+
+  @override
+  String get gameLastPlayed => 'Última vez';
+
+  @override
+  String get gameReleaseDate => 'Fecha de lanzamiento';
+
+  @override
+  String get gamePlatform => 'Plataforma';
+
+  @override
+  String get gameInstall => 'Jugar';
+
+  @override
+  String get gameOptions => 'Descargar';
+
+  @override
+  String get gameKeyFeatures => 'Características principales:';
+
+  @override
+  String get gameNotPlayed => 'No jugado';
+
+  @override
+  String get gameNever => 'Nunca';
+
+  @override
+  String get gameInstallLabel => 'Instalar';
+
+  @override
+  String get gameOptionsLabel => 'Opciones';
 }

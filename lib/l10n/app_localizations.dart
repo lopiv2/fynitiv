@@ -1897,6 +1897,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Now playing: {track}'**
   String nowPlayingTrack(String track);
+
+  /// No description provided for @gameTimePlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Time Played'**
+  String get gameTimePlayed;
+
+  /// No description provided for @gameLastPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Last Played'**
+  String get gameLastPlayed;
+
+  /// No description provided for @gameReleaseDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Release Date'**
+  String get gameReleaseDate;
+
+  /// No description provided for @gamePlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'Platform'**
+  String get gamePlatform;
+
+  /// No description provided for @gameInstall.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get gameInstall;
+
+  /// No description provided for @gameOptions.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get gameOptions;
+
+  /// No description provided for @gameKeyFeatures.
+  ///
+  /// In en, this message translates to:
+  /// **'Key Features:'**
+  String get gameKeyFeatures;
+
+  /// No description provided for @gameNotPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Not Played'**
+  String get gameNotPlayed;
+
+  /// No description provided for @gameNever.
+  ///
+  /// In en, this message translates to:
+  /// **'Never'**
+  String get gameNever;
+
+  /// No description provided for @gameInstallLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Install'**
+  String get gameInstallLabel;
+
+  /// No description provided for @gameOptionsLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Options'**
+  String get gameOptionsLabel;
 }
 
 class _AppLocalizationsDelegate

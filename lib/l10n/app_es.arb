@@ -368,5 +368,16 @@
     "placeholders": {
       "track": { "type": "String" }
     }
-  }
+  },
+  "gameTimePlayed": "Tiempo jugado",
+  "gameLastPlayed": "Última vez",
+  "gameReleaseDate": "Fecha de lanzamiento",
+  "gamePlatform": "Plataforma",
+  "gameInstall": "Jugar",
+  "gameOptions": "Descargar",
+  "gameKeyFeatures": "Características principales:",
+  "gameNotPlayed": "No jugado",
+  "gameNever": "Nunca",
+  "gameInstallLabel": "Instalar",
+  "gameOptionsLabel": "Opciones"
 }
