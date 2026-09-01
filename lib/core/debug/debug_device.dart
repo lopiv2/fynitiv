@@ -31,3 +31,15 @@ final debugDeviceProvider =
     NotifierProvider<DebugDeviceController, DebugDevice>(
   DebugDeviceController.new,
 );
+
+class DebugDpadController extends Notifier<bool> {
+  @override
+  bool build() => false;
+
+  void toggle() => state = !state;
+  void setVisible(bool v) => state = v;
+}
+
+/// Toggle para mostrar el overlay D-pad (mando TV) draggable.
+final debugDpadVisibleProvider =
+    NotifierProvider<DebugDpadController, bool>(DebugDpadController.new);

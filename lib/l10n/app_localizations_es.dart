@@ -1006,4 +1006,17 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get gameOptionsLabel => 'Opciones';
+
+  @override
+  String get mediaLibraries => 'Bibliotecas de Medios';
+
+  @override
+  String get selectCollectionWithDPad =>
+      'Selecciona la colección que deseas explorar con las flechas de tu mando D-Pad.';
+
+  @override
+  String get closeEsc => 'Cerrar (Esc)';
+
+  @override
+  String get focusedLabel => 'ENFOCADO';
 }

@@ -100,11 +100,9 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
           )
         : null;
     final contentFocus = Focus(
-      autofocus: mode != PlatformMode.tv,
+      autofocus: false,
       onFocusChange: (focused) {
         // En TV la barra lateral (skin jellyfin) debe permanecer visible.
-        // Antes se colapsaba al enfocar el contenido, lo que la ocultaba
-        // siempre por el autofocus inicial. Ya no se colapsa automáticamente.
         if (mode == PlatformMode.tv && focused) {
           ref.read(sidebarControllerProvider.notifier).expand();
         }
@@ -159,20 +157,41 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
       );
     }
 
-    return KeyboardListener(
-      focusNode: FocusNode(),
+    // Grupo de traversals para que flechas del D-pad (HardwareKeyboard +
+    // fallback focusInDirection) puedan moverse entre sidebar y contenido.
+    final traversedBody = FocusTraversalGroup(
+      policy: ReadingOrderTraversalPolicy(),
+      child: body,
+    );
+
+    // Tras seleccionar perfil (/users → /home) en TV, el foco debe quedar
+    // en Inicio de la barra (isla o lateral). El primer _NavItem/
+    // _FloatingNavItem tiene autofocus:true en TV, pero tras el redirect de
+    // GoRouter el foco anterior (perfil) queda huérfano. Se fuerza nextFocus
+    // en el siguiente frame si sigue sin foco o en rootScope.
+    if (mode == PlatformMode.tv) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        final primary = FocusManager.instance.primaryFocus;
+        if (primary == null || primary == FocusManager.instance.rootScope || primary.context == null || !primary.context!.mounted) {
+          // ignore: use_build_context_synchronously
+          FocusScope.of(context).nextFocus();
+        }
+      });
+    }
+
+    return FocusScope(
       autofocus: true,
-      onKeyEvent: mode == PlatformMode.tv
-          ? (event) {
-              if (event is KeyDownEvent &&
-                  event.logicalKey == LogicalKeyboardKey.arrowLeft) {
-                ref.read(sidebarControllerProvider.notifier).expand();
-              }
-            }
-          : null,
+      onKeyEvent: (node, event) {
+        if (mode == PlatformMode.tv && event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+          ref.read(sidebarControllerProvider.notifier).expand();
+          return KeyEventResult.ignored;
+        }
+        return KeyEventResult.ignored;
+      },
       child: Scaffold(
         body: DashboardBackground(
-          child: body,
+          child: traversedBody,
         ),
         floatingActionButton: switch (mode) {
           PlatformMode.desktop => FloatingActionButton.small(

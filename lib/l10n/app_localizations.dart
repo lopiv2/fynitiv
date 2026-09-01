@@ -1975,6 +1975,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Options'**
   String get gameOptionsLabel;
+
+  /// No description provided for @mediaLibraries.
+  ///
+  /// In en, this message translates to:
+  /// **'Media Libraries'**
+  String get mediaLibraries;
+
+  /// No description provided for @selectCollectionWithDPad.
+  ///
+  /// In en, this message translates to:
+  /// **'Select the collection you want to explore with your D-Pad arrows.'**
+  String get selectCollectionWithDPad;
+
+  /// No description provided for @closeEsc.
+  ///
+  /// In en, this message translates to:
+  /// **'Close (Esc)'**
+  String get closeEsc;
+
+  /// No description provided for @focusedLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'FOCUSED'**
+  String get focusedLabel;
 }
 
 class _AppLocalizationsDelegate

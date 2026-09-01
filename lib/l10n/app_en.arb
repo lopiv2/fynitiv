@@ -384,5 +384,9 @@
   "gameNotPlayed": "Not Played",
   "gameNever": "Never",
   "gameInstallLabel": "Install",
-  "gameOptionsLabel": "Options"
+  "gameOptionsLabel": "Options",
+  "mediaLibraries": "Media Libraries",
+  "selectCollectionWithDPad": "Select the collection you want to explore with your D-Pad arrows.",
+  "closeEsc": "Close (Esc)",
+  "focusedLabel": "FOCUSED"
 }

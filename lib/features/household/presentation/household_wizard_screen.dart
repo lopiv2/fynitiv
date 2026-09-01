@@ -214,8 +214,11 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.group_outlined,
-                          color: Colors.white38, size: 48),
+                      const Icon(
+                        Icons.group_outlined,
+                        color: Colors.white38,
+                        size: 48,
+                      ),
                       const SizedBox(height: 12),
                       Text(
                         l10n.noHouseholdMembers,
@@ -274,9 +277,8 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
     final result = await showDialog<HouseholdMember>(
       context: context,
       barrierDismissible: false,
-      builder: (_) => _AddUserDialog(
-        existingIds: _members.map((m) => m.id).toSet(),
-      ),
+      builder: (_) =>
+          _AddUserDialog(existingIds: _members.map((m) => m.id).toSet()),
     );
     if (result != null) {
       setState(() {
@@ -429,7 +431,9 @@ class _HouseholdWizardScreenState extends ConsumerState<HouseholdWizardScreen> {
     // Avanza de usuarios → nombre. Maneja _step 0/1 cuando no hay server por el init async.
     if (_step == 1 || (!needsServer && _step == 0)) {
       if (_members.isEmpty) {
-        setState(() => _usersError = AppLocalizations.of(context)!.addAtLeastOneUser);
+        setState(
+          () => _usersError = AppLocalizations.of(context)!.addAtLeastOneUser,
+        );
         return;
       }
       setState(() => _step = 2);
@@ -622,9 +626,11 @@ class _AddUserDialogState extends ConsumerState<_AddUserDialog> {
     } on DioException catch (e, st) {
       // Log completo para diagnóstico: status, data, error, message
       // ignore: avoid_print
-      print('authenticate DioException: status=${e.response?.statusCode} '
-          'data=${e.response?.data} error=${e.error} message=${e.message} '
-          'type=${e.type} stack=$st');
+      print(
+        'authenticate DioException: status=${e.response?.statusCode} '
+        'data=${e.response?.data} error=${e.error} message=${e.message} '
+        'type=${e.type} stack=$st',
+      );
       final msg = _dioMessage(e);
       if (mounted) {
         setState(() {
@@ -893,7 +899,9 @@ class _MasterPinCard extends StatelessWidget {
             onPressed: () {
               Clipboard.setData(ClipboardData(text: pin));
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text(AppLocalizations.of(context)!.pinCopied)),
+                SnackBar(
+                  content: Text(AppLocalizations.of(context)!.pinCopied),
+                ),
               );
             },
             icon: const Icon(Icons.copy, size: 16),

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'debug_device.dart';
+import 'dpad_overlay.dart';
 
 /// Activa/desactiva la barra y la simulación de dispositivos (debug).
 const bool debugDeviceBarEnabled = true;
@@ -20,6 +21,7 @@ class DeviceSimulatorHost extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final device = ref.watch(debugDeviceProvider);
+    final dpadVisible = ref.watch(debugDpadVisibleProvider);
 
     if (!debugDeviceBarEnabled) {
       return child ?? const SizedBox.shrink();
@@ -35,24 +37,29 @@ class DeviceSimulatorHost extends ConsumerWidget {
           )
         : realMq;
 
-    return Column(
+    return Stack(
       children: [
-        _DebugDeviceBar(device: device),
-        Expanded(
-          // MediaQuery y SizedBox siempre presentes para conservar el estado
-          // del Navigator (navegación) al alternar la simulación.
-          child: MediaQuery(
-            data: simulatedMq,
-            child: Align(
-              alignment: Alignment.center,
-              child: SizedBox(
-                width: device.isSimulated ? device.width : double.infinity,
-                height: device.isSimulated ? device.height : double.infinity,
-                child: child ?? const SizedBox.shrink(),
+        Column(
+          children: [
+            _DebugDeviceBar(device: device),
+            Expanded(
+              // MediaQuery y SizedBox siempre presentes para conservar el estado
+              // del Navigator (navegación) al alternar la simulación.
+              child: MediaQuery(
+                data: simulatedMq,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: SizedBox(
+                    width: device.isSimulated ? device.width : double.infinity,
+                    height: device.isSimulated ? device.height : double.infinity,
+                    child: child ?? const SizedBox.shrink(),
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
+        if (dpadVisible) const DpadOverlay(),
       ],
     );
   }
@@ -67,6 +74,7 @@ class _DebugDeviceBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final select = ref.read(debugDeviceProvider.notifier).select;
+    final dpadVisible = ref.watch(debugDpadVisibleProvider);
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -100,11 +108,37 @@ class _DebugDeviceBar extends ConsumerWidget {
               ),
             ),
           ),
-          if (device.isSimulated)
+          const SizedBox(width: 8),
+          // Toggle D-pad overlay (mando TV draggable)
+          GestureDetector(
+            onTap: () => ref.read(debugDpadVisibleProvider.notifier).toggle(),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                color: dpadVisible ? const Color(0xFF2B7FFF) : Colors.white10,
+                border: Border.all(color: dpadVisible ? const Color(0xFF2B7FFF) : Colors.white24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.gamepad_outlined, color: Colors.white, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    dpadVisible ? 'Mando ON' : 'Mando',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: dpadVisible ? FontWeight.w600 : FontWeight.w400),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (device.isSimulated) ...[
+            const SizedBox(width: 8),
             Text(
               '${device.width!.round()}×${device.height!.round()}',
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
+          ],
         ],
       ),
     );

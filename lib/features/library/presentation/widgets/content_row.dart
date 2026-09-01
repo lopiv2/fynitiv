@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/navigation/platform_mode.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/horizontal_scroll_behavior.dart';
 import '../../../../core/widgets/scroll_title.dart';
 import 'backdrop_card.dart';
@@ -301,6 +303,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
       return a.compareTo(b);
     });
     final step = _cardWidth + _spacing;
+    final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
     return [
       for (final i in indices)
         Positioned(
@@ -308,41 +311,52 @@ class _ContentRowState extends ConsumerState<ContentRow> {
           left: i * step,
           top: 0,
           width: _cardWidth,
-          child: widget.useBackdrop
-              ? BackdropCard(
-                  item: items[i],
-                  serverUrl: widget.serverUrl,
-                  cardLogo: widget.cardLogo,
-                  hoverExtension: true,
-                  useSeriesPoster: widget.useSeriesPoster,
-                  onTap: widget.onItemTap == null
-                      ? null
-                      : () => widget.onItemTap!(items[i]),
-                  onImageTap: widget.onItemImageTap == null
-                      ? null
-                      : () => widget.onItemImageTap!(items[i]),
-                  onHoverChanged: (v) => _onCardHover(i, v),
-                  onPointerSignal: _onPagePointerSignal,
-                  overlayBelowEntry: _prepareArrowOverlayForHover,
-                )
-              : PosterCard(
-                  item: items[i],
-                  serverUrl: widget.serverUrl,
-                  cardLogo: widget.cardLogo,
-                  hoverExtension: true,
-                  useSeriesPoster: widget.useSeriesPoster,
-                  onTap: widget.onItemTap == null
-                      ? null
-                      : () => widget.onItemTap!(items[i]),
-                  onImageTap: widget.onItemImageTap == null
-                      ? null
-                      : () => widget.onItemImageTap!(items[i]),
-                  onHoverChanged: (v) => _onCardHover(i, v),
-                  onPointerSignal: _onPagePointerSignal,
-                  overlayBelowEntry: _prepareArrowOverlayForHover,
-                ),
+          child: _wrapForTv(
+            isTv: isTv,
+            onTap: widget.onItemTap == null ? null : () => widget.onItemTap!(items[i]),
+            child: widget.useBackdrop
+                ? BackdropCard(
+                    item: items[i],
+                    serverUrl: widget.serverUrl,
+                    cardLogo: widget.cardLogo,
+                    hoverExtension: true,
+                    useSeriesPoster: widget.useSeriesPoster,
+                    onTap: widget.onItemTap == null ? null : () => widget.onItemTap!(items[i]),
+                    onImageTap: widget.onItemImageTap == null ? null : () => widget.onItemImageTap!(items[i]),
+                    onHoverChanged: (v) => _onCardHover(i, v),
+                    onPointerSignal: _onPagePointerSignal,
+                    overlayBelowEntry: _prepareArrowOverlayForHover,
+                  )
+                : PosterCard(
+                    item: items[i],
+                    serverUrl: widget.serverUrl,
+                    cardLogo: widget.cardLogo,
+                    hoverExtension: true,
+                    useSeriesPoster: widget.useSeriesPoster,
+                    onTap: widget.onItemTap == null ? null : () => widget.onItemTap!(items[i]),
+                    onImageTap: widget.onItemImageTap == null ? null : () => widget.onItemImageTap!(items[i]),
+                    onHoverChanged: (v) => _onCardHover(i, v),
+                    onPointerSignal: _onPagePointerSignal,
+                    overlayBelowEntry: _prepareArrowOverlayForHover,
+                  ),
+          ),
         ),
     ];
+  }
+
+  Widget _wrapForTv({required bool isTv, required VoidCallback? onTap, required Widget child}) {
+    if (!isTv || onTap == null) return child;
+    return AppHover(
+      effect: AppHoverEffect.scaleHighlightOutline,
+      config: AppHoverConfig.scaleHighlightOutline(
+        scale: 1.04,
+        radius: BorderRadius.circular(12),
+        outlineHoveredColor: Colors.white,
+        outlineHoveredWidth: 2,
+      ),
+      onTap: onTap,
+      child: child,
+    );
   }
 
   @override
@@ -367,53 +381,56 @@ class _ContentRowState extends ConsumerState<ContentRow> {
           ),
           const SizedBox(height: 12),
         ],
-        SizedBox(
-          height: _rowHeight,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Listener de bajo nivel: captura el arrastre con el botón del
-              // medio del ratón para desplazar la fila en horizontal. La rueda
-              // (PointerScrollEvent) no se intercepta, así que sigue haciendo
-              // scroll vertical de página.
-              MouseRegion(
-                onEnter: (_) {
-                  setState(() => _rowHovered = true);
-                  _showArrowOverlay();
-                },
-                onExit: (_) => _scheduleArrowOverlayHide(),
-                child: CompositedTransformTarget(
-                  key: _rowKey,
-                  link: _rowLink,
-                  child: Listener(
-                    onPointerDown: _onPointerDown,
-                    onPointerMove: _onPointerMove,
-                    onPointerUp: _onPointerUp,
-                    behavior: HitTestBehavior.translucent,
-                    child: ScrollConfiguration(
-                      behavior: const HorizontalScrollBehavior(),
-                      child: SingleChildScrollView(
-                        controller: _controller,
-                        scrollDirection: Axis.horizontal,
-                        clipBehavior: Clip.none,
-                        padding: const EdgeInsets.symmetric(horizontal: 24),
-                        child: SizedBox(
-                          width:
-                              widget.items.length * _cardWidth +
-                              (widget.items.length - 1) * _spacing,
-                          height: _rowHeight,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            children: _buildStackedItems(),
+        FocusTraversalGroup(
+          policy: ReadingOrderTraversalPolicy(),
+          child: SizedBox(
+            height: _rowHeight,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                // Listener de bajo nivel: captura el arrastre con el botón del
+                // medio del ratón para desplazar la fila en horizontal. La rueda
+                // (PointerScrollEvent) no se intercepta, así que sigue haciendo
+                // scroll vertical de página.
+                MouseRegion(
+                  onEnter: (_) {
+                    setState(() => _rowHovered = true);
+                    _showArrowOverlay();
+                  },
+                  onExit: (_) => _scheduleArrowOverlayHide(),
+                  child: CompositedTransformTarget(
+                    key: _rowKey,
+                    link: _rowLink,
+                    child: Listener(
+                      onPointerDown: _onPointerDown,
+                      onPointerMove: _onPointerMove,
+                      onPointerUp: _onPointerUp,
+                      behavior: HitTestBehavior.translucent,
+                      child: ScrollConfiguration(
+                        behavior: const HorizontalScrollBehavior(),
+                        child: SingleChildScrollView(
+                          controller: _controller,
+                          scrollDirection: Axis.horizontal,
+                          clipBehavior: Clip.none,
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: SizedBox(
+                            width:
+                                widget.items.length * _cardWidth +
+                                (widget.items.length - 1) * _spacing,
+                            height: _rowHeight,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              children: _buildStackedItems(),
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
           ),
+        ),
         ),
         SizedBox(height: rowSpacing),
       ],

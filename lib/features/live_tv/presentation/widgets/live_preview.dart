@@ -137,67 +137,63 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          if (channel.logoUrl != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 8),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: SizedBox(
-                                  width: 240,
-                                  height: 120,
-                                  child: Image.network(
-                                    channel.logoUrl!,
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (_, _, _) =>
-                                        const SizedBox.shrink(),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(
-                                0xFFFF5252,
-                              ).withValues(alpha: 0.16),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: const Color(
-                                  0xFFFF5252,
-                                ).withValues(alpha: 0.55),
-                              ),
-                            ),
-                            child: Text(
-                              l10n.liveTvNow,
-                              style: const TextStyle(
-                                color: Color(0xFFFF7A7A),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: 1,
+                      if (channel.logoUrl != null)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: SizedBox(
+                              width: 240,
+                              height: 110,
+                              child: Image.network(
+                                channel.logoUrl!,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) =>
+                                    const SizedBox.shrink(),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              channel.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
+                        ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(
+                            0xFFFF5252,
+                          ).withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color: const Color(
+                              0xFFFF5252,
+                            ).withValues(alpha: 0.55),
                           ),
-                        ],
+                        ),
+                        child: Text(
+                          l10n.liveTvNow,
+                          style: const TextStyle(
+                            color: Color(0xFFFF7A7A),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1,
+                          ),
+                        ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          channel.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      //const SizedBox(height: 8),
                       Text(
                         program?.title ?? '',
                         maxLines: 1,

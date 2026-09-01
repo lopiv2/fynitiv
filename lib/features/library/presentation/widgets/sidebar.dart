@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 // ignore: unnecessary_import - PointerDeviceKind usado en _HorizontalScrollBehavior
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +8,9 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/navigation/platform_mode.dart';
 import '../../../../core/navigation/sidebar_controller.dart';
+import '../../../../core/navigation/tv_focus_nodes.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/scale_button.dart';
@@ -18,6 +18,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import '../../application/library_providers.dart';
+import 'floating_island_bar.dart';
 
 /// Barra lateral del dashboard (estilo Prime/Disney).
 class Sidebar extends ConsumerWidget {
@@ -51,6 +52,7 @@ class Sidebar extends ConsumerWidget {
     final iconSpacing = skin?.navItemIconSpacing ?? 12;
     final position = skin?.sidebarPosition ?? SidebarPosition.left;
     final selectedColor = skin?.sidebarSelectedColor;
+    final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
     // Bibliotecta activa según la ruta actual (/library/:viewId).
     final activeViewId = GoRouterState.of(context).pathParameters['viewId'];
     final horizontal =
@@ -67,6 +69,8 @@ class Sidebar extends ConsumerWidget {
         accent: accent,
         iconSpacing: iconSpacing,
         selectedColor: selectedColor,
+        autofocus: isTv && currentIndex == 0 && activeViewId == null,
+        focusNode: isTv && currentIndex == 0 && activeViewId == null ? tvInicioFocusNode : null,
         onTap: () => _goBranch(context, ref, 0),
       ),
       _NavItem(
@@ -78,6 +82,7 @@ class Sidebar extends ConsumerWidget {
         accent: accent,
         iconSpacing: iconSpacing,
         selectedColor: selectedColor,
+        autofocus: isTv && currentIndex == 1,
         onTap: () => _goBranch(context, ref, 1),
       ),
       _NavItem(
@@ -89,6 +94,7 @@ class Sidebar extends ConsumerWidget {
         accent: accent,
         iconSpacing: iconSpacing,
         selectedColor: selectedColor,
+        autofocus: isTv && currentIndex == 2,
         onTap: () => _goBranch(context, ref, 2),
       ),
       _NavItem(
@@ -100,6 +106,7 @@ class Sidebar extends ConsumerWidget {
         accent: accent,
         iconSpacing: iconSpacing,
         selectedColor: selectedColor,
+        autofocus: isTv && currentIndex == 3,
         onTap: () => _goBranch(context, ref, 3),
       ),
       _NavItem(
@@ -111,6 +118,7 @@ class Sidebar extends ConsumerWidget {
         accent: accent,
         iconSpacing: iconSpacing,
         selectedColor: selectedColor,
+        autofocus: isTv && currentIndex == 4,
         onTap: () => _goBranch(context, ref, 4),
       ),
       _NavItem(
@@ -123,6 +131,7 @@ class Sidebar extends ConsumerWidget {
         accent: accent,
         iconSpacing: iconSpacing,
         selectedColor: selectedColor,
+        autofocus: isTv && currentIndex == 5,
         onTap: () => _goBranch(context, ref, 5),
       ),
     ];
@@ -150,6 +159,7 @@ class Sidebar extends ConsumerWidget {
       accent: accent,
       iconSpacing: iconSpacing,
       selectedColor: selectedColor,
+      autofocus: isTv && currentIndex == 6,
       onTap: () => _goBranch(context, ref, 6),
     );
 
@@ -160,59 +170,9 @@ class Sidebar extends ConsumerWidget {
       final isIsland =
           position == SidebarPosition.top && (skin?.topBarFloating ?? false);
       if (isIsland) {
-        // Isla flotante pill con glass blur, radio fijo 28, altura aumentada.
-        // En modo isla no se hace scroll horizontal infinito: las bibliotecas
-        // de Jellyfin se agrupan bajo un único botón "Biblioteca" con menú
-        // desplegable debajo. Así la píldora abraza el contenido como en
-        // [Image 1] sin desbordar.
-        const islandRadius = 28.0;
-        final isAnyLibrarySelected = views.any((v) => v.id == activeViewId);
-        final libraryMenu = _IslandLibraryMenu(
-          views: views,
-          activeViewId: activeViewId,
-          isAnyLibrarySelected: isAnyLibrarySelected,
-          textPrimary: textPrimary,
-          textSecondary: textSecondary,
-          accent: accent,
-          iconSpacing: iconSpacing,
-          selectedColor: selectedColor,
-        );
-        return Center(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(islandRadius),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                height: 60,
-                constraints: const BoxConstraints(maxWidth: 1280),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                decoration: BoxDecoration(
-                  color: bg.withValues(alpha: 0.78),
-                  borderRadius: BorderRadius.circular(islandRadius),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.16),
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.38),
-                      blurRadius: 22,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ...mainItems,
-                    if (views.isNotEmpty) libraryMenu,
-                    settings,
-                    const SizedBox(width: 4),
-                    _UserAvatar(auth: auth, compact: true),
-                  ],
-                ),
-              ),
-            ),
-          ),
+        return FloatingIslandBar(
+          currentIndex: currentIndex,
+          onNavigateBranch: onNavigateBranch,
         );
       }
       return Container(
@@ -483,159 +443,6 @@ class _UserAvatar extends ConsumerWidget {
   }
 }
 
-/// En modo isla la lista de bibliotecas de Jellyfin se colapsa en un único
-/// botón "Biblioteca" que despliega hacia abajo (debajo de la píldora) todas
-/// las bibliotecas. En barra anclada se mantiene el scroll horizontal.
-class _IslandLibraryMenu extends StatefulWidget {
-  const _IslandLibraryMenu({
-    required this.views,
-    required this.activeViewId,
-    required this.isAnyLibrarySelected,
-    required this.textPrimary,
-    required this.textSecondary,
-    required this.accent,
-    required this.iconSpacing,
-    required this.selectedColor,
-  });
-
-  final List<BaseItemDto> views;
-  final String? activeViewId;
-  final bool isAnyLibrarySelected;
-  final Color textPrimary;
-  final Color textSecondary;
-  final Color accent;
-  final double iconSpacing;
-  final Color? selectedColor;
-
-  @override
-  State<_IslandLibraryMenu> createState() => _IslandLibraryMenuState();
-}
-
-class _IslandLibraryMenuState extends State<_IslandLibraryMenu> {
-  bool _hovered = false;
-
-  Widget _buildRow(Color color, FontWeight weight) {
-    return Row(
-      children: [
-        const Icon(Icons.video_library_outlined, color: Colors.white, size: 22),
-        SizedBox(width: widget.iconSpacing),
-        Text(
-          'Biblioteca',
-          style: TextStyle(color: color, fontSize: 15, fontWeight: weight),
-        ),
-        const SizedBox(width: 4),
-        Icon(
-          Icons.arrow_drop_down,
-          color: color.withValues(alpha: 0.85),
-          size: 20,
-        ),
-      ],
-    );
-  }
-
-  // Trick: el _LibraryIcon se reutiliza del mixin superior; duplicamos lógica
-  IconData _viewIcon(BaseItemDto view) {
-    switch (view.collectionType) {
-      case CollectionType.books:
-        return Icons.menu_book_outlined;
-      case CollectionType.playlists:
-        return Icons.queue_music_outlined;
-      case CollectionType.boxsets:
-        return Icons.collections_bookmark_outlined;
-      case CollectionType.movies:
-        return Icons.movie_outlined;
-      case CollectionType.tvshows:
-        return Icons.tv_outlined;
-      case CollectionType.music:
-        return Icons.music_note_outlined;
-      case CollectionType.livetv:
-        return Icons.live_tv_outlined;
-      default:
-        return Icons.video_library_outlined;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final selected = widget.isAnyLibrarySelected;
-    final selectedColor = widget.selectedColor;
-    Widget content;
-    if (_hovered) {
-      content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: Colors.white,
-        ),
-        child: _buildRow(Colors.black, FontWeight.w600),
-      );
-    } else if (selected && selectedColor != null) {
-      content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [selectedColor, Color.lerp(selectedColor, Colors.black, 0.5)!],
-          ),
-        ),
-        child: _buildRow(widget.textPrimary, FontWeight.w600),
-      );
-    } else {
-      content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(10),
-          color: selected ? widget.accent.withValues(alpha: 0.35) : Colors.transparent,
-        ),
-        child: _buildRow(
-          selected ? widget.textPrimary : widget.textSecondary,
-          selected ? FontWeight.w600 : FontWeight.w400,
-        ),
-      );
-    }
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-      child: PopupMenuButton<String>(
-        offset: const Offset(0, 48),
-        color: const Color(0xFF1A2568),
-        tooltip: 'Biblioteca',
-        onSelected: (id) => context.go('/library/$id'),
-        itemBuilder: (context) => [
-          for (final v in widget.views)
-            PopupMenuItem<String>(
-              value: v.id ?? '',
-              child: Row(
-                children: [
-                  Icon(_viewIcon(v), color: Colors.white70, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      v.name ?? '',
-                      style: TextStyle(
-                        color: widget.activeViewId == v.id ? Colors.white : Colors.white70,
-                        fontWeight: widget.activeViewId == v.id ? FontWeight.w700 : FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                  if (widget.activeViewId == v.id)
-                    const Icon(Icons.check, color: Colors.white, size: 16),
-                ],
-              ),
-            ),
-        ],
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _hovered = true),
-          onExit: (_) => setState(() => _hovered = false),
-          child: content,
-        ),
-      ),
-    );
-  }
-}
-
 class _NavItem extends StatefulWidget {
   const _NavItem({
     this.icon,
@@ -649,6 +456,8 @@ class _NavItem extends StatefulWidget {
     this.selectedIcon,
     this.selectedColor,
     this.faIcon,
+    this.autofocus = false,
+    this.focusNode,
   });
 
   final IconData? icon;
@@ -669,6 +478,8 @@ class _NavItem extends StatefulWidget {
   /// Color del item seleccionado. Si no es nulo, se muestra con degradado
   /// vertical y un pequeño flash blanco en la parte superior.
   final Color? selectedColor;
+  final bool autofocus;
+  final FocusNode? focusNode;
 
   @override
   State<_NavItem> createState() => _NavItemState();
@@ -756,6 +567,8 @@ class _NavItemState extends State<_NavItem> {
         selected: selected,
         selectedScale: 1.05,
         borderRadius: BorderRadius.circular(10),
+        autofocus: widget.autofocus,
+        focusNode: widget.focusNode,
         onPressed: widget.onTap,
         onFocusChange: (focused) {
           if (_hovered != focused) setState(() => _hovered = focused);

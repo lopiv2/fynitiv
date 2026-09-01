@@ -7,6 +7,10 @@ import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import 'package:flutter/services.dart';
+
+import '../../../../core/navigation/platform_mode.dart';
+import '../../../../core/navigation/tv_focus_nodes.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/app_loader.dart';
@@ -24,7 +28,7 @@ import '../../application/library_providers.dart';
 ///
 /// Reutilizable por cualquier skin mediante sus parámetros: borde, altura,
 /// alineación de puntos, tamaño del logo, etc.
-class FeaturedSlider extends StatefulWidget {
+class FeaturedSlider extends ConsumerStatefulWidget {
   const FeaturedSlider({
     super.key,
     required this.title,
@@ -119,10 +123,10 @@ class FeaturedSlider extends StatefulWidget {
   final bool showTrailer;
 
   @override
-  State<FeaturedSlider> createState() => _FeaturedSliderState();
+  ConsumerState<FeaturedSlider> createState() => _FeaturedSliderState();
 }
 
-class _FeaturedSliderState extends State<FeaturedSlider> {
+class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
   late final PageController _controller;
   Timer? _timer;
   int _currentPage = 0;
@@ -141,16 +145,48 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
 
   bool get _useFade => widget.transition == SliderTransition.fade;
 
+  /// FocusNodes para navegación TV: acciones (Ver ahora, Trailer, Fav, Info) y dots.
+  /// Se crean aquí para poder controlar el flujo isla → acciones → dots → continuar viendo.
+  late List<FocusNode> _actionNodes;
+  late List<FocusNode> _dotNodes;
+
+  void _initTvNodes() {
+    // El primer nodo es global para que la isla pueda hacer ↓ determinista a Ver ahora
+    _actionNodes = [
+      tvSliderFirstActionFocusNode,
+      FocusNode(debugLabel: 'slider_action_1'),
+      FocusNode(debugLabel: 'slider_action_2'),
+      FocusNode(debugLabel: 'slider_action_3'),
+    ];
+    _dotNodes = List.generate(
+      _banners.length,
+      (i) => FocusNode(debugLabel: 'slider_dot_$i'),
+    );
+  }
+
+  void _updateDotNodesIfNeeded() {
+    if (_dotNodes.length == _banners.length) return;
+    for (final n in _dotNodes) {
+      n.dispose();
+    }
+    _dotNodes = List.generate(
+      _banners.length,
+      (i) => FocusNode(debugLabel: 'slider_dot_$i'),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
     _controller = PageController();
+    _initTvNodes();
     _startAutoPlay();
   }
 
   @override
   void didUpdateWidget(covariant FeaturedSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
+    _updateDotNodesIfNeeded();
     if (oldWidget.autoPlayInterval != widget.autoPlayInterval) {
       _startAutoPlay();
     }
@@ -160,6 +196,13 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
   void dispose() {
     _timer?.cancel();
     _controller.dispose();
+    for (final n in _actionNodes) {
+      if (identical(n, tvSliderFirstActionFocusNode)) continue;
+      n.dispose();
+    }
+    for (final n in _dotNodes) {
+      n.dispose();
+    }
     super.dispose();
   }
 
@@ -227,6 +270,23 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
         curve: Curves.easeOutCubic,
       );
     }
+    // Unificado: si el foco estaba en Trailer y el nuevo banner no tiene trailer, mover a Ver ahora (todas las plataformas con teclado)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final primary = FocusManager.instance.primaryFocus;
+      if (primary == null) return;
+      if (_banners.isEmpty || index < 0 || index >= _banners.length) return;
+      final targetItem = _banners[index];
+      final hasTrailer =
+          widget.showTrailer &&
+          (targetItem.type == BaseItemKind.movie ||
+              targetItem.type == BaseItemKind.series);
+      // El nodo 1 es Trailer cuando existe; si el nuevo banner no tiene trailer
+      // y el foco quedó en ese nodo huérfano, llevarlo a Ver ahora
+      if (!hasTrailer && identical(primary, _actionNodes[1])) {
+        _actionNodes.first.requestFocus();
+      }
+    });
   }
 
   /// Va al banner anterior (del primero salta al último).
@@ -241,6 +301,17 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
     if (_banners.length < 2) return;
     final target = (_currentPage + 1) % _banners.length;
     _goToPage(target);
+  }
+
+  // ignore: unused_element
+  bool _isFocusInsideScope(FocusNode scope, FocusNode? focused) {
+    if (focused == null) return false;
+    FocusNode? cur = focused;
+    while (cur != null) {
+      if (identical(cur, scope)) return true;
+      cur = cur.parent;
+    }
+    return false;
   }
 
   bool get _arrowsVisible =>
@@ -275,12 +346,32 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
   }
 
   Widget _buildDots() {
+    Widget dotAt(int i) {
+      final dot = _SliderDot(
+        active: i == _currentPage,
+        onTap: () => _goToPage(i),
+      );
+      // Dots focuseables para teclado en todas las plataformas (tv, desktop, tablet, mobile)
+      // Al enfocar un dot también cambia de banner (útil con mando/teclado).
+      final node = (i < _dotNodes.length) ? _dotNodes[i] : null;
+      return ScaleButton(
+        focusNode: node,
+        selectedScale: 1.35,
+        borderRadius: BorderRadius.circular(4),
+        onPressed: () => _goToPage(i),
+        onFocusChange: (focused) {
+          if (focused) {
+            // Cambiar banner al navegar por dots con izquierda/derecha.
+            _goToPage(i);
+          }
+        },
+        child: dot,
+      );
+    }
+
     final dots = Row(
       mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < _banners.length; i++)
-          _SliderDot(active: i == _currentPage, onTap: () => _goToPage(i)),
-      ],
+      children: [for (var i = 0; i < _banners.length; i++) dotAt(i)],
     );
 
     switch (widget.dotAlignment) {
@@ -317,6 +408,7 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
     showTrailer: widget.showTrailer,
     onTrailerPlaybackChanged: _setTrailerPaused,
     onHoverChanged: _setHoverPaused,
+    actionFocusNodes: _actionNodes,
   );
 
   /// Capa de banners: PageView (deslizamiento) o AnimatedSwitcher (fade).
@@ -364,9 +456,19 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
         ],
         LayoutBuilder(
           builder: (context, constraints) {
-            final height = (constraints.maxWidth * widget.heightFactor).clamp(
-              widget.minHeight,
-              widget.maxHeight,
+            final mode =
+                ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
+            final isTv = mode == PlatformMode.tv;
+            // En TV la altura original (0.38 / 280-440) ocupa demasiado vertical
+            // en 720p y con isla flotante. Se reduce ~25% para dejar ver filas.
+            final heightFactor = isTv
+                ? widget.heightFactor * 0.72
+                : widget.heightFactor;
+            final minH = isTv ? 260.0 : widget.minHeight;
+            final maxH = isTv ? 420.0 : widget.maxHeight;
+            final height = (constraints.maxWidth * heightFactor).clamp(
+              minH,
+              maxH,
             );
             return NotificationListener<ScrollNotification>(
               onNotification: (notification) {
@@ -382,26 +484,212 @@ class _FeaturedSliderState extends State<FeaturedSlider> {
                 onExit: (_) => setState(() => _sliderHovered = false),
                 child: SizedBox(
                   height: height,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      _buildBannerLayer(),
-                      _buildDots(),
-                      if (widget.showArrows && _banners.length > 1) ...[
-                        _buildArrow(
-                          icon: Icons.chevron_left,
-                          onTap: _goToPrev,
-                          align: Alignment.centerLeft,
-                          padding: const EdgeInsets.only(left: 10),
-                        ),
-                        _buildArrow(
-                          icon: Icons.chevron_right,
-                          onTap: _goToNext,
-                          align: Alignment.centerRight,
-                          padding: const EdgeInsets.only(right: 10),
-                        ),
-                      ],
-                    ],
+                  child: FocusScope(
+                    onKeyEvent: (node, event) {
+                      if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                      // Comportamiento de teclado unificado para todas las plataformas
+                      // (tv, desktop, tablet, mobile) con teclado/mando conectado
+
+                      final primary = FocusManager.instance.primaryFocus;
+                      final isAction =
+                          primary != null && _actionNodes.contains(primary);
+                      final isDot =
+                          primary != null && _dotNodes.contains(primary);
+                      // Índice del dot actual (para foco inicial al bajar desde acciones)
+                      final currentDotNode =
+                          _dotNodes.isNotEmpty &&
+                              _currentPage < _dotNodes.length
+                          ? _dotNodes[_currentPage]
+                          : (_dotNodes.isNotEmpty ? _dotNodes.first : null);
+                      final firstActionNode = _actionNodes.isNotEmpty
+                          ? _actionNodes.first
+                          : null;
+
+                      // ── ARRIBA: isla/top bar ──────────────────────────────
+                      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                        if (isDot) {
+                          final isTvMode =
+                              (ref.read(platformModeProvider).value ??
+                                      PlatformMode.mobile) ==
+                                  PlatformMode.tv;
+                          if (isTvMode && firstActionNode != null) {
+                            if (firstActionNode.context != null) {
+                              firstActionNode.requestFocus();
+                              return KeyEventResult.handled;
+                            }
+                          }
+                        }
+                        // Desde acciones o cualquier parte del slider, ↑ → isla
+                        // + scroll total arriba para que el slider se vea como al entrar
+                        tvInicioFocusNode.requestFocus();
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          final ctx = node.context;
+                          if (ctx == null) return;
+                          // Buscar el Scrollable ancestro (ListView de HomeScreen)
+                          final scrollable = Scrollable.maybeOf(ctx);
+                          if (scrollable != null &&
+                              scrollable.position.pixels !=
+                                  scrollable.position.minScrollExtent) {
+                            scrollable.position.animateTo(
+                              scrollable.position.minScrollExtent,
+                              duration: const Duration(milliseconds: 320),
+                              curve: Curves.easeOutCubic,
+                            );
+                          } else {
+                            // Fallback: ensureVisible del slider al tope
+                            try {
+                              Scrollable.ensureVisible(
+                                ctx,
+                                alignment: 0.0,
+                                alignmentPolicy:
+                                    ScrollPositionAlignmentPolicy.explicit,
+                                duration: const Duration(milliseconds: 320),
+                                curve: Curves.easeOutCubic,
+                              );
+                            } catch (_) {}
+                          }
+                        });
+                        return KeyEventResult.handled;
+                      }
+
+                      // ── ABAJO ─────────────────────────────────────────────
+                      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                        if (isAction) {
+                          // Desde Ver ahora/trailer/fav/info → ↓ a dots
+                          if (currentDotNode != null) {
+                            currentDotNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                        }
+                        if (isDot) {
+                          // Desde dots → ↓ a Continuar viendo (siguiente fila).
+                          // El slider está aislado en su FocusScope, por lo que
+                          // node.focusInDirection(down) nunca encuentra la fila
+                          // exterior. Hay que subir al scope padre (HomeShell)
+                          // que contiene slider + filas.
+                          bool movedDownFromParent() {
+                            FocusNode? scope = node.parent;
+                            while (scope != null) {
+                              if (scope is FocusScopeNode) {
+                                if (scope.focusInDirection(
+                                  TraversalDirection.down,
+                                )) {
+                                  return true;
+                                }
+                              }
+                              scope = scope.parent;
+                            }
+                            return false;
+                          }
+
+                          if (movedDownFromParent()) {
+                            return KeyEventResult.handled;
+                          }
+                          final root = FocusManager.instance.rootScope;
+                          if (root.focusInDirection(TraversalDirection.down)) {
+                            return KeyEventResult.handled;
+                          }
+                          // Último fallback: next en el scope padre (siguiente fila)
+                          final parent = node.parent;
+                          if (parent is FocusScopeNode) {
+                            parent.nextFocus();
+                            return KeyEventResult.handled;
+                          }
+                          root.nextFocus();
+                          return KeyEventResult.handled;
+                        }
+                        // Fallback: si no está en acción ni dot, intentar bajar dentro
+                        // del slider (acción → dot) y si no, salir a la siguiente fila
+                        if (isAction || isDot) {
+                          return KeyEventResult.handled;
+                        }
+                        final movedInside = node.focusInDirection(
+                          TraversalDirection.down,
+                        );
+                        if (movedInside) return KeyEventResult.handled;
+                        // Intentar desde el padre antes de root
+                        FocusNode? scope = node.parent;
+                        while (scope != null) {
+                          if (scope is FocusScopeNode) {
+                            if (scope.focusInDirection(
+                              TraversalDirection.down,
+                            )) {
+                              return KeyEventResult.handled;
+                            }
+                          }
+                          scope = scope.parent;
+                        }
+                        final root = FocusManager.instance.rootScope;
+                        final moved = root.focusInDirection(
+                          TraversalDirection.down,
+                        );
+                        if (moved) return KeyEventResult.handled;
+                        root.nextFocus();
+                        return KeyEventResult.handled;
+                      }
+
+                      // ── IZQUIERDA / DERECHA ───────────────────────────────
+                      if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+                          event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                        final dir =
+                            event.logicalKey == LogicalKeyboardKey.arrowLeft
+                            ? TraversalDirection.left
+                            : TraversalDirection.right;
+
+                        if (isAction) {
+                          // Intentar mover entre Ver ahora ↔ trailer ↔ fav ↔ info
+                          final moved = node.focusInDirection(dir);
+                          if (moved) return KeyEventResult.handled;
+                          // En el borde derecho (Info) → → va a dots (no cambia banner)
+                          if (dir == TraversalDirection.right &&
+                              currentDotNode != null) {
+                            currentDotNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
+                          // En el borde izquierdo (Ver ahora) → ← se queda (no wrap)
+                          return KeyEventResult.handled;
+                        }
+
+                        if (isDot) {
+                          final moved = node.focusInDirection(dir);
+                          if (moved) return KeyEventResult.handled;
+                          // En bordes de dots no se cambia de banner automáticamente;
+                          // el cambio ocurre al enfocar otro dot (onFocusChange).
+                          return KeyEventResult.handled;
+                        }
+
+                        // Foco en otro elemento del slider (o sin foco claro):
+                        // mantener navegación horizontal contenida
+                        final moved = node.focusInDirection(dir);
+                        if (moved) return KeyEventResult.handled;
+                        return KeyEventResult.handled;
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: FocusTraversalGroup(
+                      policy: ReadingOrderTraversalPolicy(),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          _buildBannerLayer(),
+                          _buildDots(),
+                          if (widget.showArrows && _banners.length > 1) ...[
+                            _buildArrow(
+                              icon: Icons.chevron_left,
+                              onTap: _goToPrev,
+                              align: Alignment.centerLeft,
+                              padding: const EdgeInsets.only(left: 10),
+                            ),
+                            _buildArrow(
+                              icon: Icons.chevron_right,
+                              onTap: _goToNext,
+                              align: Alignment.centerRight,
+                              padding: const EdgeInsets.only(right: 10),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -432,6 +720,7 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     required this.showTrailer,
     this.onTrailerPlaybackChanged,
     this.onHoverChanged,
+    this.actionFocusNodes,
   });
 
   final BaseItemDto item;
@@ -455,6 +744,10 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   /// Notifica al slider si la descripción está visible por el hover sobre el
   /// logo (pausa el avance automático mientras se muestra).
   final ValueChanged<bool>? onHoverChanged;
+
+  /// FocusNodes de TV para los botones de acción (inyectados desde el slider
+  /// padre para poder orquestar el flujo isla → acciones → dots).
+  final List<FocusNode>? actionFocusNodes;
 
   @override
   ConsumerState<_SliderBannerCard> createState() => _SliderBannerCardState();
@@ -757,9 +1050,15 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     final year = item.productionYear;
     final genres = item.genres ?? const <String>[];
     final rating = item.communityRating;
-    final s = widget.contentScale;
+    final isTv =
+        (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
+        PlatformMode.tv;
+    // En TV se quitó la descripción (causaba overflow 167px) y se puede
+    // aumentar la altura del slider. Escala menor en TV para que la columna
+    // (logo+botones+badge) quepa en 316px sin overflow de 6px.
+    final s = widget.contentScale * (isTv ? 0.82 : 1.0);
     final backdropAlignment = (skin?.topBarFloating ?? false)
-        ? const Alignment(0, -0.35)
+        ? const Alignment(0, -0.75)
         : const Alignment(0, -0.75);
     // El botón de trailer solo se muestra para películas o series.
     final showTrailer =
@@ -809,114 +1108,126 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 ),
               ),
             ),
-            // Capa táctil / foco. Va bajo el contenido para que los elementos
-            // interactivos (botones de acción) reciban el hover y el tap.
-            Positioned.fill(
-              child: ScaleButton(
-                selectedScale: 1.02,
-                borderRadius: BorderRadius.circular(radius + 2),
-                onPressed: () {},
-                child: const SizedBox.expand(),
+            // Capa táctil / foco solo en móvil/desktop. En TV el foco debe
+            // estar en los botones de acción (WatchNow etc.) para que ←/→
+            // navegue entre ellos y ↑ vuelva a Inicio.
+            if (!isTv)
+              Positioned.fill(
+                child: ScaleButton(
+                  selectedScale: 1.02,
+                  borderRadius: BorderRadius.circular(radius + 2),
+                  onPressed: () {
+                    final id = item.id;
+                    if (id != null && id.isNotEmpty) {
+                      context.push('/home/details/$id', extra: item);
+                    }
+                  },
+                  child: const SizedBox.expand(),
+                ),
               ),
-            ),
             // Columna izquierda: logo/título, botones de acción, insignia y
             // descripción (solo al pasar el ratón). Al hacer hover se desliza
             // hacia arriba únicamente el logo/título (con el logo de Jellyfin).
             Positioned(
-              left: 70,
-              top: 24,
-              bottom: widget.hoverReveal ? 80 : 130,
+              left: isTv ? 32 : 70,
+              top: isTv ? 80 : 24,
+              bottom: isTv ? 24 : (widget.hoverReveal ? 80 : 130),
               child: Align(
                 alignment: Alignment.centerLeft,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // El hover solo se detecta sobre el logo/título: el
-                    // MouseRegion envuelve al AnimatedSlide (fuera) para que su
-                    // área no se mueva al deslizarse y no parpadee.
-                    if (widget.hoverReveal)
-                      MouseRegion(
-                        onEnter: (_) => _setHovered(true),
-                        onExit: (_) => _setHovered(false),
-                        child: _buildLogoSlide(constraints),
-                      )
-                    else
-                      _buildLogoSlide(constraints),
-                    // Descripción revelada al pasar el ratón, bajo el logo y
-                    // sobre los botones. Se desliza suavemente desde abajo
-                    // mientras aparece. Flexible para que nunca desborde.
-                    Flexible(
-                      fit: FlexFit.loose,
-                      child: AnimatedSlide(
-                        offset: _reveal && _hovered
-                            ? Offset.zero
-                            : const Offset(0, 0.15),
-                        duration: const Duration(milliseconds: 450),
-                        curve: Curves.easeOutCubic,
-                        child: AnimatedOpacity(
-                          opacity: _reveal && _hovered ? 1 : 0,
-                          duration: const Duration(milliseconds: 450),
-                          curve: Curves.easeOut,
-                          child: _reveal && _hovered
-                              ? Padding(
-                                  padding: EdgeInsets.only(top: 1 * s),
-                                  child: ConstrainedBox(
-                                    constraints: BoxConstraints(
-                                      maxWidth: constraints.maxWidth * 0.4,
-                                    ),
-                                    child: Text(
-                                      item.overview!,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        color:
-                                            skin?.textSecondary ??
-                                            Colors.white70,
-                                        fontSize: 13 * s,
-                                        height: 1.3,
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // El hover solo se detecta sobre el logo/título: el
+                      // MouseRegion envuelve al AnimatedSlide (fuera) para que su
+                      // área no se mueva al deslizarse y no parpadee.
+                      if (widget.hoverReveal)
+                        MouseRegion(
+                          onEnter: (_) => _setHovered(true),
+                          onExit: (_) => _setHovered(false),
+                          child: _buildLogoSlide(constraints),
+                        )
+                      else
+                        _buildLogoSlide(constraints),
+                      // Descripción revelada al pasar el ratón (desktop). En TV
+                      // se oculta: era la que desbordaba 167px con altura
+                      // reducida y no aporta en mando a distancia.
+                      if (!isTv)
+                        Flexible(
+                          fit: FlexFit.loose,
+                          child: AnimatedSlide(
+                            offset: _reveal && _hovered
+                                ? Offset.zero
+                                : const Offset(0, 0.15),
+                            duration: const Duration(milliseconds: 450),
+                            curve: Curves.easeOutCubic,
+                            child: AnimatedOpacity(
+                              opacity: _reveal && _hovered ? 1 : 0,
+                              duration: const Duration(milliseconds: 450),
+                              curve: Curves.easeOut,
+                              child: _reveal && _hovered
+                                  ? Padding(
+                                      padding: EdgeInsets.only(top: 1 * s),
+                                      child: ConstrainedBox(
+                                        constraints: BoxConstraints(
+                                          maxWidth: constraints.maxWidth * 0.4,
+                                        ),
+                                        child: Text(
+                                          item.overview!,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color:
+                                                skin?.textSecondary ??
+                                                Colors.white70,
+                                            fontSize: 13 * s,
+                                            height: 1.3,
+                                          ),
+                                        ),
                                       ),
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
+                                    )
+                                  : const SizedBox.shrink(),
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    if (widget.showActions) ...[
-                      SizedBox(height: 12 * s),
-                      _ActionButtons(
-                        scale: s,
-                        showTrailer: showTrailer,
-                        onTrailer: _openTrailer,
-                        onWatch: _openPlayer,
-                        watchLabel: AppLocalizations.of(context)!.watchNow,
-                        favoritesTooltip: AppLocalizations.of(
-                          context,
-                        )!.addToFavorites,
-                        detailsTooltip: AppLocalizations.of(context)!.details,
-                        trailerTooltip: AppLocalizations.of(
-                          context,
-                        )!.watchTrailer,
-                      ),
+                      if (widget.showActions) ...[
+                        SizedBox(height: 12 * s),
+                        _ActionButtons(
+                          scale: s,
+                          showTrailer: showTrailer,
+                          onTrailer: _openTrailer,
+                          onWatch: _openPlayer,
+                          watchLabel: AppLocalizations.of(context)!.watchNow,
+                          favoritesTooltip: AppLocalizations.of(
+                            context,
+                          )!.addToFavorites,
+                          detailsTooltip: AppLocalizations.of(context)!.details,
+                          trailerTooltip: AppLocalizations.of(
+                            context,
+                          )!.watchTrailer,
+                          tvFocusNodes: widget.actionFocusNodes,
+                        ),
+                      ],
+                      if (widget.showIncludedBadge) ...[
+                        SizedBox(height: 10 * s),
+                        IncludedBadge(
+                          scale: s / 1.1,
+                          label: AppLocalizations.of(
+                            context,
+                          )!.includedWithJellyfin,
+                        ),
+                      ],
                     ],
-                    if (widget.showIncludedBadge) ...[
-                      SizedBox(height: 10 * s),
-                      IncludedBadge(
-                        scale: s / 1.1,
-                        label: AppLocalizations.of(
-                          context,
-                        )!.includedWithJellyfin,
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
               ),
             ),
             Positioned(
-              left: 28,
-              right: 28,
-              bottom: 34,
+              left: isTv ? 30 : 68,
+              right: isTv ? 16 : 28,
+              bottom: isTv ? 8 : 34,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -968,7 +1279,9 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                         ],
                       ),
                     ),
-                  if (!widget.hoverReveal && (item.overview ?? '').isNotEmpty)
+                  if (!isTv &&
+                      !widget.hoverReveal &&
+                      (item.overview ?? '').isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
                       child: Text(
@@ -988,16 +1301,16 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             // Edad recomendada del contenido, abajo a la derecha.
             if (widget.showAgeRating && _ageRating != null)
               Positioned(
-                right: 28,
-                bottom: 34,
+                right: isTv ? 30 : 28,
+                bottom: isTv ? 8 : 34,
                 child: AgeRatingBadge(rating: _ageRating!),
               ),
             // Reproductor del trailer en el lado derecho (estilo Prime).
             if (_trailerLoading || _trailerPlayer != null)
               Positioned(
                 right: 34,
-                top: 12,
-                bottom: 64,
+                top: isTv ? 80 : 12,
+                bottom: isTv ? 40 : 64,
                 width: (constraints.maxWidth * 1).clamp(420.0, 880.0),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(radius + 2),
@@ -1069,7 +1382,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
 }
 
 /// Botones de acción del banner: "Ver ahora", trailer, añadir (+) e info (i).
-class _ActionButtons extends StatelessWidget {
+class _ActionButtons extends ConsumerWidget {
   const _ActionButtons({
     required this.watchLabel,
     required this.favoritesTooltip,
@@ -1079,6 +1392,7 @@ class _ActionButtons extends StatelessWidget {
     this.onTrailer,
     this.onWatch,
     this.scale = 1.0,
+    this.tvFocusNodes,
   });
 
   final String watchLabel;
@@ -1094,37 +1408,144 @@ class _ActionButtons extends StatelessWidget {
   final VoidCallback? onWatch;
   final double scale;
 
+  /// FocusNodes inyectados desde el slider para orquestar flujo TV.
+  /// Orden: 0=Ver ahora, 1=Trailer (si existe), 2=Fav, 3=Info
+  final List<FocusNode>? tvFocusNodes;
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = scale;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        WatchNowButton(label: watchLabel, onTap: onWatch ?? () {}, scale: s),
-        SizedBox(width: 36 * s),
-        if (showTrailer) ...[
+    final isTv =
+        (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
+        PlatformMode.tv;
+    // Solo en TV los botones son navegables con flechas (Ver → Trailer → Fav → Info)
+    // En escritorio/mobile/tablet se mantiene Row estático sin Focus (mouse/touch)
+    if (!isTv) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          WatchNowButton(label: watchLabel, onTap: onWatch ?? () {}, scale: s),
+          SizedBox(width: 36 * s),
+          if (showTrailer) ...[
+            RoundIconButton(
+              icon: Icons.play_circle_outline,
+              tooltip: trailerTooltip,
+              scale: s,
+              onTap: onTrailer ?? () {},
+            ),
+            SizedBox(width: 8 * s),
+          ],
           RoundIconButton(
-            icon: Icons.play_circle_outline,
-            tooltip: trailerTooltip,
+            icon: Icons.add,
+            tooltip: favoritesTooltip,
             scale: s,
-            onTap: onTrailer ?? () {},
+            onTap: () {},
           ),
           SizedBox(width: 8 * s),
+          RoundIconButton(
+            icon: Icons.info_outline,
+            tooltip: detailsTooltip,
+            scale: s,
+            onTap: () {},
+          ),
         ],
-        RoundIconButton(
-          icon: Icons.add,
-          tooltip: favoritesTooltip,
-          scale: s,
-          onTap: () {},
+      );
+    }
+
+    Widget wrapWithFocus(Widget child, VoidCallback onTap, FocusNode? node) {
+      return ScaleButton(
+        focusNode: node,
+        onPressed: onTap,
+        selectedScale: 1.06,
+        borderRadius: BorderRadius.circular(8),
+        child: child,
+      );
+    }
+
+    // Mapeo de nodos: si no hay trailer, se compactan los índices para que
+    // Fav e Info queden contiguos (0,1,2) y ←/→ funcione sin hueco.
+    FocusNode? nodeAt(int visualIndex) {
+      if (tvFocusNodes == null) {
+        return null;
+      }
+      // visualIndex es el orden visual 0..n-1, se mapea directo a nodos 0..n-1
+      if (visualIndex < tvFocusNodes!.length) {
+        return tvFocusNodes![visualIndex];
+      }
+      return null;
+    }
+
+    double order = 0;
+    final children = <Widget>[];
+    children.add(
+      FocusTraversalOrder(
+        order: NumericFocusOrder(order++),
+        child: wrapWithFocus(
+          WatchNowButton(label: watchLabel, onTap: onWatch ?? () {}, scale: s),
+          onWatch ?? () {},
+          nodeAt(0),
         ),
-        SizedBox(width: 8 * s),
-        RoundIconButton(
-          icon: Icons.info_outline,
-          tooltip: detailsTooltip,
-          scale: s,
-          onTap: () {},
+      ),
+    );
+    children.add(SizedBox(width: 12 * s));
+    if (showTrailer) {
+      children.add(
+        FocusTraversalOrder(
+          order: NumericFocusOrder(order++),
+          child: wrapWithFocus(
+            RoundIconButton(
+              icon: Icons.play_circle_outline,
+              tooltip: trailerTooltip,
+              scale: s,
+              onTap: onTrailer ?? () {},
+            ),
+            onTrailer ?? () {},
+            nodeAt(1),
+          ),
         ),
-      ],
+      );
+      children.add(SizedBox(width: 8 * s));
+    }
+    final favOrder = order++;
+    final infoOrder = order++;
+    // Fav usa el siguiente nodo visual
+    final favNodeIndex = showTrailer ? 2 : 1;
+    final infoNodeIndex = showTrailer ? 3 : 2;
+    children.add(
+      FocusTraversalOrder(
+        order: NumericFocusOrder(favOrder),
+        child: wrapWithFocus(
+          RoundIconButton(
+            icon: Icons.add,
+            tooltip: favoritesTooltip,
+            scale: s,
+            onTap: () {},
+          ),
+          () {},
+          nodeAt(favNodeIndex),
+        ),
+      ),
+    );
+    children.add(SizedBox(width: 8 * s));
+    children.add(
+      FocusTraversalOrder(
+        order: NumericFocusOrder(infoOrder),
+        child: wrapWithFocus(
+          RoundIconButton(
+            icon: Icons.info_outline,
+            tooltip: detailsTooltip,
+            scale: s,
+            onTap: () {},
+          ),
+          () {},
+          nodeAt(infoNodeIndex),
+        ),
+      ),
+    );
+
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Row(mainAxisSize: MainAxisSize.min, children: children),
     );
   }
 }

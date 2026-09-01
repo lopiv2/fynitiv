@@ -58,11 +58,13 @@ class HomeScreen extends ConsumerWidget {
       body: DashboardBackground(
         child: initialLoading
             ? const Center(child: AppLoader())
-            : ListView(
-                padding: EdgeInsets.only(
-                  top: bannerAttached ? 0 : 54,
-                  bottom: 24,
-                ),
+            : FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                child: ListView(
+                  padding: EdgeInsets.only(
+                    top: bannerAttached ? 0 : 54,
+                    bottom: 24,
+                  ),
                 children: [
                   if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
                     FeaturedSlider(
@@ -170,6 +172,7 @@ class HomeScreen extends ConsumerWidget {
                   const SizedBox(height: 24),
                 ],
               ),
+            ),
       ),
     );
   }

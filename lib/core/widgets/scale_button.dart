@@ -16,6 +16,8 @@ class ScaleButton extends StatefulWidget {
     this.duration = const Duration(milliseconds: 180),
     this.borderRadius = const BorderRadius.all(Radius.circular(12)),
     this.onFocusChange,
+    this.autofocus = false,
+    this.focusNode,
   });
 
   final Widget child;
@@ -33,17 +35,44 @@ class ScaleButton extends StatefulWidget {
   /// Notifica cambios de foco/hover (selección visual de los hijos).
   final ValueChanged<bool>? onFocusChange;
 
+  final bool autofocus;
+
+  /// FocusNode externo (para TV: permite al slider hacer ↑ → Inicio).
+  final FocusNode? focusNode;
+
   @override
   State<ScaleButton> createState() => _ScaleButtonState();
 }
 
 class _ScaleButtonState extends State<ScaleButton> {
   bool _focused = false;
-  final FocusNode _focusNode = FocusNode();
+  final FocusNode _internalNode = FocusNode();
+
+  FocusNode get _focusNode => widget.focusNode ?? _internalNode;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ScaleButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.autofocus && !oldWidget.autofocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _focusNode.requestFocus();
+      });
+    }
+  }
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    _internalNode.dispose();
     super.dispose();
   }
 
@@ -69,6 +98,7 @@ class _ScaleButtonState extends State<ScaleButton> {
 
     return Focus(
       focusNode: _focusNode,
+      autofocus: widget.autofocus,
       onFocusChange: notify,
       onKeyEvent: _onKeyEvent,
       child: AnimatedScale(

@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/settings/game_video_controller.dart';
+import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -90,8 +91,10 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                       ? <String, String>{'Authorization': 'Bearer $token'}
                       : null;
 
-                  return CustomScrollView(
-                    slivers: [
+                  return FocusTraversalGroup(
+                    policy: ReadingOrderTraversalPolicy(),
+                    child: CustomScrollView(
+                      slivers: [
                       SliverToBoxAdapter(
                         child: _HeroHeader(
                           totalPlatforms: list.length,
@@ -203,6 +206,7 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                         ),
                       ),
                     ],
+                  ),
                   );
                 },
               ),
@@ -382,8 +386,17 @@ class _HeroHeader extends ConsumerWidget {
 
     // Intento glassmorphism: si el device no soporta BackdropFilter, el fallback es el Container de arriba sin blur
     // Envuelto en ClipRRect + BackdropFilter; si falla, se ve solo el Container (dashboardBackground detrás)
+    // Cuando la top bar es isla flotante (pill 60px + topPadding 10) se añade
+    // padding superior para que el título no quede tapado por la isla.
+    final isFloatingTopIsland =
+        skin?.sidebarPosition == SidebarPosition.top &&
+        (skin?.topBarFloating ?? false);
+    // HomeShell coloca la isla en topPadding + 10 con altura 60 → ocupa topPadding+70.
+    // Se añade 16px extra de respiración sobre el contenido.
+    final mediaTop = MediaQuery.of(context).padding.top;
+    final topInset = isFloatingTopIsland ? mediaTop + 70 + 16 : 16.0;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      padding: EdgeInsets.fromLTRB(16, topInset, 16, 8),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(16),
         child: BackdropFilter(
