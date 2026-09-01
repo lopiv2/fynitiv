@@ -99,32 +99,51 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
             ),
           )
         : null;
-    final content = Expanded(
-      child: Focus(
-        autofocus: mode != PlatformMode.tv,
-        onFocusChange: (focused) {
-          // En TV la barra lateral (skin jellyfin) debe permanecer visible.
-          // Antes se colapsaba al enfocar el contenido, lo que la ocultaba
-          // siempre por el autofocus inicial. Ya no se colapsa automáticamente.
-          if (mode == PlatformMode.tv && focused) {
-            ref.read(sidebarControllerProvider.notifier).expand();
-          }
-        },
-        child: widget.navigationShell,
-      ),
+    final contentFocus = Focus(
+      autofocus: mode != PlatformMode.tv,
+      onFocusChange: (focused) {
+        // En TV la barra lateral (skin jellyfin) debe permanecer visible.
+        // Antes se colapsaba al enfocar el contenido, lo que la ocultaba
+        // siempre por el autofocus inicial. Ya no se colapsa automáticamente.
+        if (mode == PlatformMode.tv && focused) {
+          ref.read(sidebarControllerProvider.notifier).expand();
+        }
+      },
+      child: widget.navigationShell,
     );
 
     final isLeftRight = sidebarPosition == SidebarPosition.left ||
         sidebarPosition == SidebarPosition.right;
+    final isFloatingTopIsland =
+        sidebarPosition == SidebarPosition.top &&
+        (skin?.topBarFloating ?? false);
     final Widget body;
     if (isLeftRight) {
       body = Row(
         children: [
           if (sidebarWidget != null && sidebarPosition == SidebarPosition.left)
             sidebarWidget,
-          content,
+          Expanded(child: contentFocus),
           if (sidebarWidget != null && sidebarPosition == SidebarPosition.right)
             sidebarWidget,
+        ],
+      );
+    } else if (isFloatingTopIsland) {
+      // Isla flotante: Stack con el contenido a pantalla completa y la barra
+      // pill superpuesta (glass blur radius 28) centrada arriba. La pill
+      // abraza su contenido (ver [Image 1]), por eso se centra con Align
+      // y no se estira a left/right.
+      final topPadding = MediaQuery.of(context).padding.top;
+      body = Stack(
+        children: [
+          Positioned.fill(child: contentFocus),
+          if (sidebarWidget != null)
+            Positioned(
+              top: topPadding + 10,
+              left: 0,
+              right: 0,
+              child: Center(child: sidebarWidget),
+            ),
         ],
       );
     } else {
@@ -132,7 +151,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
         children: [
           if (sidebarWidget != null && sidebarPosition == SidebarPosition.top)
             sidebarWidget,
-          content,
+          Expanded(child: contentFocus),
           if (sidebarWidget != null &&
               sidebarPosition == SidebarPosition.bottom)
             sidebarWidget,

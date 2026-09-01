@@ -88,6 +88,8 @@
   "accentColor": "Accent color",
   "layout": "Layout",
   "sidebarPosition": "Sidebar position",
+  "topBarFloating": "Floating island",
+  "topBarFloatingHint": "Shows the top bar as a floating pill with glass blur (radius 28), over the banner",
   "logoPosition": "Logo position",
   "avatarPosition": "Avatar position",
   "sidebarLogo": "Sidebar logo",

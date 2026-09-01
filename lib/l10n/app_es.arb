@@ -87,6 +87,8 @@
   "accentColor": "Color de acento",
   "layout": "Diseño",
   "sidebarPosition": "Posición de la barra lateral",
+  "topBarFloating": "Isla flotante",
+  "topBarFloatingHint": "Muestra la barra superior como isla pill con glass blur (radio 28), flotando sobre el banner",
   "logoPosition": "Posición del logotipo",
   "avatarPosition": "Posición del avatar",
   "sidebarLogo": "Logotipo de la barra lateral",

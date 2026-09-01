@@ -273,6 +273,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sidebarPosition => 'Sidebar position';
 
   @override
+  String get topBarFloating => 'Floating island';
+
+  @override
+  String get topBarFloatingHint =>
+      'Shows the top bar as a floating pill with glass blur (radius 28), over the banner';
+
+  @override
   String get logoPosition => 'Logo position';
 
   @override

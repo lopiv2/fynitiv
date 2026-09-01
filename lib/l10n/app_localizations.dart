@@ -608,6 +608,18 @@ abstract class AppLocalizations {
   /// **'Sidebar position'**
   String get sidebarPosition;
 
+  /// No description provided for @topBarFloating.
+  ///
+  /// In en, this message translates to:
+  /// **'Floating island'**
+  String get topBarFloating;
+
+  /// No description provided for @topBarFloatingHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows the top bar as a floating pill with glass blur (radius 28), over the banner'**
+  String get topBarFloatingHint;
+
   /// No description provided for @logoPosition.
   ///
   /// In en, this message translates to:

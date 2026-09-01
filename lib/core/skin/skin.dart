@@ -83,6 +83,7 @@ class Skin {
     this.cardHoverExtension = false,
     this.homeScrolls = const [],
     this.titleMarqueeOnHover = false,
+    this.topBarFloating = false,
   });
 
   final String id;
@@ -231,6 +232,11 @@ class Skin {
   /// en bucle al hacer hover (estilo Jellyfin Android TV). Solo si está activo.
   final bool titleMarqueeOnHover;
 
+  /// Si `true` y `sidebarPosition` es `top`, la barra se muestra como isla
+  /// flotante pill con glass blur (radio fijo 28), centrada y superpuesta
+  /// al contenido con `Stack`.
+  final bool topBarFloating;
+
   Skin copyWith({
     String? id,
     String? name,
@@ -286,6 +292,7 @@ class Skin {
     bool? cardHoverExtension,
     List<HomeScroll>? homeScrolls,
     bool? titleMarqueeOnHover,
+    bool? topBarFloating,
     bool clearSidebarLogo = false,
     bool clearCardLogo = false,
     bool clearPlayerLogo = false,
@@ -351,10 +358,11 @@ class Skin {
       sidebarCollapsible: sidebarCollapsible ?? this.sidebarCollapsible,
       fontFamily: fontFamily ?? this.fontFamily,
       cardHoverExtension:
-          cardHoverExtension ?? this.cardHoverExtension,
+           cardHoverExtension ?? this.cardHoverExtension,
       homeScrolls: homeScrolls ?? this.homeScrolls,
       titleMarqueeOnHover:
           titleMarqueeOnHover ?? this.titleMarqueeOnHover,
+      topBarFloating: topBarFloating ?? this.topBarFloating,
     );
   }
 
@@ -439,6 +447,7 @@ class Skin {
           const [],
       titleMarqueeOnHover:
           json['titleMarqueeOnHover'] as bool? ?? false,
+      topBarFloating: json['topBarFloating'] as bool? ?? false,
     );
   }
 
@@ -498,6 +507,7 @@ class Skin {
         'cardHoverExtension': cardHoverExtension,
         'homeScrolls': homeScrolls.map((s) => s.toJson()).toList(),
         'titleMarqueeOnHover': titleMarqueeOnHover,
+        'topBarFloating': topBarFloating,
       };
 
   static Color _colorFromString(String s) {

@@ -232,6 +232,29 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                   ],
                 ),
               ),
+              if (_draft.sidebarPosition == SidebarPosition.top) ...[
+                _SwitchRow(
+                  label: l10n.topBarFloating,
+                  value: _draft.topBarFloating,
+                  onChanged: (v) {
+                    final next = _draft.copyWith(topBarFloating: v);
+                    setState(() => _draft = next);
+                    // Aplicación inmediata para previsualizar la isla sin
+                    // tener que pulsar Aplicar (el resto sigue con _draft).
+                    ref.read(skinControllerProvider.notifier).apply(next);
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    l10n.topBarFloatingHint,
+                    style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+              ],
               _OptionRow(
                 label: l10n.logoPosition,
                 child: SegmentedButton<LogoPosition>(

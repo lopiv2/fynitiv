@@ -60,7 +60,7 @@ class KhinsiderScraper {
         debugPrint(
           '[KHINSIDER] búsqueda no filtró (catálogo completo) para "$query"',
         );
-        return _searchWithFallbackVariants(query);
+        return await _searchWithFallbackVariants(query);
       }
 
       final albumLinks = doc.querySelectorAll(
@@ -99,8 +99,9 @@ class KhinsiderScraper {
         final doc = html_parser.parse(resp.data ?? '');
         final resultText =
             doc.querySelector('#pageContent p')?.text.trim() ?? '';
-        if (RegExp(r'Found \d{3,} matching albums').hasMatch(resultText))
+        if (RegExp(r'Found \d{3,} matching albums').hasMatch(resultText)) {
           continue;
+        }
 
         final albumLinks = doc.querySelectorAll(
           'table.albumList a[href*="/game-soundtracks/album/"]',

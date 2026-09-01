@@ -274,6 +274,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get sidebarPosition => 'Posición de la barra lateral';
 
   @override
+  String get topBarFloating => 'Isla flotante';
+
+  @override
+  String get topBarFloatingHint =>
+      'Muestra la barra superior como isla pill con glass blur (radio 28), flotando sobre el banner';
+
+  @override
   String get logoPosition => 'Posición del logotipo';
 
   @override

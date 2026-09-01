@@ -758,6 +758,9 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     final genres = item.genres ?? const <String>[];
     final rating = item.communityRating;
     final s = widget.contentScale;
+    final backdropAlignment = (skin?.topBarFloating ?? false)
+        ? const Alignment(0, -0.35)
+        : const Alignment(0, -0.75);
     // El botón de trailer solo se muestra para películas o series.
     final showTrailer =
         widget.showTrailer &&
@@ -775,11 +778,22 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
               Image.network(
                 backdrop,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) =>
-                    _SliderFallback(posterUrl: poster, color: fallbackColor),
+                // Baja ligeramente el encuadre para que no se entrecorte por
+                // arriba (más visible en Prime con isla flotante sobre el
+                // banner). -0.3 = ~30% hacia arriba dentro del BoxFit.cover.
+                alignment: backdropAlignment,
+                errorBuilder: (_, _, _) => _SliderFallback(
+                  posterUrl: poster,
+                  color: fallbackColor,
+                  alignment: backdropAlignment,
+                ),
               )
             else
-              _SliderFallback(posterUrl: poster, color: fallbackColor),
+              _SliderFallback(
+                posterUrl: poster,
+                color: fallbackColor,
+                alignment: backdropAlignment,
+              ),
             // Degradado para legibilidad del texto.
             const DecoratedBox(
               decoration: BoxDecoration(
@@ -1214,10 +1228,15 @@ class _SliderDot extends ConsumerWidget {
 /// Fallback cuando no hay imagen de fondo disponible: muestra el póster (o un
 /// color) sin la inicial del nombre.
 class _SliderFallback extends StatelessWidget {
-  const _SliderFallback({required this.color, this.posterUrl});
+  const _SliderFallback({
+    required this.color,
+    this.posterUrl,
+    this.alignment = const Alignment(0, -0.2),
+  });
 
   final String? posterUrl;
   final Color color;
+  final Alignment alignment;
 
   @override
   Widget build(BuildContext context) {
@@ -1228,6 +1247,7 @@ class _SliderFallback extends StatelessWidget {
           Image.network(
             posterUrl!,
             fit: BoxFit.cover,
+            alignment: alignment,
             errorBuilder: (_, _, _) => ColoredBox(color: color),
           )
         else
