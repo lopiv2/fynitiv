@@ -1,5 +1,6 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -34,18 +35,9 @@ class BackdropCard extends ConsumerStatefulWidget {
   final String? serverUrl;
   final VoidCallback? onTap;
   final VoidCallback? onImageTap;
-
-  /// Logotipo superpuesto abajo a la derecha (asset o ruta de archivo).
   final String? cardLogo;
-
-  /// Permite el panel de extensión al hacer hover (estilo Prime). Solo debe
-  /// activarse en filas horizontales, no en grids.
   final bool hoverExtension;
-
-  /// Para "A continuación": usa el póster de la serie en lugar del capítulo.
   final bool useSeriesPoster;
-
-  /// Notifica el hover de la tarjeta (para reordenar el pintado en la fila).
   final ValueChanged<bool>? onHoverChanged;
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final OverlayEntry? Function()? overlayBelowEntry;
@@ -62,10 +54,25 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
     setState(() => _isHovered = v);
   }
 
+  Widget _cachedImage(String url, Widget Function() onError) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      memCacheWidth: 640,
+      maxWidthDiskCache: 640,
+      fadeInDuration: const Duration(milliseconds: 150),
+      useOldImageOnUrlChange: true,
+      errorBuilder: (_, _, _) => onError(),
+      placeholder: (_, _) => const SizedBox.shrink(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Miniatura Jellyfin (Thumb) - misma que usa el hover. No usar Primary.
+    // Backdrop 16:9: siempre miniatura (Thumb) primero; Backdrop es fallback de Thumb.
     String? displayUrl;
+    String? fallbackPrimaryUrl;
+    String? fallbackBackdropUrl;
     if (widget.useSeriesPoster &&
         widget.item.type == BaseItemKind.episode &&
         widget.item.seriesId != null &&
@@ -77,6 +84,8 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
           : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300';
     } else {
       displayUrl = widget.serverUrl != null ? itemThumbUrl(widget.serverUrl!, widget.item) : null;
+      fallbackBackdropUrl = widget.serverUrl != null ? itemBackdropUrl(widget.serverUrl!, widget.item) : null;
+      fallbackPrimaryUrl = widget.serverUrl != null ? itemImageUrl(widget.serverUrl!, widget.item) : null;
     }
     final progress = widget.item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
@@ -88,11 +97,8 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
     final showExtension = widget.hoverExtension && (skin?.cardHoverExtension ?? false);
     final marqueeEnabled = skin?.titleMarqueeOnHover ?? false;
     final l10n = AppLocalizations.of(context);
-    // Debug: en Prime siempre mostrar badge aunque falte rating se simula 7.
-    final rawLabel =
-        l10n != null ? resolvePrimeBadge(widget.item, l10n) : null;
-    final badgeLabel =
-        (skin?.showCardBadge ?? false) ? rawLabel : null;
+    final rawLabel = l10n != null ? resolvePrimeBadge(widget.item, l10n) : null;
+    final badgeLabel = (skin?.showCardBadge ?? false) ? rawLabel : null;
     final artist = (widget.item.artists?.firstOrNull?.trim().isNotEmpty == true
             ? widget.item.artists!.first.trim()
             : (widget.item.albumArtist?.trim().isNotEmpty == true
@@ -164,15 +170,32 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
     final fallback = PosterFallback(item: widget.item, color: fallbackColor);
     final Widget image;
     if (displayUrl != null) {
-      image = Image.network(
+      image = _cachedImage(
         displayUrl,
-        fit: BoxFit.cover,
-        // Misma miniatura en tarjeta y hover: si falla, mostrar fallback
-        // en ambos estados, no alternar a Primary (evita imagen diferente).
-        errorBuilder: (_, _, _) => fallback,
+        () => fallbackBackdropUrl != null
+            ? _cachedImage(
+                fallbackBackdropUrl,
+                () => fallbackPrimaryUrl != null
+                    ? _cachedImage(fallbackPrimaryUrl, () => fallback)
+                    : fallback,
+              )
+            : fallbackPrimaryUrl != null
+                ? _cachedImage(fallbackPrimaryUrl, () => fallback)
+                : fallback,
       );
     } else {
-      image = fallback;
+      if (fallbackBackdropUrl != null) {
+        image = _cachedImage(
+          fallbackBackdropUrl,
+          () => fallbackPrimaryUrl != null
+              ? _cachedImage(fallbackPrimaryUrl, () => fallback)
+              : fallback,
+        );
+      } else if (fallbackPrimaryUrl != null) {
+        image = _cachedImage(fallbackPrimaryUrl, () => fallback);
+      } else {
+        image = fallback;
+      }
     }
 
     final cardContent = Column(
@@ -190,7 +213,7 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
                 if (badgeLabel != null)
                   Positioned(
                     top: 0,
-                    left: 8,
+                    right: -2,
                     child: PrimeCardBadge(label: badgeLabel),
                   ),
                 if (progress != null && progress > 0)

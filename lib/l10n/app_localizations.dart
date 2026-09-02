@@ -2065,6 +2065,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Shows a white label on top of backdrop cards based on genre and rating (≥ 7)'**
   String get showCardBadgeHint;
+
+  /// No description provided for @categories.
+  ///
+  /// In en, this message translates to:
+  /// **'Categories'**
+  String get categories;
+
+  /// No description provided for @filterByCategory.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter by category'**
+  String get filterByCategory;
+
+  /// No description provided for @clearFilter.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clearFilter;
+
+  /// No description provided for @sortAZ.
+  ///
+  /// In en, this message translates to:
+  /// **'A → Z'**
+  String get sortAZ;
+
+  /// No description provided for @sortZA.
+  ///
+  /// In en, this message translates to:
+  /// **'Z → A'**
+  String get sortZA;
+
+  /// No description provided for @pageOf.
+  ///
+  /// In en, this message translates to:
+  /// **'{current} / {total}'**
+  String pageOf(Object current, Object total);
 }
 
 class _AppLocalizationsDelegate

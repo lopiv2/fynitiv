@@ -144,6 +144,22 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
             ),
         ],
       );
+    } else if (sidebarPosition == SidebarPosition.top) {
+      // Barra superior fija (Prime sin isla) ahora también solapada como en [Image 1]:
+      // el contenido empieza bajo la barra y la barra flota por encima.
+      final topPadding = MediaQuery.of(context).padding.top-10;
+      body = Stack(
+        children: [
+          Positioned.fill(child: contentFocus),
+          if (sidebarWidget != null)
+            Positioned(
+              top: topPadding,
+              left: 0,
+              right: 0,
+              child: sidebarWidget,
+            ),
+        ],
+      );
     } else {
       body = Column(
         children: [

@@ -1052,4 +1052,24 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get showCardBadgeHint =>
       'Shows a white label on top of backdrop cards based on genre and rating (≥ 7)';
+
+  @override
+  String get categories => 'Categories';
+
+  @override
+  String get filterByCategory => 'Filter by category';
+
+  @override
+  String get clearFilter => 'Clear';
+
+  @override
+  String get sortAZ => 'A → Z';
+
+  @override
+  String get sortZA => 'Z → A';
+
+  @override
+  String pageOf(Object current, Object total) {
+    return '$current / $total';
+  }
 }

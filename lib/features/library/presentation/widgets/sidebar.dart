@@ -19,6 +19,7 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import '../../application/library_providers.dart';
 import 'floating_island_bar.dart';
+import 'tv_library_modal.dart';
 
 /// Barra lateral del dashboard (estilo Prime/Disney).
 class Sidebar extends ConsumerWidget {
@@ -179,7 +180,7 @@ class Sidebar extends ConsumerWidget {
     final logo = _logo(sidebarLogo, textPrimary);
     final avatar = _UserAvatar(auth: auth);
 
-    if (horizontal) {
+      if (horizontal) {
       final isIsland =
           position == SidebarPosition.top && (skin?.topBarFloating ?? false);
       if (isIsland) {
@@ -188,18 +189,23 @@ class Sidebar extends ConsumerWidget {
           onNavigateBranch: onNavigateBranch,
         );
       }
+      // Barra superior fija (Prime sin isla): misma estructura que [Image 1]
+      // los extremos no tocan los bordes de la pantalla (como la isla).
+      final isAnyLibrarySelected = views.any((v) => v.id == activeViewId);
       return Container(
-        height: 68,
+        height: 60,
+        margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
         decoration: BoxDecoration(
           color: bg,
-          border: Border(
-            bottom: position == SidebarPosition.top
-                ? BorderSide(color: border)
-                : BorderSide.none,
-            top: position == SidebarPosition.bottom
-                ? BorderSide(color: border)
-                : BorderSide.none,
-          ),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: border.withValues(alpha: 0.6)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -207,24 +213,19 @@ class Sidebar extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _logo(sidebarLogo, textPrimary, height: 36, compact: true),
             ),
-            // Inicio y Buscar quedan fijos a la izquierda; solo los elementos
-            // de la biblioteca hacen scroll en la barra superior.
             ...mainItems,
-            Expanded(
-              child: ScrollConfiguration(
-                behavior: const _HorizontalScrollBehavior(),
-                child: ListView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  children: [
-                    if (viewItems.isNotEmpty) ...[
-                      const _SidebarDivider(),
-                      ...viewItems,
-                    ],
-                  ],
-                ),
+            if (views.isNotEmpty)
+              _TopBarLibraryMenu(
+                views: views,
+                activeViewId: activeViewId,
+                isAnyLibrarySelected: isAnyLibrarySelected,
+                textPrimary: textPrimary,
+                textSecondary: textSecondary,
+                accent: accent,
+                iconSpacing: iconSpacing,
+                selectedColor: selectedColor,
               ),
-            ),
+            const Spacer(),
             settings,
             _UserAvatar(auth: auth, compact: true),
           ],
@@ -587,6 +588,160 @@ class _NavItemState extends State<_NavItem> {
           if (_hovered != focused) setState(() => _hovered = focused);
         },
         child: content,
+      ),
+    );
+  }
+}
+
+/// Dropdown de bibliotecas para la barra superior fija (no isla).
+/// Mismo comportamiento que la isla: en TV abre modal, en desktop popup hacia abajo.
+class _TopBarLibraryMenu extends ConsumerStatefulWidget {
+  const _TopBarLibraryMenu({
+    required this.views,
+    required this.activeViewId,
+    required this.isAnyLibrarySelected,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.accent,
+    required this.iconSpacing,
+    this.selectedColor,
+  });
+
+  final List<BaseItemDto> views;
+  final String? activeViewId;
+  final bool isAnyLibrarySelected;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color accent;
+  final double iconSpacing;
+  final Color? selectedColor;
+
+  @override
+  ConsumerState<_TopBarLibraryMenu> createState() => _TopBarLibraryMenuState();
+}
+
+class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
+  bool _hovered = false;
+
+  Widget _buildRow(Color color, FontWeight weight) {
+    final l10n = AppLocalizations.of(context)!;
+    return Row(
+      children: [
+        const Icon(Icons.video_library_outlined, color: Colors.white, size: 22),
+        SizedBox(width: widget.iconSpacing),
+        Text(l10n.library, style: TextStyle(color: color, fontSize: 15, fontWeight: weight)),
+        const SizedBox(width: 4),
+        Icon(Icons.arrow_drop_down, color: color.withValues(alpha: 0.85), size: 20),
+      ],
+    );
+  }
+
+  IconData _viewIcon(BaseItemDto view) {
+    switch (view.collectionType) {
+      case CollectionType.books:
+        return Icons.menu_book_outlined;
+      case CollectionType.playlists:
+        return Icons.queue_music_outlined;
+      case CollectionType.boxsets:
+        return Icons.collections_bookmark_outlined;
+      case CollectionType.movies:
+        return Icons.movie_outlined;
+      case CollectionType.tvshows:
+        return Icons.tv_outlined;
+      case CollectionType.music:
+        return Icons.music_note_outlined;
+      case CollectionType.livetv:
+        return Icons.live_tv_outlined;
+      default:
+        return Icons.video_library_outlined;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = widget.isAnyLibrarySelected;
+    final selectedColor = widget.selectedColor;
+    Widget content;
+    if (_hovered) {
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white),
+        child: _buildRow(Colors.black, FontWeight.w600),
+      );
+    } else if (selected && selectedColor != null) {
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [selectedColor, Color.lerp(selectedColor, Colors.black, 0.5)!],
+          ),
+        ),
+        child: _buildRow(widget.textPrimary, FontWeight.w600),
+      );
+    } else {
+      content = Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(10),
+          color: selected ? widget.accent.withValues(alpha: 0.35) : Colors.transparent,
+        ),
+        child: _buildRow(selected ? widget.textPrimary : widget.textSecondary, selected ? FontWeight.w600 : FontWeight.w400),
+      );
+    }
+
+    final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
+    final l10n = AppLocalizations.of(context)!;
+    if (isTv) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        child: ScaleButton(
+          selected: selected,
+          selectedScale: 1.05,
+          borderRadius: BorderRadius.circular(10),
+          onPressed: () => showTvLibraryModal(context, widget.views, widget.activeViewId),
+          onFocusChange: (f) => setState(() => _hovered = f),
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: content,
+          ),
+        ),
+      );
+    }
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      child: PopupMenuButton<String>(
+        offset: const Offset(0, 48),
+        color: const Color(0xFF1A2568),
+        tooltip: l10n.library,
+        onSelected: (id) => context.go('/library/$id'),
+        itemBuilder: (context) => [
+          for (final v in widget.views)
+            PopupMenuItem<String>(
+              value: v.id ?? '',
+              child: Row(
+                children: [
+                  Icon(_viewIcon(v), color: Colors.white70, size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(v.name ?? '',
+                        style: TextStyle(
+                            color: widget.activeViewId == v.id ? Colors.white : Colors.white70,
+                            fontWeight: widget.activeViewId == v.id ? FontWeight.w700 : FontWeight.w400)),
+                  ),
+                  if (widget.activeViewId == v.id) const Icon(Icons.check, color: Colors.white, size: 16),
+                ],
+              ),
+            ),
+        ],
+        child: MouseRegion(
+          onEnter: (_) => setState(() => _hovered = true),
+          onExit: (_) => setState(() => _hovered = false),
+          child: content,
+        ),
       ),
     );
   }

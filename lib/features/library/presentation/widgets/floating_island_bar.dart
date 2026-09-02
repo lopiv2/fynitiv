@@ -55,10 +55,10 @@ class FloatingIslandBar extends ConsumerWidget {
     // En TV la isla tiene 8 destinos (Home..E-Reader..Games..Settings) y desborda
     // en 720p / pantallas estrechas. Se reduce espaciado y tipografía solo en TV
     // para evitar RenderFlex overflow 74px sin afectar desktop/tablet.
-    final tvIconSpacing = isTv ? 20.0 : iconSpacing;
+    final tvIconSpacing = isTv ? 6.0 : iconSpacing;
     final tvFontSize = isTv ? 15.0 : 15.0;
     final tvIconSize = isTv ? 20.0 : 22.0;
-    final tvItemHPad = isTv ? 6.0 : 12.0;
+    final tvItemHPad = isTv ? 8.0 : 9.0;
     final tvItemVPad = isTv ? 2.0 : 12.0;
 
     final mainItems = <Widget>[

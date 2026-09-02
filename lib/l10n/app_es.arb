@@ -396,5 +396,11 @@
   "cardBadgeTrending": "TENDENCIAS",
   "cardBadgeFamily": "CINE FAMILIAR",
   "showCardBadge": "Badge superior en tarjetas (estilo Prime)",
-  "showCardBadgeHint": "Muestra etiqueta blanca arriba en tarjetas backdrop según género y nota (≥ 7)"
+  "showCardBadgeHint": "Muestra etiqueta blanca arriba en tarjetas backdrop según género y nota (≥ 7)",
+  "categories": "Categorías",
+  "filterByCategory": "Filtrar por categoría",
+  "clearFilter": "Limpiar",
+  "sortAZ": "A → Z",
+  "sortZA": "Z → A",
+  "pageOf": "{current} / {total}"
 }

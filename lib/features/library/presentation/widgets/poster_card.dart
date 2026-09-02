@@ -1,5 +1,6 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -30,18 +31,9 @@ class PosterCard extends ConsumerStatefulWidget {
   final String? serverUrl;
   final VoidCallback? onTap;
   final VoidCallback? onImageTap;
-
-  /// Logotipo superpuesto abajo a la derecha (asset o ruta de archivo).
   final String? cardLogo;
-
-  /// Permite el panel de extensión al hacer hover (estilo Prime). Solo debe
-  /// activarse en filas horizontales, no en grids.
   final bool hoverExtension;
-
-  /// Para "A continuación": usa el póster de la serie en lugar del capítulo.
   final bool useSeriesPoster;
-
-  /// Notifica el hover de la tarjeta (para reordenar el pintado en la fila).
   final ValueChanged<bool>? onHoverChanged;
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final OverlayEntry? Function()? overlayBelowEntry;
@@ -151,6 +143,23 @@ class _PosterCardState extends ConsumerState<PosterCard> {
       if (subtitle != null && subtitle.isEmpty) subtitle = null;
     }
 
+    final fallback = PosterFallback(item: widget.item, color: fallbackColor);
+    Widget imageWidget;
+    if (url != null) {
+      imageWidget = CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        memCacheWidth: 300,
+        maxWidthDiskCache: 300,
+        fadeInDuration: const Duration(milliseconds: 150),
+        useOldImageOnUrlChange: true,
+        errorBuilder: (_, _, _) => PosterFallback(item: widget.item, color: fallbackColor),
+        placeholder: (_, _) => const SizedBox.shrink(),
+      );
+    } else {
+      imageWidget = fallback;
+    }
+
     final cardContent = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -164,15 +173,7 @@ class _PosterCardState extends ConsumerState<PosterCard> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  if (url != null)
-                    Image.network(
-                      url,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          PosterFallback(item: widget.item, color: fallbackColor),
-                    )
-                  else
-                    PosterFallback(item: widget.item, color: fallbackColor),
+                  imageWidget,
                   if (progress != null && progress > 0)
                     Positioned(
                       left: 0,
@@ -198,7 +199,6 @@ class _PosterCardState extends ConsumerState<PosterCard> {
         ),
         if (!showExtension) ...[
           const SizedBox(height: 6),
-          // Título con marquee opcional al hacer hover (Jellyfin Classic).
           marqueeEnabled
               ? MarqueeText(
                   text: cardTitle,

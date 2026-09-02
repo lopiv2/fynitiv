@@ -11,6 +11,17 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../core/skin/home_scroll.dart';
 import '../../../core/skin/music_player_skin.dart';
 
+/// Mantiene el provider vivo 5 min tras la última escucha para que al
+/// volver a la pantalla no se refetchee la API ni se recarguen imágenes.
+extension _CacheExtension on Ref {
+  void cacheFor(Duration d) {
+    final link = keepAlive();
+    Timer(d, link.close);
+  }
+}
+
+const _kLibraryCache = Duration(minutes: 5);
+
 /// userId del usuario autenticado actual.
 final currentUserIdProvider = Provider<String?>(
   (ref) => ref.watch(authControllerProvider).userId,
@@ -79,6 +90,7 @@ bool _artistMatches(BaseItemDto e, String lowerName) {
 
 /// Lista de vistas (bibliotecas) del usuario: Películas, Series, etc.
 final userViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -88,6 +100,7 @@ final userViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 
 /// Items "Continuar viendo".
 final resumeItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -106,6 +119,7 @@ final resumeItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 
 /// Siguiente episodio para series (Shows/NextUp) – fila bajo Continuar viendo, solo series.
 final nextUpEpisodesProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -144,6 +158,7 @@ final nextUpEpisodesProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 
 /// Items recientes (Novedades).
 final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -168,6 +183,7 @@ final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((
   ref,
 ) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -195,6 +211,7 @@ final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
   ref,
   viewId,
 ) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -210,7 +227,7 @@ final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
       ItemFields.people,
       ItemFields.genres,
     ],
-    enableImageTypes: [ImageType.primary, ImageType.thumb],
+    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
   );
   return res.data?.items ?? [];
 });
@@ -219,6 +236,7 @@ final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
 /// Ordenados por fecha de creación descendente, solo si la biblioteca existe.
 final recentLibraryItemsProvider =
     FutureProvider.family<List<BaseItemDto>, String>((ref, viewId) async {
+      ref.cacheFor(_kLibraryCache);
       final client = ref.watch(jellyfinClientProvider);
       final userId = ref.watch(currentUserIdProvider);
       if (client == null || userId == null || viewId.isEmpty) return const [];
@@ -236,7 +254,7 @@ final recentLibraryItemsProvider =
           ItemFields.dateCreated,
           ItemFields.genres,
         ],
-        enableImageTypes: [ImageType.primary, ImageType.thumb],
+        enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
       );
       final items = res.data?.items ?? [];
       // Para biblioteca de Series: deduplicar episodios por serie para mostrar
@@ -406,15 +424,36 @@ final vodLibraryViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
       .toList();
 });
 
-/// Página de todas las películas del servidor, para la pantalla de "Ver más"
-/// (grid con desplazamiento infinito). Cada página trae [kAllMoviesPageSize]
-/// items empezando en [pageIndex] * página.
-const int kAllMoviesPageSize = 50;
+/// Tamaño de página para AllMovies (paginación con flechas) - 100 según spec.
+const int kAllMoviesPageSize = 100;
 
-final allMoviesPageProvider = FutureProvider.family<List<BaseItemDto>, int>((
+/// Args para paginación filtrada de películas (categoría + orden).
+class AllMoviesFilteredArgs {
+  const AllMoviesFilteredArgs({
+    required this.pageIndex,
+    this.sortAscending = true,
+    this.genre,
+  });
+  final int pageIndex;
+  final bool sortAscending;
+  final String? genre;
+  @override
+  bool operator ==(Object other) =>
+      other is AllMoviesFilteredArgs &&
+      other.pageIndex == pageIndex &&
+      other.sortAscending == sortAscending &&
+      other.genre == genre;
+  @override
+  int get hashCode => Object.hash(pageIndex, sortAscending, genre);
+}
+
+/// Página filtrada de películas con sort y categoría.
+final allMoviesFilteredPageProvider =
+    FutureProvider.family<List<BaseItemDto>, AllMoviesFilteredArgs>((
   ref,
-  pageIndex,
+  args,
 ) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
@@ -422,24 +461,61 @@ final allMoviesPageProvider = FutureProvider.family<List<BaseItemDto>, int>((
     userId: userId,
     recursive: true,
     includeItemTypes: [BaseItemKind.movie],
-    startIndex: pageIndex * kAllMoviesPageSize,
+    genres: args.genre != null && args.genre!.isNotEmpty ? [args.genre!] : null,
+    startIndex: args.pageIndex * kAllMoviesPageSize,
     limit: kAllMoviesPageSize,
     sortBy: [ItemSortBy.sortName],
-    sortOrder: [SortOrder.ascending],
+    sortOrder: [args.sortAscending ? SortOrder.ascending : SortOrder.descending],
     fields: [
       ItemFields.primaryImageAspectRatio,
       ItemFields.overview,
       ItemFields.genres,
     ],
-    enableImageTypes: [ImageType.primary, ImageType.thumb],
+    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
+    enableTotalRecordCount: true,
   );
   return res.data?.items ?? [];
+});
+
+/// Total de películas (para calcular páginas 1/34). Usa misma lógica de filtro.
+final allMoviesTotalCountProvider =
+    FutureProvider.family<int, String?>((ref, genre) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return 0;
+  final res = await client.getItemsApi().getItems(
+    userId: userId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.movie],
+    genres: genre != null && genre.isNotEmpty ? [genre] : null,
+    limit: 1,
+    startIndex: 0,
+    sortBy: [ItemSortBy.sortName],
+    fields: const [],
+    enableTotalRecordCount: true,
+    enableImages: false,
+    enableUserData: false,
+  );
+  return res.data?.totalRecordCount ?? 0;
+});
+
+/// Página de todas las películas del servidor, para compatibilidad (grid infinito legacy).
+/// Ahora delega al paginado filtrado sin filtro y ascendente.
+final allMoviesPageProvider = FutureProvider.family<List<BaseItemDto>, int>((
+  ref,
+  pageIndex,
+) async {
+  return ref.watch(allMoviesFilteredPageProvider(
+    AllMoviesFilteredArgs(pageIndex: pageIndex, sortAscending: true),
+  ).future);
 });
 
 /// Items de una fila de contenido configurada por el skin (filtrada por
 /// géneros y tipos). Se usa para los scrolls extra definidos en cada preset.
 final homeScrollItemsProvider =
     FutureProvider.family<List<BaseItemDto>, HomeScroll>((ref, scroll) async {
+      ref.cacheFor(_kLibraryCache);
       final client = ref.watch(jellyfinClientProvider);
       final userId = ref.watch(currentUserIdProvider);
       if (client == null || userId == null) return const [];
@@ -458,7 +534,7 @@ final homeScrollItemsProvider =
           ItemFields.people,
           ItemFields.genres,
         ],
-        enableImageTypes: [ImageType.primary, ImageType.thumb],
+        enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
       );
       return res.data?.items ?? [];
     });

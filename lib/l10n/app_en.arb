@@ -399,5 +399,11 @@
   "cardBadgeTrending": "TRENDING",
   "cardBadgeFamily": "FAMILY FAVORITE",
   "showCardBadge": "Card top badge (Prime style)",
-  "showCardBadgeHint": "Shows a white label on top of backdrop cards based on genre and rating (≥ 7)"
+  "showCardBadgeHint": "Shows a white label on top of backdrop cards based on genre and rating (≥ 7)",
+  "categories": "Categories",
+  "filterByCategory": "Filter by category",
+  "clearFilter": "Clear",
+  "sortAZ": "A → Z",
+  "sortZA": "Z → A",
+  "pageOf": "{current} / {total}"
 }

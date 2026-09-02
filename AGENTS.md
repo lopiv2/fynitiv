@@ -31,3 +31,7 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 ## Corrige los problemas siempre que puedas antes de tu respuesta final
 
 - Debes corregir los problemas de consola siempre que puedas antes de dar tu respuesta final
+
+## No tocar elementos corregidos a mano por el usuario
+
+- No corregir la posicion de PrimeCardBadge, dejar tal y como está en las tarjetas posicionada
