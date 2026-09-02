@@ -540,6 +540,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get music => 'Music Player';
 
   @override
+  String get eReader => 'E-Reader';
+
+  @override
+  String get eReaderDescription => 'Libros y cómics de tu biblioteca Jellyfin.';
+
+  @override
   String get albums => 'Álbumes';
 
   @override
@@ -1019,4 +1025,32 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get focusedLabel => 'ENFOCADO';
+
+  @override
+  String get cardBadgeBestAction => 'LA MEJOR ACCIÓN';
+
+  @override
+  String get cardBadgeBestDrama => 'EL MEJOR DRAMA';
+
+  @override
+  String get cardBadgeBestComedy => 'LA MEJOR COMEDIA';
+
+  @override
+  String get cardBadgeBestSciFi => 'LA MEJOR CIENCIA FICCIÓN';
+
+  @override
+  String get cardBadgeBestHorror => 'EL MEJOR TERROR';
+
+  @override
+  String get cardBadgeTrending => 'TENDENCIAS';
+
+  @override
+  String get cardBadgeFamily => 'CINE FAMILIAR';
+
+  @override
+  String get showCardBadge => 'Badge superior en tarjetas (estilo Prime)';
+
+  @override
+  String get showCardBadgeHint =>
+      'Muestra etiqueta blanca arriba en tarjetas backdrop según género y nota (≥ 7)';
 }

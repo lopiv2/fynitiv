@@ -384,6 +384,22 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                   style: const TextStyle(color: Colors.white38, fontSize: 11),
                 ),
               ),
+              _SwitchRow(
+                label: l10n.showCardBadge,
+                value: _draft.showCardBadge,
+                onChanged: (v) {
+                  final next = _draft.copyWith(showCardBadge: v);
+                  setState(() => _draft = next);
+                  ref.read(skinControllerProvider.notifier).apply(next);
+                },
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  l10n.showCardBadgeHint,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ),
               _OptionRow(
                 label: l10n.cardImageType,
                 child: SegmentedButton<CardImageType>(

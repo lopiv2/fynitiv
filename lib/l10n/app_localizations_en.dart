@@ -539,6 +539,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get music => 'Music Player';
 
   @override
+  String get eReader => 'E-Reader';
+
+  @override
+  String get eReaderDescription =>
+      'Books and comics from your Jellyfin library.';
+
+  @override
   String get albums => 'Albums';
 
   @override
@@ -1017,4 +1024,32 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get focusedLabel => 'FOCUSED';
+
+  @override
+  String get cardBadgeBestAction => 'BEST ACTION';
+
+  @override
+  String get cardBadgeBestDrama => 'BEST DRAMA';
+
+  @override
+  String get cardBadgeBestComedy => 'BEST COMEDY';
+
+  @override
+  String get cardBadgeBestSciFi => 'BEST SCI-FI';
+
+  @override
+  String get cardBadgeBestHorror => 'BEST HORROR';
+
+  @override
+  String get cardBadgeTrending => 'TRENDING';
+
+  @override
+  String get cardBadgeFamily => 'FAMILY FAVORITE';
+
+  @override
+  String get showCardBadge => 'Card top badge (Prime style)';
+
+  @override
+  String get showCardBadgeHint =>
+      'Shows a white label on top of backdrop cards based on genre and rating (≥ 7)';
 }

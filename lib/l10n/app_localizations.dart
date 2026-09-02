@@ -1136,6 +1136,18 @@ abstract class AppLocalizations {
   /// **'Music Player'**
   String get music;
 
+  /// No description provided for @eReader.
+  ///
+  /// In en, this message translates to:
+  /// **'E-Reader'**
+  String get eReader;
+
+  /// No description provided for @eReaderDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Books and comics from your Jellyfin library.'**
+  String get eReaderDescription;
+
   /// No description provided for @albums.
   ///
   /// In en, this message translates to:
@@ -1999,6 +2011,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'FOCUSED'**
   String get focusedLabel;
+
+  /// No description provided for @cardBadgeBestAction.
+  ///
+  /// In en, this message translates to:
+  /// **'BEST ACTION'**
+  String get cardBadgeBestAction;
+
+  /// No description provided for @cardBadgeBestDrama.
+  ///
+  /// In en, this message translates to:
+  /// **'BEST DRAMA'**
+  String get cardBadgeBestDrama;
+
+  /// No description provided for @cardBadgeBestComedy.
+  ///
+  /// In en, this message translates to:
+  /// **'BEST COMEDY'**
+  String get cardBadgeBestComedy;
+
+  /// No description provided for @cardBadgeBestSciFi.
+  ///
+  /// In en, this message translates to:
+  /// **'BEST SCI-FI'**
+  String get cardBadgeBestSciFi;
+
+  /// No description provided for @cardBadgeBestHorror.
+  ///
+  /// In en, this message translates to:
+  /// **'BEST HORROR'**
+  String get cardBadgeBestHorror;
+
+  /// No description provided for @cardBadgeTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'TRENDING'**
+  String get cardBadgeTrending;
+
+  /// No description provided for @cardBadgeFamily.
+  ///
+  /// In en, this message translates to:
+  /// **'FAMILY FAVORITE'**
+  String get cardBadgeFamily;
+
+  /// No description provided for @showCardBadge.
+  ///
+  /// In en, this message translates to:
+  /// **'Card top badge (Prime style)'**
+  String get showCardBadge;
+
+  /// No description provided for @showCardBadgeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Shows a white label on top of backdrop cards based on genre and rating (≥ 7)'**
+  String get showCardBadgeHint;
 }
 
 class _AppLocalizationsDelegate

@@ -30,7 +30,13 @@ class SkinController extends AsyncNotifier<Skin> {
     if (raw != null) {
       try {
         final map = jsonDecode(raw) as Map<String, dynamic>;
-        final skin = Skin.fromJson(map);
+        var skin = Skin.fromJson(map);
+        // Migración: skins Prime guardados antes de showCardBadge lo tenían false
+        // por defecto; activar si es Prime y la key no existía.
+        if (skin.id == 'amazon_prime' &&
+            !map.containsKey('showCardBadge')) {
+          skin = skin.copyWith(showCardBadge: true);
+        }
         // Los skins guardados antes de añadir las filas extra no las traen.
         // Si el skin coincide con un preset, se heredan sus scrolls para que
         // la customización no pierda las filas definidas en el preset.

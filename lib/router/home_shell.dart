@@ -46,8 +46,8 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
   }
 
   bool _isInsideGames(String loc, int branchIndex) {
-    // Solo rama games (índice 5) puede tener música
-    if (branchIndex != 5) return false;
+    // Rama games ahora índice 6 (tras insertar E-Reader en 5)
+    if (branchIndex != 6) return false;
     if (loc == '/games') return true;
     if (loc.startsWith('/games/platform')) return true;
     return false;
@@ -164,21 +164,21 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
       child: body,
     );
 
-    // Tras seleccionar perfil (/users → /home) en TV, el foco debe quedar
+    // Tras seleccionar perfil (/users → /home) el foco debe quedar
     // en Inicio de la barra (isla o lateral). El primer _NavItem/
-    // _FloatingNavItem tiene autofocus:true en TV, pero tras el redirect de
+    // _FloatingNavItem tiene autofocus:true, pero tras el redirect de
     // GoRouter el foco anterior (perfil) queda huérfano. Se fuerza nextFocus
-    // en el siguiente frame si sigue sin foco o en rootScope.
-    if (mode == PlatformMode.tv) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!context.mounted) return;
-        final primary = FocusManager.instance.primaryFocus;
-        if (primary == null || primary == FocusManager.instance.rootScope || primary.context == null || !primary.context!.mounted) {
-          // ignore: use_build_context_synchronously
-          FocusScope.of(context).nextFocus();
-        }
-      });
-    }
+    // en el siguiente frame si sigue sin foco o en rootScope (para que
+    // las flechas del teclado funcionen en cualquier modo: TV, desktop,
+    // tablet o móvil con teclado).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!context.mounted) return;
+      final primary = FocusManager.instance.primaryFocus;
+      if (primary == null || primary == FocusManager.instance.rootScope || primary.context == null || !primary.context!.mounted) {
+        // ignore: use_build_context_synchronously
+        FocusScope.of(context).nextFocus();
+      }
+    });
 
     return FocusScope(
       autofocus: true,

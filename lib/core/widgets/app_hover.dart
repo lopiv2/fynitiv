@@ -4,7 +4,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../audio/hover_sound_player.dart';
 import '../constants/button_sounds.dart';
-import '../navigation/platform_mode.dart';
 import '../settings/button_sound_controller.dart';
 
 /// Efecto de hover universal.
@@ -393,19 +392,16 @@ class _AppHoverState extends ConsumerState<AppHover> {
       setState(() => _focused = v);
       if (v && !wasActive) {
         playHoverSound();
-        // En TV, al enfocar con D-pad la tarjeta puede estar fuera del viewport
+        // Al enfocar con D-pad/teclado la tarjeta puede estar fuera del viewport
         // horizontal/vertical. Asegurar visibilidad para que nunca se pierda el foco visual.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !v) return;
-          final mode = ref.read(platformModeProvider).value ?? PlatformMode.mobile;
-          if (mode == PlatformMode.tv) {
-            Scrollable.ensureVisible(
-              context,
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              alignment: 0.5,
-            );
-          }
+          Scrollable.ensureVisible(
+            context,
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            alignment: 0.5,
+          );
         });
       }
     }

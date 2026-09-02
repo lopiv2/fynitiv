@@ -86,25 +86,45 @@ class TvLibraryModal extends ConsumerStatefulWidget {
 }
 
 class _TvLibraryModalState extends ConsumerState<TvLibraryModal> {
-  late final FocusNode _dialogFocus;
+  late final FocusScopeNode _scopeNode;
+  late final FocusNode _closeNode;
+  late final List<FocusNode> _cardNodes;
   int _focusedIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _dialogFocus = FocusNode();
+    _scopeNode = FocusScopeNode(debugLabel: 'tvLibraryScope');
+    _closeNode = FocusNode(debugLabel: 'tvLibraryClose');
     // Índice inicial: la biblioteca activa si existe.
     final idx = widget.views.indexWhere((v) => v.id == widget.activeViewId);
     _focusedIndex = idx >= 0 ? idx : 0;
-    // Autofocus al diálogo para capturar Esc.
+    _cardNodes = List.generate(
+      widget.views.length,
+      (i) => FocusNode(debugLabel: 'tvLibraryCard_$i'),
+    );
+    // Foco inicial al primer elemento (no al diálogo) para que las flechas
+    // funcionen inmediatamente en escritorio/TV con teclado/mando.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _dialogFocus.requestFocus();
+      if (!mounted) return;
+      if (_cardNodes.isNotEmpty) {
+        final target = _cardNodes[_focusedIndex.clamp(0, _cardNodes.length - 1)];
+        // Asegura que el scope tenga foco y luego el card.
+        _scopeNode.requestFocus();
+        target.requestFocus();
+      } else {
+        _closeNode.requestFocus();
+      }
     });
   }
 
   @override
   void dispose() {
-    _dialogFocus.dispose();
+    for (final n in _cardNodes) {
+      n.dispose();
+    }
+    _closeNode.dispose();
+    _scopeNode.dispose();
     super.dispose();
   }
 
@@ -129,15 +149,15 @@ class _TvLibraryModalState extends ConsumerState<TvLibraryModal> {
     final l10n = AppLocalizations.of(context)!;
     final views = widget.views;
 
-    return Focus(
-      focusNode: _dialogFocus,
+    return FocusScope(
+      node: _scopeNode,
       autofocus: true,
       onKeyEvent: _onDialogKey,
       child: Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
         child: FocusTraversalGroup(
-          policy: OrderedTraversalPolicy(),
+          policy: ReadingOrderTraversalPolicy(),
           child: Container(
             constraints: const BoxConstraints(maxWidth: 1100, maxHeight: 720),
             decoration: BoxDecoration(
@@ -207,7 +227,10 @@ class _TvLibraryModalState extends ConsumerState<TvLibraryModal> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        _CloseButton(onPressed: () => Navigator.of(context).pop()),
+                        _CloseButton(
+                          focusNode: _closeNode,
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 22),
@@ -248,6 +271,7 @@ class _TvLibraryModalState extends ConsumerState<TvLibraryModal> {
                                         ? subtitle
                                         : (v.collectionType?.name ?? '');
                                     return _TvLibraryCard(
+                                      focusNode: _cardNodes[index],
                                       title: v.name ?? '',
                                       subtitle: displaySubtitle,
                                       icon: visual.icon,
@@ -278,8 +302,9 @@ class _TvLibraryModalState extends ConsumerState<TvLibraryModal> {
 }
 
 class _CloseButton extends StatefulWidget {
-  const _CloseButton({required this.onPressed});
+  const _CloseButton({required this.onPressed, this.focusNode});
   final VoidCallback onPressed;
+  final FocusNode? focusNode;
   @override
   State<_CloseButton> createState() => _CloseButtonState();
 }
@@ -290,6 +315,7 @@ class _CloseButtonState extends State<_CloseButton> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Focus(
+      focusNode: widget.focusNode,
       onFocusChange: (v) => setState(() => _focused = v),
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
@@ -354,6 +380,7 @@ class _TvLibraryCard extends StatefulWidget {
     required this.autofocus,
     required this.onFocusChange,
     required this.onTap,
+    this.focusNode,
   });
 
   final String title;
@@ -364,6 +391,7 @@ class _TvLibraryCard extends StatefulWidget {
   final bool autofocus;
   final ValueChanged<bool> onFocusChange;
   final VoidCallback onTap;
+  final FocusNode? focusNode;
 
   @override
   State<_TvLibraryCard> createState() => _TvLibraryCardState();
@@ -391,6 +419,7 @@ class _TvLibraryCardState extends State<_TvLibraryCard> {
     final active = _focused || widget.isFocused;
 
     return Focus(
+      focusNode: widget.focusNode,
       autofocus: widget.autofocus,
       onFocusChange: (v) {
         setState(() => _focused = v);

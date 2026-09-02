@@ -84,6 +84,7 @@ class Skin {
     this.homeScrolls = const [],
     this.titleMarqueeOnHover = false,
     this.topBarFloating = false,
+    this.showCardBadge = false,
   });
 
   final String id;
@@ -237,6 +238,11 @@ class Skin {
   /// al contenido con `Stack`.
   final bool topBarFloating;
 
+  /// Muestra badge blanco superior en tarjetas backdrop según género/rating
+  /// (estilo Prime: "LA MEJOR ACCIÓN", "TENDENCIAS", etc.). Solo efecto
+  /// visual si `cardImageType == backdrop` y rating ≥ 7.
+  final bool showCardBadge;
+
   Skin copyWith({
     String? id,
     String? name,
@@ -293,6 +299,7 @@ class Skin {
     List<HomeScroll>? homeScrolls,
     bool? titleMarqueeOnHover,
     bool? topBarFloating,
+    bool? showCardBadge,
     bool clearSidebarLogo = false,
     bool clearCardLogo = false,
     bool clearPlayerLogo = false,
@@ -363,6 +370,7 @@ class Skin {
       titleMarqueeOnHover:
           titleMarqueeOnHover ?? this.titleMarqueeOnHover,
       topBarFloating: topBarFloating ?? this.topBarFloating,
+      showCardBadge: showCardBadge ?? this.showCardBadge,
     );
   }
 
@@ -448,6 +456,7 @@ class Skin {
       titleMarqueeOnHover:
           json['titleMarqueeOnHover'] as bool? ?? false,
       topBarFloating: json['topBarFloating'] as bool? ?? false,
+      showCardBadge: json['showCardBadge'] as bool? ?? false,
     );
   }
 
@@ -508,6 +517,7 @@ class Skin {
         'homeScrolls': homeScrolls.map((s) => s.toJson()).toList(),
         'titleMarqueeOnHover': titleMarqueeOnHover,
         'topBarFloating': topBarFloating,
+        'showCardBadge': showCardBadge,
       };
 
   static Color _colorFromString(String s) {

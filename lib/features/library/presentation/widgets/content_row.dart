@@ -345,7 +345,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   }
 
   Widget _wrapForTv({required bool isTv, required VoidCallback? onTap, required Widget child}) {
-    if (!isTv || onTap == null) return child;
+    if (onTap == null) return child;
     return AppHover(
       effect: AppHoverEffect.scaleHighlightOutline,
       config: AppHoverConfig.scaleHighlightOutline(

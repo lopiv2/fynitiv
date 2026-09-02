@@ -176,6 +176,8 @@
   "liveTvNoGuide": "No guide data available for the server",
   "liveTvNoChannels": "No channels available",
   "music": "Music Player",
+  "eReader": "E-Reader",
+  "eReaderDescription": "Books and comics from your Jellyfin library.",
   "albums": "Albums",
   "songs": "Songs",
   "resume": "Resume",
@@ -388,5 +390,14 @@
   "mediaLibraries": "Media Libraries",
   "selectCollectionWithDPad": "Select the collection you want to explore with your D-Pad arrows.",
   "closeEsc": "Close (Esc)",
-  "focusedLabel": "FOCUSED"
+  "focusedLabel": "FOCUSED",
+  "cardBadgeBestAction": "BEST ACTION",
+  "cardBadgeBestDrama": "BEST DRAMA",
+  "cardBadgeBestComedy": "BEST COMEDY",
+  "cardBadgeBestSciFi": "BEST SCI-FI",
+  "cardBadgeBestHorror": "BEST HORROR",
+  "cardBadgeTrending": "TRENDING",
+  "cardBadgeFamily": "FAMILY FAVORITE",
+  "showCardBadge": "Card top badge (Prime style)",
+  "showCardBadgeHint": "Shows a white label on top of backdrop cards based on genre and rating (≥ 7)"
 }

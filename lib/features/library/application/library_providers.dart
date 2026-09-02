@@ -94,7 +94,11 @@ final resumeItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final res = await client.getItemsApi().getResumeItems(
     userId: userId,
     limit: 20,
-    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    fields: [
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.overview,
+      ItemFields.genres,
+    ],
     enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
   );
   return res.data?.items ?? [];
@@ -204,6 +208,7 @@ final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
       ItemFields.primaryImageAspectRatio,
       ItemFields.overview,
       ItemFields.people,
+      ItemFields.genres,
     ],
     enableImageTypes: [ImageType.primary, ImageType.thumb],
   );
@@ -229,6 +234,7 @@ final recentLibraryItemsProvider =
           ItemFields.overview,
           ItemFields.people,
           ItemFields.dateCreated,
+          ItemFields.genres,
         ],
         enableImageTypes: [ImageType.primary, ImageType.thumb],
       );
@@ -420,7 +426,11 @@ final allMoviesPageProvider = FutureProvider.family<List<BaseItemDto>, int>((
     limit: kAllMoviesPageSize,
     sortBy: [ItemSortBy.sortName],
     sortOrder: [SortOrder.ascending],
-    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    fields: [
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.overview,
+      ItemFields.genres,
+    ],
     enableImageTypes: [ImageType.primary, ImageType.thumb],
   );
   return res.data?.items ?? [];
@@ -446,6 +456,7 @@ final homeScrollItemsProvider =
           ItemFields.primaryImageAspectRatio,
           ItemFields.overview,
           ItemFields.people,
+          ItemFields.genres,
         ],
         enableImageTypes: [ImageType.primary, ImageType.thumb],
       );

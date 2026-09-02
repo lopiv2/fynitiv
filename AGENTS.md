@@ -10,6 +10,8 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 
 - Si se pide un componente que hace lo mismo que otro ya existente, generar un **widget genérico** reutilizable en lugar de duplicar código, y usarlo en los lugares que lo necesiten.
 
+- Si se agregase un nuevo scroll slider a algun skin, siempre ajustar el Focus, para no perder funcionalidad respecto al modo TV
+
 ## Traduccion de cadenas
 
 - Siempre que vaya a haber texto de widgets, debe traducirse con cadenas ARB, minimo a ingles y español, como ya esta en otras partes de la aplicacion. Se reutilizaran cadenas si ya existen en dichos archivos ARB, para no duplicar claves

@@ -4,9 +4,12 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/widgets/card_badge_resolver.dart';
 import '../../../../core/widgets/hover_play_card.dart';
 import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/marquee_text.dart';
+import '../../../../core/widgets/prime_card_badge.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../application/image_url.dart';
 import 'poster_fallback.dart';
 
@@ -61,18 +64,19 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
 
   @override
   Widget build(BuildContext context) {
-    String? thumbUrl = widget.serverUrl != null ? itemThumbUrl(widget.serverUrl!, widget.item) : null;
-    String? posterUrl = widget.serverUrl != null ? itemImageUrl(widget.serverUrl!, widget.item) : null;
+    // Miniatura Jellyfin (Thumb) - misma que usa el hover. No usar Primary.
+    String? displayUrl;
     if (widget.useSeriesPoster &&
         widget.item.type == BaseItemKind.episode &&
         widget.item.seriesId != null &&
         widget.item.seriesId!.isNotEmpty &&
         widget.serverUrl != null) {
       final tag = widget.item.seriesPrimaryImageTag;
-      posterUrl = tag != null && tag.isNotEmpty
+      displayUrl = tag != null && tag.isNotEmpty
           ? '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300&tag=$tag'
           : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300';
-      thumbUrl = null;
+    } else {
+      displayUrl = widget.serverUrl != null ? itemThumbUrl(widget.serverUrl!, widget.item) : null;
     }
     final progress = widget.item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
@@ -83,6 +87,12 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
     final logoSize = skin?.cardLogoSize ?? 18;
     final showExtension = widget.hoverExtension && (skin?.cardHoverExtension ?? false);
     final marqueeEnabled = skin?.titleMarqueeOnHover ?? false;
+    final l10n = AppLocalizations.of(context);
+    // Debug: en Prime siempre mostrar badge aunque falte rating se simula 7.
+    final rawLabel =
+        l10n != null ? resolvePrimeBadge(widget.item, l10n) : null;
+    final badgeLabel =
+        (skin?.showCardBadge ?? false) ? rawLabel : null;
     final artist = (widget.item.artists?.firstOrNull?.trim().isNotEmpty == true
             ? widget.item.artists!.first.trim()
             : (widget.item.albumArtist?.trim().isNotEmpty == true
@@ -153,22 +163,12 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
 
     final fallback = PosterFallback(item: widget.item, color: fallbackColor);
     final Widget image;
-    if (thumbUrl != null) {
+    if (displayUrl != null) {
       image = Image.network(
-        thumbUrl,
+        displayUrl,
         fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => posterUrl != null
-            ? Image.network(
-                posterUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => fallback,
-              )
-            : fallback,
-      );
-    } else if (posterUrl != null) {
-      image = Image.network(
-        posterUrl,
-        fit: BoxFit.cover,
+        // Misma miniatura en tarjeta y hover: si falla, mostrar fallback
+        // en ambos estados, no alternar a Primary (evita imagen diferente).
         errorBuilder: (_, _, _) => fallback,
       );
     } else {
@@ -187,6 +187,12 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
               fit: StackFit.expand,
               children: [
                 image,
+                if (badgeLabel != null)
+                  Positioned(
+                    top: 0,
+                    left: 8,
+                    child: PrimeCardBadge(label: badgeLabel),
+                  ),
                 if (progress != null && progress > 0)
                   Positioned(
                     left: 0,

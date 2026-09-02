@@ -173,6 +173,8 @@
   "liveTvNoGuide": "No hay datos de guía para el servidor",
   "liveTvNoChannels": "No hay canales disponibles",
   "music": "Music Player",
+  "eReader": "E-Reader",
+  "eReaderDescription": "Libros y cómics de tu biblioteca Jellyfin.",
   "albums": "Álbumes",
   "songs": "Canciones",
   "resume": "Reanudar",
@@ -385,5 +387,14 @@
   "mediaLibraries": "Bibliotecas de Medios",
   "selectCollectionWithDPad": "Selecciona la colección que deseas explorar con las flechas de tu mando D-Pad.",
   "closeEsc": "Cerrar (Esc)",
-  "focusedLabel": "ENFOCADO"
+  "focusedLabel": "ENFOCADO",
+  "cardBadgeBestAction": "LA MEJOR ACCIÓN",
+  "cardBadgeBestDrama": "EL MEJOR DRAMA",
+  "cardBadgeBestComedy": "LA MEJOR COMEDIA",
+  "cardBadgeBestSciFi": "LA MEJOR CIENCIA FICCIÓN",
+  "cardBadgeBestHorror": "EL MEJOR TERROR",
+  "cardBadgeTrending": "TENDENCIAS",
+  "cardBadgeFamily": "CINE FAMILIAR",
+  "showCardBadge": "Badge superior en tarjetas (estilo Prime)",
+  "showCardBadgeHint": "Muestra etiqueta blanca arriba en tarjetas backdrop según género y nota (≥ 7)"
 }

@@ -52,6 +52,14 @@ class FloatingIslandBar extends ConsumerWidget {
     final isTv =
         (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
         PlatformMode.tv;
+    // En TV la isla tiene 8 destinos (Home..E-Reader..Games..Settings) y desborda
+    // en 720p / pantallas estrechas. Se reduce espaciado y tipografía solo en TV
+    // para evitar RenderFlex overflow 74px sin afectar desktop/tablet.
+    final tvIconSpacing = isTv ? 20.0 : iconSpacing;
+    final tvFontSize = isTv ? 15.0 : 15.0;
+    final tvIconSize = isTv ? 20.0 : 22.0;
+    final tvItemHPad = isTv ? 6.0 : 12.0;
+    final tvItemVPad = isTv ? 2.0 : 12.0;
 
     final mainItems = <Widget>[
       _FloatingNavItem(
@@ -62,7 +70,11 @@ class FloatingIslandBar extends ConsumerWidget {
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
-        iconSpacing: iconSpacing,
+        iconSpacing: tvIconSpacing,
+        fontSize: tvFontSize,
+        iconSize: tvIconSize,
+        hPad: tvItemHPad,
+        vPad: tvItemVPad,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 0 && activeViewId == null,
         focusNode: tvInicioFocusNode,
@@ -75,7 +87,11 @@ class FloatingIslandBar extends ConsumerWidget {
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
-        iconSpacing: iconSpacing,
+        iconSpacing: tvIconSpacing,
+        fontSize: tvFontSize,
+        iconSize: tvIconSize,
+        hPad: tvItemHPad,
+        vPad: tvItemVPad,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 1,
         onTap: () => _goBranch(context, ref, 1),
@@ -87,7 +103,11 @@ class FloatingIslandBar extends ConsumerWidget {
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
-        iconSpacing: iconSpacing,
+        iconSpacing: tvIconSpacing,
+        fontSize: tvFontSize,
+        iconSize: tvIconSize,
+        hPad: tvItemHPad,
+        vPad: tvItemVPad,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 2,
         onTap: () => _goBranch(context, ref, 2),
@@ -99,7 +119,11 @@ class FloatingIslandBar extends ConsumerWidget {
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
-        iconSpacing: iconSpacing,
+        iconSpacing: tvIconSpacing,
+        fontSize: tvFontSize,
+        iconSize: tvIconSize,
+        hPad: tvItemHPad,
+        vPad: tvItemVPad,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 3,
         onTap: () => _goBranch(context, ref, 3),
@@ -111,23 +135,48 @@ class FloatingIslandBar extends ConsumerWidget {
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
-        iconSpacing: iconSpacing,
+        iconSpacing: tvIconSpacing,
+        fontSize: tvFontSize,
+        iconSize: tvIconSize,
+        hPad: tvItemHPad,
+        vPad: tvItemVPad,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 4,
         onTap: () => _goBranch(context, ref, 4),
       ),
       _FloatingNavItem(
-        icon: Icons.sports_esports,
-        selectedIcon: Icons.sports_esports_rounded,
-        label: l10n.games,
+        icon: Icons.menu_book_outlined,
+        selectedIcon: Icons.menu_book,
+        label: l10n.eReader,
         selected: currentIndex == 5,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
-        iconSpacing: iconSpacing,
+        iconSpacing: tvIconSpacing,
+        fontSize: tvFontSize,
+        iconSize: tvIconSize,
+        hPad: tvItemHPad,
+        vPad: tvItemVPad,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 5,
         onTap: () => _goBranch(context, ref, 5),
+      ),
+      _FloatingNavItem(
+        icon: Icons.sports_esports,
+        selectedIcon: Icons.sports_esports_rounded,
+        label: l10n.games,
+        selected: currentIndex == 6,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        accent: accent,
+        iconSpacing: tvIconSpacing,
+        fontSize: tvFontSize,
+        iconSize: tvIconSize,
+        hPad: tvItemHPad,
+        vPad: tvItemVPad,
+        selectedColor: selectedColor,
+        autofocus: isTv && currentIndex == 6,
+        onTap: () => _goBranch(context, ref, 6),
       ),
     ];
 
@@ -135,15 +184,19 @@ class FloatingIslandBar extends ConsumerWidget {
       icon: Icons.settings_outlined,
       selectedIcon: Icons.settings,
       label: l10n.settings,
-      selected: currentIndex == 6,
+      selected: currentIndex == 7,
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
-      iconSpacing: iconSpacing,
+      iconSpacing: tvIconSpacing,
+      fontSize: tvFontSize,
+      iconSize: tvIconSize,
+      hPad: tvItemHPad,
+      vPad: tvItemVPad,
       selectedColor: selectedColor,
-      autofocus: isTv && currentIndex == 6,
-      onTap: () => _goBranch(context, ref, 6),
-    );
+      autofocus: isTv && currentIndex == 7,
+        onTap: () => _goBranch(context, ref, 7),
+      );
 
     const islandRadius = 28.0;
     final isAnyLibrarySelected = views.any((v) => v.id == activeViewId);
@@ -154,17 +207,17 @@ class FloatingIslandBar extends ConsumerWidget {
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
-      iconSpacing: iconSpacing,
+      iconSpacing: tvIconSpacing,
+      fontSize: tvFontSize,
+      iconSize: tvIconSize,
+      hPad: tvItemHPad,
+      vPad: tvItemVPad,
       selectedColor: selectedColor,
     );
 
     return FocusScope(
       onKeyEvent: (node, event) {
         if (event is! KeyDownEvent) return KeyEventResult.ignored;
-        final isTv =
-            (ref.read(platformModeProvider).value ?? PlatformMode.mobile) ==
-            PlatformMode.tv;
-        if (!isTv) return KeyEventResult.ignored;
         if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
           // Desde cualquier elemento de la isla ↓ siempre a Ver ahora
           if (tvSliderFirstActionFocusNode.context != null) {
@@ -191,10 +244,10 @@ class FloatingIslandBar extends ConsumerWidget {
           borderRadius: BorderRadius.circular(islandRadius),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: Container(
+              child: Container(
               height: 60,
               constraints: const BoxConstraints(maxWidth: 1280),
-              padding: const EdgeInsets.symmetric(horizontal: 8),
+              padding: EdgeInsets.symmetric(horizontal: isTv ? 4 : 8),
               decoration: BoxDecoration(
                 color: bg.withValues(alpha: 0.48),
                 borderRadius: BorderRadius.circular(islandRadius),
@@ -209,15 +262,26 @@ class FloatingIslandBar extends ConsumerWidget {
               ),
               child: FocusTraversalGroup(
                 policy: OrderedTraversalPolicy(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    ...mainItems,
-                    if (views.isNotEmpty) libraryMenu,
-                    settings,
-                    const SizedBox(width: 4),
-                    _FloatingUserAvatar(auth: auth, compact: true),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    // Para modo normal también había overflow de 74px tras añadir E-Reader.
+                    // Se envuelve en scroll horizontal para que nunca de Layout overflow,
+                    // manteniendo el tamaño compacto en TV ya aplicado arriba.
+                    return SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const BouncingScrollPhysics(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ...mainItems,
+                          if (views.isNotEmpty) libraryMenu,
+                          settings,
+                          const SizedBox(width: 4),
+                          _FloatingUserAvatar(auth: auth, compact: true),
+                        ],
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -244,6 +308,10 @@ class _FloatingLibraryMenu extends ConsumerStatefulWidget {
     required this.accent,
     required this.iconSpacing,
     required this.selectedColor,
+    this.fontSize = 15,
+    this.iconSize = 22,
+    this.hPad = 12,
+    this.vPad = 12,
   });
 
   final List<BaseItemDto> views;
@@ -254,6 +322,10 @@ class _FloatingLibraryMenu extends ConsumerStatefulWidget {
   final Color accent;
   final double iconSpacing;
   final Color? selectedColor;
+  final double fontSize;
+  final double iconSize;
+  final double hPad;
+  final double vPad;
 
   @override
   ConsumerState<_FloatingLibraryMenu> createState() =>
@@ -267,17 +339,17 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
     final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
-        const Icon(Icons.video_library_outlined, color: Colors.white, size: 22),
+        Icon(Icons.video_library_outlined, color: Colors.white, size: widget.iconSize),
         SizedBox(width: widget.iconSpacing),
         Text(
           l10n.library,
-          style: TextStyle(color: color, fontSize: 15, fontWeight: weight),
+          style: TextStyle(color: color, fontSize: widget.fontSize, fontWeight: weight),
         ),
         const SizedBox(width: 4),
         Icon(
           Icons.arrow_drop_down,
           color: color.withValues(alpha: 0.85),
-          size: 20,
+          size: widget.iconSize - 2,
         ),
       ],
     );
@@ -311,7 +383,7 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
     Widget content;
     if (_hovered) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: Colors.white,
@@ -320,7 +392,7 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
       );
     } else if (selected && selectedColor != null) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           gradient: LinearGradient(
@@ -336,7 +408,7 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
       );
     } else {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: selected
@@ -357,7 +429,7 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
 
     if (isTv) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: 2),
         child: ScaleButton(
           selected: selected,
           selectedScale: 1.05,
@@ -377,7 +449,7 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: 2),
       child: PopupMenuButton<String>(
         offset: const Offset(0, 48),
         color: const Color(0xFF1A2568),
@@ -435,6 +507,10 @@ class _FloatingNavItem extends StatefulWidget {
     this.faIcon,
     this.autofocus = false,
     this.focusNode,
+    this.fontSize = 15,
+    this.iconSize = 22,
+    this.hPad = 12,
+    this.vPad = 12,
   });
 
   final IconData? icon;
@@ -447,6 +523,10 @@ class _FloatingNavItem extends StatefulWidget {
   final Color textSecondary;
   final Color accent;
   final double iconSpacing;
+  final double fontSize;
+  final double iconSize;
+  final double hPad;
+  final double vPad;
   final Color? selectedColor;
   final bool autofocus;
   final FocusNode? focusNode;
@@ -463,13 +543,13 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
     return Row(
       children: [
         if (widget.faIcon != null)
-          FaIcon(widget.faIcon, color: color, size: 22)
+          FaIcon(widget.faIcon, color: color, size: widget.iconSize)
         else if (widget.icon != null)
-          Icon(_icon, color: color, size: 22),
+          Icon(_icon, color: color, size: widget.iconSize),
         SizedBox(width: widget.iconSpacing),
         Text(
           widget.label,
-          style: TextStyle(color: color, fontSize: 15, fontWeight: weight),
+          style: TextStyle(color: color, fontSize: widget.fontSize, fontWeight: weight),
         ),
       ],
     );
@@ -484,7 +564,7 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
     final Widget content;
     if (_hovered) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -494,7 +574,7 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
       );
     } else if (selected && selectedColor != null) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -511,7 +591,7 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
       );
     } else {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -526,7 +606,7 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
       );
     }
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: 2),
       child: ScaleButton(
         selected: selected,
         selectedScale: 1.05,

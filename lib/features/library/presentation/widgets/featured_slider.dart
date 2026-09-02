@@ -508,11 +508,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
                       // ── ARRIBA: isla/top bar ──────────────────────────────
                       if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
                         if (isDot) {
-                          final isTvMode =
-                              (ref.read(platformModeProvider).value ??
-                                      PlatformMode.mobile) ==
-                                  PlatformMode.tv;
-                          if (isTvMode && firstActionNode != null) {
+                          if (firstActionNode != null) {
                             if (firstActionNode.context != null) {
                               firstActionNode.requestFocus();
                               return KeyEventResult.handled;
@@ -911,6 +907,15 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     context.push('/player/$itemId', extra: widget.item);
   }
 
+  /// Abre la pantalla de detalles (misma que al pulsar una tarjeta de película).
+  Future<void> _openDetails() async {
+    final id = widget.item.id;
+    if (id == null || id.isEmpty) return;
+    await _closeTrailer();
+    if (!mounted) return;
+    context.push('/home/details/$id', extra: widget.item);
+  }
+
   /// Recorta verticalmente el trailer hasta [_trailerCropAspect] para
   /// eliminar las barras negras de letterbox, mediante la propiedad
   /// `video-crop` de libmpv (expuesta por media_kit). El frame recortado se
@@ -1129,7 +1134,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             // descripción (solo al pasar el ratón). Al hacer hover se desliza
             // hacia arriba únicamente el logo/título (con el logo de Jellyfin).
             Positioned(
-              left: isTv ? 32 : 70,
+              left: isTv ? 60 : 70,
               top: isTv ? 80 : 24,
               bottom: isTv ? 24 : (widget.hoverReveal ? 80 : 130),
               child: Align(
@@ -1199,6 +1204,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                           showTrailer: showTrailer,
                           onTrailer: _openTrailer,
                           onWatch: _openPlayer,
+                          onDetails: _openDetails,
                           watchLabel: AppLocalizations.of(context)!.watchNow,
                           favoritesTooltip: AppLocalizations.of(
                             context,
@@ -1225,7 +1231,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
               ),
             ),
             Positioned(
-              left: isTv ? 30 : 68,
+              left: isTv ? 60 : 68,
               right: isTv ? 16 : 28,
               bottom: isTv ? 8 : 34,
               child: Column(
@@ -1391,6 +1397,7 @@ class _ActionButtons extends ConsumerWidget {
     this.showTrailer = false,
     this.onTrailer,
     this.onWatch,
+    this.onDetails,
     this.scale = 1.0,
     this.tvFocusNodes,
   });
@@ -1406,6 +1413,9 @@ class _ActionButtons extends ConsumerWidget {
 
   /// Acción al pulsar "Ver ahora" (abre el reproductor a pantalla completa).
   final VoidCallback? onWatch;
+
+  /// Acción al pulsar info (i) → pantalla de detalles (misma que tarjeta película).
+  final VoidCallback? onDetails;
   final double scale;
 
   /// FocusNodes inyectados desde el slider para orquestar flujo TV.
@@ -1415,42 +1425,8 @@ class _ActionButtons extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = scale;
-    final isTv =
-        (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
-        PlatformMode.tv;
-    // Solo en TV los botones son navegables con flechas (Ver → Trailer → Fav → Info)
-    // En escritorio/mobile/tablet se mantiene Row estático sin Focus (mouse/touch)
-    if (!isTv) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          WatchNowButton(label: watchLabel, onTap: onWatch ?? () {}, scale: s),
-          SizedBox(width: 36 * s),
-          if (showTrailer) ...[
-            RoundIconButton(
-              icon: Icons.play_circle_outline,
-              tooltip: trailerTooltip,
-              scale: s,
-              onTap: onTrailer ?? () {},
-            ),
-            SizedBox(width: 8 * s),
-          ],
-          RoundIconButton(
-            icon: Icons.add,
-            tooltip: favoritesTooltip,
-            scale: s,
-            onTap: () {},
-          ),
-          SizedBox(width: 8 * s),
-          RoundIconButton(
-            icon: Icons.info_outline,
-            tooltip: detailsTooltip,
-            scale: s,
-            onTap: () {},
-          ),
-        ],
-      );
-    }
+    // Botones navegables con flechas en todas las plataformas (TV, desktop, tablet, mobile)
+    // para que el teclado/mando funcione igual en cualquier modo.
 
     Widget wrapWithFocus(Widget child, VoidCallback onTap, FocusNode? node) {
       return ScaleButton(
@@ -1535,9 +1511,9 @@ class _ActionButtons extends ConsumerWidget {
             icon: Icons.info_outline,
             tooltip: detailsTooltip,
             scale: s,
-            onTap: () {},
+            onTap: onDetails ?? () {},
           ),
-          () {},
+          onDetails ?? () {},
           nodeAt(infoNodeIndex),
         ),
       ),

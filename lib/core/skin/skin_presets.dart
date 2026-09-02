@@ -100,6 +100,7 @@ abstract final class SkinPresets {
     sidebarCollapsible: true,
     cardHoverExtension: true,
     topBarFloating: false,
+    showCardBadge: true,
     homeScrolls: [
       HomeScroll(titleKey: 'actionMovies', genres: ['Action']),
       HomeScroll(
