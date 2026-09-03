@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,10 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:palette_generator/palette_generator.dart';
+
+import '../../music/application/lrclib_providers.dart';
+import '../../music/presentation/widgets/synced_lyrics_view.dart';
 
 import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/skin/skin.dart';
@@ -19,6 +24,7 @@ import '../../../core/widgets/logo_image.dart';
 import '../../../core/window/app_window.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../library/application/image_url.dart';
+import '../../music/application/music_player_provider.dart';
 import '../application/playback_provider.dart';
 
 /// Pantalla de reproducción a pantalla completa (estilo streaming).
@@ -297,6 +303,32 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   Future<void> _open() async {
     if (mounted) setState(() => _error = false);
+    // Si viene desde el mini-player (mismo track), heredar volumen/posición y pausar mini para no solapar
+    Duration? miniPos;
+    double miniVol = 100;
+    try {
+      final mini = ref.read(musicPlayerProvider);
+      if (mini.hasItem) {
+        final miniId = mini.item?.id ?? mini.session?.itemId;
+        final curId = _session.itemId;
+        if (miniId != null && miniId == curId) {
+          miniPos = mini.position;
+          miniVol = mini.volume;
+          if (mini.playing) {
+            // Pausar mini para la transición inversa sin doble audio
+            ref.read(musicPlayerProvider.notifier).pause();
+          }
+          _volume = miniVol;
+          try {
+            await _player.setVolume(miniVol);
+          } catch (_) {}
+          if (mounted) setState(() => _volume = miniVol);
+        } else {
+          // Mini con otra pista: limpiarlo para no dejar dos audios
+          ref.read(musicPlayerProvider.notifier).stop();
+        }
+      }
+    } catch (_) {}
     try {
       await _player.open(
         Media(
@@ -309,6 +341,16 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         ),
       );
       await _player.play();
+      // Si venía del mini, miniPos tiene prioridad sobre session.start
+      if (miniPos != null && miniPos > Duration.zero) {
+        try {
+          await _player.stream.duration.firstWhere((d) => d > Duration.zero).timeout(const Duration(seconds: 5));
+        } catch (_) {}
+        await _player.seek(miniPos);
+        if (mounted) setState(() => _position = miniPos!);
+        // Ya hemos usado la posición del mini, no repetir con session.start
+        return;
+      }
       // Continuar viendo: reanuda desde la posición guardada en Jellyfin
       // en todos los skins. Se usa la posición de la sesión y como fallback
       // la del item original (por si getItem no retornó userData).
@@ -434,6 +476,21 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     if (_fullscreen) {
       AppWindow.setFullscreen(false);
     }
+    // Si es solo música y está sonando, animar hacia la barra inferior y
+    // mantener la reproducción en segundo plano (mini player) con mismo volumen.
+    // Se pausa el player local para evitar doble audio durante el Hero flight.
+    if (_isAudio && _playing) {
+      try {
+        // Pausa local antes del handoff para no solapar con el global
+        _player.pause();
+        ref.read(musicPlayerProvider.notifier).playFromSession(
+              _session,
+              widget.item,
+              start: _position,
+              volume: _volume,
+            );
+      } catch (_) {}
+    }
     if (context.canPop()) {
       context.pop();
     } else {
@@ -469,6 +526,11 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                                     _duration.inMilliseconds)
                                 .clamp(0.0, 1.0)
                           : 0,
+                      position: _position,
+                      duration: _duration,
+                      heroTag:
+                          'music-cover-${widget.item?.id ?? _session.itemId}',
+                      onBack: _close,
                     )
                   : Video(
                       controller: _videoController!,
@@ -915,10 +977,194 @@ class _ReplayOverlay extends StatelessWidget {
   }
 }
 
+/// Gradiente animado rápido (~900ms) que cicla entre los colores sin ocupar toda la canción.
+class _FastAnimatedGradient extends StatefulWidget {
+  const _FastAnimatedGradient({
+    super.key,
+    required this.colors,
+    required this.child,
+  });
+
+  final List<Color> colors;
+  final Widget child;
+
+  @override
+  State<_FastAnimatedGradient> createState() => _FastAnimatedGradientState();
+}
+
+class _FastAnimatedGradientState extends State<_FastAnimatedGradient> {
+  final List<Alignment> _alignments = const [
+    Alignment.bottomLeft,
+    Alignment.bottomRight,
+    Alignment.topRight,
+    Alignment.topLeft,
+  ];
+  int _index = 0;
+  late Color _bottomColor;
+  late Color _topColor;
+  Alignment _begin = Alignment.bottomLeft;
+  Alignment _end = Alignment.topRight;
+
+  @override
+  void initState() {
+    super.initState();
+    _bottomColor = widget.colors.last;
+    _topColor = widget.colors.first;
+  }
+
+  @override
+  void didUpdateWidget(covariant _FastAnimatedGradient oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.colors != widget.colors) {
+      _bottomColor = widget.colors.last;
+      _topColor = widget.colors.first;
+      _index = 0;
+      _begin = Alignment.bottomLeft;
+      _end = Alignment.topRight;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // Inicia el primer cambio tras un frame para disparar la animación
+    Future.delayed(const Duration(milliseconds: 10), () {
+      if (!mounted) return;
+      setState(() {
+        final shuffled = List<Color>.of(widget.colors)..shuffle();
+        _bottomColor = shuffled.first;
+      });
+    });
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 900),
+      onEnd: () {
+        if (!mounted) return;
+        setState(() {
+          _index = _index + 1;
+          _bottomColor = widget.colors[_index % widget.colors.length];
+          _topColor = widget.colors[(_index + 1) % widget.colors.length];
+          _begin = _alignments[_index % _alignments.length];
+          _end = _alignments[(_index + 2) % _alignments.length];
+        });
+      },
+      decoration: BoxDecoration(
+        gradient: LinearGradient(begin: _begin, end: _end, colors: [_bottomColor, _topColor]),
+      ),
+      child: widget.child,
+    );
+  }
+}
+
+/// Fondo animado que extrae 4-5 colores predominantes de la carátula y
+/// los cicla en bucle con gradiente rápido. Solo para PlayerScreen fullscreen.
+/// Cuando cambia la canción/url se extrae nueva paleta y se reinicia la animación.
+class _AnimatedPaletteBackground extends StatefulWidget {
+  const _AnimatedPaletteBackground({
+    required this.url,
+    required this.fallbackColors,
+    required this.child,
+    this.onPalette,
+  });
+
+  final String url;
+  final List<Color> fallbackColors;
+  final Widget child;
+  final ValueChanged<List<Color>>? onPalette;
+
+  @override
+  State<_AnimatedPaletteBackground> createState() => _AnimatedPaletteBackgroundState();
+}
+
+class _AnimatedPaletteBackgroundState extends State<_AnimatedPaletteBackground> {
+  static final Map<String, List<Color>> _cache = {};
+  List<Color>? _palette;
+
+  @override
+  void initState() {
+    super.initState();
+    _extract();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AnimatedPaletteBackground oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      _extract();
+    }
+  }
+
+  Future<void> _extract() async {
+    final url = widget.url;
+    if (url.isEmpty) {
+      if (mounted) setState(() => _palette = null);
+      return;
+    }
+    if (_cache.containsKey(url)) {
+      final cached = _cache[url]!;
+      if (mounted) setState(() => _palette = cached);
+      widget.onPalette?.call(cached);
+      return;
+    }
+    try {
+      final palette = await PaletteGenerator.fromImageProvider(
+        NetworkImage(url),
+        size: const Size(200, 200),
+        maximumColorCount: 20,
+      );
+      // Tomar los 5 colores más poblados
+      final colors = palette.paletteColors.map((c) => c.color).toList();
+      // Fallback si hay pocos: completar con vibrant/dominant
+      if (colors.length < 2) {
+        final extras = <Color?>[
+          palette.dominantColor?.color,
+          palette.vibrantColor?.color,
+          palette.mutedColor?.color,
+          palette.lightVibrantColor?.color,
+          palette.darkVibrantColor?.color,
+        ].whereType<Color>().toList();
+        for (final c in extras) {
+          if (!colors.contains(c)) colors.add(c);
+          if (colors.length >= 5) break;
+        }
+      }
+      final result = colors.take(5).toList();
+      if (result.length >= 2) {
+        _cache[url] = result;
+        if (mounted) setState(() => _palette = result);
+        widget.onPalette?.call(result);
+      } else {
+        if (mounted) setState(() => _palette = null);
+        widget.onPalette?.call(widget.fallbackColors);
+      }
+    } catch (_) {
+      if (mounted) setState(() => _palette = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = _palette;
+    if (palette != null && palette.length >= 2) {
+      return _FastAnimatedGradient(
+        key: ValueKey(widget.url),
+        colors: palette,
+        child: widget.child,
+      );
+    }
+    // Fallback animado con colores del skin mientras se extrae la paleta
+    return _FastAnimatedGradient(
+      key: ValueKey('fallback-${widget.fallbackColors.join()}'),
+      colors: widget.fallbackColors.length >= 2
+          ? widget.fallbackColors
+          : [...widget.fallbackColors, widget.fallbackColors.first],
+      child: widget.child,
+    );
+  }
+}
+
 /// Carátula del contenido cuando se reproduce solo audio (sin pista de vídeo),
 /// con la onda animada entre la portada y la barra de progreso.
 /// Bajo la carátula: artista → canción → álbum (resto igual).
-class _AudioCover extends ConsumerWidget {
+class _AudioCover extends ConsumerStatefulWidget {
   const _AudioCover({
     required this.url,
     required this.title,
@@ -926,6 +1172,10 @@ class _AudioCover extends ConsumerWidget {
     required this.album,
     required this.playing,
     required this.progress,
+    required this.position,
+    required this.duration,
+    this.heroTag,
+    this.onBack,
   });
 
   final String url;
@@ -934,9 +1184,34 @@ class _AudioCover extends ConsumerWidget {
   final String album;
   final bool playing;
   final double progress;
+  final Duration position;
+  final Duration duration;
+  final String? heroTag;
+  final VoidCallback? onBack;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_AudioCover> createState() => _AudioCoverState();
+}
+
+class _AudioCoverState extends ConsumerState<_AudioCover> {
+  List<Color>? _palette;
+
+  bool _isLight(List<Color> colors) {
+    if (colors.isEmpty) return false;
+    final avg = colors.map((c) => c.computeLuminance()).reduce((a, b) => a + b) / colors.length;
+    return avg > 0.5;
+  }
+
+  @override
+  void didUpdateWidget(covariant _AudioCover oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      setState(() => _palette = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final skin = ref.watch(skinControllerProvider).value;
     final musicSkin = ref.watch(musicPlayerSkinControllerProvider).value;
     final bgTop =
@@ -952,18 +1227,20 @@ class _AudioCover extends ConsumerWidget {
         musicSkin?.waveformEffect ??
         skin?.audioWaveformEffect ??
         AudioWaveformEffect.equalizer;
-    final textPrimary =
-        musicSkin?.textPrimary ?? skin?.textPrimary ?? Colors.white;
-    final textSecondary =
-        musicSkin?.textSecondary ?? skin?.textSecondary ?? Colors.white70;
-    return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [bgTop, bgBottom],
-        ),
-      ),
+    // Color de texto inverso según fondo: claro→oscuro, oscuro→claro
+    final fallbackColors = [bgTop, bgBottom];
+    final effectivePalette = _palette ?? fallbackColors;
+    final light = _isLight(effectivePalette);
+    final textPrimary = light ? Colors.black : Colors.white;
+    final textSecondary = light ? Colors.black87 : Colors.white70;
+    // Fondo animado con colores de la carátula; fallback a colores del skin.
+    return _AnimatedPaletteBackground(
+      url: widget.url,
+      fallbackColors: fallbackColors,
+      onPalette: (colors) {
+        if (!mounted) return;
+        setState(() => _palette = colors);
+      },
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -982,12 +1259,34 @@ class _AudioCover extends ConsumerWidget {
                     foregroundColor: Colors.white,
                   ),
                   icon: const Icon(Icons.arrow_back_rounded),
-                  onPressed: () {
-                    if (context.canPop()) {
-                      context.pop();
-                    } else {
-                      context.go('/music');
-                    }
+                  onPressed: widget.onBack ??
+                      () {
+                        if (context.canPop()) {
+                          context.pop();
+                        } else {
+                          context.go('/music');
+                        }
+                      },
+                ),
+              ),
+            ),
+          ),
+          // Toggle lyrics (por defecto ON) arriba a la derecha
+          Positioned(
+            top: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(8),
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final show = ref.watch(showLyricsProvider);
+                    return IconButton(
+                      tooltip: show ? 'Ocultar letra' : 'Mostrar letra',
+                      style: IconButton.styleFrom(backgroundColor: Colors.black45, foregroundColor: Colors.white),
+                      icon: Icon(show ? Icons.lyrics_rounded : Icons.lyrics_outlined),
+                      onPressed: () => ref.read(showLyricsProvider.notifier).toggle(),
+                    );
                   },
                 ),
               ),
@@ -1004,34 +1303,47 @@ class _AudioCover extends ConsumerWidget {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Container(
-                      width: size,
-                      height: size,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 32,
-                            offset: const Offset(0, 12),
+                    Hero(
+                      tag: widget.heroTag ?? 'music-cover-${widget.url}',
+                      flightShuttleBuilder: (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
+                        final hero = flightDirection == HeroFlightDirection.push ? toHeroContext.widget as Hero : fromHeroContext.widget as Hero;
+                        return FadeTransition(
+                          opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
+                          child: ScaleTransition(
+                            scale: animation.drive(Tween<double>(begin: 0.3, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic))),
+                            child: hero.child,
                           ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Image.network(
-                        url,
-                        fit: BoxFit.cover,
-                        loadingBuilder: (context, child, progress) =>
-                            progress == null ? child : _CoverFallback(),
-                        errorBuilder: (_, _, _) => _CoverFallback(),
+                        );
+                      },
+                      child: Container(
+                        width: size,
+                        height: size,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 32,
+                              offset: const Offset(0, 12),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.network(
+                          widget.url,
+                          fit: BoxFit.cover,
+                          loadingBuilder: (context, child, progress) =>
+                              progress == null ? child : _CoverFallback(),
+                          errorBuilder: (_, _, _) => _CoverFallback(),
+                        ),
                       ),
                     ),
-                    if (artist.isNotEmpty) ...[
+                    if (widget.artist.isNotEmpty) ...[
                       const SizedBox(height: 28),
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 480),
                         child: Text(
-                          artist,
+                          widget.artist,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
@@ -1043,12 +1355,12 @@ class _AudioCover extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    if (title.isNotEmpty) ...[
-                      SizedBox(height: artist.isNotEmpty ? 6 : 28),
+                    if (widget.title.isNotEmpty) ...[
+                      SizedBox(height: widget.artist.isNotEmpty ? 6 : 28),
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 480),
                         child: Text(
-                          title,
+                          widget.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
@@ -1060,12 +1372,12 @@ class _AudioCover extends ConsumerWidget {
                         ),
                       ),
                     ],
-                    if (album.isNotEmpty) ...[
+                    if (widget.album.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 480),
                         child: Text(
-                          album,
+                          widget.album,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
@@ -1082,14 +1394,64 @@ class _AudioCover extends ConsumerWidget {
               },
             ),
           ),
+          // Panel lateral de lyrics (derecha del cover, no reduce cover) - por defecto ON
+          if (ref.watch(showLyricsProvider))
+            Positioned(
+              right: 24,
+              top: 80,
+              bottom: 140,
+              width: 420,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final query = LrcQuery(
+                    artist: widget.artist,
+                    track: widget.title,
+                    album: widget.album,
+                    duration: widget.duration.inSeconds > 0 ? widget.duration : null,
+                  );
+                  final async = ref.watch(lrcLyricsProvider(query));
+                  return async.when(
+                    loading: () => const Center(child: CircularProgressIndicator(color: Colors.white54)),
+                    error: (_, __) => const SizedBox.shrink(),
+                    data: (result) {
+                      if (result == null) return const SizedBox.shrink();
+                      final hasPlain = result.plainLyrics.trim().isNotEmpty;
+                      final hasSynced = result.hasSynced;
+                      if (!hasPlain && !hasSynced && !result.isInstrumental) return const SizedBox.shrink();
+                      return Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(12),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                            child: SyncedLyricsView(
+                              result: result,
+                              position: widget.position,
+                              textPrimary: textPrimary,
+                              textSecondary: textSecondary,
+                              accent: accent,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
           // Onda animada tematizable por music skin.
           Positioned(
             bottom: 110,
             left: 40,
             right: 40,
             child: _AudioWaveform(
-              playing: playing,
-              progress: progress,
+              playing: widget.playing,
+              progress: widget.progress,
               effect: waveform,
               color: accent,
             ),
@@ -1807,7 +2169,7 @@ class _VolumeButtonState extends State<_VolumeButton> {
             child: StatefulBuilder(
               builder: (context, setMenu) {
                 return SizedBox(
-                  width: 200,
+                  width: 230,
                   child: Row(
                     children: [
                       Icon(_iconFor(current), color: Colors.white, size: 20),
@@ -1823,6 +2185,15 @@ class _VolumeButtonState extends State<_VolumeButton> {
                             setMenu(() => current = v);
                             widget.onChanged(v);
                           },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 42,
+                        child: Text(
+                          '${current.round()}%',
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],

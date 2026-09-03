@@ -196,8 +196,8 @@ class FloatingIslandBar extends ConsumerWidget {
       vPad: tvItemVPad,
       selectedColor: selectedColor,
       autofocus: isTv && currentIndex == 7,
-        onTap: () => _goBranch(context, ref, 7),
-      );
+      onTap: () => _goBranch(context, ref, 7),
+    );
 
     const islandRadius = 28.0;
     final isAnyLibrarySelected = views.any((v) => v.id == activeViewId);
@@ -245,7 +245,7 @@ class FloatingIslandBar extends ConsumerWidget {
           borderRadius: BorderRadius.circular(islandRadius),
           child: BackdropFilter(
             filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
+            child: Container(
               height: 60,
               constraints: const BoxConstraints(maxWidth: 1280),
               padding: EdgeInsets.symmetric(horizontal: isTv ? 4 : 8),
@@ -340,11 +340,19 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
     final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
-        Icon(Icons.video_library_outlined, color: Colors.white, size: widget.iconSize),
+        Icon(
+          Icons.video_library_outlined,
+          color: Colors.white,
+          size: widget.iconSize,
+        ),
         SizedBox(width: widget.iconSpacing),
         Text(
           l10n.library,
-          style: TextStyle(color: color, fontSize: widget.fontSize, fontWeight: weight),
+          style: TextStyle(
+            color: color,
+            fontSize: widget.fontSize,
+            fontWeight: weight,
+          ),
         ),
         const SizedBox(width: 4),
         Icon(
@@ -384,7 +392,10 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
     Widget content;
     if (_hovered) {
       content = Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.hPad,
+          vertical: widget.vPad,
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: Colors.white,
@@ -393,7 +404,10 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
       );
     } else if (selected && selectedColor != null) {
       content = Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.hPad,
+          vertical: widget.vPad,
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           gradient: LinearGradient(
@@ -409,7 +423,10 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
       );
     } else {
       content = Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.hPad,
+          vertical: widget.vPad,
+        ),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: selected
@@ -454,7 +471,11 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
       return Padding(
         padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: 2),
         child: GestureDetector(
-          onTap: () => showDesktopLibraryDialog(context, widget.views, widget.activeViewId),
+          onTap: () => showDesktopLibraryDialog(
+            context,
+            widget.views,
+            widget.activeViewId,
+          ),
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
@@ -565,7 +586,11 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
         SizedBox(width: widget.iconSpacing),
         Text(
           widget.label,
-          style: TextStyle(color: color, fontSize: widget.fontSize, fontWeight: weight),
+          style: TextStyle(
+            color: color,
+            fontSize: widget.fontSize,
+            fontWeight: weight,
+          ),
         ),
       ],
     );
@@ -580,7 +605,10 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
     final Widget content;
     if (_hovered) {
       content = Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.hPad,
+          vertical: widget.vPad,
+        ),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -590,7 +618,10 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
       );
     } else if (selected && selectedColor != null) {
       content = Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.hPad,
+          vertical: widget.vPad,
+        ),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -607,7 +638,10 @@ class _FloatingNavItemState extends State<_FloatingNavItem> {
       );
     } else {
       content = Container(
-        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: widget.vPad),
+        padding: EdgeInsets.symmetric(
+          horizontal: widget.hPad,
+          vertical: widget.vPad,
+        ),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),

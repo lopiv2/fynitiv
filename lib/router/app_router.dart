@@ -8,6 +8,7 @@ import '../features/auth/application/auth_state.dart';
 import '../features/household/application/household_provider.dart';
 import '../features/household/domain/household.dart';
 import '../features/household/presentation/household_wizard_screen.dart';
+import '../core/skin/home_scroll.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/item_detail_screen.dart';
 import '../features/library/presentation/library_view_screen.dart';
@@ -109,8 +110,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
               GoRoute(
                 path: '/library/:viewId',
-                builder: (context, state) =>
-                    LibraryViewScreen(viewId: state.pathParameters['viewId']!),
+                builder: (context, state) {
+                  final viewId = state.pathParameters['viewId']!;
+                  final extra = state.extra;
+                  // Soporte para HomeScroll filtrado (ver más de Acción etc.)
+                  if (extra is HomeScroll) {
+                    return LibraryViewScreen(viewId: viewId, scroll: extra);
+                  }
+                  if (extra is Map) {
+                    final genre = extra['genre'] as String?;
+                    final title = extra['title'] as String?;
+                    final scroll = extra['scroll'] as HomeScroll?;
+                    if (scroll != null) {
+                      return LibraryViewScreen(viewId: viewId, scroll: scroll);
+                    }
+                    if (genre != null || title != null) {
+                      return LibraryViewScreen(
+                        viewId: viewId,
+                        initialGenre: genre,
+                        titleOverride: title,
+                      );
+                    }
+                  }
+                  if (extra is String && extra.trim().isNotEmpty) {
+                    return LibraryViewScreen(
+                      viewId: viewId,
+                      titleOverride: extra,
+                    );
+                  }
+                  return LibraryViewScreen(viewId: viewId);
+                },
               ),
             ],
           ),

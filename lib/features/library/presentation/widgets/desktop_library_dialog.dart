@@ -90,8 +90,9 @@ class _DesktopLibraryDialogState extends ConsumerState<DesktopLibraryDialog> {
     final hours = isGrab
         ? ref.watch(libraryDvrHoursProvider(v.id ?? '')).value
         : null;
-    if (isGrab && hours != null && hours > 0)
+    if (isGrab && hours != null && hours > 0) {
       return l10n.libraryCountHours(hours);
+    }
     switch (v.collectionType) {
       case CollectionType.movies:
         return l10n.libraryCountTitles(count);
@@ -109,8 +110,9 @@ class _DesktopLibraryDialogState extends ConsumerState<DesktopLibraryDialog> {
         return l10n.libraryCountCollections(count);
       default:
         final name = (v.name ?? '').toLowerCase();
-        if (name.contains('grabac') && hours != null)
+        if (name.contains('grabac') && hours != null) {
           return l10n.libraryCountHours(hours);
+        }
         if (name.contains('colecc')) return l10n.libraryCountCollections(count);
         return l10n.libraryCountItems(count);
     }
@@ -439,29 +441,11 @@ class _LibraryGridCardState extends State<_LibraryGridCard> {
                         ),
                       ),
                       const Spacer(),
-                      if (active)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF3B82F6),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'ENFOCADO',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.6,
-                            ),
-                          ),
-                        )
-                      else
-                        const Icon(
-                          Icons.chevron_right,
-                          color: Color(0xFF9CA3AF),
-                          size: 16,
-                        ),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: Color(0xFF9CA3AF),
+                        size: 16,
+                      ),
                     ],
                   ),
                   const Spacer(),

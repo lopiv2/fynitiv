@@ -7,6 +7,7 @@ import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/backdrop_card.dart';
@@ -91,33 +92,7 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox(height: islandHeight + 8),
-                // Cabecera con volver
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 24, 0),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        tooltip: l10n.back,
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () {
-                          if (context.canPop()) {
-                            context.pop();
-                          } else {
-                            context.go('/home');
-                          }
-                        },
-                      ),
-                      Expanded(
-                        child: Text(
-                          l10n.allMovies,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                LibraryPageHeader(title: l10n.allMovies),
                 // Tres botones entre isla y grid
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),

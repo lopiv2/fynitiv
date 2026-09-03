@@ -73,19 +73,55 @@ String _transliterateSimple(String s) {
   return out;
 }
 
+String _normalizeArtist(String s) {
+  var n = _transliterateSimple(s.toLowerCase()).trim();
+  // Quita prefijo "the " para comparar "The Beatles" <-> "Beatles"
+  if (n.startsWith('the ')) n = n.substring(4);
+  // Normaliza separadores comunes de featuring
+  n = n.replaceAll(RegExp(r'\s+feat\.?\s+'), ',');
+  n = n.replaceAll(RegExp(r'\s+ft\.?\s+'), ',');
+  n = n.replaceAll(RegExp(r'\s+x\s+'), ',');
+  n = n.replaceAll(RegExp(r'\s+&\s+'), ',');
+  return n;
+}
+
+List<String> _artistTokens(String s) {
+  return s
+      .split(RegExp(r'[;,/]'))
+      .expand((p) => p.split(RegExp(r'\s+')))
+      .map((t) => t.trim())
+      .where((t) => t.length >= 3)
+      .toList();
+}
+
 bool _artistMatches(BaseItemDto e, String lowerName) {
-  bool contains(String? s) {
+  final targetNorm = _normalizeArtist(lowerName);
+  final targetTokens = _artistTokens(targetNorm);
+  bool matches(String? s) {
     if (s == null || s.isEmpty) return false;
-    final lower = _transliterateSimple(s.toLowerCase());
-    for (final part in lower.split(RegExp(r'[;,/]'))) {
-      if (part.trim().contains(lowerName)) return true;
+    final norm = _normalizeArtist(s);
+    // 1) Contención directa en ambas direcciones
+    if (norm.contains(targetNorm) || targetNorm.contains(norm)) return true;
+    // 2) Cualquier parte separada por , ; / contiene
+    for (final part in norm.split(RegExp(r'[;,/]'))) {
+      final p = part.trim();
+      if (p.isEmpty) continue;
+      if (p.contains(targetNorm) || targetNorm.contains(p)) return true;
     }
-    return lower.contains(lowerName);
+    // 3) Solapamiento de tokens significativos (>=3 letras)
+    final sTokens = _artistTokens(norm);
+    for (final t in targetTokens) {
+      if (sTokens.contains(t)) return true;
+    }
+    for (final t in sTokens) {
+      if (targetTokens.contains(t)) return true;
+    }
+    return false;
   }
 
-  return (e.artists?.any(contains) ?? false) ||
-      contains(e.albumArtist) ||
-      (e.albumArtists?.any((aa) => contains(aa.name)) ?? false);
+  return (e.artists?.any(matches) ?? false) ||
+      matches(e.albumArtist) ||
+      (e.albumArtists?.any((aa) => matches(aa.name)) ?? false);
 }
 
 /// Lista de vistas (bibliotecas) del usuario: Películas, Series, etc.
@@ -426,8 +462,115 @@ final vodLibraryViewsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 
 /// Tamaño de página para AllMovies (paginación con flechas) - 100 según spec.
 const int kAllMoviesPageSize = 100;
+const int kLibraryPageSize = 100;
+
+/// Args para paginación filtrada genérica de biblioteca (viewId + categoría + orden).
+/// Usado por el [LibraryViewScreen] universal para Películas y Series.
+/// Soporta filtro de género simple o múltiple ( HomeScroll con varios géneros
+/// separados por '|' ).
+class LibraryFilteredArgs {
+  const LibraryFilteredArgs({
+    required this.viewId,
+    required this.pageIndex,
+    this.sortAscending = true,
+    this.genre,
+    this.genresPipe,
+    this.includeItemTypes,
+  });
+  final String viewId;
+  final int pageIndex;
+  final bool sortAscending;
+  final String? genre;
+  final String? genresPipe;
+  final List<BaseItemKind>? includeItemTypes;
+  String? get effectiveGenre {
+    if (genresPipe != null && genresPipe!.isNotEmpty) return genresPipe;
+    return genre;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is LibraryFilteredArgs &&
+      other.viewId == viewId &&
+      other.pageIndex == pageIndex &&
+      other.sortAscending == sortAscending &&
+      other.genre == genre &&
+      other.genresPipe == genresPipe &&
+      listEquals(other.includeItemTypes, includeItemTypes);
+  @override
+  int get hashCode => Object.hash(
+    viewId,
+    pageIndex,
+    sortAscending,
+    genre,
+    genresPipe,
+    includeItemTypes == null ? null : Object.hashAll(includeItemTypes!),
+  );
+}
+
+/// Página filtrada genérica (por biblioteca + género + orden + paginación).
+final libraryFilteredPageProvider =
+    FutureProvider.family<List<BaseItemDto>, LibraryFilteredArgs>((
+  ref,
+  args,
+) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  final effectiveGenre = args.effectiveGenre;
+  final res = await client.getItemsApi().getItems(
+    userId: userId,
+    parentId: args.viewId.isEmpty ? null : args.viewId,
+    recursive: true,
+    includeItemTypes: args.includeItemTypes,
+    genres: effectiveGenre != null && effectiveGenre.isNotEmpty
+        ? [effectiveGenre]
+        : null,
+    startIndex: args.pageIndex * kLibraryPageSize,
+    limit: kLibraryPageSize,
+    sortBy: [ItemSortBy.sortName],
+    sortOrder: [args.sortAscending ? SortOrder.ascending : SortOrder.descending],
+    fields: [
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.overview,
+      ItemFields.genres,
+    ],
+    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
+    enableTotalRecordCount: true,
+  );
+  return res.data?.items ?? [];
+});
+
+/// Total genérico para [LibraryFilteredArgs] (para paginación).
+final libraryFilteredCountProvider =
+    FutureProvider.family<int, LibraryFilteredArgs>((ref, args) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return 0;
+  final effectiveGenre = args.effectiveGenre;
+  final res = await client.getItemsApi().getItems(
+    userId: userId,
+    parentId: args.viewId.isEmpty ? null : args.viewId,
+    recursive: true,
+    includeItemTypes: args.includeItemTypes,
+    genres: effectiveGenre != null && effectiveGenre.isNotEmpty
+        ? [effectiveGenre]
+        : null,
+    limit: 1,
+    startIndex: 0,
+    sortBy: [ItemSortBy.sortName],
+    fields: const [],
+    enableTotalRecordCount: true,
+    enableImages: false,
+    enableUserData: false,
+  );
+  return res.data?.totalRecordCount ?? 0;
+});
 
 /// Args para paginación filtrada de películas (categoría + orden).
+/// Mantiene compatibilidad con AllMoviesScreen legacy, delega al genérico.
 class AllMoviesFilteredArgs {
   const AllMoviesFilteredArgs({
     required this.pageIndex,
@@ -447,57 +590,38 @@ class AllMoviesFilteredArgs {
   int get hashCode => Object.hash(pageIndex, sortAscending, genre);
 }
 
-/// Página filtrada de películas con sort y categoría.
+/// Página filtrada de películas con sort y categoría (legacy).
 final allMoviesFilteredPageProvider =
     FutureProvider.family<List<BaseItemDto>, AllMoviesFilteredArgs>((
   ref,
   args,
 ) async {
-  ref.cacheFor(_kLibraryCache);
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null) return const [];
-  final res = await client.getItemsApi().getItems(
-    userId: userId,
-    recursive: true,
-    includeItemTypes: [BaseItemKind.movie],
-    genres: args.genre != null && args.genre!.isNotEmpty ? [args.genre!] : null,
-    startIndex: args.pageIndex * kAllMoviesPageSize,
-    limit: kAllMoviesPageSize,
-    sortBy: [ItemSortBy.sortName],
-    sortOrder: [args.sortAscending ? SortOrder.ascending : SortOrder.descending],
-    fields: [
-      ItemFields.primaryImageAspectRatio,
-      ItemFields.overview,
-      ItemFields.genres,
-    ],
-    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
-    enableTotalRecordCount: true,
+  return ref.watch(
+    libraryFilteredPageProvider(
+      LibraryFilteredArgs(
+        viewId: '',
+        pageIndex: args.pageIndex,
+        sortAscending: args.sortAscending,
+        genre: args.genre,
+        includeItemTypes: [BaseItemKind.movie],
+      ),
+    ).future,
   );
-  return res.data?.items ?? [];
 });
 
 /// Total de películas (para calcular páginas 1/34). Usa misma lógica de filtro.
 final allMoviesTotalCountProvider =
     FutureProvider.family<int, String?>((ref, genre) async {
-  ref.cacheFor(_kLibraryCache);
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null) return 0;
-  final res = await client.getItemsApi().getItems(
-    userId: userId,
-    recursive: true,
-    includeItemTypes: [BaseItemKind.movie],
-    genres: genre != null && genre.isNotEmpty ? [genre] : null,
-    limit: 1,
-    startIndex: 0,
-    sortBy: [ItemSortBy.sortName],
-    fields: const [],
-    enableTotalRecordCount: true,
-    enableImages: false,
-    enableUserData: false,
+  return ref.watch(
+    libraryFilteredCountProvider(
+      LibraryFilteredArgs(
+        viewId: '',
+        pageIndex: 0,
+        genre: genre,
+        includeItemTypes: [BaseItemKind.movie],
+      ),
+    ).future,
   );
-  return res.data?.totalRecordCount ?? 0;
 });
 
 /// Contador real de items por biblioteca (cache global, solo 1 llamada por viewId).
@@ -771,20 +895,34 @@ final artistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((
     var items = res.data?.items ?? const <BaseItemDto>[];
     if (items.isEmpty) return const [];
 
-    // Filtro ligero: si Jellyfin devuelve falsos positivos por búsqueda amplia,
-    // conservar solo los que mencionan al artista. Si el filtro deja todo vacío
-    // (ej. artista con caracteres especiales), devolver los 20 originales.
-    final filtered = items.where((e) {
-      final lower = name.toLowerCase();
-      return (e.artists?.any((a) => a.toLowerCase().contains(lower)) ??
-              false) ||
-          (e.albumArtist?.toLowerCase().contains(lower) ?? false) ||
-          (e.albumArtists?.any(
-                (aa) => (aa.name ?? '').toLowerCase().contains(lower),
-              ) ??
-              false);
-    }).toList();
-    return filtered.isNotEmpty ? filtered : items;
+    // Filtro ligero con matching tolerante (transliteración + bidireccional + tokens).
+    final lowerName = _normalizeArtist(name);
+    final filtered = items.where((e) => _artistMatches(e, lowerName)).toList();
+    if (filtered.isNotEmpty) return filtered;
+    // Si el filtro estricto deja todo vacío (ej. "The Beatles" vs "Beatles"),
+    // intenta con búsqueda exacta por artistas antes de devolver todo.
+    if (items.isNotEmpty) return items;
+    // Fallback adicional: probar filtro por artists:[name] si searchTerm no devolvió nada útil
+    try {
+      final fallback = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: [BaseItemKind.audio],
+        artists: [name],
+        limit: 20,
+        fields: [ItemFields.primaryImageAspectRatio],
+        enableImageTypes: [ImageType.primary],
+        enableUserData: true,
+        enableImages: true,
+        enableTotalRecordCount: false,
+      );
+      final fbItems = fallback.data?.items ?? const <BaseItemDto>[];
+      if (fbItems.isNotEmpty) {
+        final fbFiltered = fbItems.where((e) => _artistMatches(e, lowerName)).toList();
+        return fbFiltered.isNotEmpty ? fbFiltered : fbItems;
+      }
+    } catch (_) {}
+    return items;
   } catch (_) {
     return const [];
   }
@@ -885,7 +1023,7 @@ final artistTracksPagedProvider =
         return const [];
       }
       final name = args.artistName.trim();
-      final lowerName = _transliterateSimple(name.toLowerCase());
+      final lowerName = _normalizeArtist(name);
       try {
         final res = await client.getItemsApi().getItems(
           userId: userId,
@@ -981,62 +1119,90 @@ final artistJellyIndexByNameProvider = FutureProvider.family<List<BaseItemDto>, 
   }
   final name = artistName.trim();
   final all = <BaseItemDto>[];
-  final lowerName = _transliterateSimple(name.toLowerCase());
-  try {
-    final artistRes = await client.getArtistsApi().getArtistByName(name: name, userId: userId).timeout(const Duration(seconds: 6));
-    final artist = artistRes.data;
-    if (artist?.id != null && artist!.id!.isNotEmpty) {
-      final trRes = await client
+  final lowerName = _normalizeArtist(name);
+  final normName = _transliterateSimple(name);
+  // Helper para fetchear por artistId y acumular sin return temprano
+  Future<void> fetchByArtistId(String q) async {
+    try {
+      final res = await client.getArtistsApi().getArtistByName(name: q, userId: userId).timeout(const Duration(seconds: 8));
+      final artist = res.data;
+      if (artist?.id != null && artist!.id!.isNotEmpty) {
+        final trRes = await client
+            .getItemsApi()
+            .getItems(
+              userId: userId,
+              recursive: true,
+              includeItemTypes: [BaseItemKind.audio],
+              artistIds: [artist.id!],
+              albumArtistIds: [artist.id!],
+              limit: 80,
+              fields: const [],
+              enableImages: false,
+              enableUserData: false,
+              enableTotalRecordCount: false,
+            )
+            .timeout(const Duration(seconds: 8));
+        for (final t in (trRes.data?.items ?? const <BaseItemDto>[])) {
+          if (!all.any((a) => a.id == t.id)) all.add(t);
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 1) Intento por artistId con nombre original y normalizado (The Weeknd -> weeknd)
+  await fetchByArtistId(name);
+  if (normName != name) await fetchByArtistId(normName);
+  final weekndOnly = lowerName != name.toLowerCase() ? lowerName : null;
+  if (weekndOnly != null && weekndOnly != normName) await fetchByArtistId(weekndOnly);
+
+  // 2) Búsqueda por searchTerm con original y normalizado
+  Future<void> fetchBySearch(String q) async {
+    try {
+      final res = await client
           .getItemsApi()
           .getItems(
             userId: userId,
             recursive: true,
             includeItemTypes: [BaseItemKind.audio],
-            artistIds: [artist.id!],
-            albumArtistIds: [artist.id!],
+            searchTerm: q,
             limit: 80,
             fields: const [],
             enableImages: false,
             enableUserData: false,
             enableTotalRecordCount: false,
           )
-          .timeout(const Duration(seconds: 6));
-      final tItems = trRes.data?.items ?? const [];
-      for (final t in tItems) {
-        if (!all.any((a) => a.id == t.id)) all.add(t);
+          .timeout(const Duration(seconds: 8));
+      var items = res.data?.items ?? const <BaseItemDto>[];
+      final filtered = items.where((e) => _artistMatches(e, lowerName)).toList();
+      final toAdd = filtered.isNotEmpty ? filtered : (all.isEmpty ? items : const <BaseItemDto>[]);
+      for (final p in toAdd) {
+        if (!all.any((a) => a.id == p.id)) all.add(p);
       }
-      if (all.isNotEmpty) return all;
-    }
-  } catch (_) {}
-  try {
-    final res = await client
-        .getItemsApi()
-        .getItems(
-          userId: userId,
-          recursive: true,
-          includeItemTypes: [BaseItemKind.audio],
-          searchTerm: name,
-          limit: 80,
-          fields: const [],
-          enableImages: false,
-          enableUserData: false,
-          enableTotalRecordCount: false,
-        )
-        .timeout(const Duration(seconds: 6));
-    var items = res.data?.items ?? const <BaseItemDto>[];
-    final filtered = items.where((e) => _artistMatches(e, lowerName)).toList();
-    for (final p in (filtered.isNotEmpty ? filtered : const <BaseItemDto>[])) {
-      if (!all.any((a) => a.id == p.id)) all.add(p);
-    }
-    if (all.isNotEmpty) return all;
-  } catch (_) {}
+    } catch (_) {}
+  }
+
+  await fetchBySearch(name);
+  if (normName != name) await fetchBySearch(normName);
+  if (weekndOnly != null && weekndOnly != normName && weekndOnly != name) await fetchBySearch(weekndOnly);
+  if (all.isNotEmpty) {
+    // No return temprano, sigue acumulando con artists exacto para asegurar cobertura
+  }
   try {
     final res = await client
         .getItemsApi()
         .getItems(userId: userId, recursive: true, includeItemTypes: [BaseItemKind.audio], artists: [name], limit: 50, fields: const [], enableImages: false, enableUserData: false, enableTotalRecordCount: false)
-        .timeout(const Duration(seconds: 6));
+        .timeout(const Duration(seconds: 8));
     for (final p in (res.data?.items ?? const <BaseItemDto>[])) {
       if (!all.any((a) => a.id == p.id)) all.add(p);
+    }
+    if (normName != name) {
+      final res2 = await client
+          .getItemsApi()
+          .getItems(userId: userId, recursive: true, includeItemTypes: [BaseItemKind.audio], artists: [normName], limit: 50, fields: const [], enableImages: false, enableUserData: false, enableTotalRecordCount: false)
+          .timeout(const Duration(seconds: 8));
+      for (final p in (res2.data?.items ?? const <BaseItemDto>[])) {
+        if (!all.any((a) => a.id == p.id)) all.add(p);
+      }
     }
   } catch (_) {}
   return all;

@@ -8,10 +8,10 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/settings/game_video_controller.dart';
-import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/scroll_title.dart';
 import 'widgets/game_content_row.dart';
 import 'widgets/game_video_background.dart';
@@ -48,10 +48,10 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
     final auth = ref.watch(rommAuthProvider);
     final config = ref.watch(rommConfigProvider);
     final platforms = ref.watch(rommPlatformsProvider);
+    final skin = ref.watch(skinControllerProvider).value;
+    final topPadding = libraryPageTopPadding(context, skin);
 
-    return Scaffold(
-      body: GameVideoBackground(
-        child: auth.loading
+    final content = auth.loading
             ? const Center(child: AppLoader())
             : !auth.authenticated
             ? _NoServer(onConfigure: () => context.go('/settings'))
@@ -209,7 +209,15 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                   ),
                   );
                 },
-              ),
+              );
+    return Scaffold(
+      body: GameVideoBackground(
+        child: Column(
+          children: [
+            SizedBox(height: topPadding),
+            Expanded(child: content),
+          ],
+        ),
       ),
     );
   }
@@ -386,15 +394,9 @@ class _HeroHeader extends ConsumerWidget {
 
     // Intento glassmorphism: si el device no soporta BackdropFilter, el fallback es el Container de arriba sin blur
     // Envuelto en ClipRRect + BackdropFilter; si falla, se ve solo el Container (dashboardBackground detrás)
-    // Cuando la top bar es isla flotante (pill 60px + topPadding 10) se añade
-    // padding superior para que el título no quede tapado por la isla.
-    final isFloatingTopIsland =
-        skin?.sidebarPosition == SidebarPosition.top &&
-        (skin?.topBarFloating ?? false);
-    // HomeShell coloca la isla en topPadding + 10 con altura 60 → ocupa topPadding+70.
-    // Se añade 16px extra de respiración sobre el contenido.
-    final mediaTop = MediaQuery.of(context).padding.top;
-    final topInset = isFloatingTopIsland ? mediaTop + 70 + 16 : 16.0;
+    // El padding superior global ya lo aporta GamesScreen (libraryPageTopPadding),
+    // aquí solo deixamos 16 de respiración.
+    const topInset = 16.0;
     return Padding(
       padding: EdgeInsets.fromLTRB(16, topInset, 16, 8),
       child: ClipRRect(

@@ -145,6 +145,10 @@ class HomeScreen extends ConsumerWidget {
                         cardWidth: skin?.homeCardWidth ?? 150,
                         useBackdrop: useBackdrop,
                         cardLogo: skin?.cardLogo,
+                        onSeeMore: () => context.push(
+                          '/library/${view.id}',
+                          extra: view.name,
+                        ),
                         onItemTap: (item) =>
                             context.push('/player/${item.id}', extra: item),
                         onItemImageTap: (item) =>
@@ -163,7 +167,40 @@ class HomeScreen extends ConsumerWidget {
                       cardWidth: skin?.homeCardWidth ?? 150,
                       useBackdrop: useBackdrop,
                       cardLogo: skin?.cardLogo,
-                      onSeeMore: () => context.push('/movies'),
+                      onSeeMore: () {
+                        // Resolver biblioteca destino para el scroll (movies/series).
+                        // Usa la primera vista que coincida con los tipos del scroll.
+                        final allViews = views.value ?? const <BaseItemDto>[];
+                        String targetViewId = '';
+                        // Prioridad: busca view cuyo collectionType coincida con el tipo del scroll
+                        for (final kind in scroll.types) {
+                          final mapped = _collectionTypeForKind(kind);
+                          final match = allViews
+                              .where((v) => v.collectionType == mapped)
+                              .firstOrNull;
+                          if (match?.id != null) {
+                            targetViewId = match!.id!;
+                            break;
+                          }
+                        }
+                        targetViewId = targetViewId.isEmpty
+                            ? (allViews
+                                    .where((v) =>
+                                        v.collectionType == CollectionType.movies)
+                                    .firstOrNull
+                                    ?.id ??
+                                allViews.firstOrNull?.id ??
+                                '')
+                            : targetViewId;
+                        if (targetViewId.isEmpty) {
+                          context.push('/movies');
+                          return;
+                        }
+                        context.push(
+                          '/library/$targetViewId',
+                          extra: scroll,
+                        );
+                      },
                       onItemTap: (item) =>
                           context.push('/player/${item.id}', extra: item),
                       onItemImageTap: (item) =>
@@ -187,6 +224,17 @@ class HomeScreen extends ConsumerWidget {
         return l10n.familyMovies;
       default:
         return key;
+    }
+  }
+
+  static CollectionType? _collectionTypeForKind(BaseItemKind kind) {
+    switch (kind) {
+      case BaseItemKind.movie:
+        return CollectionType.movies;
+      case BaseItemKind.series:
+        return CollectionType.tvshows;
+      default:
+        return null;
     }
   }
 }

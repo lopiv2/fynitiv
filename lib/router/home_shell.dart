@@ -11,6 +11,7 @@ import '../core/skin/skin.dart';
 import '../core/skin/skin_controller.dart';
 import '../core/theme/dashboard_background.dart';
 import '../features/library/presentation/widgets/sidebar.dart';
+import '../features/music/presentation/widgets/mini_player_bar.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.navigationShell});
@@ -242,7 +243,12 @@ class _HomeShellState extends ConsumerState<HomeShell>
         return KeyEventResult.ignored;
       },
       child: Scaffold(
-        body: DashboardBackground(child: traversedBody),
+        body: Column(
+          children: [
+            Expanded(child: DashboardBackground(child: traversedBody)),
+            const MiniPlayerBar(),
+          ],
+        ),
         floatingActionButton: switch (mode) {
           PlatformMode.desktop => FloatingActionButton.small(
             heroTag: 'sidebar_toggle',

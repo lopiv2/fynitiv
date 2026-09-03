@@ -11,6 +11,7 @@ import '../../../core/audio/khinsider_player.dart';
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/app_hover_button.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
@@ -203,6 +204,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     final headers = token != null && token.isNotEmpty
         ? <String, String>{'Authorization': 'Bearer $token'}
         : null;
+    final skin = ref.watch(skinControllerProvider).value;
+    final topPadding = libraryPageTopPadding(context, skin);
+    final mediaTop = MediaQuery.of(context).padding.top;
+    final barInset = (topPadding - mediaTop).clamp(0, double.infinity);
 
     return Scaffold(
       backgroundColor: const Color(0xFF02070D),
@@ -266,6 +271,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
               ),
 
               SafeArea(
+                top: false,
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final compact = constraints.maxWidth < 760;
@@ -273,9 +279,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          SizedBox(height: barInset + mediaTop + 6),
                           // Top bar
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                             child: Row(
                               children: [
                                 IconButton(

@@ -7,6 +7,8 @@ import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../player/application/playback_provider.dart';
+import '../application/music_player_provider.dart';
 import '../../library/application/image_url.dart';
 import '../../library/application/library_providers.dart';
 import '../application/deezer_providers.dart';
@@ -230,7 +232,31 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
           if (deezerLoading)
             const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(32), child: Center(child: AppLoader())))
           else if (deezerTop20.isEmpty)
-            SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Text(l10n.noPlayableSongs, style: const TextStyle(color: Colors.white54, fontSize: 13)))),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(l10n.noPlayableSongs, style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () {
+                        ref.invalidate(deezerArtistTopTracksWithLimitProvider(DeezerTopTracksArgs(query: deezerQuery, limit: 40)));
+                        // Fuerza recarga también de jelly por si el fallo fue mixto
+                        if (isById) {
+                          ref.invalidate(artistJellyIndexByIdProvider(artistId!));
+                        } else {
+                          ref.invalidate(artistJellyIndexByNameProvider(widget.artistName));
+                        }
+                      },
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(l10n.retry),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (!deezerLoading && deezerTop20.isNotEmpty)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -256,7 +282,33 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
           if (jellyLoading)
             const SliverToBoxAdapter(child: Padding(padding: EdgeInsets.all(32), child: Center(child: AppLoader())))
           else if (jellyAll.isEmpty)
-            SliverToBoxAdapter(child: Padding(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8), child: Text(l10n.noSongsInLibrary, style: const TextStyle(color: Colors.white54, fontSize: 13)))),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(l10n.noSongsInLibrary, style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: () {
+                        setState(() => _loadedPages = 1);
+                        if (isById) {
+                          ref.invalidate(artistJellyIndexByIdProvider(artistId!));
+                          ref.invalidate(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId!, page: 0)));
+                        } else {
+                          ref.invalidate(artistJellyIndexByNameProvider(widget.artistName));
+                          ref.invalidate(artistTracksProvider(widget.artistName));
+                        }
+                        ref.invalidate(deezerArtistTopTracksWithLimitProvider(DeezerTopTracksArgs(query: deezerQuery, limit: 40)));
+                      },
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: Text(l10n.retry),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           if (!jellyLoading && jellyAll.isNotEmpty)
             SliverPadding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -333,7 +385,21 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
           const SizedBox(height: 16),
           Text(AppLocalizations.of(context)!.populares, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          if (deezerTop20.isEmpty) Text(AppLocalizations.of(context)!.noPopularTracks, style: const TextStyle(color: Colors.white54)),
+          if (deezerTop20.isEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppLocalizations.of(context)!.noPopularTracks, style: const TextStyle(color: Colors.white54)),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () {
+                    ref.invalidate(deezerArtistTopTracksWithLimitProvider(DeezerTopTracksArgs(query: deezerQuery, limit: 40)));
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: Text(AppLocalizations.of(context)!.retry),
+                ),
+              ],
+            ),
           for (int i = 0; i < deezerTop20.length; i++) ...[
             _DeezerSuggestionRow(track: deezerTop20[i], rank: (i + 1).toString()),
             if (i != deezerTop20.length - 1) const Divider(height: 1, color: Colors.white12),
@@ -341,7 +407,28 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
           const SizedBox(height: 24),
           Text(AppLocalizations.of(context)!.inYourLibraryCount(jellyAll.length), style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          if (jellyAll.isEmpty) Text(AppLocalizations.of(context)!.noSongsForArtist, style: const TextStyle(color: Colors.white54)),
+          if (jellyAll.isEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(AppLocalizations.of(context)!.noSongsForArtist, style: const TextStyle(color: Colors.white54)),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () {
+                    setState(() => _loadedPages = 1);
+                    if (isById) {
+                      ref.invalidate(artistJellyIndexByIdProvider(artistId!));
+                      ref.invalidate(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId!, page: 0)));
+                    } else {
+                      ref.invalidate(artistJellyIndexByNameProvider(widget.artistName));
+                      ref.invalidate(artistTracksProvider(widget.artistName));
+                    }
+                  },
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: Text(AppLocalizations.of(context)!.retry),
+                ),
+              ],
+            ),
           for (int i = 0; i < jellyAll.length; i++) ...[
             ListTile(
               leading: serverUrl != null ? ClipRRect(borderRadius: BorderRadius.circular(4), child: Image.network(itemImageUrl(serverUrl, jellyAll[i], maxWidth: 200), width: 40, height: 40, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(width: 40, height: 40, color: const Color(0xFF2A2A2A)))) : null,
@@ -360,7 +447,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
   }
 }
 
-class _ArtistTrackRow extends StatelessWidget {
+class _ArtistTrackRow extends ConsumerWidget {
   const _ArtistTrackRow({required this.rank, required this.track, required this.serverUrl, required this.playCountStr, required this.onTap});
   final String rank;
   final BaseItemDto track;
@@ -368,7 +455,7 @@ class _ArtistTrackRow extends StatelessWidget {
   final String playCountStr;
   final VoidCallback onTap;
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final durTicks = track.runTimeTicks;
     String durStr = '';
     if (durTicks != null && durTicks > 0) {
@@ -399,7 +486,26 @@ class _ArtistTrackRow extends StatelessWidget {
             const SizedBox(width: 12),
             if (hovered) ...[const Icon(Icons.add_circle_outline_rounded, color: Colors.white70, size: 18), const SizedBox(width: 12)],
             Text(durStr, style: const TextStyle(color: Colors.white54, fontSize: 12)),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            Consumer(
+              builder: (context, ref2, _) => IconButton(
+                tooltip: 'Reproducir',
+                icon: const Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 22),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+                onPressed: () async {
+                  final id = track.id;
+                  if (id == null || id.isEmpty) return;
+                  final session = await ref2.read(playbackSessionProvider(id).future);
+                  if (session != null) {
+                    ref2.read(musicPlayerProvider.notifier).playFromSession(session, track);
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 4),
+            const Icon(Icons.favorite_rounded, color: Colors.white, size: 16),
+            const SizedBox(width: 4),
             const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
           ]);
         }),

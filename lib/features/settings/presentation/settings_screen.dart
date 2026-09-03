@@ -7,10 +7,12 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/security/pin_hasher.dart';
 import '../../../core/storage/session_storage.dart';
+import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/language_selector.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
@@ -53,6 +55,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final l10n = AppLocalizations.of(context)!;
     final width = MediaQuery.sizeOf(context).width;
     final useMenu = width >= 700;
+    final skin = ref.watch(skinControllerProvider).value;
+    final topPadding = libraryPageTopPadding(context, skin);
 
     final sections = <(SettingsSection, IconData, String)>[
       (SettingsSection.preferences, Icons.tune, l10n.preferences),
@@ -64,36 +68,43 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       (SettingsSection.about, Icons.info_outline, l10n.about),
     ];
 
-    return Scaffold(
-      body: DashboardBackground(
-        child: useMenu
-            ? Row(
-                children: [
-                  _buildMenu(sections),
-                  const VerticalDivider(
-                    width: 1,
-                    color: Color(0xFF1A2568),
-                  ),
-                  Expanded(child: _buildPanel()),
-                ],
-              )
-            : Column(
-                children: [
-                  TabBar(
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    onTap: (i) => _section = sections[i].$1,
-                    tabs: [
-                      for (final s in sections)
-                        Tab(
-                          icon: Icon(s.$2),
-                          text: s.$3,
-                        ),
-                    ],
-                  ),
-                  Expanded(child: _buildPanel()),
+    final content = useMenu
+        ? Row(
+            children: [
+              _buildMenu(sections),
+              const VerticalDivider(
+                width: 1,
+                color: Color(0xFF1A2568),
+              ),
+              Expanded(child: _buildPanel()),
+            ],
+          )
+        : Column(
+            children: [
+              TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                onTap: (i) => _section = sections[i].$1,
+                tabs: [
+                  for (final s in sections)
+                    Tab(
+                      icon: Icon(s.$2),
+                      text: s.$3,
+                    ),
                 ],
               ),
+              Expanded(child: _buildPanel()),
+            ],
+          );
+
+    return Scaffold(
+      body: DashboardBackground(
+        child: Column(
+          children: [
+            SizedBox(height: topPadding),
+            Expanded(child: content),
+          ],
+        ),
       ),
     );
   }

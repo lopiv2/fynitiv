@@ -78,6 +78,9 @@ dependencies:
   cached_network_image_ce: ^4.10.1
   video_player: ^2.9.5
   html: ^0.15.7
+  palette_generator: ^0.3.3+7
+  animated_background: ^2.0.0
+  animated_gradient: ^0.0.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

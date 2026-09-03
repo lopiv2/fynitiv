@@ -42,10 +42,12 @@ _TvLibraryVisual _visualFor(BaseItemDto view) {
       );
     default:
       final name = (view.name ?? '').toLowerCase();
-      if (name.contains('pel'))
+      if (name.contains('pel')) {
         return const _TvLibraryVisual(Color(0xFFE8EAED), Icons.movie_outlined);
-      if (name.contains('serie'))
+      }
+      if (name.contains('serie')) {
         return const _TvLibraryVisual(Color(0xFFE8EAED), Icons.tv_outlined);
+      }
       if (name.contains('music') ||
           name.contains('música') ||
           name.contains('álbum')) {
@@ -62,10 +64,12 @@ _TvLibraryVisual _visualFor(BaseItemDto view) {
           Icons.live_tv_outlined,
         );
       }
-      if (name.contains('grabac'))
+      if (name.contains('grabac')) {
         return const _TvLibraryVisual(Color(0xFFE8EAED), Icons.circle_outlined);
-      if (name.contains('colecc'))
+      }
+      if (name.contains('colecc')) {
         return const _TvLibraryVisual(Color(0xFFE8EAED), Icons.folder_outlined);
+      }
       return const _TvLibraryVisual(
         Color(0xFFE8EAED),
         Icons.video_library_outlined,
@@ -100,8 +104,9 @@ String _realSubtitleFor(
     case CollectionType.boxsets:
       return l10n.libraryCountCollections(count);
     default:
-      if (name.contains('grabac') && hours != null)
+      if (name.contains('grabac') && hours != null) {
         return l10n.libraryCountHours(hours);
+      }
       if (name.contains('colecc')) return l10n.libraryCountCollections(count);
       if (name.contains('direct')) return l10n.libraryCountChannels(count);
       if (name.contains('lista')) return l10n.libraryCountLists(count);

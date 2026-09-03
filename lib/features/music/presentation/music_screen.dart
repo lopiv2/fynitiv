@@ -3,9 +3,14 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../player/application/playback_provider.dart';
+import '../application/music_player_provider.dart';
+
 import '../../../core/skin/music_player_skin_controller.dart';
+import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../library/application/image_url.dart';
 import '../../library/application/library_providers.dart';
@@ -66,8 +71,18 @@ class MusicScreen extends ConsumerWidget {
         ),
     };
 
+    final skin = ref.watch(skinControllerProvider).value;
+    final topPadding = libraryPageTopPadding(context, skin);
+    // Evita que el contenido quede bajo la barra top (Prime / isla flotante)
+    final paddedView = Column(
+      children: [
+        SizedBox(height: topPadding),
+        Expanded(child: view),
+      ],
+    );
+
     return Scaffold(
-      body: DashboardBackground(child: view),
+      body: DashboardBackground(child: paddedView),
     );
   }
 }
@@ -102,6 +117,8 @@ class MusicAlbumScreen extends ConsumerWidget {
     final title = album?.name ?? '';
     final bgTop = mSkin?.backgroundTop ?? const Color(0xFF0A0A0A);
     final bgBottom = mSkin?.backgroundBottom ?? const Color(0xFF1A1A1A);
+    final globalSkin = ref.watch(skinControllerProvider).value;
+    final topPadding = libraryPageTopPadding(context, globalSkin);
 
     return Scaffold(
       body: Container(
@@ -115,6 +132,7 @@ class MusicAlbumScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            SizedBox(height: topPadding),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 12, 24, 12),
               child: Column(
@@ -176,9 +194,20 @@ class MusicAlbumScreen extends ConsumerWidget {
                 error: (e, _) => Center(child: Text('$e', style: TextStyle(color: textSecondary))),
                 data: (list) => list.isEmpty
                     ? Center(
-                        child: Text(
-                          l10n.noResults,
-                          style: TextStyle(color: textSecondary),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              l10n.noResults,
+                              style: TextStyle(color: textSecondary),
+                            ),
+                            const SizedBox(height: 12),
+                            FilledButton.icon(
+                              onPressed: () => ref.invalidate(libraryItemsProvider(albumId)),
+                              icon: const Icon(Icons.refresh_rounded, size: 18),
+                              label: Text(l10n.retry),
+                            ),
+                          ],
                         ),
                       )
                     : ListView.separated(
@@ -217,9 +246,29 @@ class MusicAlbumScreen extends ConsumerWidget {
                                     ),
                                   )
                                 : null,
-                            trailing: Icon(
-                              Icons.play_arrow_rounded,
-                              color: mSkin?.accent ?? Colors.white54,
+                            trailing: Consumer(
+                              builder: (context, ref, _) {
+                                return Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      tooltip: 'Reproducir',
+                                      icon: Icon(Icons.play_circle_fill_rounded, color: mSkin?.accent ?? Colors.white, size: 28),
+                                      onPressed: () async {
+                                        final id = track.id;
+                                        if (id == null || id.isEmpty) return;
+                                        final session = await ref.read(playbackSessionProvider(id).future);
+                                        if (session != null) {
+                                          ref.read(musicPlayerProvider.notifier).playFromSession(session, track);
+                                        }
+                                      },
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(Icons.favorite_border_rounded, color: Colors.white54, size: 18),
+                                    const Icon(Icons.more_vert_rounded, color: Colors.white54, size: 18),
+                                  ],
+                                );
+                              },
                             ),
                             onTap: () => context.push(
                               '/player/${track.id}',
@@ -275,14 +324,21 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
         ? artist.toUpperCase()
         : (albumItem?.albumArtist ?? '').toUpperCase();
 
+    final globalSkin = ref.watch(skinControllerProvider).value;
+    final topPadding = libraryPageTopPadding(context, globalSkin);
+
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0A),
-      body: tracks.when(
-        loading: () => const Center(child: AppLoader()),
-        error: (e, _) => Center(
-          child: Text('$e', style: const TextStyle(color: Colors.white54)),
-        ),
-        data: (list) {
+      body: Column(
+        children: [
+          SizedBox(height: topPadding),
+          Expanded(
+            child: tracks.when(
+              loading: () => const Center(child: AppLoader()),
+              error: (e, _) => Center(
+                child: Text('$e', style: const TextStyle(color: Colors.white54)),
+              ),
+              data: (list) {
           final totalMs = list.fold<int>(
             0,
             (p, e) => p + (e.runTimeTicks ?? 0) ~/ 10000,
@@ -589,9 +645,20 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
                                   if (list.isEmpty)
                                     Padding(
                                       padding: const EdgeInsets.all(24),
-                                      child: Text(
-                                        l10n.noTracks,
-                                        style: const TextStyle(color: Colors.white54),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            l10n.noTracks,
+                                            style: const TextStyle(color: Colors.white54),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          FilledButton.icon(
+                                            onPressed: () => ref.invalidate(libraryItemsProvider(albumId)),
+                                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                                            label: Text(l10n.retry),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                 ],
@@ -623,12 +690,15 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
             ),
           );
         },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _JellyfinTrackRow extends StatelessWidget {
+class _JellyfinTrackRow extends ConsumerWidget {
   const _JellyfinTrackRow({
     required this.index,
     required this.track,
@@ -639,7 +709,7 @@ class _JellyfinTrackRow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final dur = track.runTimeTicks != null ? (track.runTimeTicks! ~/ 10000) : 0;
     final ms = dur;
     final m = (ms ~/ 60000);
@@ -674,7 +744,22 @@ class _JellyfinTrackRow extends StatelessWidget {
               durStr,
               style: const TextStyle(color: Colors.white54, fontSize: 12),
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: 'Reproducir',
+              icon: const Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 22),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 28, height: 28),
+              onPressed: () async {
+                final id = track.id;
+                if (id == null || id.isEmpty) return;
+                final session = await ref.read(playbackSessionProvider(id).future);
+                if (session != null) {
+                  ref.read(musicPlayerProvider.notifier).playFromSession(session, track);
+                }
+              },
+            ),
+            const SizedBox(width: 4),
             const Icon(Icons.favorite_rounded, color: Colors.white, size: 16),
             const SizedBox(width: 8),
             const Icon(
