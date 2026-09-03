@@ -1072,4 +1072,49 @@ class AppLocalizationsEn extends AppLocalizations {
   String pageOf(Object current, Object total) {
     return '$current / $total';
   }
+
+  @override
+  String libraryCountTitles(int count) {
+    return '$count titles';
+  }
+
+  @override
+  String libraryCountSeries(int count) {
+    return '$count shows';
+  }
+
+  @override
+  String libraryCountSongs(int count) {
+    return '$count songs';
+  }
+
+  @override
+  String libraryCountChannels(int count) {
+    return '$count channels';
+  }
+
+  @override
+  String libraryCountFiles(int count) {
+    return '$count files';
+  }
+
+  @override
+  String libraryCountLists(int count) {
+    return '$count lists';
+  }
+
+  @override
+  String libraryCountCollections(int count) {
+    return '$count collections';
+  }
+
+  @override
+  String libraryCountHours(int count) {
+    return '$count hours';
+  }
+
+  @override
+  String libraryCountItems(int count) {
+    return '$count items';
+  }
 }

@@ -1113,6 +1113,63 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 ),
               ),
             ),
+            // Viñeta oscurecida en bordes para que la barra superior (Prime) se lea bien
+            // sobre el banner. Radial + lineal superior. Lado derecho reducido 80%.
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  center: Alignment.center,
+                  radius: 1.35,
+                  colors: [
+                    Colors.transparent,
+                    Color(0x1A000000),
+                    Color(0x66000000),
+                    Color(0xB3000000),
+                  ],
+                  stops: [0.55, 0.75, 0.92, 1.0],
+                ),
+              ),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.center,
+                  colors: [
+                    Color(0xE6000000),
+                    Color(0x66000000),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.28, 0.55],
+                ),
+              ),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.center,
+                  colors: [
+                    Color(0x66000000),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.35],
+                ),
+              ),
+            ),
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerRight,
+                  end: Alignment.center,
+                  colors: [
+                    Color(0x14000000),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.12],
+                ),
+              ),
+            ),
             // Capa táctil / foco solo en móvil/desktop. En TV el foco debe
             // estar en los botones de acción (WatchNow etc.) para que ←/→
             // navegue entre ellos y ↑ vuelva a Inicio.
@@ -1135,7 +1192,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             // hacia arriba únicamente el logo/título (con el logo de Jellyfin).
             Positioned(
               left: isTv ? 60 : 70,
-              top: isTv ? 80 : 24,
+              top: isTv ? 80 : 134,
               bottom: isTv ? 24 : (widget.hoverReveal ? 80 : 130),
               child: Align(
                 alignment: Alignment.centerLeft,

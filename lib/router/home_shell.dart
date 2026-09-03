@@ -21,8 +21,10 @@ class HomeShell extends ConsumerStatefulWidget {
   ConsumerState<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserver {
+class _HomeShellState extends ConsumerState<HomeShell>
+    with WidgetsBindingObserver {
   bool _insideGames = false;
+  double _scrollOffset = 0;
 
   @override
   void initState() {
@@ -38,7 +40,8 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
       GameBgPlayer.instance.pauseForExternal();
     } else if (state == AppLifecycleState.resumed) {
       GameBgPlayer.instance.resumeIfNeeded();
@@ -50,6 +53,23 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     if (branchIndex != 6) return false;
     if (loc == '/games') return true;
     if (loc.startsWith('/games/platform')) return true;
+    return false;
+  }
+
+  bool _onScroll(ScrollNotification n) {
+    if (n.metrics.axis != Axis.vertical) return false;
+    if (n is ScrollUpdateNotification) {
+      final next = n.metrics.pixels;
+      if ((next - _scrollOffset).abs() > 1) {
+        setState(() => _scrollOffset = next);
+      }
+    } else {
+      if (_scrollOffset != n.metrics.pixels) {
+        setState(
+          () => _scrollOffset = n.metrics.pixels.clamp(0, double.infinity),
+        );
+      }
+    }
     return false;
   }
 
@@ -71,8 +91,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     final mode = ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
     final sidebar = ref.watch(sidebarControllerProvider);
     final skin = ref.watch(skinControllerProvider).value;
-    final sidebarPosition =
-        skin?.sidebarPosition ?? SidebarPosition.left;
+    final sidebarPosition = skin?.sidebarPosition ?? SidebarPosition.left;
 
     // En móvil, la sidebar arranca colapsada (se abre con el botón).
     ref.listen(platformModeProvider, (_, next) {
@@ -90,6 +109,19 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     final branchIndex = widget.navigationShell.currentIndex;
     _syncMusic(loc, branchIndex);
 
+    final isLeftRight =
+        sidebarPosition == SidebarPosition.left ||
+        sidebarPosition == SidebarPosition.right;
+    final isFloatingTopIsland =
+        sidebarPosition == SidebarPosition.top &&
+        (skin?.topBarFloating ?? false);
+    final isPrimeAnchored =
+        (skin?.id == 'amazon_prime') &&
+        sidebarPosition == SidebarPosition.top &&
+        !isFloatingTopIsland;
+    final barOpacity = isPrimeAnchored
+        ? (_scrollOffset / 100).clamp(0.0, 1.0)
+        : 1.0;
     final sidebarWidget = _showSidebar(mode, sidebar)
         ? Sidebar(
             currentIndex: widget.navigationShell.currentIndex,
@@ -97,6 +129,7 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
               index,
               initialLocation: index == widget.navigationShell.currentIndex,
             ),
+            barOpacity: barOpacity,
           )
         : null;
     final contentFocus = Focus(
@@ -109,12 +142,6 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
       },
       child: widget.navigationShell,
     );
-
-    final isLeftRight = sidebarPosition == SidebarPosition.left ||
-        sidebarPosition == SidebarPosition.right;
-    final isFloatingTopIsland =
-        sidebarPosition == SidebarPosition.top &&
-        (skin?.topBarFloating ?? false);
     final Widget body;
     if (isLeftRight) {
       body = Row(
@@ -147,13 +174,13 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     } else if (sidebarPosition == SidebarPosition.top) {
       // Barra superior fija (Prime sin isla) ahora también solapada como en [Image 1]:
       // el contenido empieza bajo la barra y la barra flota por encima.
-      final topPadding = MediaQuery.of(context).padding.top-10;
+      final topPadding = MediaQuery.of(context).padding.top;
       body = Stack(
         children: [
           Positioned.fill(child: contentFocus),
           if (sidebarWidget != null)
             Positioned(
-              top: topPadding,
+              top: topPadding - 8,
               left: 0,
               right: 0,
               child: sidebarWidget,
@@ -173,11 +200,15 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
       );
     }
 
-    // Grupo de traversals para que flechas del D-pad (HardwareKeyboard +
-    // fallback focusInDirection) puedan moverse entre sidebar y contenido.
-    final traversedBody = FocusTraversalGroup(
-      policy: ReadingOrderTraversalPolicy(),
-      child: body,
+    // Grupo de traversals para que flechas del D-pad puedan moverse.
+    // NotificationListener captura el scroll del ListView/Grid interno para
+    // animar la opacidad de la barra anclada Prime (transparente arriba).
+    final traversedBody = NotificationListener<ScrollNotification>(
+      onNotification: _onScroll,
+      child: FocusTraversalGroup(
+        policy: ReadingOrderTraversalPolicy(),
+        child: body,
+      ),
     );
 
     // Tras seleccionar perfil (/users → /home) el foco debe quedar
@@ -190,7 +221,10 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!context.mounted) return;
       final primary = FocusManager.instance.primaryFocus;
-      if (primary == null || primary == FocusManager.instance.rootScope || primary.context == null || !primary.context!.mounted) {
+      if (primary == null ||
+          primary == FocusManager.instance.rootScope ||
+          primary.context == null ||
+          !primary.context!.mounted) {
         // ignore: use_build_context_synchronously
         FocusScope.of(context).nextFocus();
       }
@@ -199,31 +233,31 @@ class _HomeShellState extends ConsumerState<HomeShell> with WidgetsBindingObserv
     return FocusScope(
       autofocus: true,
       onKeyEvent: (node, event) {
-        if (mode == PlatformMode.tv && event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+        if (mode == PlatformMode.tv &&
+            event is KeyDownEvent &&
+            event.logicalKey == LogicalKeyboardKey.arrowLeft) {
           ref.read(sidebarControllerProvider.notifier).expand();
           return KeyEventResult.ignored;
         }
         return KeyEventResult.ignored;
       },
       child: Scaffold(
-        body: DashboardBackground(
-          child: traversedBody,
-        ),
+        body: DashboardBackground(child: traversedBody),
         floatingActionButton: switch (mode) {
           PlatformMode.desktop => FloatingActionButton.small(
-              heroTag: 'sidebar_toggle',
-              onPressed: () =>
-                  ref.read(sidebarControllerProvider.notifier).toggle(),
-              child: Icon(
-                sidebar.expanded ? Icons.chevron_left : Icons.chevron_right,
-              ),
+            heroTag: 'sidebar_toggle',
+            onPressed: () =>
+                ref.read(sidebarControllerProvider.notifier).toggle(),
+            child: Icon(
+              sidebar.expanded ? Icons.chevron_left : Icons.chevron_right,
             ),
+          ),
           PlatformMode.mobile => FloatingActionButton.small(
-              heroTag: 'sidebar_mobile_toggle',
-              onPressed: () =>
-                  ref.read(sidebarControllerProvider.notifier).toggle(),
-              child: Icon(sidebar.visible ? Icons.close : Icons.menu),
-            ),
+            heroTag: 'sidebar_mobile_toggle',
+            onPressed: () =>
+                ref.read(sidebarControllerProvider.notifier).toggle(),
+            child: Icon(sidebar.visible ? Icons.close : Icons.menu),
+          ),
           PlatformMode.tv => null,
         },
       ),

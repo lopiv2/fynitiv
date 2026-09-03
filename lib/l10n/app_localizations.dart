@@ -2101,6 +2101,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{current} / {total}'**
   String pageOf(Object current, Object total);
+
+  /// No description provided for @libraryCountTitles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} titles'**
+  String libraryCountTitles(int count);
+
+  /// No description provided for @libraryCountSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} shows'**
+  String libraryCountSeries(int count);
+
+  /// No description provided for @libraryCountSongs.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} songs'**
+  String libraryCountSongs(int count);
+
+  /// No description provided for @libraryCountChannels.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} channels'**
+  String libraryCountChannels(int count);
+
+  /// No description provided for @libraryCountFiles.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} files'**
+  String libraryCountFiles(int count);
+
+  /// No description provided for @libraryCountLists.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} lists'**
+  String libraryCountLists(int count);
+
+  /// No description provided for @libraryCountCollections.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} collections'**
+  String libraryCountCollections(int count);
+
+  /// No description provided for @libraryCountHours.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} hours'**
+  String libraryCountHours(int count);
+
+  /// No description provided for @libraryCountItems.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} items'**
+  String libraryCountItems(int count);
 }
 
 class _AppLocalizationsDelegate

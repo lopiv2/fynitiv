@@ -1,6 +1,5 @@
 // ignore: unnecessary_import - PointerDeviceKind usado en _HorizontalScrollBehavior
 import 'package:flutter/gestures.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -18,6 +17,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import '../../application/library_providers.dart';
+import 'desktop_library_dialog.dart';
 import 'floating_island_bar.dart';
 import 'tv_library_modal.dart';
 
@@ -27,12 +27,16 @@ class Sidebar extends ConsumerWidget {
     super.key,
     required this.currentIndex,
     required this.onNavigateBranch,
+    this.barOpacity = 1.0,
   });
 
   final int currentIndex;
 
   /// Navega a una rama del [StatefulNavigationShell].
   final void Function(int index) onNavigateBranch;
+
+  /// Opacidad de la barra superior anclada Prime (0 transparente arriba, 1 al scrollear).
+  final double barOpacity;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -190,18 +194,30 @@ class Sidebar extends ConsumerWidget {
         );
       }
       // Barra superior fija (Prime sin isla): misma estructura que [Image 1]
-      // los extremos no tocan los bordes de la pantalla (como la isla).
+      // los extremos no tocan los bordes, solo esquinas inferiores redondeadas en Prime.
       final isAnyLibrarySelected = views.any((v) => v.id == activeViewId);
-      return Container(
+      final isPrime = skin?.id == 'amazon_prime';
+      final effectiveBg = bg.withValues(alpha: barOpacity);
+      final effectiveBorder = border.withValues(alpha: 0.6 * barOpacity);
+      final effectiveShadow = Colors.black.withValues(alpha: 0.18 * barOpacity);
+      final effectiveRadius = isPrime
+          ? (position == SidebarPosition.bottom
+              ? const BorderRadius.vertical(top: Radius.circular(12))
+              : const BorderRadius.vertical(bottom: Radius.circular(12)))
+          : BorderRadius.circular(12);
+      return AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
         height: 60,
         margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: border.withValues(alpha: 0.6)),
+          color: effectiveBg,
+          borderRadius: effectiveRadius,
+          border: Border.all(color: effectiveBorder),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.18),
+              color: effectiveShadow,
               blurRadius: 12,
               offset: const Offset(0, 4),
             ),
@@ -213,19 +229,29 @@ class Sidebar extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _logo(sidebarLogo, textPrimary, height: 36, compact: true),
             ),
-            ...mainItems,
-            if (views.isNotEmpty)
-              _TopBarLibraryMenu(
-                views: views,
-                activeViewId: activeViewId,
-                isAnyLibrarySelected: isAnyLibrarySelected,
-                textPrimary: textPrimary,
-                textSecondary: textSecondary,
-                accent: accent,
-                iconSpacing: iconSpacing,
-                selectedColor: selectedColor,
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...mainItems,
+                    if (views.isNotEmpty)
+                      _TopBarLibraryMenu(
+                        views: views,
+                        activeViewId: activeViewId,
+                        isAnyLibrarySelected: isAnyLibrarySelected,
+                        textPrimary: textPrimary,
+                        textSecondary: textSecondary,
+                        accent: accent,
+                        iconSpacing: iconSpacing,
+                        selectedColor: selectedColor,
+                      ),
+                  ],
+                ),
               ),
-            const Spacer(),
+            ),
             settings,
             _UserAvatar(auth: auth, compact: true),
           ],
@@ -343,39 +369,6 @@ class Sidebar extends ConsumerWidget {
   }
 }
 
-/// Comportamiento de scroll para la barra horizontal: permite arrastrar con el
-/// ratón y usar la rueda sin necesidad de Shift, para que todos los items sean
-/// accesibles.
-class _HorizontalScrollBehavior extends MaterialScrollBehavior {
-  const _HorizontalScrollBehavior();
-
-  @override
-  Set<PointerDeviceKind> get dragDevices => {
-    PointerDeviceKind.touch,
-    PointerDeviceKind.mouse,
-    PointerDeviceKind.trackpad,
-    PointerDeviceKind.stylus,
-    PointerDeviceKind.invertedStylus,
-  };
-
-  @override
-  Set<LogicalKeyboardKey> get pointerAxisModifiers =>
-      const <LogicalKeyboardKey>{};
-}
-
-/// Separador vertical entre grupos de la barra horizontal.
-class _SidebarDivider extends StatelessWidget {
-  const _SidebarDivider();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      child: VerticalDivider(width: 1, color: Colors.white24),
-    );
-  }
-}
-
 /// Avatar del usuario con menú desplegable (cerrar sesión).
 class _UserAvatar extends ConsumerWidget {
   const _UserAvatar({required this.auth, this.compact = false});
@@ -457,7 +450,7 @@ class _UserAvatar extends ConsumerWidget {
   }
 }
 
-class _NavItem extends StatefulWidget {
+class _NavItem extends ConsumerStatefulWidget {
   const _NavItem({
     this.icon,
     required this.label,
@@ -496,26 +489,29 @@ class _NavItem extends StatefulWidget {
   final FocusNode? focusNode;
 
   @override
-  State<_NavItem> createState() => _NavItemState();
+  ConsumerState<_NavItem> createState() => _NavItemState();
 }
 
-class _NavItemState extends State<_NavItem> {
+class _NavItemState extends ConsumerState<_NavItem> {
   bool _hovered = false;
 
   IconData? get _icon =>
       widget.selected ? (widget.selectedIcon ?? widget.icon) : widget.icon;
 
   Widget _buildRow({required Color color, required FontWeight weight}) {
+    final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
+    final iconSize = isTv ? 18.0 : 22.0;
+    final fontSize = isTv ? 13.0 : 15.0;
     return Row(
       children: [
         if (widget.faIcon != null)
-          FaIcon(widget.faIcon, color: color, size: 22)
+          FaIcon(widget.faIcon, color: color, size: iconSize)
         else if (widget.icon != null)
-          Icon(_icon, color: color, size: 22),
-        SizedBox(width: widget.iconSpacing),
+          Icon(_icon, color: color, size: iconSize),
+        SizedBox(width: isTv ? 6.0 : widget.iconSpacing),
         Text(
           widget.label,
-          style: TextStyle(color: color, fontSize: 15, fontWeight: weight),
+          style: TextStyle(color: color, fontSize: fontSize, fontWeight: weight),
         ),
       ],
     );
@@ -527,12 +523,16 @@ class _NavItemState extends State<_NavItem> {
     final selectedColor = widget.selectedColor;
     final textPrimary = widget.textPrimary;
     final textSecondary = widget.textSecondary;
+    final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
+    final hPad = isTv ? 6.0 : 12.0;
+    final vPad = isTv ? 6.0 : 12.0;
+    final outerHPad = isTv ? 6.0 : 12.0;
 
     // Hover/foco: se invierten los colores (fondo blanco, contenido oscuro).
     final Widget content;
     if (_hovered) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -543,7 +543,7 @@ class _NavItemState extends State<_NavItem> {
     } else if (selected && selectedColor != null) {
       // Mismo tamaño que el hover: contenedor con degradado vertical.
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -560,7 +560,7 @@ class _NavItemState extends State<_NavItem> {
       );
     } else {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         alignment: Alignment.centerLeft,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -576,7 +576,7 @@ class _NavItemState extends State<_NavItem> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: outerHPad, vertical: 2),
       child: ScaleButton(
         selected: selected,
         selectedScale: 1.05,
@@ -625,13 +625,16 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
 
   Widget _buildRow(Color color, FontWeight weight) {
     final l10n = AppLocalizations.of(context)!;
+    final isTvRow = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
+    final iconS = isTvRow ? 18.0 : 22.0;
+    final fontS = isTvRow ? 13.0 : 15.0;
     return Row(
       children: [
-        const Icon(Icons.video_library_outlined, color: Colors.white, size: 22),
-        SizedBox(width: widget.iconSpacing),
-        Text(l10n.library, style: TextStyle(color: color, fontSize: 15, fontWeight: weight)),
+        Icon(Icons.video_library_outlined, color: Colors.white, size: iconS),
+        SizedBox(width: isTvRow ? 6.0 : widget.iconSpacing),
+        Text(l10n.library, style: TextStyle(color: color, fontSize: fontS, fontWeight: weight)),
         const SizedBox(width: 4),
-        Icon(Icons.arrow_drop_down, color: color.withValues(alpha: 0.85), size: 20),
+        Icon(Icons.arrow_drop_down, color: color.withValues(alpha: 0.85), size: iconS - 2),
       ],
     );
   }
@@ -661,16 +664,19 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
   Widget build(BuildContext context) {
     final selected = widget.isAnyLibrarySelected;
     final selectedColor = widget.selectedColor;
+    final isTvContent = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
+    final hPad = isTvContent ? 6.0 : 12.0;
+    final vPad = isTvContent ? 6.0 : 12.0;
     Widget content;
     if (_hovered) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: Colors.white),
         child: _buildRow(Colors.black, FontWeight.w600),
       );
     } else if (selected && selectedColor != null) {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           gradient: LinearGradient(
@@ -683,7 +689,7 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
       );
     } else {
       content = Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           color: selected ? widget.accent.withValues(alpha: 0.35) : Colors.transparent,
@@ -692,11 +698,13 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
       );
     }
 
-    final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
+    final platformMode = ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
+    final isTv = platformMode == PlatformMode.tv;
+    final isDesktop = platformMode == PlatformMode.desktop;
     final l10n = AppLocalizations.of(context)!;
     if (isTv) {
       return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 2),
         child: ScaleButton(
           selected: selected,
           selectedScale: 1.05,
@@ -711,8 +719,21 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
         ),
       );
     }
+    if (isDesktop) {
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 2),
+        child: GestureDetector(
+          onTap: () => showDesktopLibraryDialog(context, widget.views, widget.activeViewId),
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: content,
+          ),
+        ),
+      );
+    }
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      padding: EdgeInsets.symmetric(horizontal: hPad, vertical: 2),
       child: PopupMenuButton<String>(
         offset: const Offset(0, 48),
         color: const Color(0xFF1A2568),

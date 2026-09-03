@@ -500,6 +500,60 @@ final allMoviesTotalCountProvider =
   return res.data?.totalRecordCount ?? 0;
 });
 
+/// Contador real de items por biblioteca (cache global, solo 1 llamada por viewId).
+/// Usa enableTotalRecordCount y limit 0 para no traer items, solo el conteo.
+final libraryItemCountProvider = FutureProvider.family<int, String>((ref, viewId) async {
+  if (viewId.isEmpty) return 0;
+  // Cache global indefinida hasta que el usuario haga pull-to-refresh o reinicie.
+  ref.keepAlive();
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return 0;
+  try {
+    // Para LiveTV la cuenta de canales viene del LiveTV, pero el conteo genérico
+    // via parentId también funciona para la mayoría; si falla se intenta liveTv.
+    final res = await client.getItemsApi().getItems(
+      userId: userId,
+      parentId: viewId,
+      recursive: true,
+      limit: 0,
+      enableTotalRecordCount: true,
+      enableImages: false,
+      enableUserData: false,
+      fields: const [],
+    );
+    final count = res.data?.totalRecordCount ?? 0;
+    return count;
+  } catch (_) {
+    return 0;
+  }
+});
+
+/// Horas totales de grabaciones DVR para una vista (si es DVR).
+final libraryDvrHoursProvider = FutureProvider.family<int, String>((ref, viewId) async {
+  if (viewId.isEmpty) return 0;
+  ref.keepAlive();
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return 0;
+  try {
+    final res = await client.getItemsApi().getItems(
+      userId: userId,
+      parentId: viewId,
+      recursive: true,
+      limit: 100,
+      enableImages: false,
+      enableUserData: false,
+    );
+    final items = res.data?.items ?? const [];
+    final totalTicks = items.fold<int>(0, (p, e) => p + (e.runTimeTicks ?? 0));
+    final hours = totalTicks ~/ 36000000000; // 1h = 3600s = 3600*1e7 ticks
+    return hours;
+  } catch (_) {
+    return 0;
+  }
+});
+
 /// Página de todas las películas del servidor, para compatibilidad (grid infinito legacy).
 /// Ahora delega al paginado filtrado sin filtro y ascendente.
 final allMoviesPageProvider = FutureProvider.family<List<BaseItemDto>, int>((

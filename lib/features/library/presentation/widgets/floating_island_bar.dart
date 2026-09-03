@@ -17,6 +17,7 @@ import '../../../../l10n/app_localizations.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import '../../application/library_providers.dart';
+import 'desktop_library_dialog.dart';
 import 'tv_library_modal.dart';
 
 /// Barra superior en modo isla flotante (pill con glass blur, radio 28).
@@ -425,6 +426,7 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
     final platformMode =
         ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
     final isTv = platformMode == PlatformMode.tv;
+    final isDesktop = platformMode == PlatformMode.desktop;
     final l10n = AppLocalizations.of(context)!;
 
     if (isTv) {
@@ -439,6 +441,20 @@ class _FloatingLibraryMenuState extends ConsumerState<_FloatingLibraryMenu> {
           onFocusChange: (focused) {
             if (_hovered != focused) setState(() => _hovered = focused);
           },
+          child: MouseRegion(
+            onEnter: (_) => setState(() => _hovered = true),
+            onExit: (_) => setState(() => _hovered = false),
+            child: content,
+          ),
+        ),
+      );
+    }
+
+    if (isDesktop) {
+      return Padding(
+        padding: EdgeInsets.symmetric(horizontal: widget.hPad, vertical: 2),
+        child: GestureDetector(
+          onTap: () => showDesktopLibraryDialog(context, widget.views, widget.activeViewId),
           child: MouseRegion(
             onEnter: (_) => setState(() => _hovered = true),
             onExit: (_) => setState(() => _hovered = false),
