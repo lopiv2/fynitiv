@@ -48,10 +48,20 @@ abstract final class SkinPresets {
     showNewReleasesRow: true,
     showNewReleasesBanner: true,
     bannerBorder: true,
-    bannerDotAlignment: SliderDotAlignment.right,
+    bannerLogoWidthFactor: 0.35,
+    bannerLogoMaxHeight: 130,
+    bannerDotAlignment: SliderDotAlignment.center,
+    bannerDotsOutside: true,
+    bannerShowNewBadge: true,
+    bannerInlineMeta: true,
     bannerTransition: SliderTransition.slide,
+    bannerHeightFactor: 0.45,
+    bannerMaxHeight: 520,
+    homeCardScale: 2,
     cardBorderRadius: 6,
+    bannerBorderRadius: 16,
     sidebarCollapsible: true,
+    itemSpacing: 20,
   );
 
   /// Estilo Amazon Prime (azul oscuro casi negro, acento celeste "Prime").

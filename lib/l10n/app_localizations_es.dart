@@ -189,6 +189,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get newReleases => 'Novedades';
 
   @override
+  String get newMovie => 'Nueva película';
+
+  @override
+  String get newSeries => 'Nueva serie';
+
+  @override
   String get logout => 'Cerrar sesión';
 
   @override

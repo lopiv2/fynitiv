@@ -329,22 +329,22 @@ class _UserProfileState extends ConsumerState<_UserProfile> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final user = widget.user;
-    return AppHover(
-      effect: AppHoverEffect.scale,
-      config: AppHoverConfig.scaleOnly(scale: 1.12),
-      onTap: widget.isLoading ? () {} : widget.onTap,
-      child: Builder(
-        builder: (context) {
-          final active = AppHoverScope.of(context)?.hovered ?? false;
-          return AnimatedOpacity(
-            opacity: active ? 1.0 : 0.85,
-            duration: const Duration(milliseconds: 180),
-            child: SizedBox(
-              width: 140,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Stack(
+    return SizedBox(
+      width: 140,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppHover(
+            effect: AppHoverEffect.scale,
+            config: AppHoverConfig.scaleOnly(scale: 1.12),
+            onTap: widget.isLoading ? () {} : widget.onTap,
+            child: Builder(
+              builder: (context) {
+                final active = AppHoverScope.of(context)?.hovered ?? false;
+                return AnimatedOpacity(
+                  opacity: active ? 1.0 : 0.85,
+                  duration: const Duration(milliseconds: 180),
+                  child: Stack(
                     clipBehavior: Clip.none,
                     children: [
                       _Avatar(
@@ -374,22 +374,22 @@ class _UserProfileState extends ConsumerState<_UserProfile> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    user.name ?? AppLocalizations.of(context)!.username,
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      color: Colors.white,
-                      fontWeight: active ? FontWeight.w700 : FontWeight.w400,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          const SizedBox(height: 12),
+          Text(
+            user.name ?? AppLocalizations.of(context)!.username,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

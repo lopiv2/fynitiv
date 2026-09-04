@@ -36,6 +36,9 @@ class HomeScreen extends ConsumerWidget {
     final hoverReveal =
         (skin?.bannerHoverReveal ?? false) &&
         platformMode == PlatformMode.desktop;
+    final cardScale = skin?.homeCardScale ?? 1.0;
+    final cardWidth = (skin?.homeCardWidth ?? 150) * cardScale;
+    final rowHeight = (skin?.homeRowHeight ?? 270) * cardScale;
     // "A continuación" solo debe mostrar siguientes capítulos de series sin
     // progreso (no resumables). Filtra episodios a medio ver / películas.
     final nextUpFiltered = (nextUp.value ?? const <BaseItemDto>[]).where((e) {
@@ -65,151 +68,175 @@ class HomeScreen extends ConsumerWidget {
                     top: bannerAttached ? 0 : 54,
                     bottom: 24,
                   ),
-                children: [
-                  if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
-                    FeaturedSlider(
-                      title: l10n.newReleases,
-                      items: latestBanner.value ?? const [],
-                      serverUrl: serverUrl,
-                      showTitle: skin?.bannerShowTitle ?? true,
-                      showAgeRating: skin?.bannerShowAgeRating ?? false,
-                      contentScale: skin?.bannerContentScale ?? 1.0,
-                      showBorder: skin?.bannerBorder ?? false,
-                      showArrows: skin?.bannerShowArrows ?? false,
-                      showIncludedBadge: skin?.bannerShowIncludedBadge ?? false,
-                      showJellyfinLogo: skin?.bannerShowJellyfinLogo ?? false,
-                      hoverReveal: hoverReveal,
-                      showActions: skin?.bannerShowActions ?? false,
-                      showTrailer: skin?.showTrailerInSlider ?? false,
-                      transition:
-                          skin?.bannerTransition ?? SliderTransition.slide,
-                      arrowsOnHover: skin?.bannerArrowsOnHover ?? false,
-                      heightFactor: skin?.bannerHeightFactor ?? 0.38,
-                      maxHeight: skin?.bannerMaxHeight ?? 440,
-                      dotAlignment:
-                          skin?.bannerDotAlignment ?? SliderDotAlignment.right,
-                      logoWidthFactor:
-                          skin?.bannerLogoWidthFactor ??
-                          FeaturedSlider.kDefaultLogoWidthFactor,
-                    ),
-                  if (skin?.showContinueRow ?? true)
-                    ContentRow(
-                      title: l10n.continueWatching,
-                      items: resume.value ?? const [],
-                      serverUrl: serverUrl,
-                      height: skin?.homeRowHeight ?? 270,
-                      cardWidth: skin?.homeCardWidth ?? 150,
-                      useBackdrop: useBackdrop,
-                      cardLogo: skin?.cardLogo,
-                      onItemTap: (item) =>
-                          context.push('/player/${item.id}', extra: item),
-                      onItemImageTap: (item) =>
-                          context.push('/home/details/${item.id}', extra: item),
-                    ),
-                  // Fila solo para series: siguiente episodio (Shows/NextUp)
-                  // Usa imagen horizontal (backdrop/thumb) como "Continuar viendo".
-                  // Solo episodios sin progreso; los a medio ver van en "Continuar viendo".
-                  if (nextUpFiltered.isNotEmpty)
-                    ContentRow(
-                      title: l10n.upNext,
-                      items: nextUpFiltered,
-                      serverUrl: serverUrl,
-                      height: skin?.homeRowHeight ?? 270,
-                      cardWidth: skin?.homeCardWidth ?? 150,
-                      useBackdrop: useBackdrop,
-                      cardLogo: skin?.cardLogo,
-                      onItemTap: (item) =>
-                          context.push('/player/${item.id}', extra: item),
-                      onItemImageTap: (item) =>
-                          context.push('/home/details/${item.id}', extra: item),
-                    ),
-                  // Reciente por biblioteca: sustituye los scrolls de Libros/Comics/Música
-                  // por Reciente en Música/Películas/Series/Libros. Solo si la biblioteca existe.
-                  for (final type in const [
-                    CollectionType.music,
-                    CollectionType.movies,
-                    CollectionType.tvshows,
-                    CollectionType.books,
-                  ])
-                    for (final view in (views.value ?? const <BaseItemDto>[])
-                        .where((v) => v.collectionType == type))
-                      ContentRow(
-                        title: l10n.recentIn(view.name ?? ''),
-                        items:
-                            ref
-                                .watch(recentLibraryItemsProvider(view.id ?? ''))
-                                .value ??
-                            const [],
+                  children: [
+                    if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
+                      FeaturedSlider(
+                        title: l10n.newReleases,
+                        items: latestBanner.value ?? const [],
                         serverUrl: serverUrl,
-                        height: skin?.homeRowHeight ?? 270,
-                        cardWidth: skin?.homeCardWidth ?? 150,
+                        showTitle: skin?.bannerShowTitle ?? true,
+                        showAgeRating: skin?.bannerShowAgeRating ?? false,
+                        contentScale: skin?.bannerContentScale ?? 1.0,
+                        showBorder: skin?.bannerBorder ?? false,
+                        showArrows: skin?.bannerShowArrows ?? false,
+                        showIncludedBadge:
+                            skin?.bannerShowIncludedBadge ?? false,
+                        showJellyfinLogo: skin?.bannerShowJellyfinLogo ?? false,
+                        hoverReveal: hoverReveal,
+                        showActions: skin?.bannerShowActions ?? false,
+                        showTrailer: skin?.showTrailerInSlider ?? false,
+                        transition:
+                            skin?.bannerTransition ?? SliderTransition.slide,
+                        arrowsOnHover: skin?.bannerArrowsOnHover ?? false,
+                        heightFactor: skin?.bannerHeightFactor ?? 0.38,
+                        maxHeight: skin?.bannerMaxHeight ?? 440,
+                        dotAlignment:
+                            skin?.bannerDotAlignment ??
+                            SliderDotAlignment.right,
+                        dotsOutside: skin?.bannerDotsOutside ?? false,
+                        showNewBadge: skin?.bannerShowNewBadge ?? false,
+                        inlineMeta: skin?.bannerInlineMeta ?? false,
+                        logoWidthFactor:
+                            skin?.bannerLogoWidthFactor ??
+                            FeaturedSlider.kDefaultLogoWidthFactor,
+                        logoMaxHeight:
+                            skin?.bannerLogoMaxHeight ??
+                            FeaturedSlider.kDefaultLogoMaxHeight,
+                      ),
+                    if (skin?.showContinueRow ?? true)
+                      ContentRow(
+                        title: l10n.continueWatching,
+                        items: resume.value ?? const [],
+                        serverUrl: serverUrl,
+                        height: rowHeight,
+                        cardWidth: cardWidth,
+                        itemSpacing: skin?.itemSpacing,
                         useBackdrop: useBackdrop,
                         cardLogo: skin?.cardLogo,
-                        onSeeMore: () => context.push(
-                          '/library/${view.id}',
-                          extra: view.name,
-                        ),
                         onItemTap: (item) =>
                             context.push('/player/${item.id}', extra: item),
-                        onItemImageTap: (item) =>
-                            context.push('/home/details/${item.id}', extra: item),
+                        onItemImageTap: (item) => context.push(
+                          '/home/details/${item.id}',
+                          extra: item,
+                        ),
                       ),
-                  // Scrolls extra configurados por el skin (con filtros de géneros).
-                  for (final scroll
-                      in skin?.homeScrolls ?? const <HomeScroll>[])
-                    ContentRow(
-                      title: _scrollTitle(l10n, scroll.titleKey),
-                      items:
-                          ref.watch(homeScrollItemsProvider(scroll)).value ??
-                          const [],
-                      serverUrl: serverUrl,
-                      height: skin?.homeRowHeight ?? 270,
-                      cardWidth: skin?.homeCardWidth ?? 150,
-                      useBackdrop: useBackdrop,
-                      cardLogo: skin?.cardLogo,
-                      onSeeMore: () {
-                        // Resolver biblioteca destino para el scroll (movies/series).
-                        // Usa la primera vista que coincida con los tipos del scroll.
-                        final allViews = views.value ?? const <BaseItemDto>[];
-                        String targetViewId = '';
-                        // Prioridad: busca view cuyo collectionType coincida con el tipo del scroll
-                        for (final kind in scroll.types) {
-                          final mapped = _collectionTypeForKind(kind);
-                          final match = allViews
-                              .where((v) => v.collectionType == mapped)
-                              .firstOrNull;
-                          if (match?.id != null) {
-                            targetViewId = match!.id!;
-                            break;
+                    // Fila solo para series: siguiente episodio (Shows/NextUp)
+                    // Usa imagen horizontal (backdrop/thumb) como "Continuar viendo".
+                    // Solo episodios sin progreso; los a medio ver van en "Continuar viendo".
+                    if (nextUpFiltered.isNotEmpty)
+                      ContentRow(
+                        title: l10n.upNext,
+                        items: nextUpFiltered,
+                        serverUrl: serverUrl,
+                        height: rowHeight,
+                        cardWidth: cardWidth,
+                        itemSpacing: skin?.itemSpacing,
+                        useBackdrop: useBackdrop,
+                        cardLogo: skin?.cardLogo,
+                        onItemTap: (item) =>
+                            context.push('/player/${item.id}', extra: item),
+                        onItemImageTap: (item) => context.push(
+                          '/home/details/${item.id}',
+                          extra: item,
+                        ),
+                      ),
+                    // Reciente por biblioteca: sustituye los scrolls de Libros/Comics/Música
+                    // por Reciente en Música/Películas/Series/Libros. Solo si la biblioteca existe.
+                    for (final type in const [
+                      CollectionType.music,
+                      CollectionType.movies,
+                      CollectionType.tvshows,
+                      CollectionType.books,
+                    ])
+                      for (final view
+                          in (views.value ?? const <BaseItemDto>[]).where(
+                            (v) => v.collectionType == type,
+                          ))
+                        ContentRow(
+                          title: l10n.recentIn(view.name ?? ''),
+                          items:
+                              ref
+                                  .watch(
+                                    recentLibraryItemsProvider(view.id ?? ''),
+                                  )
+                                  .value ??
+                              const [],
+                          serverUrl: serverUrl,
+                          height: rowHeight,
+                          cardWidth: cardWidth,
+                          itemSpacing: skin?.itemSpacing,
+                          useBackdrop: useBackdrop,
+                          cardLogo: skin?.cardLogo,
+                          onSeeMore: () => context.push(
+                            '/library/${view.id}',
+                            extra: view.name,
+                          ),
+                          onItemTap: (item) =>
+                              context.push('/player/${item.id}', extra: item),
+                          onItemImageTap: (item) => context.push(
+                            '/home/details/${item.id}',
+                            extra: item,
+                          ),
+                        ),
+                    // Scrolls extra configurados por el skin (con filtros de géneros).
+                    for (final scroll
+                        in skin?.homeScrolls ?? const <HomeScroll>[])
+                      ContentRow(
+                        title: _scrollTitle(l10n, scroll.titleKey),
+                        items:
+                            ref.watch(homeScrollItemsProvider(scroll)).value ??
+                            const [],
+                        serverUrl: serverUrl,
+                        height: rowHeight,
+                        cardWidth: cardWidth,
+                        itemSpacing: skin?.itemSpacing,
+                        useBackdrop: useBackdrop,
+                        cardLogo: skin?.cardLogo,
+                        onSeeMore: () {
+                          // Resolver biblioteca destino para el scroll (movies/series).
+                          // Usa la primera vista que coincida con los tipos del scroll.
+                          final allViews = views.value ?? const <BaseItemDto>[];
+                          String targetViewId = '';
+                          // Prioridad: busca view cuyo collectionType coincida con el tipo del scroll
+                          for (final kind in scroll.types) {
+                            final mapped = _collectionTypeForKind(kind);
+                            final match = allViews
+                                .where((v) => v.collectionType == mapped)
+                                .firstOrNull;
+                            if (match?.id != null) {
+                              targetViewId = match!.id!;
+                              break;
+                            }
                           }
-                        }
-                        targetViewId = targetViewId.isEmpty
-                            ? (allViews
-                                    .where((v) =>
-                                        v.collectionType == CollectionType.movies)
-                                    .firstOrNull
-                                    ?.id ??
-                                allViews.firstOrNull?.id ??
-                                '')
-                            : targetViewId;
-                        if (targetViewId.isEmpty) {
-                          context.push('/movies');
-                          return;
-                        }
-                        context.push(
-                          '/library/$targetViewId',
-                          extra: scroll,
-                        );
-                      },
-                      onItemTap: (item) =>
-                          context.push('/player/${item.id}', extra: item),
-                      onItemImageTap: (item) =>
-                          context.push('/home/details/${item.id}', extra: item),
-                    ),
-                  const SizedBox(height: 24),
-                ],
+                          targetViewId = targetViewId.isEmpty
+                              ? (allViews
+                                        .where(
+                                          (v) =>
+                                              v.collectionType ==
+                                              CollectionType.movies,
+                                        )
+                                        .firstOrNull
+                                        ?.id ??
+                                    allViews.firstOrNull?.id ??
+                                    '')
+                              : targetViewId;
+                          if (targetViewId.isEmpty) {
+                            context.push('/movies');
+                            return;
+                          }
+                          context.push('/library/$targetViewId', extra: scroll);
+                        },
+                        onItemTap: (item) =>
+                            context.push('/player/${item.id}', extra: item),
+                        onItemImageTap: (item) => context.push(
+                          '/home/details/${item.id}',
+                          extra: item,
+                        ),
+                      ),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               ),
-            ),
       ),
     );
   }

@@ -440,6 +440,18 @@ abstract class AppLocalizations {
   /// **'New releases'**
   String get newReleases;
 
+  /// No description provided for @newMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'New movie'**
+  String get newMovie;
+
+  /// No description provided for @newSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'New series'**
+  String get newSeries;
+
   /// No description provided for @logout.
   ///
   /// In en, this message translates to:

@@ -18,6 +18,7 @@ class ScaleButton extends StatefulWidget {
     this.onFocusChange,
     this.autofocus = false,
     this.focusNode,
+    this.notifyHoverAsFocus = true,
   });
 
   final Widget child;
@@ -35,6 +36,12 @@ class ScaleButton extends StatefulWidget {
   /// Notifica cambios de foco/hover (selección visual de los hijos).
   final ValueChanged<bool>? onFocusChange;
 
+  /// Si es `false`, el hover de ratón solo produce el efecto visual
+  /// (escala) sin notificar [onFocusChange]: el contenido solo cambia con
+  /// foco real de teclado/mando o con click. Por defecto `true` para no
+  /// cambiar el comportamiento existente.
+  final bool notifyHoverAsFocus;
+
   final bool autofocus;
 
   /// FocusNode externo (para TV: permite al slider hacer ↑ → Inicio).
@@ -46,6 +53,7 @@ class ScaleButton extends StatefulWidget {
 
 class _ScaleButtonState extends State<ScaleButton> {
   bool _focused = false;
+  bool _hovered = false;
   final FocusNode _internalNode = FocusNode();
 
   FocusNode get _focusNode => widget.focusNode ?? _internalNode;
@@ -76,7 +84,7 @@ class _ScaleButtonState extends State<ScaleButton> {
     super.dispose();
   }
 
-  bool get _active => widget.selected || _focused;
+  bool get _active => widget.selected || _focused || _hovered;
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
     if (event is KeyDownEvent &&
@@ -91,15 +99,22 @@ class _ScaleButtonState extends State<ScaleButton> {
 
   @override
   Widget build(BuildContext context) {
-    void notify(bool focused) {
+    void notifyFocus(bool focused) {
       setState(() => _focused = focused);
       widget.onFocusChange?.call(focused);
+    }
+
+    void notifyHover(bool hovered) {
+      setState(() => _hovered = hovered);
+      if (widget.notifyHoverAsFocus) {
+        widget.onFocusChange?.call(hovered);
+      }
     }
 
     return Focus(
       focusNode: _focusNode,
       autofocus: widget.autofocus,
-      onFocusChange: notify,
+      onFocusChange: notifyFocus,
       onKeyEvent: _onKeyEvent,
       child: AnimatedScale(
         scale: _active ? widget.selectedScale : 1.0,
@@ -107,8 +122,8 @@ class _ScaleButtonState extends State<ScaleButton> {
         curve: Curves.easeOut,
         child: MouseRegion(
           cursor: SystemMouseCursors.click,
-          onEnter: (_) => notify(true),
-          onExit: (_) => notify(false),
+          onEnter: (_) => notifyHover(true),
+          onExit: (_) => notifyHover(false),
           child: InkWell(
             onTap: widget.onPressed,
             borderRadius: widget.borderRadius,

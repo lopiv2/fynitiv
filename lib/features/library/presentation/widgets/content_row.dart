@@ -26,6 +26,7 @@ class ContentRow extends ConsumerStatefulWidget {
     required this.serverUrl,
     this.height = 270,
     this.cardWidth = 150,
+    this.itemSpacing,
     this.useBackdrop = false,
     this.useSeriesPoster = false,
     this.cardLogo,
@@ -44,6 +45,10 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Ancho de cada tarjeta (póster vertical).
   final double cardWidth;
+
+  /// Espacio horizontal entre elementos. Si es `null` usa el del skin
+  /// (`itemSpacing`, 12 por defecto; backdrop antes 20).
+  final double? itemSpacing;
 
   /// Muestra tarjetas horizontales (backdrop 16:9) en lugar de pósteres.
   final bool useBackdrop;
@@ -125,7 +130,13 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   }
 
   /// Separación entre tarjetas.
-  double get _spacing => widget.useBackdrop ? 20 : 12;
+  double get _spacing {
+    if (widget.itemSpacing != null) return widget.itemSpacing!;
+    // Fallback al skin (12 por defecto) o valores legacy por tipo.
+    final skinSpacing = ref.watch(skinControllerProvider).value?.itemSpacing;
+    if (skinSpacing != null) return skinSpacing;
+    return widget.useBackdrop ? 20 : 12;
+  }
 
   void _scrollBy(double delta) {
     if (!_controller.hasClients) return;

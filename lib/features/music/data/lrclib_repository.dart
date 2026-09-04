@@ -62,7 +62,7 @@ class LrclibRepository {
           'artist_name': artist,
           'track_name': track,
           if (album != null && album.isNotEmpty) 'album_name': album,
-          if (durSec != null) 'duration': durSec,
+          'duration': ?durSec,
         },
         options: Options(validateStatus: (_) => true),
       );

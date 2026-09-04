@@ -245,7 +245,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                         ref.invalidate(deezerArtistTopTracksWithLimitProvider(DeezerTopTracksArgs(query: deezerQuery, limit: 40)));
                         // Fuerza recarga también de jelly por si el fallo fue mixto
                         if (isById) {
-                          ref.invalidate(artistJellyIndexByIdProvider(artistId!));
+                          ref.invalidate(artistJellyIndexByIdProvider(artistId));
                         } else {
                           ref.invalidate(artistJellyIndexByNameProvider(widget.artistName));
                         }
@@ -294,8 +294,8 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                       onPressed: () {
                         setState(() => _loadedPages = 1);
                         if (isById) {
-                          ref.invalidate(artistJellyIndexByIdProvider(artistId!));
-                          ref.invalidate(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId!, page: 0)));
+                          ref.invalidate(artistJellyIndexByIdProvider(artistId));
+                          ref.invalidate(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId, page: 0)));
                         } else {
                           ref.invalidate(artistJellyIndexByNameProvider(widget.artistName));
                           ref.invalidate(artistTracksProvider(widget.artistName));
@@ -418,7 +418,7 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                     setState(() => _loadedPages = 1);
                     if (isById) {
                       ref.invalidate(artistJellyIndexByIdProvider(artistId!));
-                      ref.invalidate(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId!, page: 0)));
+                      ref.invalidate(artistTracksByArtistIdPagedProvider(ArtistTracksByIdPageArgs(artistId: artistId, page: 0)));
                     } else {
                       ref.invalidate(artistJellyIndexByNameProvider(widget.artistName));
                       ref.invalidate(artistTracksProvider(widget.artistName));

@@ -35,3 +35,7 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 ## No tocar elementos corregidos a mano por el usuario
 
 - No corregir la posicion de PrimeCardBadge, dejar tal y como está en las tarjetas posicionada
+
+## No hagas tests si no te lo pido
+
+- No ejecutes, ni escribas ningun test, si el usuario no lo pide por prompt

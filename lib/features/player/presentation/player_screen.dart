@@ -1412,7 +1412,7 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                   final async = ref.watch(lrcLyricsProvider(query));
                   return async.when(
                     loading: () => const Center(child: CircularProgressIndicator(color: Colors.white54)),
-                    error: (_, __) => const SizedBox.shrink(),
+                    error: (_, _) => const SizedBox.shrink(),
                     data: (result) {
                       if (result == null) return const SizedBox.shrink();
                       final hasPlain = result.plainLyrics.trim().isNotEmpty;

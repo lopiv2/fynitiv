@@ -159,7 +159,18 @@ flutter:
   # see https://flutter.dev/to/font-from-package
 
 # Iconos de lanzamiento (flutter_launcher_icons)
+# Generados con: dart run flutter_launcher_icons
+# Windows usa windows/runner/resources/app_icon.ico (copiado desde assets/images/Logo_fynitiv.ico)
+# Android usa mipmap/ic_launcher generado desde Logo_fynitiv.png
 flutter_launcher_icons:
-  android: true
+  android: "launcher_icon"
+  ios: false
   image_path: "assets/images/Logo_fynitiv.png"
+  image_path_android: "assets/images/Logo_fynitiv.png"
   min_sdk_android: 24
+  web:
+    generate: false
+  windows:
+    generate: true
+    image_path: "assets/images/Logo_fynitiv.png"
+    icon_size: 256

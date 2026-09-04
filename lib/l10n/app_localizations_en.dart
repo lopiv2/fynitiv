@@ -188,6 +188,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get newReleases => 'New releases';
 
   @override
+  String get newMovie => 'New movie';
+
+  @override
+  String get newSeries => 'New series';
+
+  @override
   String get logout => 'Log out';
 
   @override

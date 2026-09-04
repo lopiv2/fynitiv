@@ -43,7 +43,9 @@ class FeaturedSlider extends ConsumerStatefulWidget {
     this.minHeight = 280,
     this.maxHeight = 440,
     this.dotAlignment = SliderDotAlignment.right,
+    this.dotsOutside = false,
     this.logoWidthFactor = kDefaultLogoWidthFactor,
+    this.logoMaxHeight = kDefaultLogoMaxHeight,
     this.showArrows = false,
     this.showIncludedBadge = false,
     this.showJellyfinLogo = false,
@@ -55,10 +57,15 @@ class FeaturedSlider extends ConsumerStatefulWidget {
     this.showAgeRating = false,
     this.contentScale = 1.0,
     this.showTrailer = false,
+    this.showNewBadge = false,
+    this.inlineMeta = false,
   });
 
   /// Tamaño por defecto del logo (fracción del ancho del banner).
   static const double kDefaultLogoWidthFactor = 0.32;
+
+  /// Altura máxima por defecto del logo (px, antes de la escala).
+  static const double kDefaultLogoMaxHeight = 110.0;
 
   final String title;
   final List<BaseItemDto> items;
@@ -83,8 +90,15 @@ class FeaturedSlider extends ConsumerStatefulWidget {
   /// Dónde colocar los puntos de navegación.
   final SliderDotAlignment dotAlignment;
 
+  /// Si `true`, los puntos se muestran centrados debajo del slider,
+  /// fuera del banner.
+  final bool dotsOutside;
+
   /// Anchura máxima del logo del título relativa al ancho del banner.
   final double logoWidthFactor;
+
+  /// Altura máxima del logo del título (px, antes de la escala).
+  final double logoMaxHeight;
 
   /// Muestra flechas a los lados para ir al anterior/siguiente banner
   /// (con ciclo: del primero vuelve al último y viceversa).
@@ -122,6 +136,14 @@ class FeaturedSlider extends ConsumerStatefulWidget {
   /// Muestra el botón de trailer, solo para películas o series.
   final bool showTrailer;
 
+  /// Muestra la pastilla "Nueva película"/"Nueva serie" sobre el logo
+  /// cuando el contenido es reciente (estilo Disney+).
+  final bool showNewBadge;
+
+  /// Meta inferior en línea estilo Disney+: insignia de edad oscura
+  /// + año • géneros, sin nota de estrellas ni descripción.
+  final bool inlineMeta;
+
   @override
   ConsumerState<FeaturedSlider> createState() => _FeaturedSliderState();
 }
@@ -131,6 +153,23 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
   Timer? _timer;
   int _currentPage = 0;
   bool _sliderHovered = false;
+  bool _sliderFocused = false;
+
+  /// El borde solo se muestra cuando el slider tiene hover o foco,
+  /// pero nunca cuando el foco/h over está en los puntos (dots).
+  /// Así en Disney el hover/click sobre dots no remarca el borde.
+  bool get _borderActive {
+    if (!widget.showBorder) return false;
+    if (_sliderHovered) return true;
+    if (!_sliderFocused) return false;
+    final primary = FocusManager.instance.primaryFocus;
+    if (primary != null && _dotNodes.contains(primary)) return false;
+    return true;
+  }
+
+  void _onFocusManagerChanged() {
+    if (mounted) setState(() {});
+  }
 
   /// Pausado por un trailer reproduciéndose.
   bool _trailerPaused = false;
@@ -180,6 +219,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
     super.initState();
     _controller = PageController();
     _initTvNodes();
+    FocusManager.instance.addListener(_onFocusManagerChanged);
     _startAutoPlay();
   }
 
@@ -194,6 +234,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeListener(_onFocusManagerChanged);
     _timer?.cancel();
     _controller.dispose();
     for (final n in _actionNodes) {
@@ -345,19 +386,23 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
     );
   }
 
-  Widget _buildDots() {
+  /// Fila de puntos (sin posicionar): usada dentro y fuera del slider.
+  Widget _buildDotsRow() {
     Widget dotAt(int i) {
       final dot = _SliderDot(
         active: i == _currentPage,
         onTap: () => _goToPage(i),
       );
       // Dots focuseables para teclado en todas las plataformas (tv, desktop, tablet, mobile)
-      // Al enfocar un dot también cambia de banner (útil con mando/teclado).
+      // Al enfocar un dot con teclado/mando también cambia de banner.
+      // El hover de ratón solo escala el punto (no cambia de banner):
+      // el cambio con ratón es solo con click.
       final node = (i < _dotNodes.length) ? _dotNodes[i] : null;
       return ScaleButton(
         focusNode: node,
         selectedScale: 1.35,
         borderRadius: BorderRadius.circular(4),
+        notifyHoverAsFocus: false,
         onPressed: () => _goToPage(i),
         onFocusChange: (focused) {
           if (focused) {
@@ -369,10 +414,17 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
       );
     }
 
-    final dots = Row(
+    return Row(
       mainAxisSize: MainAxisSize.min,
       children: [for (var i = 0; i < _banners.length; i++) dotAt(i)],
     );
+  }
+
+  /// Puntos dentro del banner (overlay). Si [dotsOutside] es `true` no se
+  /// muestra nada aquí: los puntos van debajo del slider.
+  Widget _buildDots() {
+    if (widget.dotsOutside) return const SizedBox.shrink();
+    final dots = _buildDotsRow();
 
     switch (widget.dotAlignment) {
       case SliderDotAlignment.left:
@@ -392,13 +444,31 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
     }
   }
 
+  /// Puntos fuera del slider, centrados debajo del banner.
+  Widget _buildDotsOutside() {
+    if (!widget.dotsOutside) return const SizedBox.shrink();
+    final dots = _buildDotsRow();
+    final MainAxisAlignment alignment = switch (widget.dotAlignment) {
+      SliderDotAlignment.left => MainAxisAlignment.start,
+      SliderDotAlignment.center => MainAxisAlignment.center,
+      SliderDotAlignment.right => MainAxisAlignment.end,
+    };
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Row(mainAxisAlignment: alignment, children: [dots]),
+    );
+  }
+
   Widget _bannerCard(BaseItemDto item) => _SliderBannerCard(
     item: item,
     serverUrl: widget.serverUrl,
-    showBorder: widget.showBorder,
+    showBorder: _borderActive,
     borderColor: widget.borderColor,
     borderWidth: widget.borderWidth,
+    showNewBadge: widget.showNewBadge,
+    inlineMeta: widget.inlineMeta,
     logoWidthFactor: widget.logoWidthFactor,
+    logoMaxHeight: widget.logoMaxHeight,
     showIncludedBadge: widget.showIncludedBadge,
     showJellyfinLogo: widget.showJellyfinLogo,
     hoverReveal: widget.hoverReveal,
@@ -479,213 +549,219 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
                 }
                 return false;
               },
-              child: MouseRegion(
-                onEnter: (_) => setState(() => _sliderHovered = true),
-                onExit: (_) => setState(() => _sliderHovered = false),
-                child: SizedBox(
-                  height: height,
-                  child: FocusScope(
-                    onKeyEvent: (node, event) {
-                      if (event is! KeyDownEvent) return KeyEventResult.ignored;
-                      // Comportamiento de teclado unificado para todas las plataformas
-                      // (tv, desktop, tablet, mobile) con teclado/mando conectado
+              child: FocusScope(
+                onFocusChange: (hasFocus) {
+                  if (_sliderFocused != hasFocus) {
+                    setState(() => _sliderFocused = hasFocus);
+                  }
+                },
+                onKeyEvent: (node, event) {
+                  if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                  // Comportamiento de teclado unificado para todas las plataformas
+                  // (tv, desktop, tablet, mobile) con teclado/mando conectado
 
-                      final primary = FocusManager.instance.primaryFocus;
-                      final isAction =
-                          primary != null && _actionNodes.contains(primary);
-                      final isDot =
-                          primary != null && _dotNodes.contains(primary);
-                      // Índice del dot actual (para foco inicial al bajar desde acciones)
-                      final currentDotNode =
-                          _dotNodes.isNotEmpty &&
-                              _currentPage < _dotNodes.length
-                          ? _dotNodes[_currentPage]
-                          : (_dotNodes.isNotEmpty ? _dotNodes.first : null);
-                      final firstActionNode = _actionNodes.isNotEmpty
-                          ? _actionNodes.first
-                          : null;
+                  final primary = FocusManager.instance.primaryFocus;
+                  final isAction =
+                      primary != null && _actionNodes.contains(primary);
+                  final isDot = primary != null && _dotNodes.contains(primary);
+                  // Índice del dot actual (para foco inicial al bajar desde acciones)
+                  final currentDotNode =
+                      _dotNodes.isNotEmpty && _currentPage < _dotNodes.length
+                      ? _dotNodes[_currentPage]
+                      : (_dotNodes.isNotEmpty ? _dotNodes.first : null);
+                  final firstActionNode = _actionNodes.isNotEmpty
+                      ? _actionNodes.first
+                      : null;
 
-                      // ── ARRIBA: isla/top bar ──────────────────────────────
-                      if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                        if (isDot) {
-                          if (firstActionNode != null) {
-                            if (firstActionNode.context != null) {
-                              firstActionNode.requestFocus();
-                              return KeyEventResult.handled;
-                            }
-                          }
+                  // ── ARRIBA: isla/top bar ──────────────────────────────
+                  if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                    if (isDot) {
+                      if (firstActionNode != null) {
+                        if (firstActionNode.context != null) {
+                          firstActionNode.requestFocus();
+                          return KeyEventResult.handled;
                         }
-                        // Desde acciones o cualquier parte del slider, ↑ → isla
-                        // + scroll total arriba para que el slider se vea como al entrar
-                        tvInicioFocusNode.requestFocus();
-                        WidgetsBinding.instance.addPostFrameCallback((_) {
-                          final ctx = node.context;
-                          if (ctx == null) return;
-                          // Buscar el Scrollable ancestro (ListView de HomeScreen)
-                          final scrollable = Scrollable.maybeOf(ctx);
-                          if (scrollable != null &&
-                              scrollable.position.pixels !=
-                                  scrollable.position.minScrollExtent) {
-                            scrollable.position.animateTo(
-                              scrollable.position.minScrollExtent,
-                              duration: const Duration(milliseconds: 320),
-                              curve: Curves.easeOutCubic,
-                            );
-                          } else {
-                            // Fallback: ensureVisible del slider al tope
-                            try {
-                              Scrollable.ensureVisible(
-                                ctx,
-                                alignment: 0.0,
-                                alignmentPolicy:
-                                    ScrollPositionAlignmentPolicy.explicit,
-                                duration: const Duration(milliseconds: 320),
-                                curve: Curves.easeOutCubic,
-                              );
-                            } catch (_) {}
-                          }
-                        });
+                      }
+                    }
+                    // Desde acciones o cualquier parte del slider, ↑ → isla
+                    // + scroll total arriba para que el slider se vea como al entrar
+                    tvInicioFocusNode.requestFocus();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      final ctx = node.context;
+                      if (ctx == null) return;
+                      // Buscar el Scrollable ancestro (ListView de HomeScreen)
+                      final scrollable = Scrollable.maybeOf(ctx);
+                      if (scrollable != null &&
+                          scrollable.position.pixels !=
+                              scrollable.position.minScrollExtent) {
+                        scrollable.position.animateTo(
+                          scrollable.position.minScrollExtent,
+                          duration: const Duration(milliseconds: 320),
+                          curve: Curves.easeOutCubic,
+                        );
+                      } else {
+                        // Fallback: ensureVisible del slider al tope
+                        try {
+                          Scrollable.ensureVisible(
+                            ctx,
+                            alignment: 0.0,
+                            alignmentPolicy:
+                                ScrollPositionAlignmentPolicy.explicit,
+                            duration: const Duration(milliseconds: 320),
+                            curve: Curves.easeOutCubic,
+                          );
+                        } catch (_) {}
+                      }
+                    });
+                    return KeyEventResult.handled;
+                  }
+
+                  // ── ABAJO ─────────────────────────────────────────────
+                  if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                    if (isAction) {
+                      // Desde Ver ahora/trailer/fav/info → ↓ a dots
+                      if (currentDotNode != null) {
+                        currentDotNode.requestFocus();
                         return KeyEventResult.handled;
                       }
-
-                      // ── ABAJO ─────────────────────────────────────────────
-                      if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                        if (isAction) {
-                          // Desde Ver ahora/trailer/fav/info → ↓ a dots
-                          if (currentDotNode != null) {
-                            currentDotNode.requestFocus();
-                            return KeyEventResult.handled;
-                          }
-                        }
-                        if (isDot) {
-                          // Desde dots → ↓ a Continuar viendo (siguiente fila).
-                          // El slider está aislado en su FocusScope, por lo que
-                          // node.focusInDirection(down) nunca encuentra la fila
-                          // exterior. Hay que subir al scope padre (HomeShell)
-                          // que contiene slider + filas.
-                          bool movedDownFromParent() {
-                            FocusNode? scope = node.parent;
-                            while (scope != null) {
-                              if (scope is FocusScopeNode) {
-                                if (scope.focusInDirection(
-                                  TraversalDirection.down,
-                                )) {
-                                  return true;
-                                }
-                              }
-                              scope = scope.parent;
-                            }
-                            return false;
-                          }
-
-                          if (movedDownFromParent()) {
-                            return KeyEventResult.handled;
-                          }
-                          final root = FocusManager.instance.rootScope;
-                          if (root.focusInDirection(TraversalDirection.down)) {
-                            return KeyEventResult.handled;
-                          }
-                          // Último fallback: next en el scope padre (siguiente fila)
-                          final parent = node.parent;
-                          if (parent is FocusScopeNode) {
-                            parent.nextFocus();
-                            return KeyEventResult.handled;
-                          }
-                          root.nextFocus();
-                          return KeyEventResult.handled;
-                        }
-                        // Fallback: si no está en acción ni dot, intentar bajar dentro
-                        // del slider (acción → dot) y si no, salir a la siguiente fila
-                        if (isAction || isDot) {
-                          return KeyEventResult.handled;
-                        }
-                        final movedInside = node.focusInDirection(
-                          TraversalDirection.down,
-                        );
-                        if (movedInside) return KeyEventResult.handled;
-                        // Intentar desde el padre antes de root
+                    }
+                    if (isDot) {
+                      // Desde dots → ↓ a Continuar viendo (siguiente fila).
+                      // El slider está aislado en su FocusScope, por lo que
+                      // node.focusInDirection(down) nunca encuentra la fila
+                      // exterior. Hay que subir al scope padre (HomeShell)
+                      // que contiene slider + filas.
+                      bool movedDownFromParent() {
                         FocusNode? scope = node.parent;
                         while (scope != null) {
                           if (scope is FocusScopeNode) {
                             if (scope.focusInDirection(
                               TraversalDirection.down,
                             )) {
-                              return KeyEventResult.handled;
+                              return true;
                             }
                           }
                           scope = scope.parent;
                         }
-                        final root = FocusManager.instance.rootScope;
-                        final moved = root.focusInDirection(
-                          TraversalDirection.down,
-                        );
-                        if (moved) return KeyEventResult.handled;
-                        root.nextFocus();
-                        return KeyEventResult.handled;
+                        return false;
                       }
 
-                      // ── IZQUIERDA / DERECHA ───────────────────────────────
-                      if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-                          event.logicalKey == LogicalKeyboardKey.arrowRight) {
-                        final dir =
-                            event.logicalKey == LogicalKeyboardKey.arrowLeft
-                            ? TraversalDirection.left
-                            : TraversalDirection.right;
-
-                        if (isAction) {
-                          // Intentar mover entre Ver ahora ↔ trailer ↔ fav ↔ info
-                          final moved = node.focusInDirection(dir);
-                          if (moved) return KeyEventResult.handled;
-                          // En el borde derecho (Info) → → va a dots (no cambia banner)
-                          if (dir == TraversalDirection.right &&
-                              currentDotNode != null) {
-                            currentDotNode.requestFocus();
-                            return KeyEventResult.handled;
-                          }
-                          // En el borde izquierdo (Ver ahora) → ← se queda (no wrap)
-                          return KeyEventResult.handled;
-                        }
-
-                        if (isDot) {
-                          final moved = node.focusInDirection(dir);
-                          if (moved) return KeyEventResult.handled;
-                          // En bordes de dots no se cambia de banner automáticamente;
-                          // el cambio ocurre al enfocar otro dot (onFocusChange).
-                          return KeyEventResult.handled;
-                        }
-
-                        // Foco en otro elemento del slider (o sin foco claro):
-                        // mantener navegación horizontal contenida
-                        final moved = node.focusInDirection(dir);
-                        if (moved) return KeyEventResult.handled;
+                      if (movedDownFromParent()) {
                         return KeyEventResult.handled;
                       }
-                      return KeyEventResult.ignored;
-                    },
-                    child: FocusTraversalGroup(
-                      policy: ReadingOrderTraversalPolicy(),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          _buildBannerLayer(),
-                          _buildDots(),
-                          if (widget.showArrows && _banners.length > 1) ...[
-                            _buildArrow(
-                              icon: Icons.chevron_left,
-                              onTap: _goToPrev,
-                              align: Alignment.centerLeft,
-                              padding: const EdgeInsets.only(left: 10),
-                            ),
-                            _buildArrow(
-                              icon: Icons.chevron_right,
-                              onTap: _goToNext,
-                              align: Alignment.centerRight,
-                              padding: const EdgeInsets.only(right: 10),
-                            ),
-                          ],
-                        ],
+                      final root = FocusManager.instance.rootScope;
+                      if (root.focusInDirection(TraversalDirection.down)) {
+                        return KeyEventResult.handled;
+                      }
+                      // Último fallback: next en el scope padre (siguiente fila)
+                      final parent = node.parent;
+                      if (parent is FocusScopeNode) {
+                        parent.nextFocus();
+                        return KeyEventResult.handled;
+                      }
+                      root.nextFocus();
+                      return KeyEventResult.handled;
+                    }
+                    // Fallback: si no está en acción ni dot, intentar bajar dentro
+                    // del slider (acción → dot) y si no, salir a la siguiente fila
+                    if (isAction || isDot) {
+                      return KeyEventResult.handled;
+                    }
+                    final movedInside = node.focusInDirection(
+                      TraversalDirection.down,
+                    );
+                    if (movedInside) return KeyEventResult.handled;
+                    // Intentar desde el padre antes de root
+                    FocusNode? scope = node.parent;
+                    while (scope != null) {
+                      if (scope is FocusScopeNode) {
+                        if (scope.focusInDirection(TraversalDirection.down)) {
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      scope = scope.parent;
+                    }
+                    final root = FocusManager.instance.rootScope;
+                    final moved = root.focusInDirection(
+                      TraversalDirection.down,
+                    );
+                    if (moved) return KeyEventResult.handled;
+                    root.nextFocus();
+                    return KeyEventResult.handled;
+                  }
+
+                  // ── IZQUIERDA / DERECHA ───────────────────────────────
+                  if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+                      event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                    final dir = event.logicalKey == LogicalKeyboardKey.arrowLeft
+                        ? TraversalDirection.left
+                        : TraversalDirection.right;
+
+                    if (isAction) {
+                      // Intentar mover entre Ver ahora ↔ trailer ↔ fav ↔ info
+                      final moved = node.focusInDirection(dir);
+                      if (moved) return KeyEventResult.handled;
+                      // En el borde derecho (Info) → → va a dots (no cambia banner)
+                      if (dir == TraversalDirection.right &&
+                          currentDotNode != null) {
+                        currentDotNode.requestFocus();
+                        return KeyEventResult.handled;
+                      }
+                      // En el borde izquierdo (Ver ahora) → ← se queda (no wrap)
+                      return KeyEventResult.handled;
+                    }
+
+                    if (isDot) {
+                      final moved = node.focusInDirection(dir);
+                      if (moved) return KeyEventResult.handled;
+                      // En bordes de dots no se cambia de banner automáticamente;
+                      // el cambio ocurre al enfocar otro dot (onFocusChange).
+                      return KeyEventResult.handled;
+                    }
+
+                    // Foco en otro elemento del slider (o sin foco claro):
+                    // mantener navegación horizontal contenida
+                    final moved = node.focusInDirection(dir);
+                    if (moved) return KeyEventResult.handled;
+                    return KeyEventResult.handled;
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: FocusTraversalGroup(
+                  policy: ReadingOrderTraversalPolicy(),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      MouseRegion(
+                        onEnter: (_) => setState(() => _sliderHovered = true),
+                        onExit: (_) => setState(() => _sliderHovered = false),
+                        child: SizedBox(
+                          height: height,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              _buildBannerLayer(),
+                              _buildDots(),
+                              if (widget.showArrows && _banners.length > 1) ...[
+                                _buildArrow(
+                                  icon: Icons.chevron_left,
+                                  onTap: _goToPrev,
+                                  align: Alignment.centerLeft,
+                                  padding: const EdgeInsets.only(left: 10),
+                                ),
+                                _buildArrow(
+                                  icon: Icons.chevron_right,
+                                  onTap: _goToNext,
+                                  align: Alignment.centerRight,
+                                  padding: const EdgeInsets.only(right: 10),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
+                      _buildDotsOutside(),
+                    ],
                   ),
                 ),
               ),
@@ -707,6 +783,7 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     required this.borderColor,
     required this.borderWidth,
     required this.logoWidthFactor,
+    required this.logoMaxHeight,
     required this.showIncludedBadge,
     required this.showJellyfinLogo,
     required this.hoverReveal,
@@ -714,6 +791,8 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     required this.showAgeRating,
     required this.contentScale,
     required this.showTrailer,
+    required this.showNewBadge,
+    required this.inlineMeta,
     this.onTrailerPlaybackChanged,
     this.onHoverChanged,
     this.actionFocusNodes,
@@ -725,6 +804,7 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   final Color borderColor;
   final double borderWidth;
   final double logoWidthFactor;
+  final double logoMaxHeight;
   final bool showIncludedBadge;
   final bool showJellyfinLogo;
   final bool hoverReveal;
@@ -732,6 +812,8 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   final bool showAgeRating;
   final double contentScale;
   final bool showTrailer;
+  final bool showNewBadge;
+  final bool inlineMeta;
 
   /// Notifica al slider si un trailer está reproduciéndose (para pausar el
   /// avance automático mientras tanto).
@@ -979,6 +1061,78 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     return rating.isNotEmpty ? rating : null;
   }
 
+  /// Contenido reciente: añadido hace poco, con estreno cercano o del
+  /// año en curso/siguiente. Solo entonces se muestra la pastilla "Nueva".
+  bool get _isNew {
+    final now = DateTime.now();
+    final created = widget.item.dateCreated;
+    if (created != null && now.difference(created).inDays <= 90) {
+      return true;
+    }
+    final premiere = widget.item.premiereDate;
+    if (premiere != null &&
+        premiere.isBefore(now.add(const Duration(days: 30))) &&
+        now.difference(premiere).inDays <= 365) {
+      return true;
+    }
+    final year = widget.item.productionYear;
+    if (year != null && (year == now.year || year == now.year + 1)) {
+      return true;
+    }
+    return false;
+  }
+
+  /// Hay datos para la meta en línea (edad, año o géneros).
+  bool get _hasInlineMeta =>
+      _ageRating != null ||
+      widget.item.productionYear != null ||
+      (widget.item.genres ?? const <String>[]).isNotEmpty;
+
+  /// Fila de meta en línea estilo Disney+ (insignia de edad oscura +
+  /// año • géneros, sin nota de estrellas). Se muestra justo bajo el logo.
+  Widget _buildInlineMeta() {
+    final year = widget.item.productionYear;
+    final genres = widget.item.genres ?? const <String>[];
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (_ageRating != null) ...[
+            _DisneyAgeBadge(rating: _ageRating!),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Text(
+              [
+                if (year != null) '$year',
+                if (genres.isNotEmpty) genres.take(3).join(', '),
+              ].join(' • '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Etiqueta de la pastilla "Nueva película"/"Nueva serie" según el tipo.
+  /// `null` si el tipo no es película ni serie (no se muestra pastilla).
+  String? _newBadgeLabel(AppLocalizations l10n) {
+    switch (widget.item.type) {
+      case BaseItemKind.movie:
+        return l10n.newMovie;
+      case BaseItemKind.series:
+      case BaseItemKind.season:
+      case BaseItemKind.episode:
+        return l10n.newSeries;
+      default:
+        return null;
+    }
+  }
+
   Widget _titleText({double? fontSize}) {
     final skin = ref.read(skinControllerProvider).value;
     return Text(
@@ -1019,7 +1173,9 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 SizedBox(
                   width: constraints.maxWidth * widget.logoWidthFactor,
                   child: ConstrainedBox(
-                    constraints: BoxConstraints(maxHeight: 110 * s),
+                    constraints: BoxConstraints(
+                      maxHeight: widget.logoMaxHeight * s,
+                    ),
                     child: Align(
                       alignment: Alignment.centerLeft,
                       child: Image.network(
@@ -1041,7 +1197,8 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   @override
   Widget build(BuildContext context) {
     final skin = ref.watch(skinControllerProvider).value;
-    final radius = skin?.cardBorderRadius ?? 10;
+    final bannerRadius =
+        skin?.bannerBorderRadius ?? (skin?.cardBorderRadius ?? 10) + 2;
     final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final item = widget.item;
     final serverUrl = widget.serverUrl;
@@ -1061,7 +1218,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     // En TV se quitó la descripción (causaba overflow 167px) y se puede
     // aumentar la altura del slider. Escala menor en TV para que la columna
     // (logo+botones+badge) quepa en 316px sin overflow de 6px.
-    final s = widget.contentScale * (isTv ? 0.82 : 1.0);
+    final s = widget.contentScale * (isTv ? 0.82 : 1.5);
     final backdropAlignment = (skin?.topBarFloating ?? false)
         ? const Alignment(0, -0.75)
         : const Alignment(0, -0.75);
@@ -1071,9 +1228,13 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
         (item.type == BaseItemKind.movie || item.type == BaseItemKind.series);
     final showYear = !widget.showAgeRating && year != null;
     final showGenres = !widget.showAgeRating && genres.isNotEmpty;
+    // Pastilla "Nueva película"/"Nueva serie" (estilo Disney+).
+    final newBadgeLabel = widget.showNewBadge && _isNew
+        ? _newBadgeLabel(AppLocalizations.of(context)!)
+        : null;
 
     final card = ClipRRect(
-      borderRadius: BorderRadius.circular(radius + 2),
+      borderRadius: BorderRadius.circular(bannerRadius),
       child: LayoutBuilder(
         builder: (context, constraints) => Stack(
           fit: StackFit.expand,
@@ -1149,10 +1310,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 gradient: LinearGradient(
                   begin: Alignment.centerLeft,
                   end: Alignment.center,
-                  colors: [
-                    Color(0x66000000),
-                    Colors.transparent,
-                  ],
+                  colors: [Color(0x66000000), Colors.transparent],
                   stops: [0.0, 0.35],
                 ),
               ),
@@ -1162,10 +1320,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 gradient: LinearGradient(
                   begin: Alignment.centerRight,
                   end: Alignment.center,
-                  colors: [
-                    Color(0x14000000),
-                    Colors.transparent,
-                  ],
+                  colors: [Color(0x14000000), Colors.transparent],
                   stops: [0.0, 0.12],
                 ),
               ),
@@ -1177,7 +1332,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
               Positioned.fill(
                 child: ScaleButton(
                   selectedScale: 1.02,
-                  borderRadius: BorderRadius.circular(radius + 2),
+                  borderRadius: BorderRadius.circular(bannerRadius),
                   onPressed: () {
                     final id = item.id;
                     if (id != null && id.isNotEmpty) {
@@ -1202,6 +1357,12 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Pastilla "Nueva película"/"Nueva serie" sobre el logo
+                      // (estilo Disney+), solo si el contenido es reciente.
+                      if (newBadgeLabel != null) ...[
+                        _NewBadge(label: newBadgeLabel),
+                        SizedBox(height: 10 * s),
+                      ],
                       // El hover solo se detecta sobre el logo/título: el
                       // MouseRegion envuelve al AnimatedSlide (fuera) para que su
                       // área no se mueva al deslizarse y no parpadee.
@@ -1287,15 +1448,22 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 ),
               ),
             ),
+            // Fila inferior. Disney (inlineMeta) la sube para acercarla
+            // al logo; Prime y el resto la mantienen abajo del todo.
             Positioned(
               left: isTv ? 60 : 68,
               right: isTv ? 16 : 28,
-              bottom: isTv ? 8 : 34,
+              bottom: widget.inlineMeta ? (isTv ? 40 : 130) : (isTv ? 8 : 34),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  if (rating != null || showYear || showGenres)
+                  // Meta en línea estilo Disney+: insignia de edad oscura +
+                  // año • géneros, sin nota de estrellas.
+                  if (widget.inlineMeta && _hasInlineMeta)
+                    _buildInlineMeta()
+                  else if (!widget.inlineMeta &&
+                      (rating != null || showYear || showGenres))
                     Padding(
                       padding: const EdgeInsets.only(top: 6),
                       child: Row(
@@ -1344,6 +1512,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                     ),
                   if (!isTv &&
                       !widget.hoverReveal &&
+                      !widget.inlineMeta &&
                       (item.overview ?? '').isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 8),
@@ -1362,7 +1531,10 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
               ),
             ),
             // Edad recomendada del contenido, abajo a la derecha.
-            if (widget.showAgeRating && _ageRating != null)
+            // En modo inline (Disney+) la edad ya va en la meta inferior.
+            if (widget.showAgeRating &&
+                !widget.inlineMeta &&
+                _ageRating != null)
               Positioned(
                 right: isTv ? 30 : 28,
                 bottom: isTv ? 8 : 34,
@@ -1376,7 +1548,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 bottom: isTv ? 40 : 64,
                 width: (constraints.maxWidth * 1).clamp(420.0, 880.0),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(radius + 2),
+                  borderRadius: BorderRadius.circular(bannerRadius),
                   child: ColoredBox(
                     color: Colors.black,
                     child: Stack(
@@ -1427,18 +1599,20 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
       ),
     );
 
-    final cardContent = !widget.showBorder
-        ? card
-        : Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(radius + 2),
-              border: Border.all(
-                color: widget.borderColor,
-                width: widget.borderWidth,
-              ),
-            ),
-            child: card,
-          );
+    // El borde blanco solo se remarca cuando el slider tiene hover o foco.
+    // Se anima para que la aparición/desaparición sea suave.
+    final cardContent = AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(bannerRadius),
+        border: Border.all(
+          color: widget.showBorder ? widget.borderColor : Colors.transparent,
+          width: widget.showBorder ? widget.borderWidth + 2 : 0,
+        ),
+      ),
+      child: card,
+    );
 
     return cardContent;
   }
@@ -1645,6 +1819,59 @@ class _SliderArrow extends StatelessWidget {
           border: Border.all(color: Colors.white38),
         ),
         child: Icon(icon, color: Colors.white, size: 30),
+      ),
+    );
+  }
+}
+
+/// Pastilla blanca "Nueva película"/"Nueva serie" sobre el logo
+/// (estilo Disney+).
+class _NewBadge extends StatelessWidget {
+  const _NewBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.black,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// Insignia de edad oscura para la meta en línea (estilo Disney+).
+class _DisneyAgeBadge extends StatelessWidget {
+  const _DisneyAgeBadge({required this.rating});
+
+  final String rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3A3A42),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        rating,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

@@ -60,6 +60,8 @@
   "continuePlaying": "Continue playing",
   "upNext": "Up Next",
   "newReleases": "New releases",
+  "newMovie": "New movie",
+  "newSeries": "New series",
   "logout": "Log out",
   "searchHint": "Search movies, series, people...",
   "noResults": "No results found",
