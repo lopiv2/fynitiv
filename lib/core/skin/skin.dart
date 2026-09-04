@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'home_scroll.dart';
+import 'layout_section.dart';
 
 /// Posición de la barra lateral en el dashboard.
 enum SidebarPosition { left, top, right, bottom }
@@ -58,6 +59,9 @@ class Skin {
     this.showNewReleasesRow = true,
     this.showNewReleasesBanner = false,
     this.bannerBorder = false,
+    this.bannerBorderWidth = 1.5,
+    this.bannerBorderColor = const Color(0xFFFFFFFF),
+    this.bannerBorderHoverWidth = 2.5,
     this.bannerLogoWidthFactor = 0.32,
     this.bannerLogoMaxHeight = 110.0,
     this.bannerShowArrows = false,
@@ -78,6 +82,10 @@ class Skin {
     this.bannerContentScale = 1.0,
     this.bannerHeightFactor = 0.38,
     this.bannerMaxHeight = 440,
+    this.bannerHorizontalPadding = 0,
+    this.bannerShadow = false,
+    this.bannerHoverScale = 1.02,
+    this.bannerVignette = true,
     this.homeCardWidth = 150,
     this.homeRowHeight = 270,
     this.homeCardScale = 1.0,
@@ -89,6 +97,16 @@ class Skin {
     this.fontFamily,
     this.cardHoverExtension = false,
     this.homeScrolls = const [],
+    // --- Layouts ordenables por skin (array de arriba a abajo) ---
+    // Si están vacíos se usa el orden legado para no romper presets existentes.
+    // Home: FeaturedSlider → ContinueWatching → NextUp → Recent → custom HomeScrolls.
+    // VOD: FeaturedSlider → ContinueWatching → NewReleases → Library per view → custom.
+    // Para personalizar, define el array en el orden que quieras que aparezca.
+    // Ej. Disney: [featuredSlider, continueWatching, newReleases, custom(Action), custom(Family)]
+    // Cada elemento `HomeSection`/`VodSection` puede ser built-in o `custom(HomeScroll(...))`
+    // con poster/backdrop, viñeta, etc. configurables por scroll y reutilizables en cualquier skin.
+    this.homeLayout = const [],
+    this.vodLayout = const [],
     this.titleMarqueeOnHover = false,
     this.topBarFloating = false,
     this.showCardBadge = false,
@@ -160,8 +178,17 @@ class Skin {
   /// parte superior del home, con slider de puntos.
   final bool showNewReleasesBanner;
 
-  /// Borde blanco alrededor de cada banner del slider de novedades.
+  /// Borde alrededor de cada banner del slider de novedades.
   final bool bannerBorder;
+
+  /// Grosor del borde del featured slider (px). Solo si [bannerBorder] es true.
+  final double bannerBorderWidth;
+
+  /// Color del borde del featured slider.
+  final Color bannerBorderColor;
+
+  /// Grosor del borde al hacer hover/focus en el featured slider.
+  final double bannerBorderHoverWidth;
 
   /// Tamaño del logo del título en el slider de novedades (fracción del ancho).
   final double bannerLogoWidthFactor;
@@ -229,6 +256,21 @@ class Skin {
   /// Altura máxima del slider.
   final double bannerMaxHeight;
 
+  /// Padding horizontal (izquierda + derecha) del featured slider.
+  /// Deja un hueco entre el borde de la pantalla y el banner. 0 = sin padding.
+  final double bannerHorizontalPadding;
+
+  /// Si `true`, el featured slider muestra sombra elevada alrededor del banner.
+  final bool bannerShadow;
+
+  /// Escala al hacer hover sobre el banner del featured slider (1.0 = sin escala,
+  /// 1.02 = ligero zoom). Solo borde si es 1.0.
+  final double bannerHoverScale;
+
+  /// Si `true`, muestra viñeta oscurecida en bordes del featured slider
+  /// (radial + degradados superior/laterales). Configurable por skin.
+  final bool bannerVignette;
+
   /// Ancho de las tarjetas de las filas del home.
   final double homeCardWidth;
 
@@ -262,7 +304,24 @@ class Skin {
 
   /// Filas de contenido extra (scrolls) configuradas por este skin, con sus
   /// filtros (géneros/tipos). Se muestran bajo las filas de la biblioteca.
+  /// @Deprecated: usar `homeLayout`/`vodLayout` con `HomeSection.custom`/`VodSection.custom`.
+  /// Se mantiene por compatibilidad: si `homeLayout`/`vodLayout` están vacíos se usa este
+  /// array en el orden legado (detrás de Recent). Si `homeLayout`/`vodLayout` no está vacío,
+  /// este campo se ignora por completo para evitar duplicados.
   final List<HomeScroll> homeScrolls;
+
+  /// Layout ordenable del Home: array de secciones de arriba a abajo.
+  /// Vacío = orden legado (FeaturedSlider → ContinueWatching → NextUp → Recent → homeScrolls).
+  /// Lleno = se respeta exactamente el orden dado, permitiendo intercalar built-ins
+  /// y customs (poster/backdrop, viñeta, etc.) de forma máxima personalizable por skin.
+  /// Cada `HomeSection` puede ser built-in o `custom(HomeScroll)` con su propio poster/backdrop.
+  final List<HomeSection> homeLayout;
+
+  /// Layout ordenable de VOD: array de secciones de arriba a abajo.
+  /// Vacío = orden legado VOD (FeaturedSlider → ContinueWatching → NewReleases → Library per view → homeScrolls).
+  /// Lleno = orden custom. `library` expande a una fila por biblioteca (Películas, Series...),
+  /// `custom` a un HomeScroll filtrado. Si `vodLayout` no está vacío, `homeScrolls` se ignora en VOD.
+  final List<VodSection> vodLayout;
 
   /// Cuando el título del elemento hace overflow, lo desplaza horizontalmente
   /// en bucle al hacer hover (estilo Jellyfin Android TV). Solo si está activo.
@@ -308,6 +367,9 @@ class Skin {
     bool? showNewReleasesRow,
     bool? showNewReleasesBanner,
     bool? bannerBorder,
+    double? bannerBorderWidth,
+    Color? bannerBorderColor,
+    double? bannerBorderHoverWidth,
     double? bannerLogoWidthFactor,
     double? bannerLogoMaxHeight,
     bool? bannerShowArrows,
@@ -328,6 +390,10 @@ class Skin {
     double? bannerContentScale,
     double? bannerHeightFactor,
     double? bannerMaxHeight,
+    double? bannerHorizontalPadding,
+    bool? bannerShadow,
+    double? bannerHoverScale,
+    bool? bannerVignette,
     double? homeCardWidth,
     double? homeRowHeight,
     double? homeCardScale,
@@ -339,6 +405,8 @@ class Skin {
     String? fontFamily,
     bool? cardHoverExtension,
     List<HomeScroll>? homeScrolls,
+    List<HomeSection>? homeLayout,
+    List<VodSection>? vodLayout,
     bool? titleMarqueeOnHover,
     bool? topBarFloating,
     bool? showCardBadge,
@@ -377,6 +445,10 @@ class Skin {
       showNewReleasesBanner:
           showNewReleasesBanner ?? this.showNewReleasesBanner,
       bannerBorder: bannerBorder ?? this.bannerBorder,
+      bannerBorderWidth: bannerBorderWidth ?? this.bannerBorderWidth,
+      bannerBorderColor: bannerBorderColor ?? this.bannerBorderColor,
+      bannerBorderHoverWidth:
+          bannerBorderHoverWidth ?? this.bannerBorderHoverWidth,
       bannerLogoWidthFactor:
           bannerLogoWidthFactor ?? this.bannerLogoWidthFactor,
       bannerLogoMaxHeight: bannerLogoMaxHeight ?? this.bannerLogoMaxHeight,
@@ -400,6 +472,11 @@ class Skin {
       bannerContentScale: bannerContentScale ?? this.bannerContentScale,
       bannerHeightFactor: bannerHeightFactor ?? this.bannerHeightFactor,
       bannerMaxHeight: bannerMaxHeight ?? this.bannerMaxHeight,
+      bannerHorizontalPadding:
+          bannerHorizontalPadding ?? this.bannerHorizontalPadding,
+      bannerShadow: bannerShadow ?? this.bannerShadow,
+      bannerHoverScale: bannerHoverScale ?? this.bannerHoverScale,
+      bannerVignette: bannerVignette ?? this.bannerVignette,
       homeCardWidth: homeCardWidth ?? this.homeCardWidth,
       homeRowHeight: homeRowHeight ?? this.homeRowHeight,
       homeCardScale: homeCardScale ?? this.homeCardScale,
@@ -411,6 +488,8 @@ class Skin {
       fontFamily: fontFamily ?? this.fontFamily,
       cardHoverExtension: cardHoverExtension ?? this.cardHoverExtension,
       homeScrolls: homeScrolls ?? this.homeScrolls,
+      homeLayout: homeLayout ?? this.homeLayout,
+      vodLayout: vodLayout ?? this.vodLayout,
       titleMarqueeOnHover: titleMarqueeOnHover ?? this.titleMarqueeOnHover,
       topBarFloating: topBarFloating ?? this.topBarFloating,
       showCardBadge: showCardBadge ?? this.showCardBadge,
@@ -469,6 +548,12 @@ class Skin {
       showNewReleasesRow: json['showNewReleasesRow'] as bool? ?? true,
       showNewReleasesBanner: json['showNewReleasesBanner'] as bool? ?? false,
       bannerBorder: json['bannerBorder'] as bool? ?? false,
+      bannerBorderWidth:
+          (json['bannerBorderWidth'] as num?)?.toDouble() ?? 1.5,
+      bannerBorderColor:
+          _colorFromString(json['bannerBorderColor'] as String? ?? '#FFFFFFFF'),
+      bannerBorderHoverWidth:
+          (json['bannerBorderHoverWidth'] as num?)?.toDouble() ?? 2.5,
       bannerLogoWidthFactor:
           (json['bannerLogoWidthFactor'] as num?)?.toDouble() ?? 0.32,
       bannerLogoMaxHeight:
@@ -494,6 +579,12 @@ class Skin {
       bannerHeightFactor:
           (json['bannerHeightFactor'] as num?)?.toDouble() ?? 0.38,
       bannerMaxHeight: (json['bannerMaxHeight'] as num?)?.toDouble() ?? 440,
+      bannerHorizontalPadding:
+          (json['bannerHorizontalPadding'] as num?)?.toDouble() ?? 0,
+      bannerShadow: json['bannerShadow'] as bool? ?? false,
+      bannerHoverScale:
+          (json['bannerHoverScale'] as num?)?.toDouble() ?? 1.02,
+      bannerVignette: json['bannerVignette'] as bool? ?? true,
       homeCardWidth: (json['homeCardWidth'] as num?)?.toDouble() ?? 150,
       homeRowHeight: (json['homeRowHeight'] as num?)?.toDouble() ?? 270,
       homeCardScale: (json['homeCardScale'] as num?)?.toDouble() ?? 1.0,
@@ -507,6 +598,16 @@ class Skin {
       homeScrolls:
           (json['homeScrolls'] as List?)
               ?.map((e) => HomeScroll.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      homeLayout:
+          (json['homeLayout'] as List?)
+              ?.map((e) => HomeSection.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      vodLayout:
+          (json['vodLayout'] as List?)
+              ?.map((e) => VodSection.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
       titleMarqueeOnHover: json['titleMarqueeOnHover'] as bool? ?? false,
@@ -546,6 +647,9 @@ class Skin {
     'showNewReleasesRow': showNewReleasesRow,
     'showNewReleasesBanner': showNewReleasesBanner,
     'bannerBorder': bannerBorder,
+    'bannerBorderWidth': bannerBorderWidth,
+    'bannerBorderColor': _colorToString(bannerBorderColor),
+    'bannerBorderHoverWidth': bannerBorderHoverWidth,
     'bannerLogoWidthFactor': bannerLogoWidthFactor,
     'bannerLogoMaxHeight': bannerLogoMaxHeight,
     'bannerShowArrows': bannerShowArrows,
@@ -566,6 +670,10 @@ class Skin {
     'bannerContentScale': bannerContentScale,
     'bannerHeightFactor': bannerHeightFactor,
     'bannerMaxHeight': bannerMaxHeight,
+    'bannerHorizontalPadding': bannerHorizontalPadding,
+    'bannerShadow': bannerShadow,
+    'bannerHoverScale': bannerHoverScale,
+    'bannerVignette': bannerVignette,
     'homeCardWidth': homeCardWidth,
     'homeRowHeight': homeRowHeight,
     'homeCardScale': homeCardScale,
@@ -577,6 +685,8 @@ class Skin {
     if (fontFamily != null) 'fontFamily': fontFamily,
     'cardHoverExtension': cardHoverExtension,
     'homeScrolls': homeScrolls.map((s) => s.toJson()).toList(),
+    'homeLayout': homeLayout.map((s) => s.toJson()).toList(),
+    'vodLayout': vodLayout.map((s) => s.toJson()).toList(),
     'titleMarqueeOnHover': titleMarqueeOnHover,
     'topBarFloating': topBarFloating,
     'showCardBadge': showCardBadge,

@@ -4,10 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/hover_play_card.dart';
 import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/marquee_text.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../application/image_url.dart';
 import 'poster_fallback.dart';
 
@@ -22,6 +24,16 @@ class PosterCard extends ConsumerStatefulWidget {
     this.cardLogo,
     this.hoverExtension = false,
     this.useSeriesPoster = false,
+    this.showBottomVignette = false,
+    this.bottomVignetteHeight = 56,
+    this.bottomVignetteOpacity = 0.72,
+    this.showMetaOverlay = false,
+    this.imageSource = RowImageSource.primary,
+    this.showNewBadge = false,
+    this.showStackLogo = false,
+    this.logoPosition = RowLogoPosition.top,
+    this.hideTitle = false,
+    this.hideYear = false,
     this.onHoverChanged,
     this.onPointerSignal,
     this.overlayBelowEntry,
@@ -34,6 +46,16 @@ class PosterCard extends ConsumerStatefulWidget {
   final String? cardLogo;
   final bool hoverExtension;
   final bool useSeriesPoster;
+  final bool showBottomVignette;
+  final double bottomVignetteHeight;
+  final double bottomVignetteOpacity;
+  final bool showMetaOverlay;
+  final RowImageSource imageSource;
+  final bool showNewBadge;
+  final bool showStackLogo;
+  final RowLogoPosition logoPosition;
+  final bool hideTitle;
+  final bool hideYear;
   final ValueChanged<bool>? onHoverChanged;
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final OverlayEntry? Function()? overlayBelowEntry;
@@ -52,7 +74,11 @@ class _PosterCardState extends ConsumerState<PosterCard> {
 
   @override
   Widget build(BuildContext context) {
-    final String? url;
+    String? logoUrl;
+    if (widget.showStackLogo && widget.serverUrl != null) {
+      logoUrl = itemLogoUrl(widget.serverUrl!, widget.item);
+    }
+    String? url;
     if (widget.useSeriesPoster &&
         widget.item.type == BaseItemKind.episode &&
         widget.item.seriesId != null &&
@@ -62,8 +88,20 @@ class _PosterCardState extends ConsumerState<PosterCard> {
       url = tag != null && tag.isNotEmpty
           ? '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300&tag=$tag'
           : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300';
+    } else if (widget.serverUrl != null) {
+      switch (widget.imageSource) {
+        case RowImageSource.thumb:
+          url = itemThumbUrl(widget.serverUrl!, widget.item);
+          break;
+        case RowImageSource.backdrop:
+          url = itemBackdropUrl(widget.serverUrl!, widget.item);
+          break;
+        case RowImageSource.primary:
+          url = itemImageUrl(widget.serverUrl!, widget.item);
+          break;
+      }
     } else {
-      url = widget.serverUrl != null ? itemImageUrl(widget.serverUrl!, widget.item) : null;
+      url = null;
     }
     final progress = widget.item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
@@ -72,15 +110,18 @@ class _PosterCardState extends ConsumerState<PosterCard> {
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
     final logoSize = skin?.cardLogoSize ?? 18;
-    final showExtension = widget.hoverExtension && (skin?.cardHoverExtension ?? false);
+    final showExtension =
+        widget.hoverExtension && (skin?.cardHoverExtension ?? false);
     final marqueeEnabled = skin?.titleMarqueeOnHover ?? false;
     final resume = (widget.item.userData?.playbackPositionTicks ?? 0) > 0;
-    final artist = (widget.item.artists?.firstOrNull?.trim().isNotEmpty == true
-            ? widget.item.artists!.first.trim()
-            : (widget.item.albumArtist?.trim().isNotEmpty == true
-                ? widget.item.albumArtist!.trim()
-                : widget.item.albumArtists?.firstOrNull?.name?.trim() ?? ''))
-        .trim();
+    final artist =
+        (widget.item.artists?.firstOrNull?.trim().isNotEmpty == true
+                ? widget.item.artists!.first.trim()
+                : (widget.item.albumArtist?.trim().isNotEmpty == true
+                      ? widget.item.albumArtist!.trim()
+                      : widget.item.albumArtists?.firstOrNull?.name?.trim() ??
+                            ''))
+            .trim();
     String cardTitle = widget.item.name ?? '';
     String? subtitle;
     if (artist.isNotEmpty) {
@@ -130,7 +171,8 @@ class _PosterCardState extends ConsumerState<PosterCard> {
         }
       }
       if (subtitle == null &&
-          (widget.item.type == BaseItemKind.book || widget.item.type == BaseItemKind.audioBook)) {
+          (widget.item.type == BaseItemKind.book ||
+              widget.item.type == BaseItemKind.audioBook)) {
         final fallbackName = widget.item.people?.firstOrNull?.name?.trim();
         if (fallbackName != null && fallbackName.isNotEmpty) {
           subtitle = fallbackName;
@@ -141,6 +183,52 @@ class _PosterCardState extends ConsumerState<PosterCard> {
         }
       }
       if (subtitle != null && subtitle.isEmpty) subtitle = null;
+    }
+    if (widget.hideTitle) {
+      cardTitle = '';
+    }
+    if (widget.hideYear && subtitle != null) {
+      final y = widget.item.productionYear?.toString();
+      if (y != null && subtitle == y) subtitle = null;
+    }
+    // --- ContinueRow overlays: new badge & isNew ---
+    bool isNew = false;
+    if (widget.showNewBadge) {
+      final now = DateTime.now();
+      final created = widget.item.dateCreated;
+      if (created != null && now.difference(created).inDays <= 90) {
+        isNew = true;
+      } else {
+        final premiere = widget.item.premiereDate;
+        if (premiere != null &&
+            premiere.isBefore(now.add(const Duration(days: 30))) &&
+            now.difference(premiere).inDays <= 365) {
+          isNew = true;
+        } else {
+          final year = widget.item.productionYear;
+          if (year != null && (year == now.year || year == now.year + 1)) {
+            isNew = true;
+          }
+        }
+      }
+    }
+    String? newBadgeLabel;
+    if (isNew && widget.showNewBadge) {
+      final l10n = AppLocalizations.of(context);
+      if (l10n != null) {
+        switch (widget.item.type) {
+          case BaseItemKind.movie:
+            newBadgeLabel = l10n.newMovie;
+            break;
+          case BaseItemKind.series:
+          case BaseItemKind.season:
+          case BaseItemKind.episode:
+            newBadgeLabel = l10n.newSeries;
+            break;
+          default:
+            newBadgeLabel = null;
+        }
+      }
     }
 
     final fallback = PosterFallback(item: widget.item, color: fallbackColor);
@@ -153,7 +241,8 @@ class _PosterCardState extends ConsumerState<PosterCard> {
         maxWidthDiskCache: 300,
         fadeInDuration: const Duration(milliseconds: 150),
         useOldImageOnUrlChange: true,
-        errorBuilder: (_, _, _) => PosterFallback(item: widget.item, color: fallbackColor),
+        errorBuilder: (_, _, _) =>
+            PosterFallback(item: widget.item, color: fallbackColor),
         placeholder: (_, _) => const SizedBox.shrink(),
       );
     } else {
@@ -174,6 +263,123 @@ class _PosterCardState extends ConsumerState<PosterCard> {
                 fit: StackFit.expand,
                 children: [
                   imageWidget,
+                  if (widget.showBottomVignette)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      height: widget.bottomVignetteHeight,
+                      child: IgnorePointer(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(
+                                  alpha: widget.bottomVignetteOpacity.clamp(
+                                    0.0,
+                                    1.0,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (newBadgeLabel != null)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          newBadgeLabel,
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (widget.showStackLogo && logoUrl != null)
+                    Positioned(
+                      left: 8,
+                      right: 8,
+                      top: widget.logoPosition == RowLogoPosition.top
+                          ? 8
+                          : null,
+                      bottom: widget.logoPosition == RowLogoPosition.bottom
+                          ? (widget.showMetaOverlay ? 32 : 8)
+                          : null,
+                      child: widget.logoPosition == RowLogoPosition.center
+                          ? Center(
+                              child: Image.network(
+                                logoUrl,
+                                height: 36,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, _, _) =>
+                                    const SizedBox.shrink(),
+                              ),
+                            )
+                          : Image.network(
+                              logoUrl,
+                              height: 28,
+                              fit: BoxFit.contain,
+                              alignment: Alignment.center,
+                              errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                            ),
+                    ),
+                  if (widget.showMetaOverlay)
+                    Positioned(
+                      left: 6,
+                      right: 6,
+                      bottom: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (!widget.hideTitle && cardTitle.isNotEmpty)
+                            Text(
+                              cardTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                shadows: [
+                                  Shadow(blurRadius: 4, color: Colors.black54),
+                                ],
+                              ),
+                            ),
+                          if (subtitle != null)
+                            Text(
+                              subtitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 9,
+                                shadows: [
+                                  Shadow(blurRadius: 4, color: Colors.black54),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   if (progress != null && progress > 0)
                     Positioned(
                       left: 0,
@@ -186,32 +392,38 @@ class _PosterCardState extends ConsumerState<PosterCard> {
                         valueColor: AlwaysStoppedAnimation<Color>(accent),
                       ),
                     ),
-                  if (widget.cardLogo != null && widget.cardLogo!.isNotEmpty)
+                  if (!widget.showMetaOverlay &&
+                      widget.cardLogo != null &&
+                      widget.cardLogo!.isNotEmpty)
                     Positioned(
                       right: 8,
                       bottom: 8,
-                      child: LogoImage(logo: widget.cardLogo!, height: logoSize),
+                      child: LogoImage(
+                        logo: widget.cardLogo!,
+                        height: logoSize,
+                      ),
                     ),
                 ],
               ),
             ),
           ),
         ),
-        if (!showExtension) ...[
+        if (!showExtension && !widget.showMetaOverlay) ...[
           const SizedBox(height: 6),
-          marqueeEnabled
-              ? MarqueeText(
-                  text: cardTitle,
-                  style: TextStyle(color: textPrimary, fontSize: 14),
-                  isHovered: _isHovered,
-                  enabled: true,
-                )
-              : Text(
-                  cardTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: textPrimary, fontSize: 13),
-                ),
+          if (!widget.hideTitle)
+            marqueeEnabled
+                ? MarqueeText(
+                    text: cardTitle,
+                    style: TextStyle(color: textPrimary, fontSize: 14),
+                    isHovered: _isHovered,
+                    enabled: true,
+                  )
+                : Text(
+                    cardTitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: textPrimary, fontSize: 13),
+                  ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
             Text(

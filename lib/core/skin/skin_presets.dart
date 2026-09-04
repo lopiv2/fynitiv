@@ -1,6 +1,7 @@
 import 'package:material_ui/material_ui.dart';
 
 import 'home_scroll.dart';
+import 'layout_section.dart';
 import 'skin.dart';
 
 /// Skins predefinidos.
@@ -41,6 +42,7 @@ abstract final class SkinPresets {
     sidebarLogo: 'assets/images/Logo_letter_fynitiv.png',
     logoPosition: LogoPosition.bottom,
     avatarPosition: LogoPosition.top,
+    bannerShowTitle: false,
     sidebarWidth: 260,
     sidebarHeaderSpacing: 24,
     navItemIconSpacing: 24,
@@ -48,6 +50,9 @@ abstract final class SkinPresets {
     showNewReleasesRow: true,
     showNewReleasesBanner: true,
     bannerBorder: true,
+    bannerBorderWidth: 2,
+    bannerBorderHoverWidth: 4,
+    bannerBorderColor: Color.fromARGB(255, 228, 228, 228),
     bannerLogoWidthFactor: 0.35,
     bannerLogoMaxHeight: 130,
     bannerDotAlignment: SliderDotAlignment.center,
@@ -57,11 +62,72 @@ abstract final class SkinPresets {
     bannerTransition: SliderTransition.slide,
     bannerHeightFactor: 0.45,
     bannerMaxHeight: 520,
+    bannerHorizontalPadding: 20,
+    bannerShadow: true,
+    bannerHoverScale: 1.0,
+    bannerVignette: false,
     homeCardScale: 2,
+    rowSpacing: 40,
     cardBorderRadius: 6,
     bannerBorderRadius: 16,
     sidebarCollapsible: true,
     itemSpacing: 20,
+    homeLayout: [
+      HomeSection.featuredSlider(),
+      HomeSection.continueWatching(
+        HomeScroll(
+          titleKey: 'continueWatching',
+          genres: [],
+          imageSource: RowImageSource.backdrop,
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      HomeSection.newReleases(),
+      HomeSection.custom(
+        HomeScroll(
+          titleKey: 'actionMovies',
+          genres: ['Action'],
+          bottomVignette: true,
+          bottomVignetteHeight: 70,
+          bottomVignetteOpacity: 0.8,
+          cardType: HomeScrollCardType.backdrop,
+          imageSource: RowImageSource.backdrop,
+        ),
+      ),
+      HomeSection.custom(
+        HomeScroll(
+          titleKey: 'familyMovies',
+          genres: ['Animation', 'Family', 'Kids'],
+          bottomVignette: true,
+          cardType: HomeScrollCardType.backdrop,
+          imageSource: RowImageSource.backdrop,
+        ),
+      ),
+      HomeSection.recent(),
+      HomeSection.nextUp(),
+    ],
+    vodLayout: [
+      VodSection.featuredSlider(),
+      VodSection.continueWatching(
+        HomeScroll(
+          titleKey: 'continueWatching',
+          genres: [],
+          imageSource: RowImageSource.thumb,
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      VodSection.library(),
+      VodSection.custom(
+        HomeScroll(
+          titleKey: 'actionMovies',
+          genres: ['Action'],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          hideTitle: true,
+          hideYear: true,
+        ),
+      ),
+    ],
   );
 
   /// Estilo Amazon Prime (azul oscuro casi negro, acento celeste "Prime").
@@ -100,9 +166,13 @@ abstract final class SkinPresets {
     bannerShowTitle: false,
     bannerAttachedTop: true,
     bannerShowAgeRating: true,
-    bannerContentScale: 1.5,
+    bannerContentScale: 1.2,
     bannerHeightFactor: 0.5,
     bannerMaxHeight: 580,
+    bannerVignette: true,
+    bannerBorderWidth: 1.5,
+    bannerBorderHoverWidth: 2.5,
+    bannerBorderColor: Color(0xFFFFFFFF),
     homeCardWidth: 350,
     homeRowHeight: 340,
     rowSpacing: 50,
@@ -112,10 +182,15 @@ abstract final class SkinPresets {
     topBarFloating: false,
     showCardBadge: true,
     homeScrolls: [
-      HomeScroll(titleKey: 'actionMovies', genres: ['Action']),
+      HomeScroll(
+        titleKey: 'actionMovies',
+        genres: ['Action'],
+        cardType: HomeScrollCardType.backdrop,
+      ),
       HomeScroll(
         titleKey: 'familyMovies',
         genres: ['Animation', 'Family', 'Kids'],
+        cardType: HomeScrollCardType.backdrop,
       ),
     ],
   );

@@ -39,6 +39,7 @@ class FeaturedSlider extends ConsumerStatefulWidget {
     this.showBorder = false,
     this.borderColor = Colors.white,
     this.borderWidth = 1.5,
+    this.hoverBorderWidth = 2.5,
     this.heightFactor = 0.38,
     this.minHeight = 280,
     this.maxHeight = 440,
@@ -59,6 +60,10 @@ class FeaturedSlider extends ConsumerStatefulWidget {
     this.showTrailer = false,
     this.showNewBadge = false,
     this.inlineMeta = false,
+    this.horizontalPadding = 0,
+    this.showShadow = false,
+    this.hoverScale = 1.02,
+    this.showVignette = true,
   });
 
   /// Tamaño por defecto del logo (fracción del ancho del banner).
@@ -81,6 +86,7 @@ class FeaturedSlider extends ConsumerStatefulWidget {
   final bool showBorder;
   final Color borderColor;
   final double borderWidth;
+  final double hoverBorderWidth;
 
   /// Factor de altura relativo al ancho disponible.
   final double heightFactor;
@@ -141,8 +147,21 @@ class FeaturedSlider extends ConsumerStatefulWidget {
   final bool showNewBadge;
 
   /// Meta inferior en línea estilo Disney+: insignia de edad oscura
-  /// + año • géneros, sin nota de estrellas ni descripción.
+  /// + año • géneros, sin nota de estrellas). Se muestra justo bajo el logo.
   final bool inlineMeta;
+
+  /// Padding horizontal (izquierda + derecha) del slider. Deja hueco entre
+  /// el borde de la pantalla y el banner. 0 = a ancho completo.
+  final double horizontalPadding;
+
+  /// Si `true`, muestra sombra elevada alrededor de cada banner.
+  final bool showShadow;
+
+  /// Escala al hacer hover sobre el banner (1.0 = sin escala, 1.02 = efecto previo).
+  final double hoverScale;
+
+  /// Si `true`, muestra viñeta en bordes del banner (Prime). `false` la quita (Disney).
+  final bool showVignette;
 
   @override
   ConsumerState<FeaturedSlider> createState() => _FeaturedSliderState();
@@ -462,9 +481,11 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
   Widget _bannerCard(BaseItemDto item) => _SliderBannerCard(
     item: item,
     serverUrl: widget.serverUrl,
-    showBorder: _borderActive,
+    showBorder: widget.showBorder,
+    isBorderHovered: _borderActive,
     borderColor: widget.borderColor,
     borderWidth: widget.borderWidth,
+    hoverBorderWidth: widget.hoverBorderWidth,
     showNewBadge: widget.showNewBadge,
     inlineMeta: widget.inlineMeta,
     logoWidthFactor: widget.logoWidthFactor,
@@ -476,6 +497,9 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
     showAgeRating: widget.showAgeRating,
     contentScale: widget.contentScale,
     showTrailer: widget.showTrailer,
+    showShadow: widget.showShadow,
+    hoverScale: widget.hoverScale,
+    showVignette: widget.showVignette,
     onTrailerPlaybackChanged: _setTrailerPaused,
     onHoverChanged: _setHoverPaused,
     actionFocusNodes: _actionNodes,
@@ -491,6 +515,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
         transitionBuilder: (child, animation) =>
             FadeTransition(opacity: animation, child: child),
         layoutBuilder: (currentChild, previousChildren) => Stack(
+          clipBehavior: Clip.none,
           fit: StackFit.expand,
           children: [...previousChildren, ?currentChild],
         ),
@@ -501,6 +526,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
       );
     }
     return PageView.builder(
+      clipBehavior: Clip.none,
       controller: _controller,
       itemCount: _banners.length,
       onPageChanged: (index) {
@@ -514,17 +540,20 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
   @override
   Widget build(BuildContext context) {
     if (_banners.isEmpty) return const SizedBox.shrink();
+    final hp = widget.horizontalPadding;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (widget.showTitle) ...[
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: EdgeInsets.symmetric(horizontal: hp > 0 ? hp : 24),
             child: ScrollTitle(title: widget.title),
           ),
           const SizedBox(height: 12),
         ],
-        LayoutBuilder(
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: hp),
+          child: LayoutBuilder(
           builder: (context, constraints) {
             final mode =
                 ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
@@ -738,6 +767,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
                         child: SizedBox(
                           height: height,
                           child: Stack(
+                            clipBehavior: Clip.none,
                             fit: StackFit.expand,
                             children: [
                               _buildBannerLayer(),
@@ -768,6 +798,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
             );
           },
         ),
+        ),
         const SizedBox(height: 24),
       ],
     );
@@ -793,6 +824,11 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     required this.showTrailer,
     required this.showNewBadge,
     required this.inlineMeta,
+    this.showShadow = false,
+    this.hoverScale = 1.02,
+    this.showVignette = true,
+    this.hoverBorderWidth = 2.5,
+    this.isBorderHovered = false,
     this.onTrailerPlaybackChanged,
     this.onHoverChanged,
     this.actionFocusNodes,
@@ -814,6 +850,11 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   final bool showTrailer;
   final bool showNewBadge;
   final bool inlineMeta;
+  final bool showShadow;
+  final double hoverScale;
+  final bool showVignette;
+  final double hoverBorderWidth;
+  final bool isBorderHovered;
 
   /// Notifica al slider si un trailer está reproduciéndose (para pausar el
   /// avance automático mientras tanto).
@@ -1276,62 +1317,65 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             ),
             // Viñeta oscurecida en bordes para que la barra superior (Prime) se lea bien
             // sobre el banner. Radial + lineal superior. Lado derecho reducido 80%.
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: Alignment.center,
-                  radius: 1.35,
-                  colors: [
-                    Colors.transparent,
-                    Color(0x1A000000),
-                    Color(0x66000000),
-                    Color(0xB3000000),
-                  ],
-                  stops: [0.55, 0.75, 0.92, 1.0],
+            // Solo si showVignette (configurable por skin: Prime true, Disney false).
+            if (widget.showVignette) ...[
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    center: Alignment.center,
+                    radius: 1.35,
+                    colors: [
+                      Colors.transparent,
+                      Color(0x1A000000),
+                      Color(0x66000000),
+                      Color(0xB3000000),
+                    ],
+                    stops: [0.55, 0.75, 0.92, 1.0],
+                  ),
                 ),
               ),
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.center,
-                  colors: [
-                    Color(0xE6000000),
-                    Color(0x66000000),
-                    Colors.transparent,
-                  ],
-                  stops: [0.0, 0.28, 0.55],
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.center,
+                    colors: [
+                      Color(0xE6000000),
+                      Color(0x66000000),
+                      Colors.transparent,
+                    ],
+                    stops: [0.0, 0.28, 0.55],
+                  ),
                 ),
               ),
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerLeft,
-                  end: Alignment.center,
-                  colors: [Color(0x66000000), Colors.transparent],
-                  stops: [0.0, 0.35],
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.center,
+                    colors: [Color(0x66000000), Colors.transparent],
+                    stops: [0.0, 0.35],
+                  ),
                 ),
               ),
-            ),
-            const DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.centerRight,
-                  end: Alignment.center,
-                  colors: [Color(0x14000000), Colors.transparent],
-                  stops: [0.0, 0.12],
+              const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.center,
+                    colors: [Color(0x14000000), Colors.transparent],
+                    stops: [0.0, 0.12],
+                  ),
                 ),
               ),
-            ),
+            ],
             // Capa táctil / foco solo en móvil/desktop. En TV el foco debe
             // estar en los botones de acción (WatchNow etc.) para que ←/→
             // navegue entre ellos y ↑ vuelva a Inicio.
             if (!isTv)
               Positioned.fill(
                 child: ScaleButton(
-                  selectedScale: 1.02,
+                  selectedScale: widget.hoverScale,
                   borderRadius: BorderRadius.circular(bannerRadius),
                   onPressed: () {
                     final id = item.id;
@@ -1599,8 +1643,8 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
       ),
     );
 
-    // El borde blanco solo se remarca cuando el slider tiene hover o foco.
-    // Se anima para que la aparición/desaparición sea suave.
+    // Borde siempre visible si bannerBorder=true (con bannerBorderWidth),
+    // y más grueso al hacer hover/focus (hoverBorderWidth). Sin escalado.
     final cardContent = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
@@ -1608,12 +1652,30 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
         borderRadius: BorderRadius.circular(bannerRadius),
         border: Border.all(
           color: widget.showBorder ? widget.borderColor : Colors.transparent,
-          width: widget.showBorder ? widget.borderWidth + 2 : 0,
+          width: widget.showBorder
+              ? (widget.isBorderHovered ? widget.hoverBorderWidth : widget.borderWidth)
+              : 0,
         ),
+        boxShadow: widget.showShadow
+            ? [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+              ]
+            : null,
       ),
       child: card,
     );
 
+    if (widget.showShadow) {
+      // Padding para que la sombra no se recorte por el viewport / Stack.
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(6, 0, 6, 14),
+        child: cardContent,
+      );
+    }
     return cardContent;
   }
 }

@@ -6,6 +6,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/navigation/platform_mode.dart';
+import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/horizontal_scroll_behavior.dart';
@@ -34,6 +35,18 @@ class ContentRow extends ConsumerStatefulWidget {
     this.onItemImageTap,
     this.onSeeMore,
     this.showTitle = true,
+    this.showBottomVignette = false,
+    this.bottomVignetteHeight = 56,
+    this.bottomVignetteOpacity = 0.72,
+    this.showMetaOverlay = false,
+    this.imageSource,
+    this.showNewBadge = false,
+    this.showStackLogo = false,
+    this.logoPosition = RowLogoPosition.top,
+    this.hideTitle = false,
+    this.hideYear = false,
+    this.isNextPoster = false,
+    this.hasNext = false,
   });
 
   final String title;
@@ -71,6 +84,44 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Oculta el titulo cuando la fila ya tiene una cabecera propia.
   final bool showTitle;
+
+  /// Muestra viñeta inferior en cada tarjeta (configurable por HomeScroll).
+  final bool showBottomVignette;
+
+  /// Altura de la viñeta inferior.
+  final double bottomVignetteHeight;
+
+  /// Opacidad máxima del degradado inferior.
+  final double bottomVignetteOpacity;
+
+  /// Si `true`, el meta (título) se muestra en stack abajo sobre la imagen.
+  final bool showMetaOverlay;
+
+  /// Origen de imagen para esta fila (null = default poster/thumb).
+  final RowImageSource? imageSource;
+
+  /// Muestra el banner “Nueva película/serie”.
+  final bool showNewBadge;
+
+  /// Muestra el logo de la película/serie sobre la imagen.
+  final bool showStackLogo;
+
+  /// Posición del logo en el stack (top/center/bottom). Meta siempre abajo.
+  final RowLogoPosition logoPosition;
+
+  /// Si `true` y este row es backdrop, el siguiente es poster → spacing doble (legacy).
+  /// Ahora también backdrop→backdrop duplica (ver hasNext). Mantener por compat.
+  final bool isNextPoster;
+
+  /// Si `true`, hay siguiente fila visible. Si este es backdrop y hay siguiente, duplica rowSpacing.
+  /// Cubre backdrop→poster y backdrop→backdrop (ambos x2), poster→poster x1.
+  final bool hasNext;
+
+  /// Oculta el título bajo la tarjeta.
+  final bool hideTitle;
+
+  /// Oculta el año bajo el título.
+  final bool hideYear;
 
   @override
   ConsumerState<ContentRow> createState() => _ContentRowState();
@@ -314,7 +365,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
       return a.compareTo(b);
     });
     final step = _cardWidth + _spacing;
-    final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
+    final isTv =
+        (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
+        PlatformMode.tv;
     return [
       for (final i in indices)
         Positioned(
@@ -324,7 +377,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
           width: _cardWidth,
           child: _wrapForTv(
             isTv: isTv,
-            onTap: widget.onItemTap == null ? null : () => widget.onItemTap!(items[i]),
+            onTap: widget.onItemTap == null
+                ? null
+                : () => widget.onItemTap!(items[i]),
             child: widget.useBackdrop
                 ? BackdropCard(
                     item: items[i],
@@ -332,8 +387,22 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     cardLogo: widget.cardLogo,
                     hoverExtension: true,
                     useSeriesPoster: widget.useSeriesPoster,
-                    onTap: widget.onItemTap == null ? null : () => widget.onItemTap!(items[i]),
-                    onImageTap: widget.onItemImageTap == null ? null : () => widget.onItemImageTap!(items[i]),
+                    showBottomVignette: widget.showBottomVignette,
+                    bottomVignetteHeight: widget.bottomVignetteHeight,
+                    bottomVignetteOpacity: widget.bottomVignetteOpacity,
+                    showMetaOverlay: widget.showMetaOverlay,
+                    imageSource: widget.imageSource ?? RowImageSource.thumb,
+                    showNewBadge: widget.showNewBadge,
+                    showStackLogo: widget.showStackLogo,
+                    logoPosition: widget.logoPosition,
+                    hideTitle: widget.hideTitle,
+                    hideYear: widget.hideYear,
+                    onTap: widget.onItemTap == null
+                        ? null
+                        : () => widget.onItemTap!(items[i]),
+                    onImageTap: widget.onItemImageTap == null
+                        ? null
+                        : () => widget.onItemImageTap!(items[i]),
                     onHoverChanged: (v) => _onCardHover(i, v),
                     onPointerSignal: _onPagePointerSignal,
                     overlayBelowEntry: _prepareArrowOverlayForHover,
@@ -344,8 +413,22 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     cardLogo: widget.cardLogo,
                     hoverExtension: true,
                     useSeriesPoster: widget.useSeriesPoster,
-                    onTap: widget.onItemTap == null ? null : () => widget.onItemTap!(items[i]),
-                    onImageTap: widget.onItemImageTap == null ? null : () => widget.onItemImageTap!(items[i]),
+                    showBottomVignette: widget.showBottomVignette,
+                    bottomVignetteHeight: widget.bottomVignetteHeight,
+                    bottomVignetteOpacity: widget.bottomVignetteOpacity,
+                    showMetaOverlay: widget.showMetaOverlay,
+                    imageSource: widget.imageSource ?? RowImageSource.primary,
+                    showNewBadge: widget.showNewBadge,
+                    showStackLogo: widget.showStackLogo,
+                    logoPosition: widget.logoPosition,
+                    hideTitle: widget.hideTitle,
+                    hideYear: widget.hideYear,
+                    onTap: widget.onItemTap == null
+                        ? null
+                        : () => widget.onItemTap!(items[i]),
+                    onImageTap: widget.onItemImageTap == null
+                        ? null
+                        : () => widget.onItemImageTap!(items[i]),
                     onHoverChanged: (v) => _onCardHover(i, v),
                     onPointerSignal: _onPagePointerSignal,
                     overlayBelowEntry: _prepareArrowOverlayForHover,
@@ -355,7 +438,11 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     ];
   }
 
-  Widget _wrapForTv({required bool isTv, required VoidCallback? onTap, required Widget child}) {
+  Widget _wrapForTv({
+    required bool isTv,
+    required VoidCallback? onTap,
+    required Widget child,
+  }) {
     if (onTap == null) return child;
     return AppHover(
       effect: AppHoverEffect.scaleHighlightOutline,
@@ -375,8 +462,14 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     if (widget.items.isEmpty) return const SizedBox.shrink();
 
     // Separación vertical entre filas, definida por el skin.
-    final rowSpacing =
+    // Si este es backdrop y hay siguiente fila → doble spacing (backdrop→poster y backdrop→backdrop).
+    // Si es poster→poster o poster→backdrop → simple. Última fila sin siguiente → simple.
+    final baseRowSpacing =
         ref.watch(skinControllerProvider).value?.rowSpacing ?? 24;
+    final hasNextEffective = widget.hasNext || widget.isNextPoster;
+    final rowSpacing = (widget.useBackdrop && hasNextEffective)
+        ? baseRowSpacing * 2
+        : baseRowSpacing;
     _pageScrollPosition = Scrollable.maybeOf(context)?.position;
 
     return Column(
@@ -440,8 +533,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                   ),
                 ),
               ],
+            ),
           ),
-        ),
         ),
         SizedBox(height: rowSpacing),
       ],
