@@ -43,6 +43,8 @@ class HoverPlayCard extends StatefulWidget {
     this.onHoverChanged,
     this.onPointerSignal,
     this.overlayBelowEntry,
+    this.showPlayOverlay = true,
+    this.hoverScale,
     this.resume = false,
     this.ageRating,
     this.year,
@@ -85,6 +87,14 @@ class HoverPlayCard extends StatefulWidget {
   /// Overlay que debe quedar por encima de esta hovercard (por ejemplo, las
   /// flechas activas de la fila). El z-order se fija al insertar la entrada.
   final OverlayEntry? Function()? overlayBelowEntry;
+
+  /// Si es `false` no muestra el oscurecimiento + icono de play al hacer hover
+  /// (solo aplica cuando `showExtension` es `false`).
+  final bool showPlayOverlay;
+
+  /// Escala de expansión al hacer hover cuando `showExtension` es true.
+  /// `null` => usa `kCardExpandScale` (1.3). `1.0` => sin escalado, solo panel.
+  final double? hoverScale;
 
   /// Si el elemento es de "Continuar viendo", el botón del panel muestra
   /// "Reanudar" en lugar de "Ver ahora".
@@ -237,6 +247,7 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
             year: widget.year,
             runTimeTicks: widget.runTimeTicks,
             overview: widget.overview,
+            hoverScale: widget.hoverScale,
             onPointerSignal: widget.onPointerSignal ?? _pagePointerSignal,
             onEnter: () => _hideTimer?.cancel(),
             onExit: _scheduleHide,
@@ -311,7 +322,9 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
               clipBehavior: Clip.none,
               children: [
                 Opacity(opacity: hideOriginal ? 0 : 1, child: widget.child),
-                if (_hovered && !widget.showExtension)
+                if (_hovered &&
+                    !widget.showExtension &&
+                    widget.showPlayOverlay)
                   Positioned.fill(child: IgnorePointer(child: _PlayOverlay())),
               ],
             ),
@@ -347,6 +360,7 @@ class _ExpandedHoverCard extends StatefulWidget {
     this.year,
     this.runTimeTicks,
     this.overview,
+    this.hoverScale,
   });
 
   final Offset origin;
@@ -367,6 +381,7 @@ class _ExpandedHoverCard extends StatefulWidget {
   final int? year;
   final int? runTimeTicks;
   final String? overview;
+  final double? hoverScale;
 
   @override
   State<_ExpandedHoverCard> createState() => _ExpandedHoverCardState();
@@ -388,7 +403,8 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
 
   @override
   Widget build(BuildContext context) {
-    final scale = _expanded ? kCardExpandScale : 1.0;
+    final effectiveScale = widget.hoverScale ?? kCardExpandScale;
+    final scale = _expanded ? effectiveScale : 1.0;
     final width = widget.originWidth * scale;
     // La imagen mantiene su aspect ratio (viene fijado dentro de widget.image
     // vía AspectRatio), así que su alto crece EXACTAMENTE con el mismo

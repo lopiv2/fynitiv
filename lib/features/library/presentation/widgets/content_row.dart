@@ -39,12 +39,17 @@ class ContentRow extends ConsumerStatefulWidget {
     this.bottomVignetteHeight = 56,
     this.bottomVignetteOpacity = 0.72,
     this.showMetaOverlay = false,
+    this.metaAlignment = RowMetaAlign.left,
     this.imageSource,
     this.showNewBadge = false,
     this.showStackLogo = false,
     this.logoPosition = RowLogoPosition.top,
+    this.logoSize,
     this.hideTitle = false,
     this.hideYear = false,
+    this.showHoverOverlay = true,
+    this.cardBorderRadius,
+    this.hoverScale,
     this.isNextPoster = false,
     this.hasNext = false,
   });
@@ -97,6 +102,9 @@ class ContentRow extends ConsumerStatefulWidget {
   /// Si `true`, el meta (título) se muestra en stack abajo sobre la imagen.
   final bool showMetaOverlay;
 
+  /// Alineación horizontal del meta overlay (izquierda/centro/derecha).
+  final RowMetaAlign metaAlignment;
+
   /// Origen de imagen para esta fila (null = default poster/thumb).
   final RowImageSource? imageSource;
 
@@ -108,6 +116,9 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Posición del logo en el stack (top/center/bottom). Meta siempre abajo.
   final RowLogoPosition logoPosition;
+
+  /// Altura en px del logo overlay. `null` = default de la tarjeta.
+  final double? logoSize;
 
   /// Si `true` y este row es backdrop, el siguiente es poster → spacing doble (legacy).
   /// Ahora también backdrop→backdrop duplica (ver hasNext). Mantener por compat.
@@ -122,6 +133,17 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Oculta el año bajo el título.
   final bool hideYear;
+
+  /// Si es `false` no muestra el overlay de play/oscurecimiento al hacer hover.
+  final bool showHoverOverlay;
+
+  /// Radio de borde de las tarjetas de esta fila (poster y backdrop).
+  /// Si es `null` se usa el global del skin.
+  final double? cardBorderRadius;
+
+  /// Escala del hover/expansión de las tarjetas de esta fila.
+  /// `null` => default (1.3 para HoverPlayCard, 1.04 para TV).
+  final double? hoverScale;
 
   @override
   ConsumerState<ContentRow> createState() => _ContentRowState();
@@ -391,12 +413,17 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     bottomVignetteHeight: widget.bottomVignetteHeight,
                     bottomVignetteOpacity: widget.bottomVignetteOpacity,
                     showMetaOverlay: widget.showMetaOverlay,
+                    metaAlignment: widget.metaAlignment,
                     imageSource: widget.imageSource ?? RowImageSource.thumb,
                     showNewBadge: widget.showNewBadge,
                     showStackLogo: widget.showStackLogo,
                     logoPosition: widget.logoPosition,
+                    logoSize: widget.logoSize,
                     hideTitle: widget.hideTitle,
                     hideYear: widget.hideYear,
+                    showHoverOverlay: widget.showHoverOverlay,
+                    cardBorderRadius: widget.cardBorderRadius,
+                    hoverScale: widget.hoverScale,
                     onTap: widget.onItemTap == null
                         ? null
                         : () => widget.onItemTap!(items[i]),
@@ -417,12 +444,17 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     bottomVignetteHeight: widget.bottomVignetteHeight,
                     bottomVignetteOpacity: widget.bottomVignetteOpacity,
                     showMetaOverlay: widget.showMetaOverlay,
+                    metaAlignment: widget.metaAlignment,
                     imageSource: widget.imageSource ?? RowImageSource.primary,
                     showNewBadge: widget.showNewBadge,
                     showStackLogo: widget.showStackLogo,
                     logoPosition: widget.logoPosition,
+                    logoSize: widget.logoSize,
                     hideTitle: widget.hideTitle,
                     hideYear: widget.hideYear,
+                    showHoverOverlay: widget.showHoverOverlay,
+                    cardBorderRadius: widget.cardBorderRadius,
+                    hoverScale: widget.hoverScale,
                     onTap: widget.onItemTap == null
                         ? null
                         : () => widget.onItemTap!(items[i]),
@@ -447,7 +479,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     return AppHover(
       effect: AppHoverEffect.scaleHighlightOutline,
       config: AppHoverConfig.scaleHighlightOutline(
-        scale: 1.04,
+        scale: widget.hoverScale ?? 1.04,
         radius: BorderRadius.circular(12),
         outlineHoveredColor: Colors.white,
         outlineHoveredWidth: 2,

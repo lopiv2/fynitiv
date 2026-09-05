@@ -27,6 +27,11 @@ enum AudioWaveformEffect { equalizer, wave, mirror, bars, surfer }
 /// Tipo de transición entre banners del slider de novedades.
 enum SliderTransition { slide, fade }
 
+/// Lados donde se dibuja la viñeta del featured slider.
+/// - left/right/top/bottom: solo ese borde, con grosor [Skin.bannerVignetteSize].
+/// - around: composición completa (radial + degradados, aspecto previo).
+enum SliderVignetteMode { left, right, top, bottom, around }
+
 /// Skin: define colores, logos, layout y tipografía de la app.
 class Skin {
   const Skin({
@@ -86,6 +91,9 @@ class Skin {
     this.bannerShadow = false,
     this.bannerHoverScale = 1.02,
     this.bannerVignette = true,
+    this.bannerVignetteMode = SliderVignetteMode.around,
+    this.bannerVignetteOpacity = 1.0,
+    this.bannerVignetteSize = 160,
     this.homeCardWidth = 150,
     this.homeRowHeight = 270,
     this.homeCardScale = 1.0,
@@ -271,6 +279,16 @@ class Skin {
   /// (radial + degradados superior/laterales). Configurable por skin.
   final bool bannerVignette;
 
+  /// Lados donde se dibuja la viñeta (solo si [bannerVignette] es `true`).
+  final SliderVignetteMode bannerVignetteMode;
+
+  /// Opacidad global de la viñeta (0..1, multiplica las alfas base).
+  final double bannerVignetteOpacity;
+
+  /// Grosor en px de la viñeta en los modos por lado (left/right/top/bottom).
+  /// El modo `around` usa su composición fija de degradados.
+  final double bannerVignetteSize;
+
   /// Ancho de las tarjetas de las filas del home.
   final double homeCardWidth;
 
@@ -394,6 +412,9 @@ class Skin {
     bool? bannerShadow,
     double? bannerHoverScale,
     bool? bannerVignette,
+    SliderVignetteMode? bannerVignetteMode,
+    double? bannerVignetteOpacity,
+    double? bannerVignetteSize,
     double? homeCardWidth,
     double? homeRowHeight,
     double? homeCardScale,
@@ -477,6 +498,10 @@ class Skin {
       bannerShadow: bannerShadow ?? this.bannerShadow,
       bannerHoverScale: bannerHoverScale ?? this.bannerHoverScale,
       bannerVignette: bannerVignette ?? this.bannerVignette,
+      bannerVignetteMode: bannerVignetteMode ?? this.bannerVignetteMode,
+      bannerVignetteOpacity:
+          bannerVignetteOpacity ?? this.bannerVignetteOpacity,
+      bannerVignetteSize: bannerVignetteSize ?? this.bannerVignetteSize,
       homeCardWidth: homeCardWidth ?? this.homeCardWidth,
       homeRowHeight: homeRowHeight ?? this.homeRowHeight,
       homeCardScale: homeCardScale ?? this.homeCardScale,
@@ -585,6 +610,11 @@ class Skin {
       bannerHoverScale:
           (json['bannerHoverScale'] as num?)?.toDouble() ?? 1.02,
       bannerVignette: json['bannerVignette'] as bool? ?? true,
+      bannerVignetteMode: _vignetteModeFromString(json['bannerVignetteMode']),
+      bannerVignetteOpacity:
+          (json['bannerVignetteOpacity'] as num?)?.toDouble() ?? 1.0,
+      bannerVignetteSize:
+          (json['bannerVignetteSize'] as num?)?.toDouble() ?? 160,
       homeCardWidth: (json['homeCardWidth'] as num?)?.toDouble() ?? 150,
       homeRowHeight: (json['homeRowHeight'] as num?)?.toDouble() ?? 270,
       homeCardScale: (json['homeCardScale'] as num?)?.toDouble() ?? 1.0,
@@ -674,6 +704,9 @@ class Skin {
     'bannerShadow': bannerShadow,
     'bannerHoverScale': bannerHoverScale,
     'bannerVignette': bannerVignette,
+    'bannerVignetteMode': bannerVignetteMode.name,
+    'bannerVignetteOpacity': bannerVignetteOpacity,
+    'bannerVignetteSize': bannerVignetteSize,
     'homeCardWidth': homeCardWidth,
     'homeRowHeight': homeRowHeight,
     'homeCardScale': homeCardScale,
@@ -713,6 +746,11 @@ class Skin {
 
   static SliderTransition _transitionFromString(String? s) {
     return SliderTransition.values.asNameMap()[s] ?? SliderTransition.slide;
+  }
+
+  static SliderVignetteMode _vignetteModeFromString(String? s) {
+    return SliderVignetteMode.values.asNameMap()[s] ??
+        SliderVignetteMode.around;
   }
 
   static LogoOverlayPosition _logoOverlayPositionFromString(String? s) {

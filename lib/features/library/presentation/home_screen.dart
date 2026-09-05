@@ -109,6 +109,15 @@ class HomeScreen extends ConsumerWidget {
       return res;
     }
 
+    // Tap según el scroll: detalle o reproducción directa (default).
+    void Function(BaseItemDto) tapFor(HomeScroll? cfg) {
+      if (cfg?.tapAction == HomeScrollTapAction.details) {
+        return (item) =>
+            context.push('/home/details/${item.id}', extra: item);
+      }
+      return (item) => context.push('/player/${item.id}', extra: item);
+    }
+
     Widget buildContinueRow([HomeScroll? cfg]) {
       final isBack = isBackdropForContinue(cfg);
       final isNextPoster = isNextPosterFor(isBack);
@@ -128,11 +137,16 @@ class HomeScreen extends ConsumerWidget {
         showNewBadge: cfg?.showNewBadge ?? false,
         showStackLogo: cfg?.showLogo ?? false,
         logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
         isNextPoster: isNextPoster,
         hasNext: hasNext,
-        onItemTap: (item) => context.push('/player/${item.id}', extra: item),
+        onItemTap: tapFor(cfg),
         onItemImageTap: (item) =>
             context.push('/home/details/${item.id}', extra: item),
       );
@@ -140,8 +154,12 @@ class HomeScreen extends ConsumerWidget {
       return w;
     }
 
-    Widget buildUpNextRow() {
-      final isBack = useBackdrop;
+    Widget buildUpNextRow([HomeScroll? cfg]) {
+      final isBack = cfg?.cardType == HomeScrollCardType.backdrop
+          ? true
+          : cfg?.cardType == HomeScrollCardType.poster
+              ? false
+              : isBackdropForContinue(cfg);
       final isNextPoster = isNextPosterFor(isBack);
       final hasNext = rowCursor < visibleBackdrops.length - 1;
       final w = ContentRow(
@@ -153,9 +171,24 @@ class HomeScreen extends ConsumerWidget {
         itemSpacing: skin?.itemSpacing,
         useBackdrop: isBack,
         cardLogo: skin?.cardLogo,
+        showBottomVignette: cfg?.bottomVignette ?? false,
+        bottomVignetteHeight: cfg?.bottomVignetteHeight ?? 56,
+        bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
+        showMetaOverlay: cfg?.metaOverlay ?? false,
+        imageSource: cfg?.imageSource,
+        showNewBadge: cfg?.showNewBadge ?? false,
+        showStackLogo: cfg?.showLogo ?? false,
+        logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: cfg?.hideYear ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
         isNextPoster: isNextPoster,
         hasNext: hasNext,
-        onItemTap: (item) => context.push('/player/${item.id}', extra: item),
+        onItemTap: tapFor(cfg),
         onItemImageTap: (item) =>
             context.push('/home/details/${item.id}', extra: item),
       );
@@ -199,6 +232,9 @@ class HomeScreen extends ConsumerWidget {
       showShadow: skin?.bannerShadow ?? false,
       hoverScale: skin?.bannerHoverScale ?? 1.02,
       showVignette: skin?.bannerVignette ?? true,
+      vignetteMode: skin?.bannerVignetteMode ?? SliderVignetteMode.around,
+      vignetteOpacity: skin?.bannerVignetteOpacity ?? 1.0,
+      vignetteSize: skin?.bannerVignetteSize ?? 160,
     );
 
     // --- Construcción ordenable ---
@@ -236,6 +272,15 @@ class HomeScreen extends ConsumerWidget {
                 final isBack = useBackdrop;
                 final isNextPoster = isNextPosterFor(isBack);
                 final hasNext = rowCursor < visibleBackdrops.length - 1;
+                // Filas de Series: póster de la serie y tap al detalle de la
+                // serie (los capítulos se ven en Continuar viendo).
+                final isSeriesView =
+                    view.collectionType == CollectionType.tvshows;
+                void goSeriesDetail(BaseItemDto item) {
+                  final target = seriesDetailTarget(item);
+                  context.push('/home/details/${target.id}', extra: target);
+                }
+
                 final w = ContentRow(
                   title: l10n.recentIn(view.name ?? ''),
                   items: items,
@@ -245,14 +290,21 @@ class HomeScreen extends ConsumerWidget {
                   itemSpacing: skin?.itemSpacing,
                   useBackdrop: isBack,
                   cardLogo: skin?.cardLogo,
+                  useSeriesPoster: isSeriesView,
                   isNextPoster: isNextPoster,
                   hasNext: hasNext,
                   onSeeMore: () =>
                       context.push('/library/${view.id}', extra: view.name),
-                  onItemTap: (item) =>
-                      context.push('/player/${item.id}', extra: item),
-                  onItemImageTap: (item) =>
-                      context.push('/home/details/${item.id}', extra: item),
+                  onItemTap: isSeriesView
+                      ? goSeriesDetail
+                      : (item) =>
+                            context.push('/player/${item.id}', extra: item),
+                  onItemImageTap: isSeriesView
+                      ? goSeriesDetail
+                      : (item) => context.push(
+                          '/home/details/${item.id}',
+                          extra: item,
+                        ),
                 );
                 rowCursor++;
                 return w;
@@ -280,45 +332,56 @@ class HomeScreen extends ConsumerWidget {
                 useBackdrop: isBack,
                 cardLogo: skin?.cardLogo,
                 showBottomVignette: scroll.bottomVignette,
+                showMetaOverlay: scroll.metaOverlay,
                 imageSource: scroll.imageSource,
+                showNewBadge: scroll.showNewBadge,
+                showStackLogo: scroll.showLogo,
+                logoPosition: scroll.logoPosition,
+                metaAlignment: scroll.metaAlignment,
+                logoSize: scroll.logoSize,
                 hideTitle: scroll.hideTitle,
                 hideYear: scroll.hideYear,
+                showHoverOverlay: scroll.showHoverOverlay,
+                cardBorderRadius: scroll.cardBorderRadius,
+                hoverScale: scroll.hoverScale,
                 bottomVignetteHeight: scroll.bottomVignetteHeight,
                 bottomVignetteOpacity: scroll.bottomVignetteOpacity,
                 isNextPoster: isNextPoster,
                 hasNext: rowCursor < visibleBackdrops.length - 1,
-                onSeeMore: () {
-                  final allViews = views.value ?? const <BaseItemDto>[];
-                  String targetViewId = '';
-                  for (final kind in scroll.types) {
-                    final mapped = _collectionTypeForKind(kind);
-                    final match = allViews
-                        .where((v) => v.collectionType == mapped)
-                        .firstOrNull;
-                    if (match?.id != null) {
-                      targetViewId = match!.id!;
-                      break;
-                    }
-                  }
-                  targetViewId = targetViewId.isEmpty
-                      ? (allViews
-                                .where(
-                                  (v) =>
-                                      v.collectionType == CollectionType.movies,
-                                )
-                                .firstOrNull
-                                ?.id ??
-                            allViews.firstOrNull?.id ??
-                            '')
-                      : targetViewId;
-                  if (targetViewId.isEmpty) {
-                    context.push('/movies');
-                    return;
-                  }
-                  context.push('/library/$targetViewId', extra: scroll);
-                },
-                onItemTap: (item) =>
-                    context.push('/player/${item.id}', extra: item),
+                onSeeMore: scroll.showSeeMore
+                    ? () {
+                        final allViews = views.value ?? const <BaseItemDto>[];
+                        String targetViewId = '';
+                        for (final kind in scroll.types) {
+                          final mapped = _collectionTypeForKind(kind);
+                          final match = allViews
+                              .where((v) => v.collectionType == mapped)
+                              .firstOrNull;
+                          if (match?.id != null) {
+                            targetViewId = match!.id!;
+                            break;
+                          }
+                        }
+                        targetViewId = targetViewId.isEmpty
+                            ? (allViews
+                                      .where(
+                                        (v) =>
+                                            v.collectionType ==
+                                            CollectionType.movies,
+                                      )
+                                      .firstOrNull
+                                      ?.id ??
+                                  allViews.firstOrNull?.id ??
+                                  '')
+                            : targetViewId;
+                        if (targetViewId.isEmpty) {
+                          context.push('/movies');
+                          return;
+                        }
+                        context.push('/library/$targetViewId', extra: scroll);
+                      }
+                    : null,
+                onItemTap: tapFor(scroll),
                 onItemImageTap: (item) =>
                     context.push('/home/details/${item.id}', extra: item),
               );
@@ -333,6 +396,9 @@ class HomeScreen extends ConsumerWidget {
     List<Widget> buildCustomChildren() {
       // Recalcular visibleBackdrops según el orden custom para rowSpacing
       final List<bool> customBackdrops = [];
+      // Vistas ya emitidas por una entrada recent anterior (si dos entradas
+      // solapan colecciones, gana la primera para no duplicar filas).
+      final consumedViews = <String>{};
       for (final section in skin!.homeLayout) {
         switch (section.type) {
           case HomeSectionType.continueWatching:
@@ -344,6 +410,7 @@ class HomeScreen extends ConsumerWidget {
             customBackdrops.add(useBackdrop);
             break;
           case HomeSectionType.recent:
+            final recentSort = section.scroll?.sort;
             for (final view in views.value ?? const <BaseItemDto>[]) {
               if (![
                 CollectionType.music,
@@ -353,9 +420,14 @@ class HomeScreen extends ConsumerWidget {
               ].any((t) => view.collectionType == t)) {
                 continue;
               }
-              final items =
-                  ref.watch(recentLibraryItemsProvider(view.id ?? '')).value ??
-                  const [];
+              if (!section.matchesView(view.collectionType)) continue;
+              final viewId = view.id ?? '';
+              if (viewId.isEmpty || !consumedViews.add(viewId)) continue;
+              final items = recentSort == null
+                  ? ref.watch(recentLibraryItemsProvider(viewId)).value ??
+                        const []
+                  : ref.watch(recentRowItemsProvider((viewId, recentSort))).value ??
+                        const [];
               if (items.isEmpty) continue;
               customBackdrops.add(useBackdrop);
             }
@@ -386,6 +458,7 @@ class HomeScreen extends ConsumerWidget {
         ..addAll(customBackdrops);
       rowCursor = 0;
       final List<Widget> out = [];
+      final builtViews = <String>{};
       for (final section in skin.homeLayout) {
         switch (section.type) {
           case HomeSectionType.featuredSlider:
@@ -399,9 +472,16 @@ class HomeScreen extends ConsumerWidget {
             break;
           case HomeSectionType.nextUp:
             if (nextUpFiltered.isEmpty) break;
-            out.add(buildUpNextRow());
+            out.add(buildUpNextRow(section.scroll));
             break;
           case HomeSectionType.recent:
+            final recentScroll = section.scroll;
+            final useRecentBackdrop = recentScroll?.cardType ==
+                    HomeScrollCardType.backdrop
+                ? true
+                : recentScroll?.cardType == HomeScrollCardType.poster
+                    ? false
+                    : useBackdrop;
             for (final type in const [
               CollectionType.music,
               CollectionType.movies,
@@ -411,17 +491,37 @@ class HomeScreen extends ConsumerWidget {
               for (final view in (views.value ?? const <BaseItemDto>[]).where(
                 (v) => v.collectionType == type,
               )) {
+                if (!section.matchesView(view.collectionType)) continue;
+                final viewId = view.id ?? '';
+                if (viewId.isEmpty || !builtViews.add(viewId)) continue;
                 out.add(
                   Builder(
                     builder: (context) {
-                      final items =
-                          ref
-                              .watch(recentLibraryItemsProvider(view.id ?? ''))
-                              .value ??
-                          const [];
+                      final recentSort = section.scroll?.sort;
+                      final items = recentSort == null
+                          ? ref.watch(recentLibraryItemsProvider(viewId)).value ??
+                                const []
+                          : ref
+                                    .watch(
+                                      recentRowItemsProvider(
+                                        (viewId, recentSort),
+                                      ),
+                                    )
+                                    .value ??
+                                const [];
                       if (items.isEmpty) return const SizedBox.shrink();
-                      final isBack = useBackdrop;
+                      final isBack = useRecentBackdrop;
                       final isNextPoster = isNextPosterFor(isBack);
+                      final isSeriesView =
+                          view.collectionType == CollectionType.tvshows;
+                      void goSeriesDetail(BaseItemDto item) {
+                        final target = seriesDetailTarget(item);
+                        context.push(
+                          '/home/details/${target.id}',
+                          extra: target,
+                        );
+                      }
+
                       final w = ContentRow(
                         title: l10n.recentIn(view.name ?? ''),
                         items: items,
@@ -431,18 +531,45 @@ class HomeScreen extends ConsumerWidget {
                         itemSpacing: skin.itemSpacing,
                         useBackdrop: isBack,
                         cardLogo: skin.cardLogo,
+                        useSeriesPoster: isSeriesView,
+                        showBottomVignette:
+                            recentScroll?.bottomVignette ?? false,
+                        bottomVignetteHeight:
+                            recentScroll?.bottomVignetteHeight ?? 56,
+                        bottomVignetteOpacity:
+                            recentScroll?.bottomVignetteOpacity ?? 0.72,
+                        showMetaOverlay: recentScroll?.metaOverlay ?? false,
+                        imageSource: recentScroll?.imageSource,
+                        showNewBadge: recentScroll?.showNewBadge ?? false,
+                        showStackLogo: recentScroll?.showLogo ?? false,
+                        logoPosition:
+                            recentScroll?.logoPosition ?? RowLogoPosition.top,
+                        metaAlignment:
+                            recentScroll?.metaAlignment ?? RowMetaAlign.left,
+                        logoSize: recentScroll?.logoSize,
+                        hideTitle: recentScroll?.hideTitle ?? false,
+                        hideYear: recentScroll?.hideYear ?? false,
+                        showHoverOverlay:
+                            recentScroll?.showHoverOverlay ?? true,
+                        cardBorderRadius: recentScroll?.cardBorderRadius,
+                        hoverScale: recentScroll?.hoverScale,
                         isNextPoster: isNextPoster,
                         hasNext: rowCursor < visibleBackdrops.length - 1,
-                        onSeeMore: () => context.push(
-                          '/library/${view.id}',
-                          extra: view.name,
-                        ),
-                        onItemTap: (item) =>
-                            context.push('/player/${item.id}', extra: item),
-                        onItemImageTap: (item) => context.push(
-                          '/home/details/${item.id}',
-                          extra: item,
-                        ),
+                        onSeeMore: (recentScroll?.showSeeMore ?? true)
+                            ? () => context.push(
+                                  '/library/${view.id}',
+                                  extra: view.name,
+                                )
+                            : null,
+                        onItemTap: isSeriesView
+                            ? goSeriesDetail
+                            : tapFor(section.scroll),
+                        onItemImageTap: isSeriesView
+                            ? goSeriesDetail
+                            : (item) => context.push(
+                                '/home/details/${item.id}',
+                                extra: item,
+                              ),
                       );
                       rowCursor++;
                       return w;
@@ -454,12 +581,19 @@ class HomeScreen extends ConsumerWidget {
             break;
           case HomeSectionType.newReleases:
             if ((latest.value ?? []).isEmpty) break;
+            final newReleasesScroll = section.scroll;
+            final useNewReleasesBackdrop =
+                newReleasesScroll?.cardType == HomeScrollCardType.backdrop
+                    ? true
+                    : newReleasesScroll?.cardType == HomeScrollCardType.poster
+                        ? false
+                        : isBackdropForContinue(newReleasesScroll);
             out.add(
               Builder(
                 builder: (context) {
                   final items = latest.value ?? const [];
                   if (items.isEmpty) return const SizedBox.shrink();
-                  final isBack = useBackdrop;
+                  final isBack = useNewReleasesBackdrop;
                   final isNextPoster = isNextPosterFor(isBack);
                   final w = ContentRow(
                     title: l10n.newReleases,
@@ -470,10 +604,30 @@ class HomeScreen extends ConsumerWidget {
                     itemSpacing: skin.itemSpacing,
                     useBackdrop: isBack,
                     cardLogo: skin.cardLogo,
+                    showBottomVignette:
+                        newReleasesScroll?.bottomVignette ?? false,
+                    bottomVignetteHeight:
+                        newReleasesScroll?.bottomVignetteHeight ?? 56,
+                    bottomVignetteOpacity:
+                        newReleasesScroll?.bottomVignetteOpacity ?? 0.72,
+                    showMetaOverlay: newReleasesScroll?.metaOverlay ?? false,
+                    imageSource: newReleasesScroll?.imageSource,
+                    showNewBadge: newReleasesScroll?.showNewBadge ?? false,
+                    showStackLogo: newReleasesScroll?.showLogo ?? false,
+                    logoPosition:
+                        newReleasesScroll?.logoPosition ?? RowLogoPosition.top,
+                    metaAlignment:
+                        newReleasesScroll?.metaAlignment ?? RowMetaAlign.left,
+                    logoSize: newReleasesScroll?.logoSize,
+                    hideTitle: newReleasesScroll?.hideTitle ?? false,
+                    hideYear: newReleasesScroll?.hideYear ?? false,
+                    showHoverOverlay:
+                        newReleasesScroll?.showHoverOverlay ?? true,
+                    cardBorderRadius: newReleasesScroll?.cardBorderRadius,
+                    hoverScale: newReleasesScroll?.hoverScale,
                     isNextPoster: isNextPoster,
                     hasNext: rowCursor < visibleBackdrops.length - 1,
-                    onItemTap: (item) =>
-                        context.push('/player/${item.id}', extra: item),
+                    onItemTap: tapFor(newReleasesScroll),
                     onItemImageTap: (item) =>
                         context.push('/home/details/${item.id}', extra: item),
                   );
@@ -509,44 +663,54 @@ class HomeScreen extends ConsumerWidget {
                     showBottomVignette: s.bottomVignette,
                     bottomVignetteHeight: s.bottomVignetteHeight,
                     bottomVignetteOpacity: s.bottomVignetteOpacity,
+                    showMetaOverlay: s.metaOverlay,
                     imageSource: s.imageSource,
+                    showNewBadge: s.showNewBadge,
+                    showStackLogo: s.showLogo,
+                    logoPosition: s.logoPosition,
+                    metaAlignment: s.metaAlignment,
+                    logoSize: s.logoSize,
                     hideTitle: s.hideTitle,
                     hideYear: s.hideYear,
+                    showHoverOverlay: s.showHoverOverlay,
+                    cardBorderRadius: s.cardBorderRadius,
+                    hoverScale: s.hoverScale,
                     isNextPoster: isNextPoster,
                     hasNext: rowCursor < visibleBackdrops.length - 1,
-                    onSeeMore: () {
-                      final allViews = views.value ?? const <BaseItemDto>[];
-                      String targetViewId = '';
-                      for (final kind in s.types) {
-                        final mapped = _collectionTypeForKind(kind);
-                        final match = allViews
-                            .where((v) => v.collectionType == mapped)
-                            .firstOrNull;
-                        if (match?.id != null) {
-                          targetViewId = match!.id!;
-                          break;
-                        }
-                      }
-                      targetViewId = targetViewId.isEmpty
-                          ? (allViews
-                                    .where(
-                                      (v) =>
-                                          v.collectionType ==
-                                          CollectionType.movies,
-                                    )
-                                    .firstOrNull
-                                    ?.id ??
-                                allViews.firstOrNull?.id ??
-                                '')
-                          : targetViewId;
-                      if (targetViewId.isEmpty) {
-                        context.push('/movies');
-                        return;
-                      }
-                      context.push('/library/$targetViewId', extra: s);
-                    },
-                    onItemTap: (item) =>
-                        context.push('/player/${item.id}', extra: item),
+                    onSeeMore: s.showSeeMore
+                        ? () {
+                            final allViews = views.value ?? const <BaseItemDto>[];
+                            String targetViewId = '';
+                            for (final kind in s.types) {
+                              final mapped = _collectionTypeForKind(kind);
+                              final match = allViews
+                                  .where((v) => v.collectionType == mapped)
+                                  .firstOrNull;
+                              if (match?.id != null) {
+                                targetViewId = match!.id!;
+                                break;
+                              }
+                            }
+                            targetViewId = targetViewId.isEmpty
+                                ? (allViews
+                                          .where(
+                                            (v) =>
+                                                v.collectionType ==
+                                                CollectionType.movies,
+                                          )
+                                          .firstOrNull
+                                          ?.id ??
+                                      allViews.firstOrNull?.id ??
+                                      '')
+                                : targetViewId;
+                            if (targetViewId.isEmpty) {
+                              context.push('/movies');
+                              return;
+                            }
+                            context.push('/library/$targetViewId', extra: s);
+                          }
+                        : null,
+                    onItemTap: tapFor(s),
                     onItemImageTap: (item) =>
                         context.push('/home/details/${item.id}', extra: item),
                   );
@@ -582,18 +746,9 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// Resuelve el título de una fila de contenido a partir de su clave de
-  /// localización. Si la clave no es conocida, se muestra tal cual.
-  static String _scrollTitle(AppLocalizations l10n, String key) {
-    switch (key) {
-      case 'actionMovies':
-        return l10n.actionMovies;
-      case 'familyMovies':
-        return l10n.familyMovies;
-      default:
-        return key;
-    }
-  }
+  /// Resuelve el título de una fila de contenido ([HomeScrollTitle]).
+  static String _scrollTitle(AppLocalizations l10n, HomeScrollTitle key) =>
+      HomeScrollTitle.resolve(l10n, key);
 
   static CollectionType? _collectionTypeForKind(BaseItemKind kind) {
     switch (kind) {

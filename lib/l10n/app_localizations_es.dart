@@ -567,6 +567,54 @@ class AppLocalizationsEs extends AppLocalizations {
   String get familyMovies => 'Cine infantil y para toda la familia';
 
   @override
+  String get romanticMovies => 'Películas románticas';
+
+  @override
+  String get animationMovies => 'Películas de animación';
+
+  @override
+  String get realities => 'Realities';
+
+  @override
+  String get animeSeries => 'Series de anime';
+
+  @override
+  String get nostalgia => 'Nostalgia';
+
+  @override
+  String get dramas => 'Dramas';
+
+  @override
+  String get comedies => 'Comedias';
+
+  @override
+  String get actionAdventure => 'Acción y aventuras';
+
+  @override
+  String get musicals => 'Musicales';
+
+  @override
+  String get foodCooking => 'Comida y cocina';
+
+  @override
+  String get travel => 'Viajes';
+
+  @override
+  String get sciFi => 'Ciencia ficción';
+
+  @override
+  String get western => 'Los más duros del Oeste';
+
+  @override
+  String get crime => 'Crímenes y Suspense';
+
+  @override
+  String get horror => 'El terror más diabólico';
+
+  @override
+  String get superHero => 'Los héroes más poderosos';
+
+  @override
   String get seeMore => 'Ver más >';
 
   @override
@@ -620,6 +668,29 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get gamesPlay => 'Jugar';
+
+  @override
+  String get episodes => 'Episodios';
+
+  @override
+  String get extras => 'Extras';
+
+  @override
+  String get suggestions => 'Sugerencias';
+
+  @override
+  String get season => 'Temporada';
+
+  @override
+  String seriesSeasons(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count temporadas',
+      one: '1 temporada',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get gamesDownload => 'Descargar';

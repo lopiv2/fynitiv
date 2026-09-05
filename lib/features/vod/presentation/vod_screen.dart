@@ -25,6 +25,7 @@ class VodScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
     final resume = ref.watch(vodResumeProvider);
+    final nextUp = ref.watch(vodNextUpProvider);
     final latest = ref.watch(vodLatestProvider);
     final latestBanner = ref.watch(vodLatestBannerProvider);
     final views = ref.watch(vodLibraryViewsProvider);
@@ -44,6 +45,7 @@ class VodScreen extends ConsumerWidget {
     final initialLoading =
         (views.isLoading && views.value == null) ||
         (resume.isLoading && resume.value == null) ||
+        (nextUp.isLoading && nextUp.value == null) ||
         (latest.isLoading && latest.value == null) ||
         (latestBanner.isLoading && latestBanner.value == null);
 
@@ -57,6 +59,9 @@ class VodScreen extends ConsumerWidget {
 
     if ((skin?.showContinueRow ?? true) && (resume.value ?? []).isNotEmpty) {
       visibleBackdrops.add(isBackForContinue());
+    }
+    if ((nextUp.value ?? []).isNotEmpty) {
+      visibleBackdrops.add(useBackdrop);
     }
     if (!showBanner &&
         (skin?.showNewReleasesRow ?? true) &&
@@ -89,6 +94,15 @@ class VodScreen extends ConsumerWidget {
           !visibleBackdrops[nextIdx];
     }
 
+    // Tap según el scroll: detalle o reproducción directa (default).
+    void Function(BaseItemDto) tapFor(HomeScroll? cfg) {
+      if (cfg?.tapAction == HomeScrollTapAction.details) {
+        return (item) =>
+            context.push('/home/details/${item.id}', extra: item);
+      }
+      return (item) => context.push('/player/${item.id}', extra: item);
+    }
+
     Widget buildContinueRow2([HomeScroll? cfg]) {
       final isBack = isBackForContinue(cfg);
       final isNextPoster = isNextPosterFor(isBack);
@@ -108,11 +122,16 @@ class VodScreen extends ConsumerWidget {
         showNewBadge: cfg?.showNewBadge ?? false,
         showStackLogo: cfg?.showLogo ?? false,
         logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
         isNextPoster: isNextPoster,
         hasNext: hasNext,
-        onItemTap: (item) => context.push('/player/${item.id}', extra: item),
+        onItemTap: tapFor(cfg),
         onItemImageTap: (item) =>
             context.push('/home/details/${item.id}', extra: item),
       );
@@ -120,8 +139,54 @@ class VodScreen extends ConsumerWidget {
       return w;
     }
 
-    Widget buildNewReleasesRow() {
-      final isBack = useBackdrop;
+    Widget buildUpNextRow2([HomeScroll? cfg]) {
+      final isBack = cfg?.cardType == HomeScrollCardType.backdrop
+          ? true
+          : cfg?.cardType == HomeScrollCardType.poster
+              ? false
+              : isBackForContinue(cfg);
+      final isNextPoster = isNextPosterFor(isBack);
+      final hasNext = rowCursor < visibleBackdrops.length - 1;
+      final w = ContentRow(
+        title: l10n.upNext,
+        items: nextUp.value ?? const [],
+        serverUrl: serverUrl,
+        height: rowHeight,
+        cardWidth: cardWidth,
+        itemSpacing: skin?.itemSpacing,
+        useBackdrop: isBack,
+        cardLogo: skin?.cardLogo,
+        showBottomVignette: cfg?.bottomVignette ?? false,
+        bottomVignetteHeight: cfg?.bottomVignetteHeight ?? 56,
+        bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
+        showMetaOverlay: cfg?.metaOverlay ?? false,
+        imageSource: cfg?.imageSource,
+        showNewBadge: cfg?.showNewBadge ?? false,
+        showStackLogo: cfg?.showLogo ?? false,
+        logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: cfg?.hideYear ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
+        isNextPoster: isNextPoster,
+        hasNext: hasNext,
+        onItemTap: tapFor(cfg),
+        onItemImageTap: (item) =>
+            context.push('/home/details/${item.id}', extra: item),
+      );
+      rowCursor++;
+      return w;
+    }
+
+    Widget buildNewReleasesRow([HomeScroll? cfg]) {
+      final isBack = cfg?.cardType == HomeScrollCardType.backdrop
+          ? true
+          : cfg?.cardType == HomeScrollCardType.poster
+              ? false
+              : isBackForContinue(cfg);
       final isNextPoster = isNextPosterFor(isBack);
       final w = ContentRow(
         title: l10n.newReleases,
@@ -132,8 +197,23 @@ class VodScreen extends ConsumerWidget {
         itemSpacing: skin?.itemSpacing,
         useBackdrop: isBack,
         cardLogo: skin?.cardLogo,
+        showBottomVignette: cfg?.bottomVignette ?? false,
+        bottomVignetteHeight: cfg?.bottomVignetteHeight ?? 56,
+        bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
+        showMetaOverlay: cfg?.metaOverlay ?? false,
+        imageSource: cfg?.imageSource,
+        showNewBadge: cfg?.showNewBadge ?? false,
+        showStackLogo: cfg?.showLogo ?? false,
+        logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: cfg?.hideYear ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
         isNextPoster: isNextPoster,
-        onItemTap: (item) => context.push('/player/${item.id}', extra: item),
+        onItemTap: tapFor(cfg),
         onItemImageTap: (item) =>
             context.push('/home/details/${item.id}', extra: item),
       );
@@ -175,6 +255,9 @@ class VodScreen extends ConsumerWidget {
       showShadow: skin?.bannerShadow ?? false,
       hoverScale: skin?.bannerHoverScale ?? 1.02,
       showVignette: skin?.bannerVignette ?? true,
+      vignetteMode: skin?.bannerVignetteMode ?? SliderVignetteMode.around,
+      vignetteOpacity: skin?.bannerVignetteOpacity ?? 1.0,
+      vignetteSize: skin?.bannerVignetteSize ?? 160,
     );
 
     List<Widget> buildLegacyVodChildren() {
@@ -184,6 +267,7 @@ class VodScreen extends ConsumerWidget {
           buildFeaturedSliderVod(),
         if ((skin?.showContinueRow ?? true) && (resume.value ?? []).isNotEmpty)
           buildContinueRow2(),
+        if ((nextUp.value ?? []).isNotEmpty) buildUpNextRow2(),
         if (!showBanner &&
             (skin?.showNewReleasesRow ?? true) &&
             (latest.value ?? []).isNotEmpty)
@@ -198,6 +282,13 @@ class VodScreen extends ConsumerWidget {
               final isBack = useBackdrop;
               final isNextPoster = isNextPosterFor(isBack);
               final hasNext = rowCursor < visibleBackdrops.length - 1;
+              final isSeriesView =
+                  view.collectionType == CollectionType.tvshows;
+              void goSeriesDetail(BaseItemDto item) {
+                final target = seriesDetailTarget(item);
+                context.push('/home/details/${target.id}', extra: target);
+              }
+
               final w = ContentRow(
                 title: view.name ?? '',
                 items: items,
@@ -207,13 +298,18 @@ class VodScreen extends ConsumerWidget {
                 itemSpacing: skin?.itemSpacing,
                 useBackdrop: isBack,
                 cardLogo: skin?.cardLogo,
+                useSeriesPoster: isSeriesView,
                 isNextPoster: isNextPoster,
                 hasNext: hasNext,
                 onSeeMore: () => context.push('/library/${view.id}'),
-                onItemTap: (item) =>
-                    context.push('/player/${item.id}', extra: item),
-                onItemImageTap: (item) =>
-                    context.push('/home/details/${item.id}', extra: item),
+                onItemTap: isSeriesView
+                    ? goSeriesDetail
+                    : (item) =>
+                          context.push('/player/${item.id}', extra: item),
+                onItemImageTap: isSeriesView
+                    ? goSeriesDetail
+                    : (item) =>
+                          context.push('/home/details/${item.id}', extra: item),
               );
               rowCursor++;
               return w;
@@ -242,45 +338,56 @@ class VodScreen extends ConsumerWidget {
                 useBackdrop: isBack,
                 cardLogo: skin?.cardLogo,
                 showBottomVignette: scroll.bottomVignette,
+                showMetaOverlay: scroll.metaOverlay,
                 imageSource: scroll.imageSource,
+                showNewBadge: scroll.showNewBadge,
+                showStackLogo: scroll.showLogo,
+                logoPosition: scroll.logoPosition,
+                metaAlignment: scroll.metaAlignment,
+                logoSize: scroll.logoSize,
                 hideTitle: scroll.hideTitle,
                 hideYear: scroll.hideYear,
+                showHoverOverlay: scroll.showHoverOverlay,
+                cardBorderRadius: scroll.cardBorderRadius,
+                hoverScale: scroll.hoverScale,
                 bottomVignetteHeight: scroll.bottomVignetteHeight,
                 bottomVignetteOpacity: scroll.bottomVignetteOpacity,
                 isNextPoster: isNextPoster,
                 hasNext: hasNext,
-                onSeeMore: () {
-                  final allViews = views.value ?? const <BaseItemDto>[];
-                  String targetViewId = '';
-                  for (final kind in scroll.types) {
-                    final mapped = _collectionTypeForKind(kind);
-                    final match = allViews
-                        .where((v) => v.collectionType == mapped)
-                        .firstOrNull;
-                    if (match?.id != null) {
-                      targetViewId = match!.id!;
-                      break;
-                    }
-                  }
-                  targetViewId = targetViewId.isEmpty
-                      ? (allViews
-                                .where(
-                                  (v) =>
-                                      v.collectionType == CollectionType.movies,
-                                )
-                                .firstOrNull
-                                ?.id ??
-                            allViews.firstOrNull?.id ??
-                            '')
-                      : targetViewId;
-                  if (targetViewId.isEmpty) {
-                    context.push('/movies');
-                    return;
-                  }
-                  context.push('/library/$targetViewId', extra: scroll);
-                },
-                onItemTap: (item) =>
-                    context.push('/player/${item.id}', extra: item),
+                onSeeMore: scroll.showSeeMore
+                    ? () {
+                        final allViews = views.value ?? const <BaseItemDto>[];
+                        String targetViewId = '';
+                        for (final kind in scroll.types) {
+                          final mapped = _collectionTypeForKind(kind);
+                          final match = allViews
+                              .where((v) => v.collectionType == mapped)
+                              .firstOrNull;
+                          if (match?.id != null) {
+                            targetViewId = match!.id!;
+                            break;
+                          }
+                        }
+                        targetViewId = targetViewId.isEmpty
+                            ? (allViews
+                                      .where(
+                                        (v) =>
+                                            v.collectionType ==
+                                            CollectionType.movies,
+                                      )
+                                      .firstOrNull
+                                      ?.id ??
+                                  allViews.firstOrNull?.id ??
+                                  '')
+                            : targetViewId;
+                        if (targetViewId.isEmpty) {
+                          context.push('/movies');
+                          return;
+                        }
+                        context.push('/library/$targetViewId', extra: scroll);
+                      }
+                    : null,
+                onItemTap: tapFor(scroll),
                 onItemImageTap: (item) =>
                     context.push('/home/details/${item.id}', extra: item),
               );
@@ -295,21 +402,33 @@ class VodScreen extends ConsumerWidget {
     List<Widget> buildCustomVodChildren() {
       // Calcular visibleBackdrops según vodLayout ordenado (similar a Home)
       final List<bool> customBackdrops = [];
+      // Vistas ya emitidas por una entrada library anterior (si dos entradas
+      // solapan colecciones, gana la primera para no duplicar filas).
+      final consumedViews = <String>{};
       for (final section in skin!.vodLayout) {
         switch (section.type) {
           case VodSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;
             customBackdrops.add(isBackForContinue(section.scroll));
             break;
+          case VodSectionType.nextUp:
+            if ((nextUp.value ?? []).isEmpty) break;
+            customBackdrops.add(useBackdrop);
+            break;
           case VodSectionType.newReleases:
             if ((latest.value ?? []).isEmpty) break;
             customBackdrops.add(useBackdrop);
             break;
           case VodSectionType.library:
+            final librarySort = section.scroll?.sort;
             for (final view in views.value ?? const <BaseItemDto>[]) {
-              final items =
-                  ref.watch(libraryItemsProvider(view.id ?? '')).value ??
-                  const [];
+              if (!section.matchesView(view.collectionType)) continue;
+              final viewId = view.id ?? '';
+              if (viewId.isEmpty || !consumedViews.add(viewId)) continue;
+              final items = librarySort == null
+                  ? ref.watch(libraryItemsProvider(viewId)).value ?? const []
+                  : ref.watch(libraryRowItemsProvider((viewId, librarySort))).value ??
+                        const [];
               if (items.isEmpty) continue;
               customBackdrops.add(useBackdrop);
             }
@@ -335,6 +454,7 @@ class VodScreen extends ConsumerWidget {
         ..addAll(customBackdrops);
       rowCursor = 0;
       final List<Widget> out = [];
+      final builtViews = <String>{};
       for (final section in skin.vodLayout) {
         switch (section.type) {
           case VodSectionType.featuredSlider:
@@ -346,22 +466,55 @@ class VodScreen extends ConsumerWidget {
             if ((resume.value ?? []).isEmpty) break;
             out.add(buildContinueRow2(section.scroll));
             break;
+          case VodSectionType.nextUp:
+            if ((nextUp.value ?? []).isEmpty) break;
+            out.add(buildUpNextRow2(section.scroll));
+            break;
           case VodSectionType.newReleases:
             if ((latest.value ?? []).isEmpty) break;
-            out.add(buildNewReleasesRow());
+            out.add(buildNewReleasesRow(section.scroll));
             break;
           case VodSectionType.library:
+            final libraryScroll = section.scroll;
+            final useLibraryBackdrop = libraryScroll?.cardType ==
+                    HomeScrollCardType.backdrop
+                ? true
+                : libraryScroll?.cardType == HomeScrollCardType.poster
+                    ? false
+                    : useBackdrop;
             for (final view in views.value ?? const <BaseItemDto>[]) {
+              if (!section.matchesView(view.collectionType)) continue;
+              final viewId = view.id ?? '';
+              if (viewId.isEmpty || !builtViews.add(viewId)) continue;
               out.add(
                 Builder(
                   builder: (context) {
-                    final items =
-                        ref.watch(libraryItemsProvider(view.id ?? '')).value ??
-                        const [];
+                    final librarySort = section.scroll?.sort;
+                    final items = librarySort == null
+                        ? ref.watch(libraryItemsProvider(viewId)).value ??
+                              const []
+                        : ref
+                                  .watch(
+                                    libraryRowItemsProvider(
+                                      (viewId, librarySort),
+                                    ),
+                                  )
+                                  .value ??
+                              const [];
                     if (items.isEmpty) return const SizedBox.shrink();
-                    final isBack = useBackdrop;
+                    final isBack = useLibraryBackdrop;
                     final isNextPoster = isNextPosterFor(isBack);
                     final hasNext = rowCursor < visibleBackdrops.length - 1;
+                    final isSeriesView =
+                        view.collectionType == CollectionType.tvshows;
+                    void goSeriesDetail(BaseItemDto item) {
+                      final target = seriesDetailTarget(item);
+                      context.push(
+                        '/home/details/${target.id}',
+                        extra: target,
+                      );
+                    }
+
                     final w = ContentRow(
                       title: view.name ?? '',
                       items: items,
@@ -371,13 +524,42 @@ class VodScreen extends ConsumerWidget {
                       itemSpacing: skin.itemSpacing,
                       useBackdrop: isBack,
                       cardLogo: skin.cardLogo,
+                      useSeriesPoster: isSeriesView,
+                      showBottomVignette:
+                          libraryScroll?.bottomVignette ?? false,
+                      bottomVignetteHeight:
+                          libraryScroll?.bottomVignetteHeight ?? 56,
+                      bottomVignetteOpacity:
+                          libraryScroll?.bottomVignetteOpacity ?? 0.72,
+                      showMetaOverlay: libraryScroll?.metaOverlay ?? false,
+                      imageSource: libraryScroll?.imageSource,
+                      showNewBadge: libraryScroll?.showNewBadge ?? false,
+                      showStackLogo: libraryScroll?.showLogo ?? false,
+                      logoPosition:
+                          libraryScroll?.logoPosition ?? RowLogoPosition.top,
+                      metaAlignment:
+                          libraryScroll?.metaAlignment ?? RowMetaAlign.left,
+                      logoSize: libraryScroll?.logoSize,
+                      hideTitle: libraryScroll?.hideTitle ?? false,
+                      hideYear: libraryScroll?.hideYear ?? false,
+                      showHoverOverlay:
+                          libraryScroll?.showHoverOverlay ?? true,
+                      cardBorderRadius: libraryScroll?.cardBorderRadius,
+                      hoverScale: libraryScroll?.hoverScale,
                       isNextPoster: isNextPoster,
                       hasNext: hasNext,
-                      onSeeMore: () => context.push('/library/${view.id}'),
-                      onItemTap: (item) =>
-                          context.push('/player/${item.id}', extra: item),
-                      onItemImageTap: (item) =>
-                          context.push('/home/details/${item.id}', extra: item),
+                      onSeeMore: (libraryScroll?.showSeeMore ?? true)
+                          ? () => context.push('/library/${view.id}')
+                          : null,
+                      onItemTap: isSeriesView
+                          ? goSeriesDetail
+                          : tapFor(libraryScroll),
+                      onItemImageTap: isSeriesView
+                          ? goSeriesDetail
+                          : (item) => context.push(
+                              '/home/details/${item.id}',
+                              extra: item,
+                            ),
                     );
                     rowCursor++;
                     return w;
@@ -413,44 +595,54 @@ class VodScreen extends ConsumerWidget {
                     showBottomVignette: s.bottomVignette,
                     bottomVignetteHeight: s.bottomVignetteHeight,
                     bottomVignetteOpacity: s.bottomVignetteOpacity,
+                    showMetaOverlay: s.metaOverlay,
                     imageSource: s.imageSource,
+                    showNewBadge: s.showNewBadge,
+                    showStackLogo: s.showLogo,
+                    logoPosition: s.logoPosition,
+                    metaAlignment: s.metaAlignment,
+                    logoSize: s.logoSize,
                     hideTitle: s.hideTitle,
                     hideYear: s.hideYear,
+                    showHoverOverlay: s.showHoverOverlay,
+                    cardBorderRadius: s.cardBorderRadius,
+                    hoverScale: s.hoverScale,
                     isNextPoster: isNextPoster,
                     hasNext: hasNext,
-                    onSeeMore: () {
-                      final allViews = views.value ?? const <BaseItemDto>[];
-                      String targetViewId = '';
-                      for (final kind in s.types) {
-                        final mapped = _collectionTypeForKind(kind);
-                        final match = allViews
-                            .where((v) => v.collectionType == mapped)
-                            .firstOrNull;
-                        if (match?.id != null) {
-                          targetViewId = match!.id!;
-                          break;
-                        }
-                      }
-                      targetViewId = targetViewId.isEmpty
-                          ? (allViews
-                                    .where(
-                                      (v) =>
-                                          v.collectionType ==
-                                          CollectionType.movies,
-                                    )
-                                    .firstOrNull
-                                    ?.id ??
-                                allViews.firstOrNull?.id ??
-                                '')
-                          : targetViewId;
-                      if (targetViewId.isEmpty) {
-                        context.push('/movies');
-                        return;
-                      }
-                      context.push('/library/$targetViewId', extra: s);
-                    },
-                    onItemTap: (item) =>
-                        context.push('/player/${item.id}', extra: item),
+                    onSeeMore: s.showSeeMore
+                        ? () {
+                            final allViews = views.value ?? const <BaseItemDto>[];
+                            String targetViewId = '';
+                            for (final kind in s.types) {
+                              final mapped = _collectionTypeForKind(kind);
+                              final match = allViews
+                                  .where((v) => v.collectionType == mapped)
+                                  .firstOrNull;
+                              if (match?.id != null) {
+                                targetViewId = match!.id!;
+                                break;
+                              }
+                            }
+                            targetViewId = targetViewId.isEmpty
+                                ? (allViews
+                                          .where(
+                                            (v) =>
+                                                v.collectionType ==
+                                                CollectionType.movies,
+                                          )
+                                          .firstOrNull
+                                          ?.id ??
+                                      allViews.firstOrNull?.id ??
+                                      '')
+                                : targetViewId;
+                            if (targetViewId.isEmpty) {
+                              context.push('/movies');
+                              return;
+                            }
+                            context.push('/library/$targetViewId', extra: s);
+                          }
+                        : null,
+                    onItemTap: tapFor(s),
                     onItemImageTap: (item) =>
                         context.push('/home/details/${item.id}', extra: item),
                   );
@@ -483,18 +675,9 @@ class VodScreen extends ConsumerWidget {
     );
   }
 
-  /// Resuelve el título de una fila de contenido a partir de su clave de
-  /// localización. Si la clave no es conocida, se muestra tal cual.
-  static String _scrollTitle(AppLocalizations l10n, String key) {
-    switch (key) {
-      case 'actionMovies':
-        return l10n.actionMovies;
-      case 'familyMovies':
-        return l10n.familyMovies;
-      default:
-        return key;
-    }
-  }
+  /// Resuelve el título de una fila de contenido ([HomeScrollTitle]).
+  static String _scrollTitle(AppLocalizations l10n, HomeScrollTitle key) =>
+      HomeScrollTitle.resolve(l10n, key);
 
   static CollectionType? _collectionTypeForKind(BaseItemKind kind) {
     switch (kind) {

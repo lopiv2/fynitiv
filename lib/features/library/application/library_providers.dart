@@ -148,7 +148,12 @@ final resumeItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
       ItemFields.overview,
       ItemFields.genres,
     ],
-    enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
+    enableImageTypes: [
+      ImageType.primary,
+      ImageType.backdrop,
+      ImageType.thumb,
+      ImageType.logo,
+    ],
   );
   return res.data?.items ?? [];
 });
@@ -168,11 +173,13 @@ final nextUpEpisodesProvider = FutureProvider<List<BaseItemDto>>((ref) async {
         ItemFields.overview,
         ItemFields.people,
         ItemFields.providerIds,
+        ItemFields.genres,
       ],
       enableImageTypes: [
         ImageType.primary,
         ImageType.thumb,
         ImageType.backdrop,
+        ImageType.logo,
       ],
       enableUserData: true,
       enableResumable: false,
@@ -208,8 +215,9 @@ final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
       ItemFields.primaryImageAspectRatio,
       ItemFields.overview,
       ItemFields.people,
+      ItemFields.genres,
     ],
-    enableImageTypes: [ImageType.primary, ImageType.thumb],
+    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.logo],
   );
   return res.data?.items ?? [];
 });
@@ -242,6 +250,101 @@ final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((
   return res.data?.items ?? [];
 });
 
+/// Mapeo compartido de [HomeScrollSort] a orden de la API de Jellyfin.
+/// Devuelve (sortBy, sortOrder) con SortName secundario para orden estable.
+(List<ItemSortBy>, List<SortOrder>) homeScrollSortParams(HomeScrollSort sort) {
+  final primary = switch (sort) {
+    HomeScrollSort.alphabetical => ItemSortBy.sortName,
+    HomeScrollSort.recent => ItemSortBy.premiereDate,
+    HomeScrollSort.rating => ItemSortBy.communityRating,
+    HomeScrollSort.added => ItemSortBy.dateCreated,
+    HomeScrollSort.random => ItemSortBy.random,
+  };
+  final primaryOrder = switch (sort) {
+    HomeScrollSort.alphabetical => SortOrder.ascending,
+    HomeScrollSort.recent => SortOrder.descending,
+    HomeScrollSort.rating => SortOrder.descending,
+    HomeScrollSort.added => SortOrder.descending,
+    HomeScrollSort.random => SortOrder.ascending,
+  };
+  if (primary == ItemSortBy.sortName) {
+    return ([ItemSortBy.sortName], [SortOrder.ascending]);
+  }
+  return ([primary, ItemSortBy.sortName], [primaryOrder, SortOrder.ascending]);
+}
+
+/// Resuelve el item de la SERIE para navegar a su detalle desde filas de
+/// biblioteca de Series: episodios y temporadas redirigen a la serie (los
+/// capítulos se eligen en el detalle o en Continuar viendo). Si ya es una
+/// serie (o no trae seriesId), devuelve el propio item.
+BaseItemDto seriesDetailTarget(BaseItemDto item) {
+  if (item.type == BaseItemKind.series) return item;
+  final seriesId = item.seriesId;
+  if (seriesId == null || seriesId.isEmpty) return item;
+  return BaseItemDto(
+    id: seriesId,
+    name: item.seriesName,
+    type: BaseItemKind.series,
+  );
+}
+
+/// Colapsa una serie a un solo elemento en filas (scrolls).
+/// Las bibliotecas de Series devuelven mezclados episodios, temporadas y la
+/// propia serie (ej. "Linternas" como S1:E3, "Temporada 1" y "Linternas").
+/// Conserva solo el primer elemento de cada grupo (el más relevante según el
+/// orden pedido) para que salgan varias series y no varias tarjetas de la
+/// misma. Películas, música, etc. pasan intactos.
+/// Agrupa por seriesId/id y por título normalizado a la vez, para que un
+/// episodio (seriesId) colapse con su serie y temporada aunque vengan con
+/// campos distintos.
+List<BaseItemDto> collapseSeriesDuplicates(List<BaseItemDto> items) {
+  var hasSerial = false;
+  for (final e in items) {
+    if (e.type == BaseItemKind.episode ||
+        e.type == BaseItemKind.season ||
+        e.type == BaseItemKind.series) {
+      hasSerial = true;
+      break;
+    }
+  }
+  if (!hasSerial) return items;
+  final seen = <String>{};
+  final out = <BaseItemDto>[];
+  for (final e in items) {
+    final keys = _seriesGroupKeys(e);
+    if (keys.isEmpty) {
+      out.add(e);
+      continue;
+    }
+    if (keys.any(seen.contains)) continue;
+    seen.addAll(keys);
+    out.add(e);
+  }
+  return out;
+}
+
+/// Claves de agrupación de un item con su serie (vacío si no es
+/// episodio/temporada/serie o no trae ningún identificador).
+Set<String> _seriesGroupKeys(BaseItemDto e) {
+  final keys = <String>{};
+  switch (e.type) {
+    case BaseItemKind.episode:
+    case BaseItemKind.season:
+      final id = (e.seriesId ?? '').trim();
+      if (id.isNotEmpty) keys.add('id:$id');
+      final title = (e.seriesName ?? '').trim().toLowerCase();
+      if (title.isNotEmpty) keys.add('t:$title');
+    case BaseItemKind.series:
+      final id = (e.id ?? '').trim();
+      if (id.isNotEmpty) keys.add('id:$id');
+      final title = (e.name ?? '').trim().toLowerCase();
+      if (title.isNotEmpty) keys.add('t:$title');
+    default:
+      break;
+  }
+  return keys;
+}
+
 /// Items de una vista/biblioteca concreta.
 final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
   ref,
@@ -263,10 +366,52 @@ final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
       ItemFields.people,
       ItemFields.genres,
     ],
-    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
+    enableImageTypes: [
+      ImageType.primary,
+      ImageType.thumb,
+      ImageType.backdrop,
+      ImageType.logo,
+    ],
   );
-  return res.data?.items ?? [];
+  return collapseSeriesDuplicates(res.data?.items ?? []);
 });
+
+/// Items de una biblioteca con orden configurable por [HomeScrollSort].
+/// Clave: (viewId, sort). Usado por las filas `library`/`recent` con scroll
+/// para que el enum `sort` funcione también fuera de los `custom`.
+final libraryRowItemsProvider =
+    FutureProvider.family<List<BaseItemDto>, (String, HomeScrollSort)>((
+      ref,
+      args,
+    ) async {
+      if (args.$2 != HomeScrollSort.random) ref.cacheFor(_kLibraryCache);
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      final viewId = args.$1;
+      if (client == null || userId == null) return const [];
+      final (sortBy, sortOrder) = homeScrollSortParams(args.$2);
+      final res = await client.getItemsApi().getItems(
+        userId: userId,
+        parentId: viewId,
+        recursive: true,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        limit: 20,
+        fields: [
+          ItemFields.primaryImageAspectRatio,
+          ItemFields.overview,
+          ItemFields.people,
+          ItemFields.genres,
+        ],
+        enableImageTypes: [
+          ImageType.primary,
+          ImageType.thumb,
+          ImageType.backdrop,
+          ImageType.logo,
+        ],
+      );
+      return collapseSeriesDuplicates(res.data?.items ?? []);
+    });
 
 /// Items recientes de una biblioteca concreta (para "Reciente en ...").
 /// Ordenados por fecha de creación descendente, solo si la biblioteca existe.
@@ -290,32 +435,105 @@ final recentLibraryItemsProvider =
           ItemFields.dateCreated,
           ItemFields.genres,
         ],
-        enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
+        enableImageTypes: [
+      ImageType.primary,
+      ImageType.thumb,
+      ImageType.backdrop,
+      ImageType.logo,
+    ],
       );
-      final items = res.data?.items ?? [];
-      // Para biblioteca de Series: deduplicar episodios por serie para mostrar
-      // solo el último capítulo añadido (evita ver 4 tarjetas de "Linternas").
-      final hasEpisode = items.any((e) => e.type == BaseItemKind.episode);
-      if (hasEpisode) {
-        final episodes = items
-            .where((e) => e.type == BaseItemKind.episode)
-            .toList();
-        if (episodes.isNotEmpty) {
-          final seenSeries = <String>{};
-          final deduped = <BaseItemDto>[];
-          for (final ep in episodes) {
-            final key = ep.seriesId ?? ep.seriesName ?? ep.id ?? '';
-            if (key.isEmpty) continue;
-            if (seenSeries.add(key)) {
-              deduped.add(ep);
-            }
-          }
-          if (deduped.isNotEmpty) return deduped;
-          return episodes;
-        }
-      }
-      return items;
+      // Una tarjeta por serie: solo el capítulo más reciente de cada título.
+      return collapseSeriesDuplicates(res.data?.items ?? []);
     });
+
+/// Items recientes de una biblioteca con orden configurable por scroll.
+/// Igual que [recentLibraryItemsProvider] pero respeta [HomeScrollSort].
+/// Clave: (viewId, sort).
+final recentRowItemsProvider =
+    FutureProvider.family<List<BaseItemDto>, (String, HomeScrollSort)>((
+      ref,
+      args,
+    ) async {
+      if (args.$2 != HomeScrollSort.random) ref.cacheFor(_kLibraryCache);
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      final viewId = args.$1;
+      if (client == null || userId == null || viewId.isEmpty) return const [];
+      final (sortBy, sortOrder) = homeScrollSortParams(args.$2);
+      final res = await client.getItemsApi().getItems(
+        userId: userId,
+        parentId: viewId,
+        recursive: true,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        limit: 20,
+        fields: [
+          ItemFields.primaryImageAspectRatio,
+          ItemFields.overview,
+          ItemFields.people,
+          ItemFields.dateCreated,
+          ItemFields.genres,
+        ],
+        enableImageTypes: [
+      ImageType.primary,
+      ImageType.thumb,
+      ImageType.backdrop,
+      ImageType.logo,
+    ],
+      );
+      return collapseSeriesDuplicates(res.data?.items ?? []);
+    });
+
+/// Temporadas de una serie, ordenadas por nombre.
+final seriesSeasonsProvider =
+    FutureProvider.family<List<BaseItemDto>, String>((ref, seriesId) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || seriesId.isEmpty) return const [];
+  final res = await client.getItemsApi().getItems(
+    userId: userId,
+    parentId: seriesId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.season],
+    sortBy: [ItemSortBy.sortName],
+    sortOrder: [SortOrder.ascending],
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [
+      ImageType.primary,
+      ImageType.thumb,
+      ImageType.backdrop,
+      ImageType.logo,
+    ],
+  );
+  return res.data?.items ?? [];
+});
+
+/// Todos los episodios de una serie ordenados por temporada/episodio.
+/// Se usa en el detalle de serie (pestaña Episodios y botón VER).
+final seriesEpisodesProvider =
+    FutureProvider.family<List<BaseItemDto>, String>((ref, seriesId) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || seriesId.isEmpty) return const [];
+  final res = await client.getItemsApi().getItems(
+    userId: userId,
+    parentId: seriesId,
+    recursive: true,
+    includeItemTypes: [BaseItemKind.episode],
+    sortBy: [ItemSortBy.parentIndexNumber, ItemSortBy.indexNumber],
+    sortOrder: [SortOrder.ascending, SortOrder.ascending],
+    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    enableImageTypes: [
+      ImageType.primary,
+      ImageType.thumb,
+      ImageType.backdrop,
+      ImageType.logo,
+    ],
+  );
+  return res.data?.items ?? [];
+});
 
 /// VOD: películas y series a la carta (On Demand).
 final vodItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
@@ -364,6 +582,7 @@ final similarItemsProvider =
             ImageType.primary,
             ImageType.thumb,
             ImageType.backdrop,
+            ImageType.logo,
           ],
         );
         return (res.data?.items ?? const []).take(10).toList();
@@ -415,7 +634,8 @@ final vodLatestBannerProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   return res.data?.items ?? [];
 });
 
-/// "Continuar viendo" de VOD (solo películas y series).
+/// "Continuar viendo" de VOD (películas y episodios: lo retomable de una
+/// serie es el episodio a medias, nunca el item `series`).
 final vodResumeProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
@@ -423,11 +643,59 @@ final vodResumeProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   final res = await client.getItemsApi().getResumeItems(
     userId: userId,
     limit: 20,
-    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
-    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-    enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.thumb],
+    includeItemTypes: [BaseItemKind.movie, BaseItemKind.episode],
+    fields: [
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.overview,
+      ItemFields.genres,
+    ],
+    enableImageTypes: [
+      ImageType.primary,
+      ImageType.backdrop,
+      ImageType.thumb,
+      ImageType.logo,
+    ],
   );
   return res.data?.items ?? [];
+});
+
+/// Siguiente episodio de cada serie en VOD (fila "A continuación").
+/// Solo episodios sin progreso (los a medias viven en Continuar viendo).
+final vodNextUpProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  try {
+    final res = await client.getTvShowsApi().getNextUp(
+      userId: userId,
+      limit: 20,
+      fields: [
+        ItemFields.primaryImageAspectRatio,
+        ItemFields.overview,
+        ItemFields.people,
+        ItemFields.providerIds,
+        ItemFields.genres,
+      ],
+      enableImageTypes: [
+        ImageType.primary,
+        ImageType.thumb,
+        ImageType.backdrop,
+        ImageType.logo,
+      ],
+      enableUserData: true,
+      enableResumable: false,
+      enableRewatching: false,
+    );
+    return (res.data?.items ?? []).where((e) {
+      if (e.type != BaseItemKind.episode) return false;
+      final pct = e.userData?.playedPercentage ?? 0;
+      final ticks = e.userData?.playbackPositionTicks ?? 0;
+      return pct <= 0 && ticks <= 0;
+    }).toList();
+  } catch (_) {
+    return const [];
+  }
 });
 
 /// Novedades de VOD (fila "Novedades" cuando no hay banner).
@@ -442,8 +710,12 @@ final vodLatestProvider = FutureProvider<List<BaseItemDto>>((ref) async {
     sortBy: [ItemSortBy.dateCreated],
     sortOrder: [SortOrder.descending],
     limit: 20,
-    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
-    enableImageTypes: [ImageType.primary, ImageType.thumb],
+    fields: [
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.overview,
+      ItemFields.genres,
+    ],
+    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.logo],
   );
   return res.data?.items ?? [];
 });
@@ -476,6 +748,7 @@ class LibraryFilteredArgs {
     this.genre,
     this.genresPipe,
     this.includeItemTypes,
+    this.sortBy = ItemSortBy.sortName,
   });
   final String viewId;
   final int pageIndex;
@@ -483,6 +756,7 @@ class LibraryFilteredArgs {
   final String? genre;
   final String? genresPipe;
   final List<BaseItemKind>? includeItemTypes;
+  final ItemSortBy sortBy;
   String? get effectiveGenre {
     if (genresPipe != null && genresPipe!.isNotEmpty) return genresPipe;
     return genre;
@@ -496,6 +770,7 @@ class LibraryFilteredArgs {
       other.sortAscending == sortAscending &&
       other.genre == genre &&
       other.genresPipe == genresPipe &&
+      other.sortBy == sortBy &&
       listEquals(other.includeItemTypes, includeItemTypes);
   @override
   int get hashCode => Object.hash(
@@ -504,6 +779,7 @@ class LibraryFilteredArgs {
     sortAscending,
     genre,
     genresPipe,
+    sortBy,
     includeItemTypes == null ? null : Object.hashAll(includeItemTypes!),
   );
 }
@@ -529,14 +805,19 @@ final libraryFilteredPageProvider =
         : null,
     startIndex: args.pageIndex * kLibraryPageSize,
     limit: kLibraryPageSize,
-    sortBy: [ItemSortBy.sortName],
+    sortBy: [args.sortBy],
     sortOrder: [args.sortAscending ? SortOrder.ascending : SortOrder.descending],
     fields: [
       ItemFields.primaryImageAspectRatio,
       ItemFields.overview,
       ItemFields.genres,
     ],
-    enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
+    enableImageTypes: [
+      ImageType.primary,
+      ImageType.thumb,
+      ImageType.backdrop,
+      ImageType.logo,
+    ],
     enableTotalRecordCount: true,
   );
   return res.data?.items ?? [];
@@ -560,7 +841,7 @@ final libraryFilteredCountProvider =
         : null,
     limit: 1,
     startIndex: 0,
-    sortBy: [ItemSortBy.sortName],
+    sortBy: [args.sortBy],
     fields: const [],
     enableTotalRecordCount: true,
     enableImages: false,
@@ -689,22 +970,49 @@ final allMoviesPageProvider = FutureProvider.family<List<BaseItemDto>, int>((
   ).future);
 });
 
+/// Convierte un rango opcional [from]..[to] en la lista de años que pide la
+/// API. Sin límites devuelve `null` (sin filtro); con un solo límite se
+/// extiende hasta el año actual o desde 1900; si viene invertido se corrige.
+List<int>? _yearRange(int? from, int? to) {
+  if (from == null && to == null) return null;
+  var start = from ?? 1900;
+  var end = to ?? DateTime.now().year;
+  if (start > end) {
+    final tmp = start;
+    start = end;
+    end = tmp;
+  }
+  return [for (var y = start; y <= end; y++) y];
+}
+
 /// Items de una fila de contenido configurada por el skin (filtrada por
 /// géneros y tipos). Se usa para los scrolls extra definidos en cada preset.
+/// El orden lo decide [HomeScroll.sort] por scroll.
 final homeScrollItemsProvider =
     FutureProvider.family<List<BaseItemDto>, HomeScroll>((ref, scroll) async {
-      ref.cacheFor(_kLibraryCache);
+      // Random no se cachea: cada visita reordena el scroll.
+      if (scroll.sort != HomeScrollSort.random) ref.cacheFor(_kLibraryCache);
       final client = ref.watch(jellyfinClientProvider);
       final userId = ref.watch(currentUserIdProvider);
       if (client == null || userId == null) return const [];
+      final (sortBy, sortOrder) = homeScrollSortParams(scroll.sort);
+      // Sin géneros => sin filtro (antes se enviaba [""] y Jellyfin devolvía 0).
+      final genresFilter = scroll.genres.isEmpty
+          ? null
+          : [
+              scroll.genres.map((g) => g.value).join('|'),
+            ];
+      // Rango de años (ej. nostalgia con yearTo). Solo scrolls custom.
+      final yearsFilter = _yearRange(scroll.yearFrom, scroll.yearTo);
       final res = await client.getItemsApi().getItems(
         userId: userId,
         recursive: true,
-        includeItemTypes: scroll.types,
+        includeItemTypes: scroll.types.isEmpty ? null : scroll.types,
         // Jellyfin espera los géneros separados por "|" en un único valor.
-        genres: [scroll.genres.join('|')],
-        sortBy: [ItemSortBy.dateCreated],
-        sortOrder: [SortOrder.descending],
+        genres: genresFilter,
+        years: yearsFilter,
+        sortBy: sortBy,
+        sortOrder: sortOrder,
         limit: scroll.limit,
         fields: [
           ItemFields.primaryImageAspectRatio,
@@ -712,9 +1020,24 @@ final homeScrollItemsProvider =
           ItemFields.people,
           ItemFields.genres,
         ],
-        enableImageTypes: [ImageType.primary, ImageType.thumb, ImageType.backdrop],
+        enableImageTypes: [
+      ImageType.primary,
+      ImageType.thumb,
+      ImageType.backdrop,
+      ImageType.logo,
+    ],
       );
-      return res.data?.items ?? [];
+      final items = collapseSeriesDuplicates(res.data?.items ?? []);
+      if (items.isEmpty) {
+        debugPrint(
+          '[HomeScroll] sin resultados: titleKey=${scroll.titleKey.name} '
+          'genres=${scroll.genres.map((g) => g.value).join('|')} '
+          'types=${scroll.types.map((t) => t.name).join(',')} '
+          'years=${scroll.yearFrom ?? '-'}-${scroll.yearTo ?? '-'} '
+          'sort=${scroll.sort.name}',
+        );
+      }
+      return items;
     });
 
 /// Álbumes de música de todas las bibliotecas.

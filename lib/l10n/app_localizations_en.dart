@@ -567,6 +567,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get familyMovies => 'Family & kids';
 
   @override
+  String get romanticMovies => 'Romantic movies';
+
+  @override
+  String get animationMovies => 'Animation movies';
+
+  @override
+  String get realities => 'Realities';
+
+  @override
+  String get animeSeries => 'Anime series';
+
+  @override
+  String get nostalgia => 'Nostalgia';
+
+  @override
+  String get dramas => 'Dramas';
+
+  @override
+  String get comedies => 'Comedies';
+
+  @override
+  String get actionAdventure => 'Action & adventure';
+
+  @override
+  String get musicals => 'Musicals';
+
+  @override
+  String get foodCooking => 'Food & cooking';
+
+  @override
+  String get travel => 'Travel';
+
+  @override
+  String get sciFi => 'Sci-Fi';
+
+  @override
+  String get western => 'Toughest of the West';
+
+  @override
+  String get crime => 'Crime & Suspense';
+
+  @override
+  String get horror => 'Diabolical horror';
+
+  @override
+  String get superHero => 'Mightiest heroes';
+
+  @override
   String get seeMore => 'See more >';
 
   @override
@@ -620,6 +668,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gamesPlay => 'Play';
+
+  @override
+  String get episodes => 'Episodes';
+
+  @override
+  String get extras => 'Extras';
+
+  @override
+  String get suggestions => 'Suggestions';
+
+  @override
+  String get season => 'Season';
+
+  @override
+  String seriesSeasons(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count seasons',
+      one: '1 season',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get gamesDownload => 'Download';

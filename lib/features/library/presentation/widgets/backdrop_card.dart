@@ -31,12 +31,17 @@ class BackdropCard extends ConsumerStatefulWidget {
     this.bottomVignetteHeight = 56,
     this.bottomVignetteOpacity = 0.72,
     this.showMetaOverlay = false,
+    this.metaAlignment = RowMetaAlign.left,
     this.imageSource = RowImageSource.thumb,
     this.showNewBadge = false,
     this.showStackLogo = false,
     this.logoPosition = RowLogoPosition.top,
+    this.logoSize,
     this.hideTitle = false,
     this.hideYear = false,
+    this.showHoverOverlay = true,
+    this.cardBorderRadius,
+    this.hoverScale,
     this.onHoverChanged,
     this.onPointerSignal,
     this.overlayBelowEntry,
@@ -53,12 +58,17 @@ class BackdropCard extends ConsumerStatefulWidget {
   final double bottomVignetteHeight;
   final double bottomVignetteOpacity;
   final bool showMetaOverlay;
+  final RowMetaAlign metaAlignment;
   final RowImageSource imageSource;
   final bool showNewBadge;
   final bool showStackLogo;
   final RowLogoPosition logoPosition;
+  final double? logoSize;
   final bool hideTitle;
   final bool hideYear;
+  final bool showHoverOverlay;
+  final double? cardBorderRadius;
+  final double? hoverScale;
   final ValueChanged<bool>? onHoverChanged;
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final OverlayEntry? Function()? overlayBelowEntry;
@@ -76,11 +86,13 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
   }
 
   Widget _cachedImage(String url, Widget Function() onError) {
+    // A máxima resolución (1920 Full HD): con menos la tarjeta se veía
+    // borrosa en pantallas HiDPI y al expandirse en el hover (x1.3).
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
-      memCacheWidth: 640,
-      maxWidthDiskCache: 640,
+      memCacheWidth: 1920,
+      maxWidthDiskCache: 1920,
       fadeInDuration: const Duration(milliseconds: 150),
       useOldImageOnUrlChange: true,
       errorBuilder: (_, _, _) => onError(),
@@ -105,8 +117,8 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
         widget.serverUrl != null) {
       final tag = widget.item.seriesPrimaryImageTag;
       displayUrl = tag != null && tag.isNotEmpty
-          ? '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300&tag=$tag'
-          : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=300';
+          ? '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=1000&tag=$tag'
+          : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=1000';
       fallbackBackdropUrl = widget.serverUrl != null
           ? itemBackdropUrl(widget.serverUrl!, widget.item)
           : null;
@@ -114,34 +126,50 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
           ? itemThumbUrl(widget.serverUrl!, widget.item)
           : null;
       fallbackPrimaryUrl = widget.serverUrl != null
-          ? itemImageUrl(widget.serverUrl!, widget.item)
+          ? itemImageUrl(widget.serverUrl!, widget.item, maxWidth: 800)
           : null;
     } else if (widget.serverUrl != null) {
       switch (widget.imageSource) {
         case RowImageSource.primary:
-          displayUrl = itemImageUrl(widget.serverUrl!, widget.item);
+          displayUrl = itemImageUrl(
+            widget.serverUrl!,
+            widget.item,
+            maxWidth: 1000,
+          );
           fallbackThumbUrl = itemThumbUrl(widget.serverUrl!, widget.item);
           fallbackBackdropUrl = itemBackdropUrl(widget.serverUrl!, widget.item);
           break;
         case RowImageSource.thumb:
           displayUrl = itemThumbUrl(widget.serverUrl!, widget.item);
           fallbackBackdropUrl = itemBackdropUrl(widget.serverUrl!, widget.item);
-          fallbackPrimaryUrl = itemImageUrl(widget.serverUrl!, widget.item);
+          fallbackPrimaryUrl = itemImageUrl(
+            widget.serverUrl!,
+            widget.item,
+            maxWidth: 800,
+          );
           break;
         case RowImageSource.backdrop:
           displayUrl = itemBackdropUrl(widget.serverUrl!, widget.item);
           fallbackThumbUrl = itemThumbUrl(widget.serverUrl!, widget.item);
-          fallbackPrimaryUrl = itemImageUrl(widget.serverUrl!, widget.item);
+          fallbackPrimaryUrl = itemImageUrl(
+            widget.serverUrl!,
+            widget.item,
+            maxWidth: 800,
+          );
           break;
       }
       // Mantener fallbacks nulos para lógica de image anidada
-      fallbackPrimaryUrl ??= itemImageUrl(widget.serverUrl!, widget.item);
+      fallbackPrimaryUrl ??= itemImageUrl(
+        widget.serverUrl!,
+        widget.item,
+        maxWidth: 800,
+      );
       fallbackThumbUrl ??= itemThumbUrl(widget.serverUrl!, widget.item);
       fallbackBackdropUrl ??= itemBackdropUrl(widget.serverUrl!, widget.item);
     }
     final progress = widget.item.userData?.playedPercentage;
     final skin = ref.watch(skinControllerProvider).value;
-    final radius = skin?.cardBorderRadius ?? 10;
+    final radius = widget.cardBorderRadius ?? skin?.cardBorderRadius ?? 10;
     final accent = skin?.accent ?? const Color(0xFF2B7FFF);
     final textPrimary = skin?.textPrimary ?? Colors.white;
     final fallbackColor = skin?.backgroundBottom ?? const Color(0xFF1A2568);
@@ -376,7 +404,7 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
                         ? Center(
                             child: Image.network(
                               logoUrl,
-                              height: 36,
+                              height: widget.logoSize ?? 36,
                               fit: BoxFit.contain,
                               errorBuilder: (_, _, _) =>
                                   const SizedBox.shrink(),
@@ -384,7 +412,7 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
                           )
                         : Image.network(
                             logoUrl,
-                            height: 28,
+                            height: widget.logoSize ?? 28,
                             fit: BoxFit.contain,
                             alignment: Alignment.center,
                             errorBuilder: (_, _, _) => const SizedBox.shrink(),
@@ -392,40 +420,43 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
                   ),
                 if (widget.showMetaOverlay)
                   Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 72,
+                    child: const IgnorePointer(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Color(0xCC000000)],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                if (widget.showMetaOverlay)
+                  Positioned(
                     left: 6,
                     right: 6,
                     bottom: 6,
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: switch (widget.metaAlignment) {
+                        RowMetaAlign.left => CrossAxisAlignment.start,
+                        RowMetaAlign.center => CrossAxisAlignment.center,
+                        RowMetaAlign.right => CrossAxisAlignment.end,
+                      },
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        if (!widget.hideTitle && cardTitle.isNotEmpty)
-                          Text(
-                            cardTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              shadows: [
-                                Shadow(blurRadius: 4, color: Colors.black54),
-                              ],
-                            ),
-                          ),
-                        if (subtitle != null)
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white70,
-                              fontSize: 9,
-                              shadows: [
-                                Shadow(blurRadius: 4, color: Colors.black54),
-                              ],
-                            ),
-                          ),
+                        _MetaLine(
+                          ageRating: (widget.item.officialRating ?? '').trim(),
+                          year: widget.item.productionYear,
+                          genres: widget.item.genres ?? const <String>[],
+                          hideYear: widget.hideYear,
+                          fallback: subtitle,
+                          align: widget.metaAlignment,
+                        ),
                       ],
                     ),
                   ),
@@ -500,6 +531,8 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
         onPlay: widget.onTap ?? () {},
         onImageTap: widget.onImageTap,
         showExtension: showExtension,
+        showPlayOverlay: widget.showHoverOverlay,
+        hoverScale: widget.hoverScale,
         onHoverChanged: (v) {
           _setHovered(v);
           widget.onHoverChanged?.call(v);
@@ -513,6 +546,97 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
         overview: widget.item.overview,
         child: cardContent,
       ),
+    );
+  }
+}
+
+/// Línea de meta inferior estilo Disney+ para el overlay sobre la imagen:
+/// pastilla de edad + año • géneros. Si no hay datos, muestra [fallback].
+class _MetaLine extends StatelessWidget {
+  const _MetaLine({
+    required this.ageRating,
+    required this.year,
+    required this.genres,
+    required this.hideYear,
+    required this.fallback,
+    this.align = RowMetaAlign.left,
+  });
+
+  final String ageRating;
+  final int? year;
+  final List<String> genres;
+  final bool hideYear;
+  final String? fallback;
+  final RowMetaAlign align;
+
+  @override
+  Widget build(BuildContext context) {
+    final textAlign = switch (align) {
+      RowMetaAlign.left => TextAlign.left,
+      RowMetaAlign.center => TextAlign.center,
+      RowMetaAlign.right => TextAlign.right,
+    };
+    final rowAlign = switch (align) {
+      RowMetaAlign.left => MainAxisAlignment.start,
+      RowMetaAlign.center => MainAxisAlignment.center,
+      RowMetaAlign.right => MainAxisAlignment.end,
+    };
+    final parts = <String>[];
+    if (!hideYear && year != null) parts.add('$year');
+    final genreText = genres.take(3).join(', ');
+    if (genreText.isNotEmpty) parts.add(genreText);
+    if (parts.isEmpty && ageRating.isEmpty) {
+      if (fallback == null || fallback!.isEmpty) {
+        return const SizedBox.shrink();
+      }
+      return Text(
+        fallback!,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        textAlign: textAlign,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 9,
+          shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+        ),
+      );
+    }
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: rowAlign,
+      children: [
+        if (ageRating.isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: const Color(0xFF3A3A42),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Text(
+              ageRating,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          if (parts.isNotEmpty) const SizedBox(width: 5),
+        ],
+        Flexible(
+          child: Text(
+            parts.join(' • '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: textAlign,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 9,
+              shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

@@ -53,18 +53,51 @@ class LibraryViewScreen extends ConsumerStatefulWidget {
 class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
   late int _page;
   late bool _sortAsc;
+  late ItemSortBy _sortBy;
   late String? _genre;
   late String? _genresPipe;
   List<BaseItemKind>? _includeTypes;
+
+  static ItemSortBy _sortByForScroll(HomeScroll? scroll) {
+    switch (scroll?.sort) {
+      case HomeScrollSort.alphabetical:
+        return ItemSortBy.sortName;
+      case HomeScrollSort.recent:
+        return ItemSortBy.premiereDate;
+      case HomeScrollSort.rating:
+        return ItemSortBy.communityRating;
+      case HomeScrollSort.added:
+        return ItemSortBy.dateCreated;
+      case HomeScrollSort.random:
+        return ItemSortBy.random;
+      case null:
+        return ItemSortBy.sortName;
+    }
+  }
+
+  static bool _sortAscForScroll(HomeScroll? scroll) {
+    switch (scroll?.sort) {
+      case HomeScrollSort.alphabetical:
+      case HomeScrollSort.random:
+      case null:
+        return true;
+      case HomeScrollSort.recent:
+      case HomeScrollSort.rating:
+      case HomeScrollSort.added:
+        return false;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     _page = 0;
-    _sortAsc = true;
+    _sortBy = _sortByForScroll(widget.scroll);
+    _sortAsc = _sortAscForScroll(widget.scroll);
     // Prioridad: scroll -> initialGenre -> nada
     if (widget.scroll != null) {
-      final g = widget.scroll!.genres;
+      final g =
+          widget.scroll!.genres.map((e) => e.value).toList();
       if (g.isNotEmpty) {
         _genresPipe = g.join('|');
         _genre = g.length == 1 ? g.first : null;
@@ -87,12 +120,15 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
     if (oldWidget.scroll != widget.scroll ||
         oldWidget.initialGenre != widget.initialGenre) {
       if (widget.scroll != null) {
-        final g = widget.scroll!.genres;
+        final g =
+            widget.scroll!.genres.map((e) => e.value).toList();
         _genresPipe = g.isNotEmpty ? g.join('|') : null;
         _genre = g.length == 1 ? g.first : null;
         _includeTypes = widget.scroll!.types.isEmpty
             ? null
             : widget.scroll!.types;
+        _sortBy = _sortByForScroll(widget.scroll);
+        _sortAsc = _sortAscForScroll(widget.scroll);
       } else {
         _genre = widget.initialGenre;
         _genresPipe = null;
@@ -146,6 +182,7 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
       genre: _genre,
       genresPipe: _genresPipe,
       includeItemTypes: effectiveTypes,
+      sortBy: _sortBy,
     );
     final pageAsync = ref.watch(libraryFilteredPageProvider(args));
     final countAsync = ref.watch(libraryFilteredCountProvider(args));
@@ -305,12 +342,34 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                         itemCount: items.length,
                         itemBuilder: (context, i) {
                           final item = items[i];
+                          final scroll = widget.scroll;
                           if (useBackdrop) {
                             return BackdropCard(
                               item: item,
                               serverUrl: serverUrl,
                               cardLogo: skin?.cardLogo,
                               hoverExtension: true,
+                              showBottomVignette:
+                                  scroll?.bottomVignette ?? false,
+                              bottomVignetteHeight:
+                                  scroll?.bottomVignetteHeight ?? 56,
+                              bottomVignetteOpacity:
+                                  scroll?.bottomVignetteOpacity ?? 0.72,
+                              showMetaOverlay: scroll?.metaOverlay ?? false,
+                              showNewBadge: scroll?.showNewBadge ?? false,
+                              showStackLogo: scroll?.showLogo ?? false,
+                              logoPosition:
+                                  scroll?.logoPosition ??
+                                  RowLogoPosition.top,
+                              metaAlignment:
+                                  scroll?.metaAlignment ?? RowMetaAlign.left,
+                              logoSize: scroll?.logoSize,
+                              hideTitle: scroll?.hideTitle ?? false,
+                              hideYear: scroll?.hideYear ?? false,
+                              showHoverOverlay:
+                                  scroll?.showHoverOverlay ?? true,
+                              cardBorderRadius: scroll?.cardBorderRadius,
+                              hoverScale: scroll?.hoverScale,
                               onTap: () => context.push(
                                 '/player/${item.id}',
                                 extra: item,
@@ -326,6 +385,27 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                             serverUrl: serverUrl,
                             cardLogo: skin?.cardLogo,
                             hoverExtension: true,
+                            showBottomVignette:
+                                scroll?.bottomVignette ?? false,
+                            bottomVignetteHeight:
+                                scroll?.bottomVignetteHeight ?? 56,
+                            bottomVignetteOpacity:
+                                scroll?.bottomVignetteOpacity ?? 0.72,
+                            showMetaOverlay: scroll?.metaOverlay ?? false,
+                            showNewBadge: scroll?.showNewBadge ?? false,
+                            showStackLogo: scroll?.showLogo ?? false,
+                            logoPosition:
+                                scroll?.logoPosition ??
+                                RowLogoPosition.top,
+                            metaAlignment:
+                                scroll?.metaAlignment ?? RowMetaAlign.left,
+                            logoSize: scroll?.logoSize,
+                            hideTitle: scroll?.hideTitle ?? false,
+                            hideYear: scroll?.hideYear ?? false,
+                            showHoverOverlay:
+                                scroll?.showHoverOverlay ?? true,
+                            cardBorderRadius: scroll?.cardBorderRadius,
+                            hoverScale: scroll?.hoverScale,
                             onTap: () =>
                                 context.push('/player/${item.id}', extra: item),
                             onImageTap: () => context.push(
@@ -343,16 +423,8 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
     );
   }
 
-  String _resolveScrollTitle(AppLocalizations l10n, String key) {
-    switch (key) {
-      case 'actionMovies':
-        return l10n.actionMovies;
-      case 'familyMovies':
-        return l10n.familyMovies;
-      default:
-        return key;
-    }
-  }
+  String _resolveScrollTitle(AppLocalizations l10n, HomeScrollTitle key) =>
+      HomeScrollTitle.resolve(l10n, key);
 
   String _genreFromPipe(String pipe) {
     final parts = pipe.split('|');

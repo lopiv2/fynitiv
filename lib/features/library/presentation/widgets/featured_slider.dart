@@ -64,6 +64,9 @@ class FeaturedSlider extends ConsumerStatefulWidget {
     this.showShadow = false,
     this.hoverScale = 1.02,
     this.showVignette = true,
+    this.vignetteMode = SliderVignetteMode.around,
+    this.vignetteOpacity = 1.0,
+    this.vignetteSize = 160,
   });
 
   /// Tamaño por defecto del logo (fracción del ancho del banner).
@@ -162,6 +165,16 @@ class FeaturedSlider extends ConsumerStatefulWidget {
 
   /// Si `true`, muestra viñeta en bordes del banner (Prime). `false` la quita (Disney).
   final bool showVignette;
+
+  /// Lados donde se dibuja la viñeta (left/right/top/bottom/around).
+  final SliderVignetteMode vignetteMode;
+
+  /// Opacidad global de la viñeta (0..1, multiplica las alfas base).
+  final double vignetteOpacity;
+
+  /// Grosor en px de la viñeta en los modos por lado. `around` usa su
+  /// composición fija de degradados.
+  final double vignetteSize;
 
   @override
   ConsumerState<FeaturedSlider> createState() => _FeaturedSliderState();
@@ -500,6 +513,9 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
     showShadow: widget.showShadow,
     hoverScale: widget.hoverScale,
     showVignette: widget.showVignette,
+    vignetteMode: widget.vignetteMode,
+    vignetteOpacity: widget.vignetteOpacity,
+    vignetteSize: widget.vignetteSize,
     onTrailerPlaybackChanged: _setTrailerPaused,
     onHoverChanged: _setHoverPaused,
     actionFocusNodes: _actionNodes,
@@ -827,6 +843,9 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     this.showShadow = false,
     this.hoverScale = 1.02,
     this.showVignette = true,
+    this.vignetteMode = SliderVignetteMode.around,
+    this.vignetteOpacity = 1.0,
+    this.vignetteSize = 160,
     this.hoverBorderWidth = 2.5,
     this.isBorderHovered = false,
     this.onTrailerPlaybackChanged,
@@ -853,6 +872,9 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   final bool showShadow;
   final double hoverScale;
   final bool showVignette;
+  final SliderVignetteMode vignetteMode;
+  final double vignetteOpacity;
+  final double vignetteSize;
   final double hoverBorderWidth;
   final bool isBorderHovered;
 
@@ -1191,6 +1213,170 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     );
   }
 
+  /// Multiplica la alfa base de un color por la opacidad de la viñeta (0..1).
+  Color _vignetteAlpha(Color base) {
+    final o = widget.vignetteOpacity.clamp(0.0, 1.0);
+    return base.withValues(alpha: (base.a * o).clamp(0.0, 1.0));
+  }
+
+  /// Capas de viñeta según [SliderVignetteMode]. Vacío si `showVignette` es false.
+  List<Widget> _buildVignette() {
+    if (!widget.showVignette) return const [];
+    switch (widget.vignetteMode) {
+      case SliderVignetteMode.left:
+        return [
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: widget.vignetteSize,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                    colors: [
+                      _vignetteAlpha(const Color(0xE6000000)),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ];
+      case SliderVignetteMode.right:
+        return [
+          Positioned(
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: widget.vignetteSize,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [
+                      _vignetteAlpha(const Color(0xE6000000)),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ];
+      case SliderVignetteMode.top:
+        return [
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            height: widget.vignetteSize,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      _vignetteAlpha(const Color(0xE6000000)),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ];
+      case SliderVignetteMode.bottom:
+        return [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: widget.vignetteSize,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                      _vignetteAlpha(const Color(0xE6000000)),
+                      Colors.transparent,
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ];
+      case SliderVignetteMode.around:
+        // Composición previa: radial + lineal superior + laterales.
+        return [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.center,
+                radius: 1.35,
+                colors: [
+                  Colors.transparent,
+                  _vignetteAlpha(const Color(0x1A000000)),
+                  _vignetteAlpha(const Color(0x66000000)),
+                  _vignetteAlpha(const Color(0xB3000000)),
+                ],
+                stops: const [0.55, 0.75, 0.92, 1.0],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.center,
+                colors: [
+                  _vignetteAlpha(const Color(0xE6000000)),
+                  _vignetteAlpha(const Color(0x66000000)),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.28, 0.55],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.center,
+                colors: [
+                  _vignetteAlpha(const Color(0x66000000)),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.35],
+              ),
+            ),
+          ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerRight,
+                end: Alignment.center,
+                colors: [
+                  _vignetteAlpha(const Color(0x14000000)),
+                  Colors.transparent,
+                ],
+                stops: const [0.0, 0.12],
+              ),
+            ),
+          ),
+        ];
+    }
+  }
+
   Widget _buildLogoSlide(BoxConstraints constraints) {
     final s = widget.contentScale;
     final logoUrl = _logoUrl;
@@ -1315,75 +1501,44 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 ),
               ),
             ),
-            // Viñeta oscurecida en bordes para que la barra superior (Prime) se lea bien
-            // sobre el banner. Radial + lineal superior. Lado derecho reducido 80%.
-            // Solo si showVignette (configurable por skin: Prime true, Disney false).
-            if (widget.showVignette) ...[
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    center: Alignment.center,
-                    radius: 1.35,
-                    colors: [
-                      Colors.transparent,
-                      Color(0x1A000000),
-                      Color(0x66000000),
-                      Color(0xB3000000),
-                    ],
-                    stops: [0.55, 0.75, 0.92, 1.0],
-                  ),
-                ),
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.center,
-                    colors: [
-                      Color(0xE6000000),
-                      Color(0x66000000),
-                      Colors.transparent,
-                    ],
-                    stops: [0.0, 0.28, 0.55],
-                  ),
-                ),
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerLeft,
-                    end: Alignment.center,
-                    colors: [Color(0x66000000), Colors.transparent],
-                    stops: [0.0, 0.35],
-                  ),
-                ),
-              ),
-              const DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.centerRight,
-                    end: Alignment.center,
-                    colors: [Color(0x14000000), Colors.transparent],
-                    stops: [0.0, 0.12],
-                  ),
-                ),
-              ),
-            ],
+            // Viñeta oscurecida para que la barra superior (Prime) se lea bien
+            // sobre el banner. `around` = composición completa (radial +
+            // degradados, aspecto previo); los modos por lado dibujan una
+            // franja de [vignetteSize] px en ese borde. Todo escalado por
+            // [vignetteOpacity]. Solo si showVignette.
+            ..._buildVignette(),
             // Capa táctil / foco solo en móvil/desktop. En TV el foco debe
             // estar en los botones de acción (WatchNow etc.) para que ←/→
             // navegue entre ellos y ↑ vuelva a Inicio.
+            // Sin efecto de escala al hacer hover/focus (eliminado por petición).
             if (!isTv)
               Positioned.fill(
-                child: ScaleButton(
-                  selectedScale: widget.hoverScale,
-                  borderRadius: BorderRadius.circular(bannerRadius),
-                  onPressed: () {
-                    final id = item.id;
-                    if (id != null && id.isNotEmpty) {
-                      context.push('/home/details/$id', extra: item);
+                child: Focus(
+                  onKeyEvent: (node, event) {
+                    if (event is KeyDownEvent &&
+                        (event.logicalKey == LogicalKeyboardKey.enter ||
+                            event.logicalKey == LogicalKeyboardKey.select ||
+                            event.logicalKey == LogicalKeyboardKey.gameButtonA)) {
+                      final id = item.id;
+                      if (id != null && id.isNotEmpty) {
+                        context.push('/home/details/$id', extra: item);
+                      }
+                      return KeyEventResult.handled;
                     }
+                    return KeyEventResult.ignored;
                   },
-                  child: const SizedBox.expand(),
+                  child: MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () {
+                        final id = item.id;
+                        if (id != null && id.isNotEmpty) {
+                          context.push('/home/details/$id', extra: item);
+                        }
+                      },
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
                 ),
               ),
             // Columna izquierda: logo/título, botones de acción, insignia y
@@ -1643,9 +1798,12 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
       ),
     );
 
-    // Borde siempre visible si bannerBorder=true (con bannerBorderWidth),
-    // y más grueso al hacer hover/focus (hoverBorderWidth). Sin escalado.
-    final cardContent = AnimatedContainer(
+    // Borde como overlay para no afectar el layout del banner al hacer hover.
+    // Antes el borde estaba en el BoxDecoration del contenedor del card y al
+    // pasar de borderWidth -> hoverBorderWidth el contenido se encogía
+    // ligeramente (efecto "escala" percibido). Ahora el borde se dibuja por
+    // encima con Positioned.fill y no modifica el tamaño de la imagen.
+    final borderOverlay = AnimatedContainer(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       decoration: BoxDecoration(
@@ -1656,27 +1814,43 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
               ? (widget.isBorderHovered ? widget.hoverBorderWidth : widget.borderWidth)
               : 0,
         ),
-        boxShadow: widget.showShadow
-            ? [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  blurRadius: 22,
-                  offset: const Offset(0, 12),
-                ),
-              ]
-            : null,
       ),
-      child: card,
+    );
+
+    Widget cardContent = Stack(
+      children: [
+        card,
+        Positioned.fill(child: IgnorePointer(child: borderOverlay)),
+      ],
     );
 
     if (widget.showShadow) {
-      // Padding para que la sombra no se recorte por el viewport / Stack.
+      // Sombra exterior sin recorte.
+      cardContent = Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(bannerRadius),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 22,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(bannerRadius),
+          child: cardContent,
+        ),
+      );
       return Padding(
         padding: const EdgeInsets.fromLTRB(6, 0, 6, 14),
         child: cardContent,
       );
     }
-    return cardContent;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(bannerRadius),
+      child: cardContent,
+    );
   }
 }
 

@@ -1190,6 +1190,102 @@ abstract class AppLocalizations {
   /// **'Family & kids'**
   String get familyMovies;
 
+  /// No description provided for @romanticMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Romantic movies'**
+  String get romanticMovies;
+
+  /// No description provided for @animationMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Animation movies'**
+  String get animationMovies;
+
+  /// No description provided for @realities.
+  ///
+  /// In en, this message translates to:
+  /// **'Realities'**
+  String get realities;
+
+  /// No description provided for @animeSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Anime series'**
+  String get animeSeries;
+
+  /// No description provided for @nostalgia.
+  ///
+  /// In en, this message translates to:
+  /// **'Nostalgia'**
+  String get nostalgia;
+
+  /// No description provided for @dramas.
+  ///
+  /// In en, this message translates to:
+  /// **'Dramas'**
+  String get dramas;
+
+  /// No description provided for @comedies.
+  ///
+  /// In en, this message translates to:
+  /// **'Comedies'**
+  String get comedies;
+
+  /// No description provided for @actionAdventure.
+  ///
+  /// In en, this message translates to:
+  /// **'Action & adventure'**
+  String get actionAdventure;
+
+  /// No description provided for @musicals.
+  ///
+  /// In en, this message translates to:
+  /// **'Musicals'**
+  String get musicals;
+
+  /// No description provided for @foodCooking.
+  ///
+  /// In en, this message translates to:
+  /// **'Food & cooking'**
+  String get foodCooking;
+
+  /// No description provided for @travel.
+  ///
+  /// In en, this message translates to:
+  /// **'Travel'**
+  String get travel;
+
+  /// No description provided for @sciFi.
+  ///
+  /// In en, this message translates to:
+  /// **'Sci-Fi'**
+  String get sciFi;
+
+  /// No description provided for @western.
+  ///
+  /// In en, this message translates to:
+  /// **'Toughest of the West'**
+  String get western;
+
+  /// No description provided for @crime.
+  ///
+  /// In en, this message translates to:
+  /// **'Crime & Suspense'**
+  String get crime;
+
+  /// No description provided for @horror.
+  ///
+  /// In en, this message translates to:
+  /// **'Diabolical horror'**
+  String get horror;
+
+  /// No description provided for @superHero.
+  ///
+  /// In en, this message translates to:
+  /// **'Mightiest heroes'**
+  String get superHero;
+
   /// No description provided for @seeMore.
   ///
   /// In en, this message translates to:
@@ -1297,6 +1393,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Play'**
   String get gamesPlay;
+
+  /// No description provided for @episodes.
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes'**
+  String get episodes;
+
+  /// No description provided for @extras.
+  ///
+  /// In en, this message translates to:
+  /// **'Extras'**
+  String get extras;
+
+  /// No description provided for @suggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Suggestions'**
+  String get suggestions;
+
+  /// No description provided for @season.
+  ///
+  /// In en, this message translates to:
+  /// **'Season'**
+  String get season;
+
+  /// Season count label for series detail (e.g. 1 season).
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 season} other{{count} seasons}}'**
+  String seriesSeasons(int count);
 
   /// No description provided for @gamesDownload.
   ///
