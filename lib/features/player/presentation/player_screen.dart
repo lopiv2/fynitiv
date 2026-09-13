@@ -132,7 +132,13 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
             ),
           );
     _subscribe();
-    _open();
+    // Diferir la apertura al primer frame: `_open` muta providers (handoff
+    // del mini player) y hace setState. Si corre dentro del montaje durante
+    // la transición push, esas escrituras síncronas colisionan con el build
+    // en curso (assert `!_dirty` en el Stack/Positioned del player).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_playerDisposed) _open();
+    });
   }
 
   void _subscribe() {
@@ -143,7 +149,15 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     );
     _subs.add(
       _player.stream.position.listen((p) {
-        if (mounted && !_dragging) setState(() => _position = p);
+        // Limita rebuilds a 1 por segundo visible: el stream emite varias
+        // veces por segundo y cada tick reconstruía todo el player (cover,
+        // lyrics, onda) saturando la transición de maximizar.
+        if (!mounted || _dragging) return;
+        if (_position != Duration.zero &&
+            p.inSeconds == _position.inSeconds) {
+          return;
+        }
+        setState(() => _position = p);
       }),
     );
     _subs.add(
@@ -761,6 +775,29 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                           },
                         ),
                         const Spacer(),
+                        // Toggle lyrics solo en modo audio. Vive aquí (y no en
+                        // _AudioCover) porque el overlay cubre toda la pantalla
+                        // y los botones del fondo no reciben taps.
+                        if (_isAudio)
+                          Consumer(
+                            builder: (context, ref, _) {
+                              final show = ref.watch(showLyricsProvider);
+                              return IconButton(
+                                tooltip: show
+                                    ? 'Ocultar letra'
+                                    : 'Mostrar letra',
+                                icon: Icon(
+                                  show
+                                      ? Icons.lyrics_rounded
+                                      : Icons.lyrics_outlined,
+                                  color: Colors.white,
+                                ),
+                                onPressed: () => ref
+                                    .read(showLyricsProvider.notifier)
+                                    .toggle(),
+                              );
+                            },
+                          ),
                         if (hasSubtitles) ...[
                           _SubtitleButton(
                             tracks: _tracks,
@@ -1005,35 +1042,54 @@ class _FastAnimatedGradientState extends State<_FastAnimatedGradient> {
   Alignment _begin = Alignment.bottomLeft;
   Alignment _end = Alignment.topRight;
 
+  Timer? _kickTimer;
+  bool _kicked = false;
+
   @override
   void initState() {
     super.initState();
     _bottomColor = widget.colors.last;
     _topColor = widget.colors.first;
+    // Un único kick inicial post-frame, no en cada build (evita !_dirty por setState durante build)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _kickOnce());
   }
 
-  @override
-  void didUpdateWidget(covariant _FastAnimatedGradient oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.colors != widget.colors) {
-      _bottomColor = widget.colors.last;
-      _topColor = widget.colors.first;
-      _index = 0;
-      _begin = Alignment.bottomLeft;
-      _end = Alignment.topRight;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Inicia el primer cambio tras un frame para disparar la animación
-    Future.delayed(const Duration(milliseconds: 10), () {
+  void _kickOnce() {
+    if (!mounted || _kicked) return;
+    _kicked = true;
+    // Pequeño delay para que AnimatedContainer tenga estado inicial
+    _kickTimer = Timer(const Duration(milliseconds: 20), () {
       if (!mounted) return;
       setState(() {
         final shuffled = List<Color>.of(widget.colors)..shuffle();
         _bottomColor = shuffled.first;
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant _FastAnimatedGradient oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.colors != widget.colors) {
+      _kickTimer?.cancel();
+      _kicked = false;
+      _bottomColor = widget.colors.last;
+      _topColor = widget.colors.first;
+      _index = 0;
+      _begin = Alignment.bottomLeft;
+      _end = Alignment.topRight;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _kickOnce());
+    }
+  }
+
+  @override
+  void dispose() {
+    _kickTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return AnimatedContainer(
       duration: const Duration(milliseconds: 900),
       onEnd: () {
@@ -1095,13 +1151,22 @@ class _AnimatedPaletteBackgroundState extends State<_AnimatedPaletteBackground> 
   Future<void> _extract() async {
     final url = widget.url;
     if (url.isEmpty) {
-      if (mounted) setState(() => _palette = null);
+      if (!mounted) return;
+      // Diferir: _extract puede ser llamado desde didUpdateWidget (durante build)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _palette = null);
+      });
       return;
     }
     if (_cache.containsKey(url)) {
       final cached = _cache[url]!;
-      if (mounted) setState(() => _palette = cached);
-      widget.onPalette?.call(cached);
+      if (!mounted) return;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _palette = cached);
+        widget.onPalette?.call(cached);
+      });
       return;
     }
     try {
@@ -1206,7 +1271,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
   void didUpdateWidget(covariant _AudioCover oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url) {
-      setState(() => _palette = null);
+      // No setState aquí: didUpdateWidget corre dentro del update del parent
+      // y setState marcaría dirty durante el build -> !_dirty
+      _palette = null;
     }
   }
 
@@ -1244,54 +1311,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Botón atrás persistente en modo audio (lista de reproducción)
-          // arriba y a la izquierda, encima de la canción.
-          Positioned(
-            top: 0,
-            left: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: IconButton(
-                  tooltip: AppLocalizations.of(context)!.back,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.black45,
-                    foregroundColor: Colors.white,
-                  ),
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  onPressed: widget.onBack ??
-                      () {
-                        if (context.canPop()) {
-                          context.pop();
-                        } else {
-                          context.go('/music');
-                        }
-                      },
-                ),
-              ),
-            ),
-          ),
-          // Toggle lyrics (por defecto ON) arriba a la derecha
-          Positioned(
-            top: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Consumer(
-                  builder: (context, ref, _) {
-                    final show = ref.watch(showLyricsProvider);
-                    return IconButton(
-                      tooltip: show ? 'Ocultar letra' : 'Mostrar letra',
-                      style: IconButton.styleFrom(backgroundColor: Colors.black45, foregroundColor: Colors.white),
-                      icon: Icon(show ? Icons.lyrics_rounded : Icons.lyrics_outlined),
-                      onPressed: () => ref.read(showLyricsProvider.notifier).toggle(),
-                    );
-                  },
-                ),
-              ),
-            ),
-          ),
+          // NOTA: no poner botones aquí: esta capa queda debajo del overlay
+          // de controles (GestureDetector a pantalla completa) y no recibiría
+          // los taps. El toggle de lyrics vive en [_buildOverlay].
           Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -1303,19 +1325,10 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                 return Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Hero(
-                      tag: widget.heroTag ?? 'music-cover-${widget.url}',
-                      flightShuttleBuilder: (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
-                        final hero = flightDirection == HeroFlightDirection.push ? toHeroContext.widget as Hero : fromHeroContext.widget as Hero;
-                        return FadeTransition(
-                          opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
-                          child: ScaleTransition(
-                            scale: animation.drive(Tween<double>(begin: 0.3, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic))),
-                            child: hero.child,
-                          ),
-                        );
-                      },
-                      child: Container(
+                    // Sin Hero: el flightShuttleBuilder accedía a contextos
+                    // desactivados durante minimizar/maximizar (crash
+                    // "deactivated widget's ancestor" + tickers de Tooltip).
+                    Container(
                         width: size,
                         height: size,
                         decoration: BoxDecoration(
@@ -1337,7 +1350,6 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                           errorBuilder: (_, _, _) => _CoverFallback(),
                         ),
                       ),
-                    ),
                     if (widget.artist.isNotEmpty) ...[
                       const SizedBox(height: 28),
                       ConstrainedBox(
@@ -1394,12 +1406,14 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
               },
             ),
           ),
-          // Panel lateral de lyrics (derecha del cover, no reduce cover) - por defecto ON
+          // Panel lateral de lyrics (derecha del cover, no reduce cover) - por defecto ON.
+          // bottom 240 para no solaparse con la onda ni con la barra inferior
+          // de progreso/controles del overlay.
           if (ref.watch(showLyricsProvider))
             Positioned(
               right: 24,
-              top: 80,
-              bottom: 140,
+              top: 88,
+              bottom: 240,
               width: 420,
               child: Consumer(
                 builder: (context, ref, _) {
@@ -1445,8 +1459,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
               ),
             ),
           // Onda animada tematizable por music skin.
+          // bottom 180 para quedar por encima de la barra de progreso del overlay.
           Positioned(
-            bottom: 110,
+            bottom: 180,
             left: 40,
             right: 40,
             child: _AudioWaveform(

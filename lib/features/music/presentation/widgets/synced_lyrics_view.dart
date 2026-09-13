@@ -29,10 +29,18 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
   @override
   void didUpdateWidget(covariant SyncedLyricsView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _syncScroll();
+    // Diferir para no hacer setState durante el build del parent (causaba !_dirty)
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncScroll());
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncScroll());
   }
 
   void _syncScroll() {
+    if (!mounted) return;
     final lines = widget.result.syncedLines;
     if (lines == null || lines.isEmpty) return;
     int idx = -1;
@@ -45,6 +53,13 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
         // Cada línea ~28px de alto, centramos
         final offset = (idx * 28.0 - 120).clamp(0.0, _controller.position.maxScrollExtent);
         _controller.animateTo(offset, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+      } else if (idx >= 0) {
+        // Si aún no hay clientes, reintentar en el próximo frame
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || !_controller.hasClients) return;
+          final off = (idx * 28.0 - 120).clamp(0.0, _controller.position.maxScrollExtent);
+          _controller.animateTo(off, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+        });
       }
     }
   }

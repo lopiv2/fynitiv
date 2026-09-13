@@ -111,7 +111,7 @@ class Skin {
     // VOD: FeaturedSlider → ContinueWatching → NewReleases → Library per view → custom.
     // Para personalizar, define el array en el orden que quieras que aparezca.
     // Ej. Disney: [featuredSlider, continueWatching, newReleases, custom(Action), custom(Family)]
-    // Cada elemento `HomeSection`/`VodSection` puede ser built-in o `custom(HomeScroll(...))`
+    // Cada elemento `LayoutSection` puede ser built-in o `custom(HomeScroll(...))`
     // con poster/backdrop, viñeta, etc. configurables por scroll y reutilizables en cualquier skin.
     this.homeLayout = const [],
     this.vodLayout = const [],
@@ -322,7 +322,7 @@ class Skin {
 
   /// Filas de contenido extra (scrolls) configuradas por este skin, con sus
   /// filtros (géneros/tipos). Se muestran bajo las filas de la biblioteca.
-  /// @Deprecated: usar `homeLayout`/`vodLayout` con `HomeSection.custom`/`VodSection.custom`.
+  /// @Deprecated: usar `homeLayout`/`vodLayout` con `LayoutSection.custom`.
   /// Se mantiene por compatibilidad: si `homeLayout`/`vodLayout` están vacíos se usa este
   /// array en el orden legado (detrás de Recent). Si `homeLayout`/`vodLayout` no está vacío,
   /// este campo se ignora por completo para evitar duplicados.
@@ -332,14 +332,15 @@ class Skin {
   /// Vacío = orden legado (FeaturedSlider → ContinueWatching → NextUp → Recent → homeScrolls).
   /// Lleno = se respeta exactamente el orden dado, permitiendo intercalar built-ins
   /// y customs (poster/backdrop, viñeta, etc.) de forma máxima personalizable por skin.
-  /// Cada `HomeSection` puede ser built-in o `custom(HomeScroll)` con su propio poster/backdrop.
-  final List<HomeSection> homeLayout;
+  /// Cada `LayoutSection` puede ser built-in o `custom(HomeScroll)` con su propio poster/backdrop.
+  /// Soporta `recent` y `library` a demanda.
+  final List<LayoutSection> homeLayout;
 
   /// Layout ordenable de VOD: array de secciones de arriba a abajo.
   /// Vacío = orden legado VOD (FeaturedSlider → ContinueWatching → NewReleases → Library per view → homeScrolls).
-  /// Lleno = orden custom. `library` expande a una fila por biblioteca (Películas, Series...),
+  /// Lleno = orden custom. `library`/`recent` expanden a una fila por biblioteca,
   /// `custom` a un HomeScroll filtrado. Si `vodLayout` no está vacío, `homeScrolls` se ignora en VOD.
-  final List<VodSection> vodLayout;
+  final List<LayoutSection> vodLayout;
 
   /// Cuando el título del elemento hace overflow, lo desplaza horizontalmente
   /// en bucle al hacer hover (estilo Jellyfin Android TV). Solo si está activo.
@@ -426,8 +427,8 @@ class Skin {
     String? fontFamily,
     bool? cardHoverExtension,
     List<HomeScroll>? homeScrolls,
-    List<HomeSection>? homeLayout,
-    List<VodSection>? vodLayout,
+    List<LayoutSection>? homeLayout,
+    List<LayoutSection>? vodLayout,
     bool? titleMarqueeOnHover,
     bool? topBarFloating,
     bool? showCardBadge,
@@ -632,12 +633,12 @@ class Skin {
           const [],
       homeLayout:
           (json['homeLayout'] as List?)
-              ?.map((e) => HomeSection.fromJson(e as Map<String, dynamic>))
+              ?.map((e) => LayoutSection.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
       vodLayout:
           (json['vodLayout'] as List?)
-              ?.map((e) => VodSection.fromJson(e as Map<String, dynamic>))
+              ?.map((e) => LayoutSection.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
       titleMarqueeOnHover: json['titleMarqueeOnHover'] as bool? ?? false,

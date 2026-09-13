@@ -77,8 +77,8 @@ abstract final class SkinPresets {
     sidebarCollapsible: true,
     itemSpacing: 20,
     homeLayout: [
-      HomeSection.featuredSlider(),
-      HomeSection.continueWatching(
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(
         HomeScroll(
           titleKey: HomeScrollTitle.continueWatching,
           genres: [],
@@ -86,8 +86,8 @@ abstract final class SkinPresets {
           cardType: HomeScrollCardType.backdrop,
         ),
       ),
-      HomeSection.newReleases(),
-      HomeSection.custom(
+      LayoutSection.newReleases(),
+      LayoutSection.custom(
         HomeScroll(
           titleKey: HomeScrollTitle.actionMovies,
           genres: [JellyGenre.action],
@@ -100,7 +100,7 @@ abstract final class SkinPresets {
           logoPosition: RowLogoPosition.bottom,
         ),
       ),
-      HomeSection.custom(
+      LayoutSection.custom(
         HomeScroll(
           titleKey: HomeScrollTitle.familyMovies,
           genres: [JellyGenre.animation, JellyGenre.family, JellyGenre.kids],
@@ -109,12 +109,12 @@ abstract final class SkinPresets {
           imageSource: RowImageSource.backdrop,
         ),
       ),
-      HomeSection.recent(),
-      HomeSection.nextUp(),
+      LayoutSection.recent(),
+      LayoutSection.nextUp(),
     ],
     vodLayout: [
-      VodSection.featuredSlider(),
-      VodSection.continueWatching(
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(
         HomeScroll(
           titleKey: HomeScrollTitle.continueWatching,
           genres: [],
@@ -124,7 +124,7 @@ abstract final class SkinPresets {
           tapAction: HomeScrollTapAction.play,
         ),
       ),
-      VodSection.nextUp(
+      LayoutSection.nextUp(
         HomeScroll(
           titleKey: HomeScrollTitle.nextUp,
           genres: [],
@@ -134,7 +134,7 @@ abstract final class SkinPresets {
           tapAction: HomeScrollTapAction.play,
         ),
       ),
-      VodSection.newReleases(
+      LayoutSection.newReleases(
         HomeScroll(
           titleKey: HomeScrollTitle.newReleases,
           genres: [],
@@ -156,7 +156,7 @@ abstract final class SkinPresets {
       ),
       // Una entrada por biblioteca, cada una con su propia imagen y layout:
       // Películas en backdrop panorámico, Series en póster vertical.
-      VodSection.library(
+      LayoutSection.library(
         HomeScroll(
           titleKey: HomeScrollTitle.library,
           genres: [],
@@ -171,7 +171,7 @@ abstract final class SkinPresets {
         ),
         {CollectionType.movies},
       ),
-      VodSection.library(
+      LayoutSection.library(
         HomeScroll(
           titleKey: HomeScrollTitle.library,
           genres: [],
@@ -186,7 +186,7 @@ abstract final class SkinPresets {
         ),
         {CollectionType.tvshows},
       ),
-      VodSection.custom(
+      LayoutSection.custom(
         HomeScroll(
           titleKey: HomeScrollTitle.actionMovies,
           types: [BaseItemKind.movie],
@@ -202,7 +202,7 @@ abstract final class SkinPresets {
           tapAction: HomeScrollTapAction.details,
         ),
       ),
-      VodSection.custom(
+      LayoutSection.custom(
         HomeScroll(
           titleKey: HomeScrollTitle.animationMovies,
           types: [BaseItemKind.movie],
@@ -218,7 +218,7 @@ abstract final class SkinPresets {
           tapAction: HomeScrollTapAction.details,
         ),
       ),
-      VodSection.custom(
+      LayoutSection.custom(
         HomeScroll(
           titleKey: HomeScrollTitle.crime,
           types: [BaseItemKind.movie],

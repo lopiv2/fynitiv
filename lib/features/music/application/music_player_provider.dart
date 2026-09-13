@@ -94,7 +94,9 @@ class MusicPlayerController extends Notifier<MusicPlayerState> {
       if (!_disposed) state = state.copyWith(buffering: b);
     }));
     _subs.add(p.stream.completed.listen((c) {
-      if (!_disposed) state = state.copyWith(completed: c, playing: c ? false : state.playing);
+      if (_disposed || !c) return;
+      // Al terminar la canción en el mini: parar y ocultar el reproductor.
+      stop();
     }));
     _subs.add(p.stream.error.listen((e) {
       if (!_disposed) state = state.copyWith(error: e);

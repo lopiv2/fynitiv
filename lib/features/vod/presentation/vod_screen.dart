@@ -407,19 +407,36 @@ class VodScreen extends ConsumerWidget {
       final consumedViews = <String>{};
       for (final section in skin!.vodLayout) {
         switch (section.type) {
-          case VodSectionType.continueWatching:
+          case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;
             customBackdrops.add(isBackForContinue(section.scroll));
             break;
-          case VodSectionType.nextUp:
+          case LayoutSectionType.nextUp:
             if ((nextUp.value ?? []).isEmpty) break;
             customBackdrops.add(useBackdrop);
             break;
-          case VodSectionType.newReleases:
+          case LayoutSectionType.newReleases:
             if ((latest.value ?? []).isEmpty) break;
             customBackdrops.add(useBackdrop);
             break;
-          case VodSectionType.library:
+          case LayoutSectionType.recent:
+            final recentSort = section.scroll?.sort;
+            for (final view in views.value ?? const <BaseItemDto>[]) {
+              if (!section.matchesView(view.collectionType)) continue;
+              final viewId = view.id ?? '';
+              if (viewId.isEmpty || !consumedViews.add(viewId)) continue;
+              final items = recentSort == null
+                  ? ref.watch(recentLibraryItemsProvider(viewId)).value ??
+                        const []
+                  : ref
+                            .watch(recentRowItemsProvider((viewId, recentSort)))
+                            .value ??
+                        const [];
+              if (items.isEmpty) continue;
+              customBackdrops.add(useBackdrop);
+            }
+            break;
+          case LayoutSectionType.library:
             final librarySort = section.scroll?.sort;
             for (final view in views.value ?? const <BaseItemDto>[]) {
               if (!section.matchesView(view.collectionType)) continue;
@@ -433,7 +450,7 @@ class VodScreen extends ConsumerWidget {
               customBackdrops.add(useBackdrop);
             }
             break;
-          case VodSectionType.custom:
+          case LayoutSectionType.custom:
             final s = section.scroll!;
             final items =
                 ref.watch(homeScrollItemsProvider(s)).value ?? const [];
@@ -445,7 +462,7 @@ class VodScreen extends ConsumerWidget {
                 : useBackdrop;
             customBackdrops.add(isBack);
             break;
-          case VodSectionType.featuredSlider:
+          case LayoutSectionType.featuredSlider:
             break;
         }
       }
@@ -457,24 +474,118 @@ class VodScreen extends ConsumerWidget {
       final builtViews = <String>{};
       for (final section in skin.vodLayout) {
         switch (section.type) {
-          case VodSectionType.featuredSlider:
+          case LayoutSectionType.featuredSlider:
             if (showBanner && (latestBanner.value?.isNotEmpty ?? false)) {
               out.add(buildFeaturedSliderVod());
             }
             break;
-          case VodSectionType.continueWatching:
+          case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;
             out.add(buildContinueRow2(section.scroll));
             break;
-          case VodSectionType.nextUp:
+          case LayoutSectionType.nextUp:
             if ((nextUp.value ?? []).isEmpty) break;
             out.add(buildUpNextRow2(section.scroll));
             break;
-          case VodSectionType.newReleases:
+          case LayoutSectionType.newReleases:
             if ((latest.value ?? []).isEmpty) break;
             out.add(buildNewReleasesRow(section.scroll));
             break;
-          case VodSectionType.library:
+          case LayoutSectionType.recent:
+            final recentScroll = section.scroll;
+            final useRecentBackdrop =
+                recentScroll?.cardType == HomeScrollCardType.backdrop
+                    ? true
+                    : recentScroll?.cardType == HomeScrollCardType.poster
+                        ? false
+                        : useBackdrop;
+            for (final view in views.value ?? const <BaseItemDto>[]) {
+              if (!section.matchesView(view.collectionType)) continue;
+              final viewId = view.id ?? '';
+              if (viewId.isEmpty || !builtViews.add(viewId)) continue;
+              out.add(
+                Builder(
+                  builder: (context) {
+                    final recentSort = section.scroll?.sort;
+                    final items = recentSort == null
+                        ? ref.watch(recentLibraryItemsProvider(viewId)).value ??
+                              const []
+                        : ref
+                                  .watch(
+                                    recentRowItemsProvider(
+                                      (viewId, recentSort),
+                                    ),
+                                  )
+                                  .value ??
+                              const [];
+                    if (items.isEmpty) return const SizedBox.shrink();
+                    final isBack = useRecentBackdrop;
+                    final isNextPoster = isNextPosterFor(isBack);
+                    final hasNext = rowCursor < visibleBackdrops.length - 1;
+                    final isSeriesView =
+                        view.collectionType == CollectionType.tvshows;
+                    void goSeriesDetail(BaseItemDto item) {
+                      final target = seriesDetailTarget(item);
+                      context.push(
+                        '/home/details/${target.id}',
+                        extra: target,
+                      );
+                    }
+
+                    final w = ContentRow(
+                      title: l10n.recentIn(view.name ?? ''),
+                      items: items,
+                      serverUrl: serverUrl,
+                      height: rowHeight,
+                      cardWidth: cardWidth,
+                      itemSpacing: skin.itemSpacing,
+                      useBackdrop: isBack,
+                      cardLogo: skin.cardLogo,
+                      useSeriesPoster: isSeriesView,
+                      showBottomVignette:
+                          recentScroll?.bottomVignette ?? false,
+                      bottomVignetteHeight:
+                          recentScroll?.bottomVignetteHeight ?? 56,
+                      bottomVignetteOpacity:
+                          recentScroll?.bottomVignetteOpacity ?? 0.72,
+                      showMetaOverlay: recentScroll?.metaOverlay ?? false,
+                      imageSource: recentScroll?.imageSource,
+                      showNewBadge: recentScroll?.showNewBadge ?? false,
+                      showStackLogo: recentScroll?.showLogo ?? false,
+                      logoPosition:
+                          recentScroll?.logoPosition ?? RowLogoPosition.top,
+                      metaAlignment:
+                          recentScroll?.metaAlignment ?? RowMetaAlign.left,
+                      logoSize: recentScroll?.logoSize,
+                      hideTitle: recentScroll?.hideTitle ?? false,
+                      hideYear: recentScroll?.hideYear ?? false,
+                      showHoverOverlay:
+                          recentScroll?.showHoverOverlay ?? true,
+                      cardBorderRadius: recentScroll?.cardBorderRadius,
+                      hoverScale: recentScroll?.hoverScale,
+                      isNextPoster: isNextPoster,
+                      hasNext: hasNext,
+                      onSeeMore: (recentScroll?.showSeeMore ?? true)
+                          ? () => context.push('/library/${view.id}')
+                          : null,
+                      onItemTap: isSeriesView
+                          ? goSeriesDetail
+                          : tapFor(recentScroll),
+                      onItemImageTap: isSeriesView
+                          ? goSeriesDetail
+                          : (item) => context.push(
+                              '/home/details/${item.id}',
+                              extra: item,
+                            ),
+                    );
+                    rowCursor++;
+                    return w;
+                  },
+                ),
+              );
+            }
+            break;
+          case LayoutSectionType.library:
             final libraryScroll = section.scroll;
             final useLibraryBackdrop = libraryScroll?.cardType ==
                     HomeScrollCardType.backdrop
@@ -568,7 +679,7 @@ class VodScreen extends ConsumerWidget {
               );
             }
             break;
-          case VodSectionType.custom:
+          case LayoutSectionType.custom:
             final s = section.scroll!;
             out.add(
               Builder(

@@ -65,32 +65,20 @@ class MiniPlayerBar extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
                   children: [
-                    // Carátula con Hero (animación desde el centro del player) - también abre fullscreen
+                    // Carátula - también abre fullscreen (maximizar).
+                    // Sin Hero custom ni mutación del provider antes del push:
+                    // pausar aquí reconstruía la barra y desactivaba el
+                    // context del gesto (crash "deactivated widget's ancestor").
+                    // El fullscreen hereda posición/volumen y pausa el mini en _open().
                     InkWell(
                       onTap: () {
                         final id = state.item?.id ?? state.session?.itemId;
-                        if (id != null && id.isNotEmpty) {
-                          try {
-                            ref.read(musicPlayerProvider.notifier).pause();
-                          } catch (_) {}
-                          try {
-                            GoRouter.of(context).push('/player/$id', extra: state.item);
-                          } catch (_) {}
-                        }
+                        final item = state.item;
+                        if (id == null || id.isEmpty) return;
+                        if (!context.mounted) return;
+                        context.push('/player/$id', extra: item);
                       },
-                      child: Hero(
-                        tag: 'music-cover-${state.item?.id ?? state.session?.itemId ?? 'unknown'}',
-                        flightShuttleBuilder: (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
-                          final hero = flightDirection == HeroFlightDirection.push ? toHeroContext.widget as Hero : fromHeroContext.widget as Hero;
-                          return FadeTransition(
-                            opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
-                            child: ScaleTransition(
-                              scale: animation.drive(Tween<double>(begin: 0.7, end: 1.0).chain(CurveTween(curve: Curves.easeInOutCubic))),
-                              child: hero.child,
-                            ),
-                          );
-                        },
-                        child: ClipRRect(
+                      child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
                           child: state.coverUrl.isNotEmpty
                               ? Image.network(
@@ -101,7 +89,6 @@ class MiniPlayerBar extends ConsumerWidget {
                                   errorBuilder: (_, _, _) => Container(width: 48, height: 48, color: const Color(0xFF1A1A1A), child: const Icon(Icons.music_note, color: Colors.white54, size: 20)),
                                 )
                               : Container(width: 48, height: 48, color: const Color(0xFF1A1A1A), child: const Icon(Icons.music_note, color: Colors.white54, size: 20)),
-                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -110,17 +97,10 @@ class MiniPlayerBar extends ConsumerWidget {
                       child: InkWell(
                         onTap: () {
                           final id = state.item?.id ?? state.session?.itemId;
-                          if (id != null && id.isNotEmpty) {
-                            // Pausa el mini para no solapar audio y conserva volumen/posición
-                            // El PlayerScreen fullscreen retomará con mismo volumen/posición (Hero inverso)
-                            try {
-                              // No hacemos stop() para mantener el item en el provider y que el fullscreen pueda heredar posición/volumen; solo pausamos
-                              ref.read(musicPlayerProvider.notifier).pause();
-                            } catch (_) {}
-                            try {
-                              GoRouter.of(context).push('/player/$id', extra: state.item);
-                            } catch (_) {}
-                          }
+                          final item = state.item;
+                          if (id == null || id.isEmpty) return;
+                          if (!context.mounted) return;
+                          context.push('/player/$id', extra: item);
                         },
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
