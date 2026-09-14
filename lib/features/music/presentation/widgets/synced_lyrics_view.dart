@@ -50,15 +50,15 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     if (idx != _current) {
       setState(() => _current = idx);
       if (idx >= 0 && _controller.hasClients) {
-        // Cada línea ~28px de alto, centramos
-        final offset = (idx * 28.0 - 120).clamp(0.0, _controller.position.maxScrollExtent);
-        _controller.animateTo(offset, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+        // Cada línea ~32px de alto, centramos suave (550ms para seguir beat sin tirón)
+        final offset = (idx * 32.0 - 120).clamp(0.0, _controller.position.maxScrollExtent);
+        _controller.animateTo(offset, duration: const Duration(milliseconds: 550), curve: Curves.easeInOutCubic);
       } else if (idx >= 0) {
         // Si aún no hay clientes, reintentar en el próximo frame
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !_controller.hasClients) return;
-          final off = (idx * 28.0 - 120).clamp(0.0, _controller.position.maxScrollExtent);
-          _controller.animateTo(off, duration: const Duration(milliseconds: 300), curve: Curves.easeInOut);
+          final off = (idx * 32.0 - 120).clamp(0.0, _controller.position.maxScrollExtent);
+          _controller.animateTo(off, duration: const Duration(milliseconds: 550), curve: Curves.easeInOutCubic);
         });
       }
     }
@@ -79,36 +79,124 @@ class _SyncedLyricsViewState extends State<SyncedLyricsView> {
     }
     final synced = widget.result.syncedLines;
     if (synced == null || synced.isEmpty) {
-      // Plain sin highlight
-      return SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: SelectableText(
-          widget.result.plainLyrics,
-          style: TextStyle(color: widget.textPrimary, fontSize: 14, height: 1.6),
+      // Plain sin highlight — con scrollbar
+      return Scrollbar(
+        controller: _controller,
+        thumbVisibility: true,
+        thickness: 4,
+        radius: const Radius.circular(8),
+        child: SingleChildScrollView(
+          controller: _controller,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: SelectableText(
+            widget.result.plainLyrics,
+            style: TextStyle(color: widget.textPrimary, fontSize: 14, height: 1.6),
+          ),
         ),
       );
     }
 
-    return ListView.builder(
+    return Scrollbar(
       controller: _controller,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-      itemCount: synced.length,
-      itemBuilder: (context, i) {
-        final line = synced[i];
-        final active = i == _current;
-        final past = i < _current;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Text(
-            line.text,
-            style: TextStyle(
-              color: active ? widget.accent : (past ? widget.textSecondary.withValues(alpha: 0.6) : widget.textPrimary.withValues(alpha: 0.85)),
-              fontSize: active ? 16 : 13,
-              fontWeight: active ? FontWeight.w800 : FontWeight.w400,
-              height: 1.3,
+      thumbVisibility: true,
+      thickness: 4,
+      radius: const Radius.circular(8),
+      child: ListView.builder(
+        controller: _controller,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        itemCount: synced.length,
+        itemBuilder: (context, i) {
+          final line = synced[i];
+          final active = i == _current;
+          final past = i < _current;
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: _LyricLine(
+              text: line.text,
+              active: active,
+              past: past,
+              textPrimary: widget.textPrimary,
+              textSecondary: widget.textSecondary,
+              accent: widget.accent,
             ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Línea con transición degradada suave entre color base y resaltado.
+/// Usa [TweenAnimationBuilder] + [ShaderMask] para barrido gradient left→right.
+class _LyricLine extends StatelessWidget {
+  const _LyricLine({
+    required this.text,
+    required this.active,
+    required this.past,
+    required this.textPrimary,
+    required this.textSecondary,
+    required this.accent,
+  });
+
+  final String text;
+  final bool active;
+  final bool past;
+  final Color textPrimary;
+  final Color textSecondary;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    // Past / future sin animación: colores estáticos.
+    if (!active) {
+      final color = past
+          ? textSecondary.withValues(alpha: 0.52)
+          : textPrimary.withValues(alpha: 0.85);
+      return AnimatedDefaultTextStyle(
+        duration: const Duration(milliseconds: 550),
+        curve: Curves.easeInOutCubic,
+        style: TextStyle(
+          color: color,
+          fontSize: past ? 13 : 13.5,
+          fontWeight: past ? FontWeight.w400 : FontWeight.w500,
+          height: 1.35,
+        ),
+        child: Text(text),
+      );
+    }
+
+    // Activa: barrido degradado 650ms textPrimary → accent con gradiente 40% ancho.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 650),
+      curve: Curves.easeInOutCubic,
+      builder: (context, progress, _) {
+        return AnimatedDefaultTextStyle(
+          duration: const Duration(milliseconds: 650),
+          curve: Curves.easeInOutCubic,
+          style: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+            height: 1.35,
+          ),
+          child: ShaderMask(
+            shaderCallback: (bounds) {
+              // Degradado que barre de izquierda a derecha.
+              // progress 0 = todo base, 1 = todo accent.
+              final p = progress.clamp(0.0, 1.0);
+              // Suavizado: zona de mezcla 0.40 del ancho.
+              const blend = 0.40;
+              final start = (p - blend / 2).clamp(0.0, 1.0);
+              final end = (p + blend / 2).clamp(0.0, 1.0);
+              return LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [accent, accent, textPrimary.withValues(alpha: 0.85)],
+                stops: [0.0, start, end],
+              ).createShader(bounds);
+            },
+            blendMode: BlendMode.srcIn,
+            child: Text(text),
           ),
         );
       },

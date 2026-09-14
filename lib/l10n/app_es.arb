@@ -449,5 +449,7 @@
   "libraryCountHours": "{count} horas",
   "@libraryCountHours": {"placeholders": {"count": {"type": "int"}}},
   "libraryCountItems": "{count} elementos",
-  "@libraryCountItems": {"placeholders": {"count": {"type": "int"}}}
+  "@libraryCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "lyrics": "Letra",
+  "cover": "Portada"
 }

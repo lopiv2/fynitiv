@@ -584,34 +584,54 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                   ),
                 ),
               ),
-              _OptionRow(
-                label: l10n.audioWaveformEffect,
-                child: DropdownButtonFormField<AudioWaveformEffect>(
-                  initialValue: _draft.audioWaveformEffect,
-                  dropdownColor: const Color(0xFF1A2568),
-                  style: const TextStyle(color: Colors.white),
-                  items: [
-                     for (final (effect, label) in [
-                       (AudioWaveformEffect.equalizer, l10n.effectEqualizer),
-                       (AudioWaveformEffect.wave, l10n.effectWave),
-                       (AudioWaveformEffect.mirror, l10n.effectMirror),
-                       (AudioWaveformEffect.bars, l10n.effectBars),
-                       (AudioWaveformEffect.surfer, l10n.effectSurfer),
-                     ])
-                      DropdownMenuItem(
-                        value: effect,
-                        child: Text(
-                          label,
-                          style: const TextStyle(color: Colors.white),
+              Consumer(builder: (context, ref, _) {
+                final musicSkin =
+                    ref.watch(musicPlayerSkinControllerProvider).value;
+                final currentEffect =
+                    musicSkin?.waveformEffect ?? _draft.audioWaveformEffect;
+                return _OptionRow(
+                  label: l10n.audioWaveformEffect,
+                  child: DropdownButtonFormField<AudioWaveformEffect>(
+                    initialValue: currentEffect,
+                    dropdownColor: const Color(0xFF1A2568),
+                    style: const TextStyle(color: Colors.white),
+                    items: [
+                      for (final (effect, label) in [
+                        (AudioWaveformEffect.equalizer, l10n.effectEqualizer),
+                        (AudioWaveformEffect.wave, l10n.effectWave),
+                        (AudioWaveformEffect.mirror, l10n.effectMirror),
+                        (AudioWaveformEffect.bars, l10n.effectBars),
+                        (AudioWaveformEffect.surfer, l10n.effectSurfer),
+                      ])
+                        DropdownMenuItem(
+                          value: effect,
+                          child: Text(
+                            label,
+                            style: const TextStyle(color: Colors.white),
+                          ),
                         ),
-                      ),
-                  ],
-                  onChanged: (v) => setState(
-                    () => _draft =
-                        _draft.copyWith(audioWaveformEffect: v),
+                    ],
+                    onChanged: (v) {
+                      if (v == null) return;
+                      // MusicPlayerSkin es quien realmente renderiza la onda
+                      // en PlayerScreen (musicSkin?.waveformEffect ?? skin...).
+                      // Actualizar ambos para que el preview y el Aplicar global
+                      // queden sincronizados y el botón Aplicar no quede deshabilitado.
+                      if (musicSkin != null) {
+                        ref
+                            .read(
+                              musicPlayerSkinControllerProvider.notifier,
+                            )
+                            .apply(musicSkin.copyWith(waveformEffect: v));
+                      }
+                      setState(
+                        () => _draft =
+                            _draft.copyWith(audioWaveformEffect: v),
+                      );
+                    },
                   ),
-                ),
-              ),
+                );
+              }),
               _SwitchRow(
                 label: l10n.showNewReleasesRow,
                 value: _draft.showNewReleasesRow,

@@ -590,6 +590,22 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                 ),
               ),
             ),
+            // Toggle pill SONG/VIDEO style: Letra <-> Portada sobre la cover.
+            // Siempre visible y por encima del GestureDetector para recibir taps.
+            if (_isAudio)
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: SafeArea(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: _LyricsCoverToggle(),
+                    ),
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -775,29 +791,6 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                           },
                         ),
                         const Spacer(),
-                        // Toggle lyrics solo en modo audio. Vive aquí (y no en
-                        // _AudioCover) porque el overlay cubre toda la pantalla
-                        // y los botones del fondo no reciben taps.
-                        if (_isAudio)
-                          Consumer(
-                            builder: (context, ref, _) {
-                              final show = ref.watch(showLyricsProvider);
-                              return IconButton(
-                                tooltip: show
-                                    ? 'Ocultar letra'
-                                    : 'Mostrar letra',
-                                icon: Icon(
-                                  show
-                                      ? Icons.lyrics_rounded
-                                      : Icons.lyrics_outlined,
-                                  color: Colors.white,
-                                ),
-                                onPressed: () => ref
-                                    .read(showLyricsProvider.notifier)
-                                    .toggle(),
-                              );
-                            },
-                          ),
                         if (hasSubtitles) ...[
                           _SubtitleButton(
                             tracks: _tracks,
@@ -1300,6 +1293,7 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
     final light = _isLight(effectivePalette);
     final textPrimary = light ? Colors.black : Colors.white;
     final textSecondary = light ? Colors.black87 : Colors.white70;
+    final showLyrics = ref.watch(showLyricsProvider);
     // Fondo animado con colores de la carátula; fallback a colores del skin.
     return _AnimatedPaletteBackground(
       url: widget.url,
@@ -1311,9 +1305,6 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // NOTA: no poner botones aquí: esta capa queda debajo del overlay
-          // de controles (GestureDetector a pantalla completa) y no recibiría
-          // los taps. El toggle de lyrics vive en [_buildOverlay].
           Center(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -1328,28 +1319,95 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     // Sin Hero: el flightShuttleBuilder accedía a contextos
                     // desactivados durante minimizar/maximizar (crash
                     // "deactivated widget's ancestor" + tickers de Tooltip).
+                    // Cover con overlay de lyrics al 30% cuando está activado.
                     Container(
-                        width: size,
-                        height: size,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(14),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.5),
-                              blurRadius: 32,
-                              offset: const Offset(0, 12),
-                            ),
-                          ],
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: Image.network(
-                          widget.url,
-                          fit: BoxFit.cover,
-                          loadingBuilder: (context, child, progress) =>
-                              progress == null ? child : _CoverFallback(),
-                          errorBuilder: (_, _, _) => _CoverFallback(),
-                        ),
+                      width: size,
+                      height: size,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.5),
+                            blurRadius: 32,
+                            offset: const Offset(0, 12),
+                          ),
+                        ],
                       ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          Image.network(
+                            widget.url,
+                            fit: BoxFit.cover,
+                            loadingBuilder: (context, child, progress) =>
+                                progress == null ? child : _CoverFallback(),
+                            errorBuilder: (_, _, _) => _CoverFallback(),
+                          ),
+                          if (showLyrics)
+                            Positioned.fill(
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: BackdropFilter(
+                                  filter: ImageFilter.blur(
+                                    sigmaX: 10,
+                                    sigmaY: 10,
+                                  ),
+                                  child: Container(
+                                    color: Colors.black.withValues(alpha: 0.30),
+                                    child: Consumer(
+                                      builder: (context, ref, _) {
+                                        final query = LrcQuery(
+                                          artist: widget.artist,
+                                          track: widget.title,
+                                          album: widget.album,
+                                          duration: widget.duration.inSeconds > 0
+                                              ? widget.duration
+                                              : null,
+                                        );
+                                        final async = ref.watch(
+                                          lrcLyricsProvider(query),
+                                        );
+                                        return async.when(
+                                          loading: () => const Center(
+                                            child: CircularProgressIndicator(
+                                              color: Colors.white54,
+                                            ),
+                                          ),
+                                          error: (_, _) =>
+                                              const SizedBox.shrink(),
+                                          data: (result) {
+                                            if (result == null) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            final hasPlain = result.plainLyrics
+                                                .trim()
+                                                .isNotEmpty;
+                                            final hasSynced = result.hasSynced;
+                                            if (!hasPlain &&
+                                                !hasSynced &&
+                                                !result.isInstrumental) {
+                                              return const SizedBox.shrink();
+                                            }
+                                            // Texto siempre claro sobre overlay oscuro.
+                                            return SyncedLyricsView(
+                                              result: result,
+                                              position: widget.position,
+                                              textPrimary: Colors.white,
+                                              textSecondary: Colors.white70,
+                                              accent: accent,
+                                            );
+                                          },
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                     if (widget.artist.isNotEmpty) ...[
                       const SizedBox(height: 28),
                       ConstrainedBox(
@@ -1406,58 +1464,6 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
               },
             ),
           ),
-          // Panel lateral de lyrics (derecha del cover, no reduce cover) - por defecto ON.
-          // bottom 240 para no solaparse con la onda ni con la barra inferior
-          // de progreso/controles del overlay.
-          if (ref.watch(showLyricsProvider))
-            Positioned(
-              right: 24,
-              top: 88,
-              bottom: 240,
-              width: 420,
-              child: Consumer(
-                builder: (context, ref, _) {
-                  final query = LrcQuery(
-                    artist: widget.artist,
-                    track: widget.title,
-                    album: widget.album,
-                    duration: widget.duration.inSeconds > 0 ? widget.duration : null,
-                  );
-                  final async = ref.watch(lrcLyricsProvider(query));
-                  return async.when(
-                    loading: () => const Center(child: CircularProgressIndicator(color: Colors.white54)),
-                    error: (_, _) => const SizedBox.shrink(),
-                    data: (result) {
-                      if (result == null) return const SizedBox.shrink();
-                      final hasPlain = result.plainLyrics.trim().isNotEmpty;
-                      final hasSynced = result.hasSynced;
-                      if (!hasPlain && !hasSynced && !result.isInstrumental) return const SizedBox.shrink();
-                      return Container(
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        clipBehavior: Clip.antiAlias,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: BackdropFilter(
-                            filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-                            child: SyncedLyricsView(
-                              result: result,
-                              position: widget.position,
-                              textPrimary: textPrimary,
-                              textSecondary: textSecondary,
-                              accent: accent,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
           // Onda animada tematizable por music skin.
           // bottom 180 para quedar por encima de la barra de progreso del overlay.
           Positioned(
@@ -2105,6 +2111,79 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _WaveformPainter oldDelegate) => true;
+}
+
+/// Toggle pill SONG/VIDEO: Letra <-> Portada sobre la cover.
+/// Muestra lyrics con opacidad 30% sobre el cover o solo el cover.
+class _LyricsCoverToggle extends ConsumerWidget {
+  const _LyricsCoverToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final showLyrics = ref.watch(showLyricsProvider);
+    // Pill estilo imagen: fondo oscuro semitransparente, segmento activo blanco.
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12),
+      ),
+      padding: const EdgeInsets.all(3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ToggleSegment(
+            label: l10n.lyrics.toUpperCase(),
+            selected: showLyrics,
+            onTap: () => ref.read(showLyricsProvider.notifier).set(true),
+          ),
+          _ToggleSegment(
+            label: l10n.cover.toUpperCase(),
+            selected: !showLyrics,
+            onTap: () => ref.read(showLyricsProvider.notifier).set(false),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ToggleSegment extends StatelessWidget {
+  const _ToggleSegment({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeInOut,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.black : Colors.white70,
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.6,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 /// Fondo mientras carga la carátula o si no existe imagen.

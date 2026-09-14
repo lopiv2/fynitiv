@@ -14,7 +14,7 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 
 ## Traduccion de cadenas
 
-- Siempre que vaya a haber texto de widgets, debe traducirse con cadenas ARB, minimo a ingles y español, como ya esta en otras partes de la aplicacion. Se reutilizaran cadenas si ya existen en dichos archivos ARB, para no duplicar claves
+- Siempre que vaya a haber texto de widgets, debe traducirse con cadenas ARB, minimo a ingles y español, como ya esta en otras partes de la aplicacion. Se reutilizaran cadenas si ya existen en dichos archivos ARB, para no duplicar claves. Autogenera la cadenas ARB siempre que añadas traducciones a dichos ARB, no escribas a mano en los archivos de traduccion dart.
 
 ## Utiliza siempre el widget universal de Hover en todas las tarjetas
 
@@ -34,7 +34,7 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 
 ## No tocar elementos corregidos a mano por el usuario
 
-- No corregir la posicion de PrimeCardBadge, dejar tal y como está en las tarjetas posicionada
+- No corregir la posicion de PrimeCardBadge, dejar tal y como está en las tarjetas posicionada, y no tocar otras cosas que yo toque a mano, en respuestas sucesivas a mi modificacion, y si es necesario hacerlo, preguntame antes.
 
 ## No hagas tests si no te lo pido
 

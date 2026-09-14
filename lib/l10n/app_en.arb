@@ -452,5 +452,7 @@
   "libraryCountHours": "{count} hours",
   "@libraryCountHours": {"placeholders": {"count": {"type": "int"}}},
   "libraryCountItems": "{count} items",
-  "@libraryCountItems": {"placeholders": {"count": {"type": "int"}}}
+  "@libraryCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "lyrics": "Lyrics",
+  "cover": "Cover"
 }

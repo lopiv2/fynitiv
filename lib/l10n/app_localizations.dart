@@ -2293,6 +2293,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} items'**
   String libraryCountItems(int count);
+
+  /// No description provided for @lyrics.
+  ///
+  /// In en, this message translates to:
+  /// **'Lyrics'**
+  String get lyrics;
+
+  /// No description provided for @cover.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover'**
+  String get cover;
 }
 
 class _AppLocalizationsDelegate

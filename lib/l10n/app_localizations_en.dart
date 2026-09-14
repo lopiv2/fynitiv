@@ -1194,4 +1194,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String libraryCountItems(int count) {
     return '$count items';
   }
+
+  @override
+  String get lyrics => 'Lyrics';
+
+  @override
+  String get cover => 'Cover';
 }
