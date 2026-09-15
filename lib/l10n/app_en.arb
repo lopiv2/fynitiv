@@ -120,6 +120,8 @@
   "effectMirror": "Mirror",
   "effectBars": "Bars",
   "effectSurfer": "Surfer",
+  "effectAudioFlux": "AudioFlux Wave",
+  "effectFrequency": "Frequency",
   "preview": "Preview",
   "none": "None",
   "uploadLogo": "Upload image",
@@ -458,5 +460,6 @@
   "@timeRemaining": {"placeholders": {"minutes": {"type": "int"}}},
   "timeRemainingLessThanAMinute": "Time remaining: less than 1 min",
   "lyrics": "Lyrics",
-  "cover": "Cover"
+  "cover": "Cover",
+  "effects": "Effects"
 }

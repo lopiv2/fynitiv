@@ -1,7 +1,9 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'dart:ui';
 
+import 'package:audio_flux/audio_flux.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,10 +12,15 @@ import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
+import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:palette_generator/palette_generator.dart';
 
+import '../../../core/audio/soloud_initializer.dart';
+import '../../music/application/soloud_music_provider.dart';
+
 import '../../music/application/lrclib_providers.dart';
+import '../../music/application/player_view_mode.dart';
 import '../../music/presentation/widgets/synced_lyrics_view.dart';
 
 import '../../../core/skin/music_player_skin_controller.dart';
@@ -153,8 +160,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         // veces por segundo y cada tick reconstruía todo el player (cover,
         // lyrics, onda) saturando la transición de maximizar.
         if (!mounted || _dragging) return;
-        if (_position != Duration.zero &&
-            p.inSeconds == _position.inSeconds) {
+        if (_position != Duration.zero && p.inSeconds == _position.inSeconds) {
           return;
         }
         setState(() => _position = p);
@@ -317,6 +323,71 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   Future<void> _open() async {
     if (mounted) setState(() => _error = false);
+    // Ruta SoLoud para solo-audio (música): deja MediaKit como fallback interno del provider
+    if (_isAudio) {
+      try {
+        // Handoff desde mini SoLoud si es mismo track
+        final soloudMini = ref.read(soloudMusicProvider);
+        final soloudId = soloudMini.item?.id ?? soloudMini.session?.itemId;
+        final curId = _session.itemId;
+        if (soloudMini.hasItem && soloudId == curId && soloudMini.playing) {
+          // Ya está sonando en SoLoud global, no re-abrir; solo asegúrate que siga
+          _volume = soloudMini.volume;
+          if (mounted) setState(() => _volume = soloudMini.volume);
+          // Pausar fallback legacy si estuviera activo para no solapar
+          try {
+            ref.read(musicPlayerProvider.notifier).pause();
+          } catch (_) {}
+          // No abrir _player local
+          try {
+            await _player.pause();
+          } catch (_) {}
+          return;
+        }
+        // Otro track en mini SoLoud o legacy: limpiar
+        try {
+          ref.read(musicPlayerProvider.notifier).stop();
+        } catch (_) {}
+        // Abrir via SoLoud primario (con fallback MediaKit interno)
+        Duration? miniPos;
+        double miniVol = 100;
+        if (soloudMini.hasItem && soloudId == curId) {
+          miniPos = soloudMini.position;
+          miniVol = soloudMini.volume;
+          _volume = miniVol;
+          if (mounted) setState(() => _volume = miniVol);
+        } else {
+          // Si había otro track en SoLoud, se sobreescribe
+        }
+        // Intentar herencia desde legacy mini si SoLoud estaba vacío pero legacy tenía mismo track
+        if (miniPos == null) {
+          try {
+            final mini = ref.read(musicPlayerProvider);
+            if (mini.hasItem &&
+                (mini.item?.id ?? mini.session?.itemId) == curId) {
+              miniPos = mini.position;
+              miniVol = mini.volume;
+              _volume = miniVol;
+              if (mounted) setState(() => _volume = miniVol);
+            }
+          } catch (_) {}
+        }
+        await ref
+            .read(soloudMusicProvider.notifier)
+            .playFromSession(
+              _session,
+              widget.item,
+              start: miniPos,
+              volume: miniVol,
+            );
+        try {
+          await _player.pause();
+        } catch (_) {}
+        return;
+      } catch (_) {
+        // Si SoLoud falla, caer a MediaKit local
+      }
+    }
     // Si viene desde el mini-player (mismo track), heredar volumen/posición y pausar mini para no solapar
     Duration? miniPos;
     double miniVol = 100;
@@ -343,6 +414,14 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         }
       }
     } catch (_) {}
+    // También pausar SoLoud mini si existe y es otro track
+    try {
+      final sMini = ref.read(soloudMusicProvider);
+      if (sMini.hasItem &&
+          (sMini.item?.id ?? sMini.session?.itemId) != _session.itemId) {
+        ref.read(soloudMusicProvider.notifier).stop();
+      }
+    } catch (_) {}
     try {
       await _player.open(
         Media(
@@ -358,7 +437,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       // Si venía del mini, miniPos tiene prioridad sobre session.start
       if (miniPos != null && miniPos > Duration.zero) {
         try {
-          await _player.stream.duration.firstWhere((d) => d > Duration.zero).timeout(const Duration(seconds: 5));
+          await _player.stream.duration
+              .firstWhere((d) => d > Duration.zero)
+              .timeout(const Duration(seconds: 5));
         } catch (_) {}
         await _player.seek(miniPos);
         if (mounted) setState(() => _position = miniPos!);
@@ -398,6 +479,17 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   void _togglePlay() {
     if (_error) return;
+    if (_isAudio) {
+      final s = ref.read(soloudMusicProvider);
+      if (s.completed) {
+        ref.read(soloudMusicProvider.notifier).seek(Duration.zero);
+        ref.read(soloudMusicProvider.notifier).resume();
+        if (mounted) setState(() => _completed = false);
+        return;
+      }
+      ref.read(soloudMusicProvider.notifier).toggle();
+      return;
+    }
     if (_completed) {
       _player.seek(Duration.zero);
       _player.play();
@@ -412,6 +504,11 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   }
 
   void _seekBy(Duration delta) {
+    if (_isAudio) {
+      ref.read(soloudMusicProvider.notifier).seekBy(delta);
+      _showControls();
+      return;
+    }
     var ms = (_position + delta).inMilliseconds;
     if (ms < 0) ms = 0;
     if (_duration.inMilliseconds > 0 && ms > _duration.inMilliseconds) {
@@ -421,6 +518,14 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   }
 
   void _onSliderChanged(double seconds) {
+    if (_isAudio) {
+      // Para SoLoud, actualizar visualmente y hacer seek inmediato con dragging flag local
+      setState(() {
+        _dragging = true;
+        _position = Duration(milliseconds: (seconds * 1000).round());
+      });
+      return;
+    }
     setState(() {
       _dragging = true;
       _position = Duration(milliseconds: (seconds * 1000).round());
@@ -429,6 +534,11 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   void _onSliderEnd(double seconds) {
     final target = Duration(milliseconds: (seconds * 1000).round());
+    if (_isAudio) {
+      ref.read(soloudMusicProvider.notifier).seek(target);
+      if (mounted) setState(() => _dragging = false);
+      return;
+    }
     _player.seek(target);
     if (mounted) setState(() => _dragging = false);
   }
@@ -490,20 +600,52 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     if (_fullscreen) {
       AppWindow.setFullscreen(false);
     }
-    // Si es solo música y está sonando, animar hacia la barra inferior y
-    // mantener la reproducción en segundo plano (mini player) con mismo volumen.
-    // Se pausa el player local para evitar doble audio durante el Hero flight.
-    if (_isAudio && _playing) {
-      try {
-        // Pausa local antes del handoff para no solapar con el global
-        _player.pause();
-        ref.read(musicPlayerProvider.notifier).playFromSession(
-              _session,
-              widget.item,
-              start: _position,
-              volume: _volume,
-            );
-      } catch (_) {}
+    // SoLoud para música ya es global: no necesita handoff, solo pop
+    if (_isAudio) {
+      final soloudState = ref.read(soloudMusicProvider);
+      if (soloudState.hasItem && soloudState.playing) {
+        // Ya suena en SoLoud global, solo pop
+        if (context.canPop()) {
+          context.pop();
+        } else {
+          context.go('/home');
+        }
+        return;
+      }
+      // Fallback legacy handoff si SoLoud no estaba activo (HLS o error)
+      final effPlaying = soloudState.hasItem ? soloudState.playing : _playing;
+      final effPos = soloudState.hasItem ? soloudState.position : _position;
+      final effVol = soloudState.hasItem ? soloudState.volume : _volume;
+      if (effPlaying) {
+        try {
+          ref
+              .read(soloudMusicProvider.notifier)
+              .playFromSession(
+                _session,
+                widget.item,
+                start: effPos,
+                volume: effVol,
+              );
+        } catch (_) {}
+        // También fallback a legacy si SoLoud no pudo (mantener compat)
+        try {
+          _player.pause();
+          ref
+              .read(musicPlayerProvider.notifier)
+              .playFromSession(
+                _session,
+                widget.item,
+                start: _position,
+                volume: _volume,
+              );
+        } catch (_) {}
+      }
+      if (context.canPop()) {
+        context.pop();
+      } else {
+        context.go('/home');
+      }
+      return;
     }
     if (context.canPop()) {
       context.pop();
@@ -518,6 +660,20 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   @override
   Widget build(BuildContext context) {
+    // Estado SoLoud para audio: primario, con fallback a MediaKit local
+    final soloudState = _isAudio ? ref.watch(soloudMusicProvider) : null;
+    final hasSoloud = soloudState != null && soloudState.hasItem;
+    final effPlaying = hasSoloud ? soloudState.playing : _playing;
+    final effBuffering = hasSoloud ? soloudState.buffering : _buffering;
+    final effCompleted = hasSoloud ? soloudState.completed : _completed;
+    final effPosition = hasSoloud ? soloudState.position : _position;
+    final effDuration = hasSoloud ? soloudState.duration : _duration;
+    // Si está dragging, mostrar posición local para no pelear con ticker
+    final displayPosition = (_isAudio && hasSoloud && _dragging)
+        ? _position
+        : effPosition;
+    final displayDuration = effDuration;
+    final displayPlaying = effPlaying;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Focus(
@@ -534,14 +690,14 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       title: widget.item?.name ?? _session.itemName,
                       artist: widget.item?.artists?.join(', ') ?? '',
                       album: widget.item?.album ?? '',
-                      playing: _playing,
-                      progress: _duration.inMilliseconds > 0
-                          ? (_position.inMilliseconds /
-                                    _duration.inMilliseconds)
+                      playing: displayPlaying,
+                      progress: displayDuration.inMilliseconds > 0
+                          ? (displayPosition.inMilliseconds /
+                                    displayDuration.inMilliseconds)
                                 .clamp(0.0, 1.0)
                           : 0,
-                      position: _position,
-                      duration: _duration,
+                      position: displayPosition,
+                      duration: displayDuration,
                       heroTag:
                           'music-cover-${widget.item?.id ?? _session.itemId}',
                       onBack: _close,
@@ -553,11 +709,13 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       fill: const Color(0xFF000000),
                     ),
             ),
-            if (_buffering && !_error && !_completed)
+            if ((hasSoloud ? effBuffering : _buffering) &&
+                !_error &&
+                !(hasSoloud ? effCompleted : _completed))
               const Center(child: AppLoader()),
-            if (_completed)
+            if ((hasSoloud ? effCompleted : _completed))
               _ReplayOverlay(onReplay: () => _togglePlay(), onClose: _close),
-            if (_error && !_completed)
+            if (_error && !(hasSoloud ? effCompleted : _completed))
               _PlayerError(
                 title: _session.itemName,
                 message: _errorMessage,
@@ -655,6 +813,18 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         _tracks.subtitle.any((t) => t.id != 'auto' && t.id != 'no') ||
         _session.externalSubtitles.isNotEmpty;
 
+    // Estado SoLoud para audio
+    final soloudState = _isAudio ? ref.watch(soloudMusicProvider) : null;
+    final hasSoloud = soloudState != null && soloudState.hasItem;
+    final effPlaying = hasSoloud ? soloudState.playing : _playing;
+    final effCompleted = hasSoloud ? soloudState.completed : _completed;
+    final effPosition = hasSoloud ? soloudState.position : _position;
+    final effDuration = hasSoloud ? soloudState.duration : _duration;
+    final effVolume = hasSoloud ? soloudState.volume : _volume;
+    final displayPos = (_isAudio && hasSoloud && _dragging)
+        ? _position
+        : effPosition;
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -702,7 +872,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
           ),
         ),
         // Botón central play/pausa.
-        if (!_playing && !_completed)
+        if (!effPlaying && !effCompleted)
           Center(
             child: _BigButton(
               icon: Icons.play_arrow_rounded,
@@ -732,7 +902,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                     Row(
                       children: [
                         Text(
-                          _formatDuration(_position),
+                          _formatDuration(displayPos),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
@@ -741,19 +911,19 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                         Expanded(
                           child: Slider(
                             min: 0,
-                            max: _duration.inMilliseconds > 0
-                                ? _duration.inMilliseconds / 1000
+                            max: effDuration.inMilliseconds > 0
+                                ? effDuration.inMilliseconds / 1000
                                 : 1,
-                            value: _position.inMilliseconds > 0
-                                ? (_position.inMilliseconds / 1000).clamp(
+                            value: displayPos.inMilliseconds > 0
+                                ? (displayPos.inMilliseconds / 1000).clamp(
                                     0,
-                                    _duration.inMilliseconds / 1000,
+                                    effDuration.inMilliseconds / 1000,
                                   )
                                 : 0,
-                            onChanged: _duration.inMilliseconds > 0
+                            onChanged: effDuration.inMilliseconds > 0
                                 ? _onSliderChanged
                                 : null,
-                            onChangeEnd: _duration.inMilliseconds > 0
+                            onChangeEnd: effDuration.inMilliseconds > 0
                                 ? _onSliderEnd
                                 : null,
                             activeColor: Colors.white,
@@ -762,7 +932,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                           ),
                         ),
                         Text(
-                          _formatDuration(_duration),
+                          _formatDuration(effDuration),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 13,
@@ -773,9 +943,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                     Row(
                       children: [
                         IconButton(
-                          tooltip: _playing ? l10n.pause : l10n.play,
+                          tooltip: effPlaying ? l10n.pause : l10n.play,
                           icon: Icon(
-                            _playing
+                            effPlaying
                                 ? Icons.pause_rounded
                                 : Icons.play_arrow_rounded,
                             color: Colors.white,
@@ -784,10 +954,16 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                           onPressed: _togglePlay,
                         ),
                         _VolumeButton(
-                          volume: _volume,
+                          volume: effVolume,
                           onChanged: (v) {
-                            setState(() => _volume = v);
-                            _player.setVolume(v);
+                            if (_isAudio && hasSoloud) {
+                              ref
+                                  .read(soloudMusicProvider.notifier)
+                                  .setVolume(v);
+                            } else {
+                              setState(() => _volume = v);
+                              _player.setVolume(v);
+                            }
                           },
                         ),
                         const Spacer(),
@@ -1096,7 +1272,11 @@ class _FastAnimatedGradientState extends State<_FastAnimatedGradient> {
         });
       },
       decoration: BoxDecoration(
-        gradient: LinearGradient(begin: _begin, end: _end, colors: [_bottomColor, _topColor]),
+        gradient: LinearGradient(
+          begin: _begin,
+          end: _end,
+          colors: [_bottomColor, _topColor],
+        ),
       ),
       child: widget.child,
     );
@@ -1120,10 +1300,12 @@ class _AnimatedPaletteBackground extends StatefulWidget {
   final ValueChanged<List<Color>>? onPalette;
 
   @override
-  State<_AnimatedPaletteBackground> createState() => _AnimatedPaletteBackgroundState();
+  State<_AnimatedPaletteBackground> createState() =>
+      _AnimatedPaletteBackgroundState();
 }
 
-class _AnimatedPaletteBackgroundState extends State<_AnimatedPaletteBackground> {
+class _AnimatedPaletteBackgroundState
+    extends State<_AnimatedPaletteBackground> {
   static final Map<String, List<Color>> _cache = {};
   List<Color>? _palette;
 
@@ -1256,7 +1438,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
 
   bool _isLight(List<Color> colors) {
     if (colors.isEmpty) return false;
-    final avg = colors.map((c) => c.computeLuminance()).reduce((a, b) => a + b) / colors.length;
+    final avg =
+        colors.map((c) => c.computeLuminance()).reduce((a, b) => a + b) /
+        colors.length;
     return avg > 0.5;
   }
 
@@ -1293,7 +1477,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
     final light = _isLight(effectivePalette);
     final textPrimary = light ? Colors.black : Colors.white;
     final textSecondary = light ? Colors.black87 : Colors.white70;
-    final showLyrics = ref.watch(showLyricsProvider);
+    final viewMode = ref.watch(playerViewModeProvider);
+    final isEffects = viewMode == PlayerViewMode.effects;
+    final showLyrics = viewMode == PlayerViewMode.lyrics;
     // Fondo animado con colores de la carátula; fallback a colores del skin.
     return _AnimatedPaletteBackground(
       url: widget.url,
@@ -1305,177 +1491,371 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Center(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final size =
-                    (constraints.maxWidth * 0.4)
-                        .clamp(180.0, 340.0)
-                        .toDouble() *
-                    1.5;
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Sin Hero: el flightShuttleBuilder accedía a contextos
-                    // desactivados durante minimizar/maximizar (crash
-                    // "deactivated widget's ancestor" + tickers de Tooltip).
-                    // Cover con overlay de lyrics al 30% cuando está activado.
-                    Container(
-                      width: size,
-                      height: size,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.5),
-                            blurRadius: 32,
-                            offset: const Offset(0, 12),
-                          ),
-                        ],
-                      ),
-                      clipBehavior: Clip.antiAlias,
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          Image.network(
-                            widget.url,
-                            fit: BoxFit.cover,
-                            loadingBuilder: (context, child, progress) =>
-                                progress == null ? child : _CoverFallback(),
-                            errorBuilder: (_, _, _) => _CoverFallback(),
-                          ),
-                          if (showLyrics)
-                            Positioned.fill(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(14),
-                                child: BackdropFilter(
-                                  filter: ImageFilter.blur(
-                                    sigmaX: 10,
-                                    sigmaY: 10,
-                                  ),
-                                  child: Container(
-                                    color: Colors.black.withValues(alpha: 0.30),
-                                    child: Consumer(
-                                      builder: (context, ref, _) {
-                                        final query = LrcQuery(
-                                          artist: widget.artist,
-                                          track: widget.title,
-                                          album: widget.album,
-                                          duration: widget.duration.inSeconds > 0
-                                              ? widget.duration
-                                              : null,
-                                        );
-                                        final async = ref.watch(
-                                          lrcLyricsProvider(query),
-                                        );
-                                        return async.when(
-                                          loading: () => const Center(
-                                            child: CircularProgressIndicator(
-                                              color: Colors.white54,
-                                            ),
-                                          ),
-                                          error: (_, _) =>
-                                              const SizedBox.shrink(),
-                                          data: (result) {
-                                            if (result == null) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            final hasPlain = result.plainLyrics
-                                                .trim()
-                                                .isNotEmpty;
-                                            final hasSynced = result.hasSynced;
-                                            if (!hasPlain &&
-                                                !hasSynced &&
-                                                !result.isInstrumental) {
-                                              return const SizedBox.shrink();
-                                            }
-                                            // Texto siempre claro sobre overlay oscuro.
-                                            return SyncedLyricsView(
-                                              result: result,
-                                              position: widget.position,
-                                              textPrimary: Colors.white,
-                                              textSecondary: Colors.white70,
-                                              accent: accent,
-                                            );
-                                          },
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    if (widget.artist.isNotEmpty) ...[
-                      const SizedBox(height: 28),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 480),
-                        child: Text(
-                          widget.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (widget.title.isNotEmpty) ...[
-                      SizedBox(height: widget.artist.isNotEmpty ? 6 : 28),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 480),
-                        child: Text(
-                          widget.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                    if (widget.album.isNotEmpty) ...[
-                      const SizedBox(height: 4),
-                      ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 480),
-                        child: Text(
-                          widget.album,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            color: textSecondary,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ),
-          // Onda animada tematizable por music skin.
-          // bottom 180 para quedar por encima de la barra de progreso del overlay.
-          Positioned(
-            bottom: 180,
-            left: 40,
-            right: 40,
+          // Onda: en modo efectos ocupa el centro donde estaba la cover (full bleed)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOutCubic,
+            top: isEffects ? 100 : null,
+            bottom: isEffects ? 220 : 110,
+            left: isEffects ? 24 : 40,
+            right: isEffects ? 24 : 40,
             child: _AudioWaveform(
               playing: widget.playing,
               progress: widget.progress,
               effect: waveform,
               color: accent,
+              expanded: isEffects,
             ),
+          ),
+          // Cover + textos: fly entre topCenter grande y bottom Row pequeño
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 350),
+            curve: Curves.easeInOutCubic,
+            top: isEffects ? null : 0,
+            bottom: isEffects ? 120 : null,
+            left: isEffects ? 24 : 0,
+            right: isEffects ? 24 : 0,
+            child: isEffects
+                ? Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Cover pequeña abajo-izquierda
+                      Container(
+                        width: 160,
+                        height: 160,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.5),
+                              blurRadius: 16,
+                              offset: const Offset(0, 6),
+                            ),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            Image.network(
+                              widget.url,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, _, _) => _CoverFallback(),
+                            ),
+                            if (showLyrics)
+                              Positioned.fill(
+                                child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: BackdropFilter(
+                                    filter: ImageFilter.blur(
+                                      sigmaX: 8,
+                                      sigmaY: 8,
+                                    ),
+                                    child: Container(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.30,
+                                      ),
+                                      child: Consumer(
+                                        builder: (context, ref, _) {
+                                          final query = LrcQuery(
+                                            artist: widget.artist,
+                                            track: widget.title,
+                                            album: widget.album,
+                                            duration:
+                                                widget.duration.inSeconds > 0
+                                                ? widget.duration
+                                                : null,
+                                          );
+                                          final async = ref.watch(
+                                            lrcLyricsProvider(query),
+                                          );
+                                          return async.when(
+                                            loading: () => const Center(
+                                              child: CircularProgressIndicator(
+                                                color: Colors.white54,
+                                              ),
+                                            ),
+                                            error: (_, _) =>
+                                                const SizedBox.shrink(),
+                                            data: (result) {
+                                              if (result == null)
+                                                return const SizedBox.shrink();
+                                              final hasPlain = result
+                                                  .plainLyrics
+                                                  .trim()
+                                                  .isNotEmpty;
+                                              final hasSynced =
+                                                  result.hasSynced;
+                                              if (!hasPlain &&
+                                                  !hasSynced &&
+                                                  !result.isInstrumental)
+                                                return const SizedBox.shrink();
+                                              return SyncedLyricsView(
+                                                result: result,
+                                                position: widget.position,
+                                                textPrimary: Colors.white,
+                                                textSecondary: Colors.white70,
+                                                accent: accent,
+                                              );
+                                            },
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (widget.artist.isNotEmpty)
+                              Text(
+                                widget.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            if (widget.title.isNotEmpty)
+                              Padding(
+                                padding: EdgeInsets.only(
+                                  top: widget.artist.isNotEmpty ? 4 : 0,
+                                ),
+                                child: Text(
+                                  widget.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: textPrimary,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                            if (widget.album.isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 2),
+                                child: Text(
+                                  widget.album,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: textSecondary,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  )
+                : Align(
+                    alignment: Alignment.topCenter,
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 52),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            final size =
+                                (constraints.maxWidth * 0.4)
+                                    .clamp(180.0, 340.0)
+                                    .toDouble() *
+                                1.5;
+                            return Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Sin Hero: el flightShuttleBuilder accedía a contextos
+                                // desactivados durante minimizar/maximizar (crash
+                                // "deactivated widget's ancestor" + tickers de Tooltip).
+                                // Cover con overlay de lyrics al 30% cuando está activado.
+                                Container(
+                                  width: size,
+                                  height: size,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(14),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                        blurRadius: 32,
+                                        offset: const Offset(0, 12),
+                                      ),
+                                    ],
+                                  ),
+                                  clipBehavior: Clip.antiAlias,
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      Image.network(
+                                        widget.url,
+                                        fit: BoxFit.cover,
+                                        loadingBuilder:
+                                            (context, child, progress) =>
+                                                progress == null
+                                                ? child
+                                                : _CoverFallback(),
+                                        errorBuilder: (_, _, _) =>
+                                            _CoverFallback(),
+                                      ),
+                                      if (showLyrics)
+                                        Positioned.fill(
+                                          child: ClipRRect(
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                            child: BackdropFilter(
+                                              filter: ImageFilter.blur(
+                                                sigmaX: 10,
+                                                sigmaY: 10,
+                                              ),
+                                              child: Container(
+                                                color: Colors.black.withValues(
+                                                  alpha: 0.30,
+                                                ),
+                                                child: Consumer(
+                                                  builder: (context, ref, _) {
+                                                    final query = LrcQuery(
+                                                      artist: widget.artist,
+                                                      track: widget.title,
+                                                      album: widget.album,
+                                                      duration:
+                                                          widget
+                                                                  .duration
+                                                                  .inSeconds >
+                                                              0
+                                                          ? widget.duration
+                                                          : null,
+                                                    );
+                                                    final async = ref.watch(
+                                                      lrcLyricsProvider(query),
+                                                    );
+                                                    return async.when(
+                                                      loading: () => const Center(
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                              color: Colors
+                                                                  .white54,
+                                                            ),
+                                                      ),
+                                                      error: (_, _) =>
+                                                          const SizedBox.shrink(),
+                                                      data: (result) {
+                                                        if (result == null) {
+                                                          return const SizedBox.shrink();
+                                                        }
+                                                        final hasPlain = result
+                                                            .plainLyrics
+                                                            .trim()
+                                                            .isNotEmpty;
+                                                        final hasSynced =
+                                                            result.hasSynced;
+                                                        if (!hasPlain &&
+                                                            !hasSynced &&
+                                                            !result
+                                                                .isInstrumental) {
+                                                          return const SizedBox.shrink();
+                                                        }
+                                                        // Texto siempre claro sobre overlay oscuro.
+                                                        return SyncedLyricsView(
+                                                          result: result,
+                                                          position:
+                                                              widget.position,
+                                                          textPrimary:
+                                                              Colors.white,
+                                                          textSecondary:
+                                                              Colors.white70,
+                                                          accent: accent,
+                                                        );
+                                                      },
+                                                    );
+                                                  },
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                if (widget.artist.isNotEmpty) ...[
+                                  const SizedBox(height: 28),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 480,
+                                    ),
+                                    child: Text(
+                                      widget.artist,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (widget.title.isNotEmpty) ...[
+                                  SizedBox(
+                                    height: widget.artist.isNotEmpty ? 6 : 28,
+                                  ),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 480,
+                                    ),
+                                    child: Text(
+                                      widget.title,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: textPrimary,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                                if (widget.album.isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(
+                                      maxWidth: 480,
+                                    ),
+                                    child: Text(
+                                      widget.album,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.center,
+                                      style: TextStyle(
+                                        color: textSecondary,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -1485,24 +1865,27 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
 
 /// Onda animada del reproductor de audio: dibuja [AudioWaveformEffect] con un
 /// [CustomPainter] propio. Se mueve mientras suena y se congela al pausar.
-class _AudioWaveform extends StatefulWidget {
+/// Incluye efecto audioFlux via audio_flux + SoLoud.
+class _AudioWaveform extends ConsumerStatefulWidget {
   const _AudioWaveform({
     required this.playing,
     required this.progress,
     required this.effect,
     required this.color,
+    this.expanded = false,
   });
 
   final bool playing;
   final double progress;
   final AudioWaveformEffect effect;
   final Color color;
+  final bool expanded;
 
   @override
-  State<_AudioWaveform> createState() => _AudioWaveformState();
+  ConsumerState<_AudioWaveform> createState() => _AudioWaveformState();
 }
 
-class _AudioWaveformState extends State<_AudioWaveform>
+class _AudioWaveformState extends ConsumerState<_AudioWaveform>
     with TickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
@@ -1549,6 +1932,217 @@ class _AudioWaveformState extends State<_AudioWaveform>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.expanded) {
+      if (widget.effect == AudioWaveformEffect.frequency) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: _WaveformPainter(
+                  effect: AudioWaveformEffect.equalizer,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: widget.color.withValues(alpha: 0.18),
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        // Efecto frequency FFT rainbow mirrored con reflejo — imagen de referencia
+        // Menos alto: centrado con altura fija para no ocupar todo el full bleed
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(0, 0, 0, 80),
+          child: Center(
+            child: SizedBox(
+              height: 540,
+              width: double.infinity,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _FrequencyVisualizer(),
+              ),
+            ),
+          ),
+        );
+      }
+      if (widget.effect == AudioWaveformEffect.audioFlux) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: _WaveformPainter(
+                  effect: AudioWaveformEffect.equalizer,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: widget.color.withValues(alpha: 0.18),
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        return SizedBox.expand(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: AudioFlux(
+              dataSource: DataSources.soloud,
+              fluxType: FluxType.waveform,
+              modelParams: ModelParams(
+                backgroundColor: Colors.transparent,
+                barColor: widget.color,
+                barGradient: LinearGradient(
+                  colors: [widget.color, widget.color.withValues(alpha: 0.6)],
+                ),
+                audioScale: 1.6,
+                fftParams: const FftParams(
+                  minBinIndex: 1,
+                  maxBinIndex: 120,
+                  fftSmoothing: 0.85,
+                ),
+                waveformParams: const WaveformPainterParams(
+                  barsWidth: 3,
+                  barSpacingScale: 0.5,
+                  chunkSize: 1,
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+      if (widget.effect == AudioWaveformEffect.surfer) {
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox.expand(
+            child: _SurferWave(
+              phase: _controller.value,
+              progress: widget.progress,
+              color: widget.color,
+              trackColor: widget.color.withValues(alpha: 0.18),
+              explosion: _explosionController.value,
+            ),
+          ),
+        );
+      }
+      return AnimatedBuilder(
+        animation: Listenable.merge([_controller, _explosionController]),
+        builder: (context, _) => SizedBox.expand(
+          child: CustomPaint(
+            painter: _WaveformPainter(
+              effect: widget.effect,
+              phase: _controller.value,
+              progress: widget.progress,
+              color: widget.color,
+              trackColor: widget.color.withValues(alpha: 0.18),
+              explosion: _explosionController.value,
+            ),
+          ),
+        ),
+      );
+    }
+    // Nuevo efecto audioFlux via SoLoud + audio_flux (waveform real)
+    if (widget.effect == AudioWaveformEffect.audioFlux) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      // Fallback sintético si SoLoud no está sonando (ej. HLS fallback a MediaKit)
+      if (!soloudReady || !hasSoloudPlaying) {
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _WaveformPainter(
+                effect: AudioWaveformEffect.equalizer,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: widget.color.withValues(alpha: 0.18),
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return SizedBox(
+        height: 52,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: AudioFlux(
+            dataSource: DataSources.soloud,
+            fluxType: FluxType.waveform,
+            modelParams: ModelParams(
+              backgroundColor: Colors.transparent,
+              barColor: widget.color,
+              barGradient: LinearGradient(
+                colors: [widget.color, widget.color.withValues(alpha: 0.6)],
+              ),
+              audioScale: 1.4,
+              fftParams: const FftParams(
+                minBinIndex: 1,
+                maxBinIndex: 120,
+                fftSmoothing: 0.85,
+              ),
+              waveformParams: const WaveformPainterParams(
+                barsWidth: 3,
+                barSpacingScale: 0.5,
+                chunkSize: 1,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+    // Nuevo efecto frequency (FFT rainbow mirrored con reflejo) — imagen de referencia
+    if (widget.effect == AudioWaveformEffect.frequency) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      if (!soloudReady || !hasSoloudPlaying) {
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: _WaveformPainter(
+                effect: AudioWaveformEffect.equalizer,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: widget.color.withValues(alpha: 0.18),
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return SizedBox(
+        height: 130,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: _FrequencyVisualizer(),
+        ),
+      );
+    }
     // Efecto surfista: oceano con el icono surfer.svg deslizandose sobre la ola.
     if (widget.effect == AudioWaveformEffect.surfer) {
       return AnimatedBuilder(
@@ -1585,6 +2179,130 @@ class _AudioWaveformState extends State<_AudioWaveform>
       ),
     );
   }
+}
+
+/// Visualizador de frecuencia FFT simétrico estilo Winamp/LED con reflejo.
+/// Simetría horizontal: graves en el centro, agudos en los extremos (espejado como imagen).
+/// Usa SoLoud FFT directo y pinta barras arcoíris con reflejo vertical atenuado.
+class _FrequencyVisualizer extends StatefulWidget {
+  const _FrequencyVisualizer();
+
+  @override
+  State<_FrequencyVisualizer> createState() => _FrequencyVisualizerState();
+}
+
+class _FrequencyVisualizerState extends State<_FrequencyVisualizer> {
+  StreamSubscription? _sub;
+  Float32List _fft = Float32List(256);
+
+  @override
+  void initState() {
+    super.initState();
+    try {
+      SoLoud.instance.setVisualizationEnabled(true);
+    } catch (_) {}
+    _sub = SoLoud.instance.audioVisualizationEvents.listen((data) {
+      if (data.fftData != null && mounted) {
+        setState(() => _fft = data.fftData!);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black,
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: _SymmetricFftPainter(fft: _fft, audioScale: 1),
+      ),
+    );
+  }
+}
+
+class _SymmetricFftPainter extends CustomPainter {
+  _SymmetricFftPainter({required this.fft, this.audioScale = 2.2});
+  final Float32List fft;
+  final double audioScale;
+  static const int barCount = 64;
+  static const double barSpacingScale = 0.28;
+  static const double barRadius = 2.0;
+  static const List<Color> rainbow = [
+    Color(0xFFE53935),
+    Color(0xFFFB8C00),
+    Color(0xFFFDD835),
+    Color(0xFF8BC34A),
+    Color(0xFF26C6DA),
+    Color(0xFF42A5F5),
+    Color(0xFF7E57C2),
+    Color(0xFFEC407A),
+  ];
+
+  Color _colorAt(double t) {
+    final scaled = t * (rainbow.length - 1);
+    final idx = scaled.floor().clamp(0, rainbow.length - 2);
+    final frac = scaled - idx;
+    return Color.lerp(rainbow[idx], rainbow[idx + 1], frac)!;
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    canvas.drawRect(Offset.zero & size, Paint()..color = Colors.black);
+    final half = barCount ~/ 2;
+    final range = fft.length.clamp(1, 256);
+    final chunkSize = range / half;
+    final halfValues = List<double>.filled(half, 0.0);
+    for (var j = 0; j < half; j++) {
+      final start = (j * chunkSize).floor().clamp(0, range - 1);
+      final end = ((j + 1) * chunkSize).ceil().clamp(0, range);
+      double sum = 0;
+      int cnt = 0;
+      for (var k = start; k < end && k < fft.length; k++) {
+        sum += fft[k];
+        cnt++;
+      }
+      halfValues[j] = cnt > 0 ? sum / cnt : 0.0;
+    }
+    final barWidth = size.width / barCount;
+    final barInnerWidth = barWidth * (1.0 - barSpacingScale);
+    final baseline = size.height * 0.58;
+    for (var i = 0; i < barCount; i++) {
+      final mirroredIdx = i < half ? (half - 1 - i) : (i - half);
+      final value = halfValues[mirroredIdx.clamp(0, half - 1)];
+      final clamped = value.clamp(0.0, 1.0);
+      final barH = (size.height * 0.58 * clamped * audioScale).clamp(
+        2.0,
+        size.height * 0.58,
+      );
+      final x = i * barWidth + (barWidth - barInnerWidth) / 2;
+      final color = _colorAt(i / (barCount - 1));
+      final topRect = Rect.fromLTWH(x, baseline - barH, barInnerWidth, barH);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(topRect, Radius.circular(barRadius)),
+        Paint()..color = color,
+      );
+      final reflH = barH * 0.55;
+      final reflRect = Rect.fromLTWH(x, baseline + 2, barInnerWidth, reflH);
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(reflRect, Radius.circular(barRadius)),
+        Paint()..color = color.withValues(alpha: 0.32),
+      );
+    }
+    canvas.drawRect(
+      Rect.fromLTWH(0, baseline, size.width, 1),
+      Paint()..color = Colors.white10,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SymmetricFftPainter oldDelegate) => true;
 }
 
 /// Ola surfera: el [surfer.svg] se desliza sobre la cresta siguiendo el progreso.
@@ -1905,6 +2623,12 @@ class _WaveformPainter extends CustomPainter {
         _paintWave(canvas, size);
       case AudioWaveformEffect.surfer:
         _paintWave(canvas, size);
+      case AudioWaveformEffect.audioFlux:
+        // audioFlux se renderiza con widget AudioFlux, este painter fallback a equalizer
+        _paintBars(canvas, size, mirrored: false, animated: true);
+      case AudioWaveformEffect.frequency:
+        // frequency también usa AudioFlux FFT; fallback sintético espejado
+        _paintBars(canvas, size, mirrored: true, animated: true);
     }
   }
 
@@ -2113,15 +2837,14 @@ class _WaveformPainter extends CustomPainter {
   bool shouldRepaint(covariant _WaveformPainter oldDelegate) => true;
 }
 
-/// Toggle pill SONG/VIDEO: Letra <-> Portada sobre la cover.
-/// Muestra lyrics con opacidad 30% sobre el cover o solo el cover.
+/// Toggle pill 3 estados: Portada <-> Letra <-> Efectos
 class _LyricsCoverToggle extends ConsumerWidget {
   const _LyricsCoverToggle();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
-    final showLyrics = ref.watch(showLyricsProvider);
+    final mode = ref.watch(playerViewModeProvider);
     // Pill estilo imagen: fondo oscuro semitransparente, segmento activo blanco.
     return Container(
       decoration: BoxDecoration(
@@ -2134,14 +2857,25 @@ class _LyricsCoverToggle extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           _ToggleSegment(
-            label: l10n.lyrics.toUpperCase(),
-            selected: showLyrics,
-            onTap: () => ref.read(showLyricsProvider.notifier).set(true),
+            label: l10n.cover.toUpperCase(),
+            selected: mode == PlayerViewMode.cover,
+            onTap: () => ref
+                .read(playerViewModeProvider.notifier)
+                .set(PlayerViewMode.cover),
           ),
           _ToggleSegment(
-            label: l10n.cover.toUpperCase(),
-            selected: !showLyrics,
-            onTap: () => ref.read(showLyricsProvider.notifier).set(false),
+            label: l10n.lyrics.toUpperCase(),
+            selected: mode == PlayerViewMode.lyrics,
+            onTap: () => ref
+                .read(playerViewModeProvider.notifier)
+                .set(PlayerViewMode.lyrics),
+          ),
+          _ToggleSegment(
+            label: l10n.effects.toUpperCase(),
+            selected: mode == PlayerViewMode.effects,
+            onTap: () => ref
+                .read(playerViewModeProvider.notifier)
+                .set(PlayerViewMode.effects),
           ),
         ],
       ),
@@ -2287,7 +3021,11 @@ class _VolumeButtonState extends State<_VolumeButton> {
                         child: Text(
                           '${current.round()}%',
                           textAlign: TextAlign.right,
-                          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],

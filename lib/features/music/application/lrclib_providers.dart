@@ -27,6 +27,7 @@ final lrcLyricsProvider = FutureProvider.family<LrcResult?, LrcQuery>((ref, q) a
 });
 
 // Toggle para mostrar/ocultar lyrics en el player fullscreen
+// Compat: migrado a PlayerViewMode (cover/lyrics/effects). Se mantiene alias bool.
 class ShowLyricsNotifier extends Notifier<bool> {
   @override
   bool build() => true; // por defecto ON

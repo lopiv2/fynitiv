@@ -371,6 +371,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get effectSurfer => 'Surfer';
 
   @override
+  String get effectAudioFlux => 'AudioFlux Wave';
+
+  @override
+  String get effectFrequency => 'Frequency';
+
+  @override
   String get preview => 'Preview';
 
   @override
@@ -1212,4 +1218,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get cover => 'Cover';
+
+  @override
+  String get effects => 'Effects';
 }

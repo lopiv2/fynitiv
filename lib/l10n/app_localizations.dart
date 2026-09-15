@@ -800,6 +800,18 @@ abstract class AppLocalizations {
   /// **'Surfer'**
   String get effectSurfer;
 
+  /// No description provided for @effectAudioFlux.
+  ///
+  /// In en, this message translates to:
+  /// **'AudioFlux Wave'**
+  String get effectAudioFlux;
+
+  /// No description provided for @effectFrequency.
+  ///
+  /// In en, this message translates to:
+  /// **'Frequency'**
+  String get effectFrequency;
+
   /// No description provided for @preview.
   ///
   /// In en, this message translates to:
@@ -2323,6 +2335,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Cover'**
   String get cover;
+
+  /// No description provided for @effects.
+  ///
+  /// In en, this message translates to:
+  /// **'Effects'**
+  String get effects;
 }
 
 class _AppLocalizationsDelegate

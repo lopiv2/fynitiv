@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../application/music_player_provider.dart';
+import '../../application/soloud_music_provider.dart';
 
 String _fmt(Duration d) {
   String two(int v) => v.toString().padLeft(2, '0');
@@ -21,11 +22,25 @@ class MiniPlayerBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(musicPlayerProvider);
-    if (!state.hasItem) return const SizedBox.shrink();
+    // SoLoud primario para música, fallback a MediaKit legacy
+    final soloudState = ref.watch(soloudMusicProvider);
+    final legacyState = ref.watch(musicPlayerProvider);
+    final useSoloud = soloudState.hasItem;
+    final legacy = legacyState.hasItem ? legacyState : null;
+    final effectiveHasItem = useSoloud || legacy != null;
+    if (!effectiveHasItem) return const SizedBox.shrink();
 
-    final duration = state.duration;
-    final position = state.position;
+    // Mapear a valores comunes
+    final duration = useSoloud ? soloudState.duration : legacy!.duration;
+    final position = useSoloud ? soloudState.position : legacy!.position;
+    final playing = useSoloud ? soloudState.playing : legacy!.playing;
+    final buffering = useSoloud ? soloudState.buffering : legacy!.buffering;
+    final volume = useSoloud ? soloudState.volume : legacy!.volume;
+    final coverUrl = useSoloud ? soloudState.coverUrl : legacy!.coverUrl;
+    final title = useSoloud ? soloudState.title : legacy!.title;
+    final artist = useSoloud ? soloudState.artist : legacy!.artist;
+    final itemId = useSoloud ? (soloudState.item?.id ?? soloudState.session?.itemId) : (legacy!.item?.id ?? legacy.session?.itemId);
+    final item = useSoloud ? soloudState.item : legacy!.item;
 
     return Material(
       color: const Color(0xFF0F0F0F),
@@ -56,7 +71,9 @@ class MiniPlayerBar extends ConsumerWidget {
                   value: position.inMilliseconds > 0
                       ? (position.inMilliseconds / 1000).clamp(0, duration.inMilliseconds / 1000)
                       : 0,
-                  onChanged: (v) => ref.read(musicPlayerProvider.notifier).seek(Duration(milliseconds: (v * 1000).round())),
+                  onChanged: (v) => useSoloud
+                      ? ref.read(soloudMusicProvider.notifier).seek(Duration(milliseconds: (v * 1000).round()))
+                      : ref.read(musicPlayerProvider.notifier).seek(Duration(milliseconds: (v * 1000).round())),
                 ),
               ),
             ),
@@ -66,23 +83,17 @@ class MiniPlayerBar extends ConsumerWidget {
                 child: Row(
                   children: [
                     // Carátula - también abre fullscreen (maximizar).
-                    // Sin Hero custom ni mutación del provider antes del push:
-                    // pausar aquí reconstruía la barra y desactivaba el
-                    // context del gesto (crash "deactivated widget's ancestor").
-                    // El fullscreen hereda posición/volumen y pausa el mini en _open().
                     InkWell(
                       onTap: () {
-                        final id = state.item?.id ?? state.session?.itemId;
-                        final item = state.item;
-                        if (id == null || id.isEmpty) return;
+                        if (itemId == null || itemId.isEmpty) return;
                         if (!context.mounted) return;
-                        context.push('/player/$id', extra: item);
+                        context.push('/player/$itemId', extra: item);
                       },
                       child: ClipRRect(
                           borderRadius: BorderRadius.circular(4),
-                          child: state.coverUrl.isNotEmpty
+                          child: coverUrl.isNotEmpty
                               ? Image.network(
-                                  state.coverUrl,
+                                  coverUrl,
                                   width: 48,
                                   height: 48,
                                   fit: BoxFit.cover,
@@ -92,28 +103,26 @@ class MiniPlayerBar extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    // Título / artista (tap para volver al player) - inversa del minimizar
+                    // Título / artista
                     Expanded(
                       child: InkWell(
                         onTap: () {
-                          final id = state.item?.id ?? state.session?.itemId;
-                          final item = state.item;
-                          if (id == null || id.isEmpty) return;
+                          if (itemId == null || itemId.isEmpty) return;
                           if (!context.mounted) return;
-                          context.push('/player/$id', extra: item);
+                          context.push('/player/$itemId', extra: item);
                         },
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              state.title,
+                              title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
                             ),
                             Text(
-                              state.artist,
+                              artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(color: Colors.white70, fontSize: 11),
@@ -122,29 +131,29 @@ class MiniPlayerBar extends ConsumerWidget {
                         ),
                       ),
                     ),
-                    // Controles centrales (prev, play, stop, next, tiempo)
+                    // Controles centrales
                     IconButton(
                       tooltip: 'Anterior',
                       icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 22),
-                      onPressed: () => ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: -10)),
+                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).seekBy(const Duration(seconds: -10)) : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: -10)),
                     ),
                     Container(
                       decoration: BoxDecoration(color: const Color(0xFF00A8E1).withValues(alpha: 0.15), shape: BoxShape.circle),
                       child: IconButton(
-                        tooltip: state.playing ? 'Pausa' : 'Reproducir',
-                        icon: Icon(state.playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: const Color(0xFF00A8E1), size: 22),
-                        onPressed: () => ref.read(musicPlayerProvider.notifier).toggle(),
+                        tooltip: playing ? 'Pausa' : 'Reproducir',
+                        icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: const Color(0xFF00A8E1), size: 22),
+                        onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).toggle() : ref.read(musicPlayerProvider.notifier).toggle(),
                       ),
                     ),
                     IconButton(
                       tooltip: 'Parar',
                       icon: const Icon(Icons.stop_rounded, color: Colors.white70, size: 20),
-                      onPressed: () => ref.read(musicPlayerProvider.notifier).stop(),
+                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).stop() : ref.read(musicPlayerProvider.notifier).stop(),
                     ),
                     IconButton(
                       tooltip: 'Siguiente',
                       icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 22),
-                      onPressed: () => ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: 10)),
+                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).seekBy(const Duration(seconds: 10)) : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: 10)),
                     ),
                     const SizedBox(width: 6),
                     Text('${_fmt(position)} / ${_fmt(duration)}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
@@ -158,8 +167,8 @@ class MiniPlayerBar extends ConsumerWidget {
                         child: Slider(
                           min: 0,
                           max: 100,
-                          value: state.volume.clamp(0, 100),
-                          onChanged: (v) => ref.read(musicPlayerProvider.notifier).setVolume(v),
+                          value: volume.clamp(0, 100),
+                          onChanged: (v) => useSoloud ? ref.read(soloudMusicProvider.notifier).setVolume(v) : ref.read(musicPlayerProvider.notifier).setVolume(v),
                         ),
                       ),
                     ),
@@ -169,10 +178,9 @@ class MiniPlayerBar extends ConsumerWidget {
                     IconButton(
                       tooltip: 'Cerrar mini',
                       icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
-                      onPressed: () => ref.read(musicPlayerProvider.notifier).stop(),
+                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).stop() : ref.read(musicPlayerProvider.notifier).stop(),
                     ),
-                    // Indicador progreso circular sutil cuando buffering
-                    if (state.buffering) const Padding(padding: EdgeInsets.only(left: 4), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.8, color: Colors.white54))),
+                    if (buffering) const Padding(padding: EdgeInsets.only(left: 4), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.8, color: Colors.white54))),
                   ],
                 ),
               ),

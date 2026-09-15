@@ -119,6 +119,8 @@
   "effectMirror": "Espejo",
   "effectBars": "Barras",
   "effectSurfer": "Surfista",
+  "effectAudioFlux": "AudioFlux Wave",
+  "effectFrequency": "Frecuencia",
   "preview": "Vista previa",
   "none": "Ninguno",
   "uploadLogo": "Subir imagen",
@@ -455,5 +457,6 @@
   "@timeRemaining": {"placeholders": {"minutes": {"type": "int"}}},
   "timeRemainingLessThanAMinute": "Tiempo restante: menos de 1 min",
   "lyrics": "Letra",
-  "cover": "Portada"
+  "cover": "Portada",
+  "effects": "Efectos"
 }

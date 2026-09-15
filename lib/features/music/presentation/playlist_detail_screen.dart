@@ -10,6 +10,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../library/application/image_url.dart';
 import '../../player/application/playback_provider.dart';
 import '../application/music_player_provider.dart';
+import '../application/soloud_music_provider.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/poster_card.dart';
 
@@ -275,7 +276,10 @@ class _PlaylistTrackRow extends ConsumerWidget {
                 if (id == null || id.isEmpty) return;
                 final session = await ref.read(playbackSessionProvider(id).future);
                 if (session != null) {
-                  ref.read(musicPlayerProvider.notifier).playFromSession(session, track);
+                  // SoLoud primario, fallback MediaKit ya dentro del provider
+                  await ref.read(soloudMusicProvider.notifier).playFromSession(session, track);
+                  // Mantener legacy en sync para compat
+                  await ref.read(musicPlayerProvider.notifier).playFromSession(session, track);
                 }
               },
             ),

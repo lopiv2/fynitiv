@@ -81,6 +81,8 @@ dependencies:
   palette_generator: ^0.3.3+7
   animated_background: ^2.0.0
   animated_gradient: ^0.0.3
+  flutter_soloud: ^5.1.0
+  audio_flux: ^2.0.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

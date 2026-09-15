@@ -621,6 +621,8 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                         (AudioWaveformEffect.mirror, l10n.effectMirror),
                         (AudioWaveformEffect.bars, l10n.effectBars),
                         (AudioWaveformEffect.surfer, l10n.effectSurfer),
+                        (AudioWaveformEffect.audioFlux, l10n.effectAudioFlux),
+                        (AudioWaveformEffect.frequency, l10n.effectFrequency),
                       ])
                         DropdownMenuItem(
                           value: effect,
