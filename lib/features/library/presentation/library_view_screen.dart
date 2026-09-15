@@ -337,7 +337,9 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                           crossAxisCount: 6,
                           mainAxisSpacing: 6,
                           crossAxisSpacing: 20,
-                          childAspectRatio: useBackdrop ? 1.5 : 0.6,
+                          // Backdrop 16:9 + título/subtítulo (~28px) necesita más alto que 1.5,
+                          // si no desborda 18px (Column:334). 1.35 deja hueco suficiente.
+                          childAspectRatio: useBackdrop ? 1.35 : 0.6,
                         ),
                         itemCount: items.length,
                         itemBuilder: (context, i) {

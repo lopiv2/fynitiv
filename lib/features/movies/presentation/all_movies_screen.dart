@@ -165,7 +165,7 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
                                 crossAxisCount: 6,
                                 mainAxisSpacing: 6,
                                 crossAxisSpacing: 20,
-                                childAspectRatio: useBackdrop ? 1.5 : 0.6,
+                                childAspectRatio: useBackdrop ? 1.35 : 0.6,
                               ),
                               itemCount: items.length,
                               itemBuilder: (context, i) {

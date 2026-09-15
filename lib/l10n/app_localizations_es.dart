@@ -332,6 +332,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get cardImageType => 'Imagen de las tarjetas';
 
   @override
+  String get cardImageTypeHint =>
+      'Solo aplica a bibliotecas, no a pantallas principales (Inicio/VOD)';
+
+  @override
   String get poster => 'Póster';
 
   @override
@@ -1195,6 +1199,14 @@ class AppLocalizationsEs extends AppLocalizations {
   String libraryCountItems(int count) {
     return '$count elementos';
   }
+
+  @override
+  String timeRemaining(int minutes) {
+    return 'Tiempo restante: $minutes min';
+  }
+
+  @override
+  String get timeRemainingLessThanAMinute => 'Tiempo restante: menos de 1 min';
 
   @override
   String get lyrics => 'Letra';

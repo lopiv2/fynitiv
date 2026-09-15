@@ -106,6 +106,7 @@
   "showContinueRow": "Mostrar fila 'Continuar viendo'",
   "showNewReleasesRow": "Mostrar fila 'Novedades'",
   "cardImageType": "Imagen de las tarjetas",
+  "cardImageTypeHint": "Solo aplica a bibliotecas, no a pantallas principales (Inicio/VOD)",
   "poster": "Póster",
   "backdrop": "Backdrop",
   "cardLogo": "Logotipo de las tarjetas",
@@ -450,6 +451,9 @@
   "@libraryCountHours": {"placeholders": {"count": {"type": "int"}}},
   "libraryCountItems": "{count} elementos",
   "@libraryCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "timeRemaining": "Tiempo restante: {minutes} min",
+  "@timeRemaining": {"placeholders": {"minutes": {"type": "int"}}},
+  "timeRemainingLessThanAMinute": "Tiempo restante: menos de 1 min",
   "lyrics": "Letra",
   "cover": "Portada"
 }

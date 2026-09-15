@@ -722,6 +722,12 @@ abstract class AppLocalizations {
   /// **'Cards image type'**
   String get cardImageType;
 
+  /// No description provided for @cardImageTypeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only applies to libraries, not to main screens (Home/VOD)'**
+  String get cardImageTypeHint;
+
   /// No description provided for @poster.
   ///
   /// In en, this message translates to:
@@ -2293,6 +2299,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} items'**
   String libraryCountItems(int count);
+
+  /// No description provided for @timeRemaining.
+  ///
+  /// In en, this message translates to:
+  /// **'Time remaining: {minutes} min'**
+  String timeRemaining(int minutes);
+
+  /// No description provided for @timeRemainingLessThanAMinute.
+  ///
+  /// In en, this message translates to:
+  /// **'Time remaining: less than 1 min'**
+  String get timeRemainingLessThanAMinute;
 
   /// No description provided for @lyrics.
   ///

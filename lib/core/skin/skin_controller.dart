@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'layout_section.dart';
 import 'skin.dart';
 import 'skin_presets.dart';
 
@@ -46,6 +47,129 @@ class SkinController extends AsyncNotifier<Skin> {
               .firstOrNull;
           if (preset != null && preset.homeScrolls.isNotEmpty) {
             return skin.copyWith(homeScrolls: preset.homeScrolls);
+          }
+        }
+        // Migración: skins custom guardados antes de que `newReleases` tuviera
+        // `showLogo:true` (vodLayout con logo de película/serie). Si el preset
+        // actual tiene `LayoutSection.newReleases` con `showLogo:true` y el
+        // skin guardado no lo tiene, se hereda solo esa sección para que el
+        // logo vuelva a aparecer sin perder el resto de personalizaciones.
+        final presetForMigration = SkinPresets.all
+            .where((s) => s.id == skin.id)
+            .firstOrNull;
+        if (presetForMigration != null) {
+          var migrated = skin;
+          bool needsSave = false;
+
+          // Heredar homeLayout/vodLayout si están vacíos y el preset los tiene.
+          if (migrated.homeLayout.isEmpty &&
+              presetForMigration.homeLayout.isNotEmpty) {
+            migrated = migrated.copyWith(
+              homeLayout: presetForMigration.homeLayout,
+            );
+            needsSave = true;
+          }
+          if (migrated.vodLayout.isEmpty &&
+              presetForMigration.vodLayout.isNotEmpty) {
+            migrated = migrated.copyWith(
+              vodLayout: presetForMigration.vodLayout,
+            );
+            needsSave = true;
+          }
+
+          // Parche específico para `newReleases` con `showLogo:true`.
+          // Busca en el preset si hay un newReleases con showLogo y compáralo
+          // con el del skin guardado; si el guardado no lo tiene, lo reemplaza.
+          LayoutSection? presetNewReleasesHome;
+          for (final s in presetForMigration.homeLayout) {
+            if (s.type == LayoutSectionType.newReleases) {
+              presetNewReleasesHome = s;
+              break;
+            }
+          }
+          LayoutSection? presetNewReleasesVod;
+          for (final s in presetForMigration.vodLayout) {
+            if (s.type == LayoutSectionType.newReleases) {
+              presetNewReleasesVod = s;
+              break;
+            }
+          }
+
+          List<LayoutSection> patchSections(
+            List<LayoutSection> current,
+            LayoutSection? presetSection,
+          ) {
+            if (presetSection == null) return current;
+            final presetScroll = presetSection.scroll;
+            // Solo migrar si el preset pide logo y el actual no lo tiene.
+            final presetWantsLogo = presetScroll?.showLogo ?? false;
+            if (!presetWantsLogo) return current;
+            bool patched = false;
+            final out = <LayoutSection>[];
+            bool found = false;
+            for (final sec in current) {
+              if (sec.type == LayoutSectionType.newReleases) {
+                found = true;
+                final curLogo = sec.scroll?.showLogo ?? false;
+                if (!curLogo) {
+                  out.add(presetSection);
+                  patched = true;
+                } else {
+                  out.add(sec);
+                }
+              } else {
+                out.add(sec);
+              }
+            }
+            // Si el skin guardado no tenía la sección newReleases y el preset sí,
+            // no la añadimos automáticamente para no alterar layouts custom,
+            // salvo que sea vodLayout de disney_plus donde se espera.
+            // Para disney_plus vodLayout sí la inyectamos si falta.
+            if (!found &&
+                presetWantsLogo &&
+                migrated.id == 'disney_plus') {
+              // Insertar newReleases del preset en la posición del preset
+              // (busca índice en preset y replica en current).
+              final presetIndex = presetForMigration.vodLayout.indexOf(
+                presetSection,
+              );
+              if (presetIndex >= 0 && presetIndex <= out.length) {
+                out.insert(presetIndex, presetSection);
+                patched = true;
+              }
+            }
+            if (patched) needsSave = true;
+            return patched ? out : current;
+          }
+
+          if (presetNewReleasesHome != null) {
+            final patchedHome = patchSections(
+              migrated.homeLayout,
+              presetNewReleasesHome,
+            );
+            if (!identical(patchedHome, migrated.homeLayout)) {
+              migrated = migrated.copyWith(homeLayout: patchedHome);
+              needsSave = true;
+            }
+          }
+          if (presetNewReleasesVod != null) {
+            final patchedVod = patchSections(
+              migrated.vodLayout,
+              presetNewReleasesVod,
+            );
+            if (!identical(patchedVod, migrated.vodLayout)) {
+              migrated = migrated.copyWith(vodLayout: patchedVod);
+              needsSave = true;
+            }
+          }
+
+          if (needsSave) {
+            // Persistir la migración para no repetirla.
+            // ignore: unawaited_futures
+            SharedPreferences.getInstance().then((p) {
+              p.setString(_kSkinKey, jsonEncode(migrated.toJson()));
+            });
+            return migrated;
           }
         }
         return skin;

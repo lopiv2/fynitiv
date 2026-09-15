@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/card_badge_resolver.dart';
 import '../../../../core/widgets/hover_play_card.dart';
 import '../../../../core/widgets/logo_image.dart';
@@ -293,6 +294,35 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
       }
     }
 
+    String? remainingTimeText;
+    // Solo skin Disney+ en Seguir viendo (progreso >0) muestra tiempo restante sobre el título
+    if (skin?.id == 'disney_plus' &&
+        progress != null &&
+        progress > 0 &&
+        widget.item.runTimeTicks != null &&
+        widget.item.userData?.playbackPositionTicks != null) {
+      final pos = widget.item.userData!.playbackPositionTicks!;
+      final run = widget.item.runTimeTicks!;
+      if (pos > 0 && run > 0) {
+        final remainingTicks = run - pos;
+        if (remainingTicks <= 0) {
+          remainingTimeText =
+              l10n?.timeRemainingLessThanAMinute ??
+              'Tiempo restante: menos de 1 min';
+        } else {
+          final minutes = remainingTicks ~/ 600000000;
+          if (minutes < 1) {
+            remainingTimeText =
+                l10n?.timeRemainingLessThanAMinute ??
+                'Tiempo restante: menos de 1 min';
+          } else {
+            remainingTimeText =
+                l10n?.timeRemaining(minutes) ?? 'Tiempo restante: $minutes min';
+          }
+        }
+      }
+    }
+
     final fallback = PosterFallback(item: widget.item, color: fallbackColor);
     final Widget image;
     if (displayUrl != null) {
@@ -331,18 +361,33 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
       }
     }
 
+    final isImageHovered =
+        _isHovered || (AppHoverScope.of(context)?.hovered ?? false);
+
     final cardContent = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        HoverPlayRadius(
-          radius: radius * 6,
-          child: AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                image,
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(radius * 6),
+            border: Border.all(
+              color: isImageHovered ? Colors.white : Colors.transparent,
+              width: isImageHovered ? 2.5 : 0,
+            ),
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(radius * 6),
+            child: HoverPlayRadius(
+              radius: radius * 6,
+              child: AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    image,
                 if (widget.showBottomVignette)
                   Positioned(
                     left: 0,
@@ -402,20 +447,34 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
                         : null,
                     child: widget.logoPosition == RowLogoPosition.center
                         ? Center(
-                            child: Image.network(
-                              logoUrl,
+                            child: CachedNetworkImage(
+                              imageUrl: logoUrl,
                               height: widget.logoSize ?? 36,
                               fit: BoxFit.contain,
+                              fadeInDuration: const Duration(milliseconds: 150),
+                              useOldImageOnUrlChange: true,
+                              memCacheHeight: ((widget.logoSize ?? 36) * 3)
+                                  .toInt(),
+                              maxHeightDiskCache: ((widget.logoSize ?? 36) * 3)
+                                  .toInt(),
                               errorBuilder: (_, _, _) =>
                                   const SizedBox.shrink(),
+                              placeholder: (_, _) => const SizedBox.shrink(),
                             ),
                           )
-                        : Image.network(
-                            logoUrl,
+                        : CachedNetworkImage(
+                            imageUrl: logoUrl,
                             height: widget.logoSize ?? 28,
                             fit: BoxFit.contain,
                             alignment: Alignment.center,
+                            fadeInDuration: const Duration(milliseconds: 150),
+                            useOldImageOnUrlChange: true,
+                            memCacheHeight: ((widget.logoSize ?? 28) * 3)
+                                .toInt(),
+                            maxHeightDiskCache: ((widget.logoSize ?? 28) * 3)
+                                .toInt(),
                             errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                            placeholder: (_, _) => const SizedBox.shrink(),
                           ),
                   ),
                 if (widget.showMetaOverlay)
@@ -489,32 +548,66 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
               ],
             ),
           ),
+            ),
+          ),
         ),
         if (!showExtension && !widget.showMetaOverlay) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
+          if (remainingTimeText != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(3.5, 0, 0, 0),
+              child: Text(
+                remainingTimeText,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: skin?.textSecondary ?? Colors.white70,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+          ],
           if (!widget.hideTitle)
             marqueeEnabled
-                ? MarqueeText(
-                    text: cardTitle,
-                    style: TextStyle(color: textPrimary, fontSize: 14),
-                    isHovered: _isHovered,
-                    enabled: true,
+                ? Padding(
+                    padding: const EdgeInsets.fromLTRB(3.5, 0, 0, 0),
+                    child: MarqueeText(
+                      text: cardTitle,
+                      style: TextStyle(
+                        color: textPrimary.withAlpha(200),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      isHovered: _isHovered,
+                      enabled: true,
+                    ),
                   )
-                : Text(
-                    cardTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: textPrimary, fontSize: 13),
+                : Padding(
+                    padding: const EdgeInsets.fromLTRB(3.5, 0, 0, 0),
+                    child: Text(
+                      cardTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textPrimary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
           if (subtitle != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: skin?.textSecondary ?? Colors.white70,
-                fontSize: 11,
+            const SizedBox(height: 1),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(3.5, 2, 0, 0),
+              child: Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: skin?.textSecondary ?? Colors.white70,
+                  fontSize: 10,
+                ),
               ),
             ),
           ],

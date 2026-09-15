@@ -217,7 +217,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     ),
                     const SizedBox(height: 72),
                     _buildControls(),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 72),
                     const LanguageSelector(),
                     const SizedBox(height: 24),
                     _buildDevBadge(),

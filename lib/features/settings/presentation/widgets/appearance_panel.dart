@@ -42,6 +42,11 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
   late Skin _draft;
   bool _loaded = false;
 
+  void _applyDraft(Skin next) {
+    setState(() => _draft = next);
+    ref.read(skinControllerProvider.notifier).apply(next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -89,9 +94,12 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                     _PresetChip(
                       preset: preset,
                       selected: active.id == preset.id,
-                      onTap: () => ref
-                          .read(skinControllerProvider.notifier)
-                          .applyPresetSkin(preset),
+                      onTap: () {
+                        ref
+                            .read(skinControllerProvider.notifier)
+                            .applyPresetSkin(preset);
+                        setState(() => _draft = preset);
+                      },
                     ),
                 ],
               ),
@@ -171,32 +179,32 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
               _ColorRow(
                 label: l10n.primaryColor,
                 color: _draft.primary,
-                onChanged: (c) => setState(() => _draft = _draft.copyWith(primary: c)),
+                onChanged: (c) => _applyDraft(_draft.copyWith(primary: c)),
               ),
               _ColorRow(
                 label: l10n.secondaryColor,
                 color: _draft.secondary,
-                onChanged: (c) => setState(() => _draft = _draft.copyWith(secondary: c)),
+                onChanged: (c) => _applyDraft(_draft.copyWith(secondary: c)),
               ),
               _ColorRow(
                 label: l10n.backgroundTopColor,
                 color: _draft.backgroundTop,
-                onChanged: (c) => setState(() => _draft = _draft.copyWith(backgroundTop: c)),
+                onChanged: (c) => _applyDraft(_draft.copyWith(backgroundTop: c)),
               ),
               _ColorRow(
                 label: l10n.backgroundBottomColor,
                 color: _draft.backgroundBottom,
-                onChanged: (c) => setState(() => _draft = _draft.copyWith(backgroundBottom: c)),
+                onChanged: (c) => _applyDraft(_draft.copyWith(backgroundBottom: c)),
               ),
               _ColorRow(
                 label: l10n.sidebarColor,
                 color: _draft.sidebarBackground,
-                onChanged: (c) => setState(() => _draft = _draft.copyWith(sidebarBackground: c)),
+                onChanged: (c) => _applyDraft(_draft.copyWith(sidebarBackground: c)),
               ),
               _ColorRow(
                 label: l10n.accentColor,
                 color: _draft.accent,
-                onChanged: (c) => setState(() => _draft = _draft.copyWith(accent: c)),
+                onChanged: (c) => _applyDraft(_draft.copyWith(accent: c)),
               ),
               const SizedBox(height: 24),
               // Layout.
@@ -223,8 +231,8 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                       ChoiceChip(
                         label: Text(label),
                         selected: _draft.sidebarPosition == value,
-                        onSelected: (_) => setState(
-                          () => _draft = _draft.copyWith(
+                        onSelected: (_) => _applyDraft(
+                          _draft.copyWith(
                             sidebarPosition: value,
                           ),
                         ),
@@ -236,13 +244,9 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                 _SwitchRow(
                   label: l10n.topBarFloating,
                   value: _draft.topBarFloating,
-                  onChanged: (v) {
-                    final next = _draft.copyWith(topBarFloating: v);
-                    setState(() => _draft = next);
-                    // Aplicación inmediata para previsualizar la isla sin
-                    // tener que pulsar Aplicar (el resto sigue con _draft).
-                    ref.read(skinControllerProvider.notifier).apply(next);
-                  },
+                  onChanged: (v) => _applyDraft(
+                    _draft.copyWith(topBarFloating: v),
+                  ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
@@ -269,8 +273,8 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                     ),
                   ],
                   selected: {_draft.logoPosition},
-                  onSelectionChanged: (s) => setState(
-                    () => _draft = _draft.copyWith(logoPosition: s.first),
+                  onSelectionChanged: (s) => _applyDraft(
+                    _draft.copyWith(logoPosition: s.first),
                   ),
                 ),
               ),
@@ -288,8 +292,8 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                     ),
                   ],
                   selected: {_draft.avatarPosition},
-                  onSelectionChanged: (s) => setState(
-                    () => _draft = _draft.copyWith(avatarPosition: s.first),
+                  onSelectionChanged: (s) => _applyDraft(
+                    _draft.copyWith(avatarPosition: s.first),
                   ),
                 ),
               ),
@@ -307,8 +311,8 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                     ),
                   ],
                   selected: {_draft.sidebarLogo != null},
-                  onSelectionChanged: (s) => setState(
-                    () => _draft = _draft.copyWith(
+                  onSelectionChanged: (s) => _applyDraft(
+                    _draft.copyWith(
                       sidebarLogo: s.first
                           ? _draft.sidebarLogo ??
                               SkinPresets.jellyfinDefault.sidebarLogo
@@ -335,9 +339,10 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                           ),
                         ),
                     ],
-                    onChanged: (v) => setState(
-                      () => _draft = _draft.copyWith(sidebarLogo: v),
-                    ),
+                    onChanged: (v) {
+                      if (v == null) return;
+                      _applyDraft(_draft.copyWith(sidebarLogo: v));
+                    },
                   ),
                 ),
               _OptionRow(
@@ -351,8 +356,8 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                         max: 24,
                         divisions: 12,
                         label: '${_draft.cardBorderRadius.round()}',
-                        onChanged: (v) => setState(
-                          () => _draft = _draft.copyWith(cardBorderRadius: v),
+                        onChanged: (v) => _applyDraft(
+                          _draft.copyWith(cardBorderRadius: v),
                         ),
                       ),
                     ),
@@ -366,15 +371,15 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
               _SwitchRow(
                 label: l10n.showContinueRow,
                 value: _draft.showContinueRow,
-                onChanged: (v) => setState(
-                  () => _draft = _draft.copyWith(showContinueRow: v),
+                onChanged: (v) => _applyDraft(
+                  _draft.copyWith(showContinueRow: v),
                 ),
               ),
               _SwitchRow(
                 label: l10n.titleMarquee,
                 value: _draft.titleMarqueeOnHover,
-                onChanged: (v) => setState(
-                  () => _draft = _draft.copyWith(titleMarqueeOnHover: v),
+                onChanged: (v) => _applyDraft(
+                  _draft.copyWith(titleMarqueeOnHover: v),
                 ),
               ),
               Padding(
@@ -387,11 +392,9 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
               _SwitchRow(
                 label: l10n.showCardBadge,
                 value: _draft.showCardBadge,
-                onChanged: (v) {
-                  final next = _draft.copyWith(showCardBadge: v);
-                  setState(() => _draft = next);
-                  ref.read(skinControllerProvider.notifier).apply(next);
-                },
+                onChanged: (v) => _applyDraft(
+                  _draft.copyWith(showCardBadge: v),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -414,9 +417,24 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                     ),
                   ],
                   selected: {_draft.cardImageType},
-                  onSelectionChanged: (s) => setState(
-                    () => _draft = _draft.copyWith(cardImageType: s.first),
+                  onSelectionChanged: (s) => _applyDraft(
+                    _draft.copyWith(cardImageType: s.first),
                   ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.info_outline, size: 14, color: Colors.white38),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        l10n.cardImageTypeHint,
+                        style: const TextStyle(color: Colors.white38, fontSize: 11),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               _OptionRow(
@@ -449,12 +467,13 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                                   ),
                                 ),
                             ],
-                            onChanged: (v) => setState(
-                              () => _draft = _draft.copyWith(
+                            onChanged: (v) {
+                              if (v == null) return;
+                              _applyDraft(_draft.copyWith(
                                 cardLogo: v == 'none' ? null : v,
                                 clearCardLogo: v == 'none',
-                              ),
-                            ),
+                              ));
+                            },
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -496,9 +515,8 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                             max: 60,
                             divisions: 50,
                             label: '${_draft.cardLogoSize.round()}px',
-                            onChanged: (v) => setState(
-                              () => _draft =
-                                  _draft.copyWith(cardLogoSize: v),
+                            onChanged: (v) => _applyDraft(
+                              _draft.copyWith(cardLogoSize: v),
                             ),
                           ),
                         ),
@@ -538,12 +556,13 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                               ),
                             ),
                         ],
-                        onChanged: (v) => setState(
-                          () => _draft = _draft.copyWith(
+                        onChanged: (v) {
+                          if (v == null) return;
+                          _applyDraft(_draft.copyWith(
                             playerLogo: v == 'none' ? null : v,
                             clearPlayerLogo: v == 'none',
-                          ),
-                        ),
+                          ));
+                        },
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -578,10 +597,10 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                         ),
                       ),
                   ],
-                  onChanged: (v) => setState(
-                    () => _draft =
-                        _draft.copyWith(playerLogoPosition: v),
-                  ),
+                  onChanged: (v) {
+                    if (v == null) return;
+                    _applyDraft(_draft.copyWith(playerLogoPosition: v));
+                  },
                 ),
               ),
               Consumer(builder: (context, ref, _) {
@@ -613,10 +632,6 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                     ],
                     onChanged: (v) {
                       if (v == null) return;
-                      // MusicPlayerSkin es quien realmente renderiza la onda
-                      // en PlayerScreen (musicSkin?.waveformEffect ?? skin...).
-                      // Actualizar ambos para que el preview y el Aplicar global
-                      // queden sincronizados y el botón Aplicar no quede deshabilitado.
                       if (musicSkin != null) {
                         ref
                             .read(
@@ -624,21 +639,13 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                             )
                             .apply(musicSkin.copyWith(waveformEffect: v));
                       }
-                      setState(
-                        () => _draft =
-                            _draft.copyWith(audioWaveformEffect: v),
+                      _applyDraft(
+                        _draft.copyWith(audioWaveformEffect: v),
                       );
                     },
                   ),
                 );
               }),
-              _SwitchRow(
-                label: l10n.showNewReleasesRow,
-                value: _draft.showNewReleasesRow,
-                onChanged: (v) => setState(
-                  () => _draft = _draft.copyWith(showNewReleasesRow: v),
-                ),
-              ),
               const SizedBox(height: 24),
               Text(
                 l10n.importExport,
@@ -652,42 +659,69 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: ScaleButton(
+                      selectedScale: 1.05,
+                      borderRadius: BorderRadius.circular(12),
                       onPressed: () => _export(context, l10n),
-                      icon: const Icon(Icons.ios_share, size: 18),
-                      label: Text(l10n.exportSkin),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white.withValues(alpha: 0.08),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.ios_share, size: 18, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.exportSkin,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: ScaleButton(
+                      selectedScale: 1.05,
+                      borderRadius: BorderRadius.circular(12),
                       onPressed: () => _import(context, l10n),
-                      icon: const Icon(Icons.upload_file, size: 18),
-                      label: Text(l10n.importSkin),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          color: Colors.white.withValues(alpha: 0.08),
+                          border: Border.all(color: Colors.white12),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.upload_file, size: 18, color: Colors.white),
+                            const SizedBox(width: 8),
+                            Text(
+                              l10n.importSkin,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  OutlinedButton(
-                    onPressed: () => ref
-                        .read(skinControllerProvider.notifier)
-                        .reset(),
-                    child: Text(l10n.reset),
-                  ),
-                  const SizedBox(width: 12),
-                  FilledButton.icon(
-                    onPressed: () => ref
-                        .read(skinControllerProvider.notifier)
-                        .apply(_draft),
-                    icon: const Icon(Icons.check),
-                    label: Text(l10n.apply),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -697,12 +731,12 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
 
   /// Pide una imagen del disco para usarla como logotipo de las tarjetas.
   Future<void> _pickCardLogo() => _pickImage(
-        (path) => _draft = _draft.copyWith(cardLogo: path),
+        (path) => _applyDraft(_draft.copyWith(cardLogo: path)),
       );
 
   /// Pide una imagen del disco para usarla como logotipo del reproductor.
   Future<void> _pickPlayerLogo() => _pickImage(
-        (path) => _draft = _draft.copyWith(playerLogo: path),
+        (path) => _applyDraft(_draft.copyWith(playerLogo: path)),
       );
 
   /// Abre el selector de archivos y aplica la ruta elegida.
@@ -710,7 +744,7 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
     final result = await FilePicker.pickFile(type: FileType.image);
     final path = result?.path;
     if (path == null || !mounted) return;
-    setState(() => apply(path));
+    apply(path);
   }
 
   /// Copia el JSON del skin actual al portapapeles.

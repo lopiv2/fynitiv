@@ -198,7 +198,23 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   /// imagen; sin backdrop se mantiene el alto del skin. El hueco entre filas
   /// lo controla [rowSpacing].
   double get _rowHeight {
-    if (widget.useBackdrop) return _cardWidth * 9 / 16;
+    final skin = ref.watch(skinControllerProvider).value;
+    final showExtension = skin?.cardHoverExtension ?? false;
+    final hasBelowText =
+        !widget.hideTitle && !widget.showMetaOverlay && !showExtension;
+    if (widget.useBackdrop) {
+      final imageH = _cardWidth * 9 / 16;
+      // Texto bajo la imagen (título 12 + subtítulo 10 + gaps 4+1 ≈ 27)
+      // Antes era solo imageH y provocaba overflow de ~18px (Column:334)
+      // Disney+ en Seguir viendo añade "Tiempo restante" (+14px)
+      final extraForRemaining =
+          (skin?.id == 'disney_plus' && hasBelowText) ? 14 : 0;
+      return imageH + (hasBelowText ? 28 : 0) + extraForRemaining;
+    }
+    // Póster: widget.height ya incluye título/subtítulo, añadir extra para Disney+
+    if (skin?.id == 'disney_plus' && hasBelowText) {
+      return widget.height + 14;
+    }
     return widget.height;
   }
 
@@ -477,12 +493,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   }) {
     if (onTap == null) return child;
     return AppHover(
-      effect: AppHoverEffect.scaleHighlightOutline,
-      config: AppHoverConfig.scaleHighlightOutline(
+      effect: AppHoverEffect.scale,
+      config: AppHoverConfig.scaleOnly(
         scale: widget.hoverScale ?? 1.04,
         radius: BorderRadius.circular(12),
-        outlineHoveredColor: Colors.white,
-        outlineHoveredWidth: 2,
       ),
       onTap: onTap,
       child: child,

@@ -234,6 +234,22 @@ abstract final class SkinPresets {
           tapAction: HomeScrollTapAction.details,
         ),
       ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.comedies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.comedy],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          hideTitle: true,
+          hideYear: true,
+          showHoverOverlay: false,
+          hoverScale: 1.04,
+          showSeeMore: false,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+        ),
+      ),
     ],
   );
 

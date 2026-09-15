@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/hover_play_card.dart';
 import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/marquee_text.dart';
@@ -123,6 +124,34 @@ class _PosterCardState extends ConsumerState<PosterCard> {
     final showExtension =
         widget.hoverExtension && (skin?.cardHoverExtension ?? false);
     final marqueeEnabled = skin?.titleMarqueeOnHover ?? false;
+    final l10n = AppLocalizations.of(context);
+    String? remainingTimeText;
+    if (skin?.id == 'disney_plus' &&
+        progress != null &&
+        progress > 0 &&
+        widget.item.runTimeTicks != null &&
+        widget.item.userData?.playbackPositionTicks != null) {
+      final pos = widget.item.userData!.playbackPositionTicks!;
+      final run = widget.item.runTimeTicks!;
+      if (pos > 0 && run > 0) {
+        final remainingTicks = run - pos;
+        if (remainingTicks <= 0) {
+          remainingTimeText = l10n?.timeRemainingLessThanAMinute ??
+              'Tiempo restante: menos de 1 min';
+        } else {
+          final minutes = remainingTicks ~/ 600000000;
+          if (minutes < 1) {
+            remainingTimeText = l10n?.timeRemainingLessThanAMinute ??
+                'Tiempo restante: menos de 1 min';
+          } else {
+            remainingTimeText =
+                l10n?.timeRemaining(minutes) ?? 'Tiempo restante: $minutes min';
+          }
+        }
+      }
+    }
+    final isImageHovered =
+        _isHovered || (AppHoverScope.of(context)?.hovered ?? false);
     final resume = (widget.item.userData?.playbackPositionTicks ?? 0) > 0;
     final artist =
         (widget.item.artists?.firstOrNull?.trim().isNotEmpty == true
@@ -224,7 +253,6 @@ class _PosterCardState extends ConsumerState<PosterCard> {
     }
     String? newBadgeLabel;
     if (isNew && widget.showNewBadge) {
-      final l10n = AppLocalizations.of(context);
       if (l10n != null) {
         switch (widget.item.type) {
           case BaseItemKind.movie:
@@ -267,11 +295,23 @@ class _PosterCardState extends ConsumerState<PosterCard> {
       children: [
         Flexible(
           fit: FlexFit.loose,
-          child: AspectRatio(
-            aspectRatio: 2 / 3,
-            child: HoverPlayRadius(
-              radius: radius * 2,
-              child: Stack(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(radius * 2),
+              border: Border.all(
+                color: isImageHovered ? Colors.white : Colors.transparent,
+                width: isImageHovered ? 2.5 : 0,
+              ),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(radius * 2),
+              child: AspectRatio(
+                aspectRatio: 2 / 3,
+                child: HoverPlayRadius(
+                  radius: radius * 2,
+                  child: Stack(
                 fit: StackFit.expand,
                 children: [
                   imageWidget,
@@ -336,20 +376,38 @@ class _PosterCardState extends ConsumerState<PosterCard> {
                           : null,
                       child: widget.logoPosition == RowLogoPosition.center
                           ? Center(
-                              child: Image.network(
-                                logoUrl,
+                              child: CachedNetworkImage(
+                                imageUrl: logoUrl,
                                 height: widget.logoSize ?? 36,
                                 fit: BoxFit.contain,
+                                fadeInDuration:
+                                    const Duration(milliseconds: 150),
+                                useOldImageOnUrlChange: true,
+                                memCacheHeight:
+                                    ((widget.logoSize ?? 36) * 3).toInt(),
+                                maxHeightDiskCache:
+                                    ((widget.logoSize ?? 36) * 3).toInt(),
                                 errorBuilder: (_, _, _) =>
+                                    const SizedBox.shrink(),
+                                placeholder: (_, _) =>
                                     const SizedBox.shrink(),
                               ),
                             )
-                          : Image.network(
-                              logoUrl,
+                          : CachedNetworkImage(
+                              imageUrl: logoUrl,
                               height: widget.logoSize ?? 28,
                               fit: BoxFit.contain,
                               alignment: Alignment.center,
+                              fadeInDuration:
+                                  const Duration(milliseconds: 150),
+                              useOldImageOnUrlChange: true,
+                              memCacheHeight:
+                                  ((widget.logoSize ?? 28) * 3).toInt(),
+                              maxHeightDiskCache:
+                                  ((widget.logoSize ?? 28) * 3).toInt(),
                               errorBuilder: (_, _, _) =>
+                                  const SizedBox.shrink(),
+                              placeholder: (_, _) =>
                                   const SizedBox.shrink(),
                             ),
                     ),
@@ -422,10 +480,24 @@ class _PosterCardState extends ConsumerState<PosterCard> {
                 ],
               ),
             ),
+              ),
+            ),
           ),
         ),
         if (!showExtension && !widget.showMetaOverlay) ...[
           const SizedBox(height: 6),
+          if (remainingTimeText != null) ...[
+            Text(
+              remainingTimeText,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: skin?.textSecondary ?? Colors.white70,
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 2),
+          ],
           if (!widget.hideTitle)
             marqueeEnabled
                 ? MarqueeText(

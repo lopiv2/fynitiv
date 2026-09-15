@@ -107,6 +107,7 @@
   "showContinueRow": "Show 'Continue watching' row",
   "showNewReleasesRow": "Show 'New releases' row",
   "cardImageType": "Cards image type",
+  "cardImageTypeHint": "Only applies to libraries, not to main screens (Home/VOD)",
   "poster": "Poster",
   "backdrop": "Backdrop",
   "cardLogo": "Card logo",
@@ -453,6 +454,9 @@
   "@libraryCountHours": {"placeholders": {"count": {"type": "int"}}},
   "libraryCountItems": "{count} items",
   "@libraryCountItems": {"placeholders": {"count": {"type": "int"}}},
+  "timeRemaining": "Time remaining: {minutes} min",
+  "@timeRemaining": {"placeholders": {"minutes": {"type": "int"}}},
+  "timeRemainingLessThanAMinute": "Time remaining: less than 1 min",
   "lyrics": "Lyrics",
   "cover": "Cover"
 }
