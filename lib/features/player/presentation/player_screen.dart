@@ -20,7 +20,10 @@ import '../../music/application/soloud_music_provider.dart';
 
 import '../../music/application/lrclib_providers.dart';
 import '../../music/application/player_view_mode.dart';
+import '../../music/application/audio_eq_provider.dart';
 import '../../music/data/lrclib_repository.dart';
+import '../../music/presentation/widgets/audio_eq_drawer.dart';
+import '../../library/application/library_providers.dart';
 
 import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/skin/music_player_skin_presets.dart';
@@ -695,6 +698,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       album: widget.item?.album ?? '',
                       year: widget.item?.productionYear,
                       logoUrl: widget.item != null ? itemLogoUrl(_session.serverUrl, widget.item!) : null,
+                      serverUrl: _session.serverUrl,
                       playing: displayPlaying,
                       progress: displayDuration.inMilliseconds > 0
                           ? (displayPosition.inMilliseconds /
@@ -795,6 +799,29 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       child: _LyricsCoverToggle(),
                     ),
                   ),
+                ),
+              ),
+            if (_isAudio && ref.watch(eqDrawerOpenProvider))
+              Positioned.fill(
+                child: Stack(
+                  children: [
+                    GestureDetector(
+                      onTap: () =>
+                          ref.read(eqDrawerOpenProvider.notifier).close(),
+                      child: Container(color: Colors.black54),
+                    ),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: SizedBox(
+                        width: 360,
+                        child: AudioEqDrawer(
+                          onClose: () => ref
+                              .read(eqDrawerOpenProvider.notifier)
+                              .close(),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -1445,6 +1472,7 @@ class _AudioCover extends ConsumerStatefulWidget {
     required this.album,
     this.year,
     this.logoUrl,
+    this.serverUrl,
     required this.playing,
     required this.progress,
     required this.position,
@@ -1467,6 +1495,7 @@ class _AudioCover extends ConsumerStatefulWidget {
   final String album;
   final int? year;
   final String? logoUrl;
+  final String? serverUrl;
   final bool playing;
   final double progress;
   final Duration position;
@@ -1651,39 +1680,17 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                             ),
                           ),
                         const SizedBox(height: 20),
-                        if (widget.logoUrl != null)
+                        if (widget.artist.isNotEmpty || widget.logoUrl != null)
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Image.network(
-                              widget.logoUrl!,
-                              height: 32,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, _, _) => Text(
-                                widget.artist,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: accent,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          )
-                        else if (widget.artist.isNotEmpty)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              widget.artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: accent,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            child: _ArtistLogoOrName(
+                              artist: widget.artist,
+                              serverUrl: widget.serverUrl,
+                              trackLogoUrl: widget.logoUrl,
+                              accent: accent,
+                              height: 64,
+                              fontSize: 14,
+                              center: true,
                             ),
                           ),
                         if (widget.title.isNotEmpty) ...[
@@ -1788,6 +1795,12 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       ),
                     ),
                     const Spacer(),
+                    _CoverDarkButton(
+                      icon: Icons.equalizer_rounded,
+                      onTap: () =>
+                          ref.read(eqDrawerOpenProvider.notifier).open(),
+                    ),
+                    const SizedBox(width: 10),
                     _CoverDarkButton(
                       icon: Icons.fullscreen_rounded,
                       onTap: widget.onToggleFullscreen,
@@ -1895,34 +1908,15 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (widget.logoUrl != null)
-                          Image.network(
-                            widget.logoUrl!,
-                            height: 28,
-                            fit: BoxFit.contain,
-                            errorBuilder: (_, _, _) => Text(
-                              artist,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: accent,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          )
-                        else if (artist.isNotEmpty)
-                          Text(
-                            artist,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: accent,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.2,
-                            ),
+                        if (artist.isNotEmpty || widget.logoUrl != null)
+                          _ArtistLogoOrName(
+                            artist: artist,
+                            serverUrl: widget.serverUrl,
+                            trackLogoUrl: widget.logoUrl,
+                            accent: accent,
+                            height: 66,
+                            fontSize: 13,
+                            center: false,
                           ),
                         if (trackTitle.isNotEmpty) ...[
                           const SizedBox(height: 4),
@@ -2037,8 +2031,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     ),
                     const Spacer(),
                     _CoverDarkButton(
-                      icon: Icons.view_list_rounded,
-                      onTap: () {},
+                      icon: Icons.equalizer_rounded,
+                      onTap: () => ref.read(eqDrawerOpenProvider.notifier).open(),
                     ),
                     const SizedBox(width: 10),
                     _CoverDarkButton(
@@ -2166,25 +2160,34 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(
-                          widget.artist,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: accent, fontSize: 14, fontWeight: FontWeight.w700),
+                        _ArtistLogoOrName(
+                          artist: widget.artist,
+                          serverUrl: widget.serverUrl,
+                          trackLogoUrl: widget.logoUrl,
+                          accent: accent,
+                          height: 44,
+                          fontSize: 12,
+                          center: false,
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          widget.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
-                        ),
-                        if (widget.album.isNotEmpty)
-                          Text(
-                            widget.album,
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          child: Text(
+                            widget.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: textSecondary, fontSize: 13, fontWeight: FontWeight.w400),
+                            style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+                          ),
+                        ),
+                        if (widget.album.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            child: Text(
+                              widget.album,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(color: textSecondary, fontSize: 13, fontWeight: FontWeight.w400),
+                            ),
                           ),
                       ],
                     ),
@@ -2308,8 +2311,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     ),
                     const Spacer(),
                     _CoverDarkButton(
-                      icon: Icons.view_list_rounded,
-                      onTap: () {},
+                      icon: Icons.equalizer_rounded,
+                      onTap: () => ref.read(eqDrawerOpenProvider.notifier).open(),
                     ),
                     const SizedBox(width: 10),
                     _CoverDarkButton(
@@ -2660,6 +2663,85 @@ class _CoverLyricLine extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+/// Logo del artista si existe, si no el nombre. Intenta primero el logo del track,
+/// si no, busca la entidad de artista Jellyfin y muestra su Logo (no Primary).
+class _ArtistLogoOrName extends ConsumerWidget {
+  const _ArtistLogoOrName({
+    required this.artist,
+    required this.serverUrl,
+    this.trackLogoUrl,
+    required this.accent,
+    this.height = 28,
+    this.fontSize = 13,
+    this.center = true,
+  });
+
+  final String artist;
+  final String? serverUrl;
+  final String? trackLogoUrl;
+  final Color accent;
+  final double height;
+  final double fontSize;
+  final bool center;
+
+  Widget _text() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+    child: Text(
+          artist,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          textAlign: center ? TextAlign.center : TextAlign.start,
+          style: TextStyle(
+            color: accent,
+            fontSize: fontSize,
+            fontWeight: center ? FontWeight.w600 : FontWeight.w700,
+            letterSpacing: center ? 0 : 0.2,
+          ),
+        ),
+  );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return _artistFromEntity(ref);
+  }
+
+  Widget _artistFromEntity(WidgetRef ref) {
+    if (artist.trim().isEmpty) return const SizedBox.shrink();
+    if (serverUrl == null || serverUrl!.isEmpty) return _fallbackTrackOrText();
+    final async = ref.watch(artistEntityByNameProvider(artist));
+    return async.when(
+      data: (entity) {
+        if (entity != null) {
+          final logoUrl = itemLogoUrl(serverUrl!, entity);
+          if (logoUrl != null) {
+            return Image.network(
+              logoUrl,
+              height: height,
+              fit: BoxFit.contain,
+              errorBuilder: (_, _, _) => _fallbackTrackOrText(),
+            );
+          }
+        }
+        return _fallbackTrackOrText();
+      },
+      loading: () => _fallbackTrackOrText(),
+      error: (_, _) => _fallbackTrackOrText(),
+    );
+  }
+
+  Widget _fallbackTrackOrText() {
+    if (trackLogoUrl != null && trackLogoUrl!.isNotEmpty) {
+      return Image.network(
+        trackLogoUrl!,
+        height: height,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => _text(),
+      );
+    }
+    return _text();
   }
 }
 

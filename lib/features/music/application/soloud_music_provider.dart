@@ -8,6 +8,7 @@ import 'package:media_kit/media_kit.dart';
 import '../../library/application/image_url.dart';
 import '../../player/application/playback_provider.dart';
 import '../../../core/audio/soloud_initializer.dart';
+import 'audio_eq_provider.dart';
 
 /// Motor activo para playback de música.
 enum PlaybackEngine { soloud, mediaKit, none }
@@ -184,7 +185,91 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
         _fallbackPlayer?.dispose();
       } catch (_) {}
     });
+    // Reaplicar EQ cuando cambie el estado (incluido al iniciar)
+    ref.listen<AudioEqState>(audioEqProvider, (prev, next) => _applyEq(next));
     return const SoloudMusicState();
+  }
+
+  void _applyEq(AudioEqState eq) {
+    if (!_soloudReady || _source == null || _handle == null) return;
+    if (state.engine != PlaybackEngine.soloud) return;
+    try {
+      final f = _source!.filters;
+      // NOTA: activate() lanza SoLoudFilterAlreadyAddedException si el filtro
+      // ya está añadido (solo uno de cada tipo en C++). Por eso todo activate/
+      // deactivate va protegido con isActive.
+      // Activar / desactivar EQ principal
+      if (!eq.enabled) {
+        try { final x = f.parametricEqFilter; if (x.isActive) x.deactivate(); } catch (_) {}
+        try { final x = f.bassBoostFilter; if (x.isActive) x.deactivate(); } catch (_) {}
+        try { final x = f.freeverbFilter; if (x.isActive) x.deactivate(); } catch (_) {}
+        try { final x = f.limiterFilter; if (x.isActive) x.deactivate(); } catch (_) {}
+        // Reset velocidad
+        try { SoLoud.instance.setRelativePlaySpeed(_handle!, 1.0); } catch (_) {}
+        return;
+      }
+      // --- EQ 10 bandas ---
+      try {
+        final eqF = f.parametricEqFilter;
+        if (!eqF.isActive) eqF.activate();
+        eqF.numBands(soundHandle: _handle).value = 10;
+        eqF.wet(soundHandle: _handle).value = 1.0;
+        for (int i = 0; i < 10; i++) {
+          final g = eq.bands[i].clamp(0.0, 4.0);
+          eqF.bandGain(i, soundHandle: _handle).value = g;
+        }
+      } catch (_) {}
+      // --- Bass boost ---
+      try {
+        final bb = f.bassBoostFilter;
+        if (eq.bassBoost) {
+          if (!bb.isActive) bb.activate();
+          bb.wet(soundHandle: _handle).value = 1.0;
+          bb.boost(soundHandle: _handle).value = 3.0;
+        } else {
+          if (bb.isActive) bb.deactivate();
+        }
+      } catch (_) {}
+      // --- Normalizar (limiter) ---
+      try {
+        final lim = f.limiterFilter;
+        if (eq.normalize) {
+          if (!lim.isActive) lim.activate();
+          lim.wet(soundHandle: _handle).value = 1.0;
+        } else {
+          if (lim.isActive) lim.deactivate();
+        }
+      } catch (_) {}
+      // --- Reverb ---
+      try {
+        final rv = f.freeverbFilter;
+        if (eq.reverb == 'Ninguna') {
+          if (rv.isActive) rv.deactivate();
+        } else {
+          if (!rv.isActive) rv.activate();
+          rv.wet(soundHandle: _handle).value = 0.5;
+          // Mapear preset a roomSize/damp
+          double room = 0.5, damp = 0.5;
+          switch (eq.reverb) {
+            case 'Habitación':
+              room = 0.4; damp = 0.5; break;
+            case 'Catedral':
+              room = 0.85; damp = 0.3; break;
+            case 'Placa':
+              room = 0.6; damp = 0.7; break;
+            case 'Eco':
+              room = 0.7; damp = 0.4; break;
+          }
+          rv.roomSize(soundHandle: _handle).value = room;
+          rv.damp(soundHandle: _handle).value = damp;
+          rv.width(soundHandle: _handle).value = 1.0;
+        }
+      } catch (_) {}
+      // --- Velocidad ---
+      try {
+        SoLoud.instance.setRelativePlaySpeed(_handle!, eq.speed.clamp(0.5, 2.0));
+      } catch (_) {}
+    } catch (_) {}
   }
 
   Future<void> playFromSession(PlaybackSession session, BaseItemDto? item, {Duration? start, double? volume}) async {
@@ -239,6 +324,8 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
 
         state = state.copyWith(playing: true, buffering: false, completed: false, duration: dur, engine: PlaybackEngine.soloud, volume: volume ?? state.volume);
         _startSoloudPosTimer();
+        // Aplicar EQ / filtros actuales al nuevo handle
+        try { _applyEq(ref.read(audioEqProvider)); } catch (_) {}
         return;
       } catch (e) {
         // Fallback a MediaKit: limpiar soloud parcial

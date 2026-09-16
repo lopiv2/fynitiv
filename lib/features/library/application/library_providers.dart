@@ -1979,3 +1979,34 @@ final trailerStreamProvider = FutureProvider.family<String?, BaseItemDto>((
   }
   return null;
 });
+
+/// Artista Jellyfin por nombre (para logo / imagen). Cache 5 min.
+final artistEntityByNameProvider = FutureProvider.family<BaseItemDto?, String>((ref, name) async {
+  ref.cacheFor(const Duration(minutes: 5));
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || name.trim().isEmpty) return null;
+  final q = name.trim();
+  // 1) AlbumArtists search (contiene logo/primary)
+  try {
+    final res = await client.getArtistsApi().getAlbumArtists(
+      userId: userId,
+      searchTerm: q,
+      limit: 5,
+      fields: [ItemFields.primaryImageAspectRatio],
+      enableImageTypes: [ImageType.primary, ImageType.logo, ImageType.thumb],
+      enableImages: true,
+    );
+    final items = res.data?.items ?? const <BaseItemDto>[];
+    for (final a in items) {
+      if ((a.name ?? '').toLowerCase().trim() == q.toLowerCase()) return a;
+    }
+    if (items.isNotEmpty) return items.first;
+  } catch (_) {}
+  // 2) getArtistByName
+  try {
+    final res = await client.getArtistsApi().getArtistByName(name: q, userId: userId).timeout(const Duration(seconds: 8));
+    if (res.data != null) return res.data;
+  } catch (_) {}
+  return null;
+});

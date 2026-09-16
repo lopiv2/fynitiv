@@ -115,7 +115,7 @@ class UserSelectionScreen extends ConsumerWidget {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        //const SizedBox(height: 16),
         _buildFooter(context, ref, auth),
         const SizedBox(height: 32),
       ],

@@ -687,8 +687,11 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
   Future<void> _submit() async {
     final username = _userController.text.trim();
     final password = _passController.text;
+    // Capturado antes de los awaits: usar context tras gaps async dispara
+    // use_build_context_synchronously.
+    final l10n = AppLocalizations.of(context)!;
     if (username.isEmpty) {
-      setState(() => _error = AppLocalizations.of(context)!.enterUsername);
+      setState(() => _error = l10n.enterUsername);
       return;
     }
     setState(() {
@@ -699,7 +702,7 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
     if (serverUrl == null) {
       setState(() {
         _loading = false;
-        _error = AppLocalizations.of(context)!.noServerConfigured;
+        _error = l10n.noServerConfigured;
       });
       return;
     }
@@ -709,13 +712,13 @@ class _AddMemberDialogState extends ConsumerState<_AddMemberDialog> {
       final user = result.user;
       final token = result.accessToken;
       if (user == null || user.id == null || token == null) {
-        throw DioException(requestOptions: RequestOptions(path: ''), error: AppLocalizations.of(context)!.invalidServerResponse);
+        throw DioException(requestOptions: RequestOptions(path: ''), error: l10n.invalidServerResponse);
       }
       if (widget.existingIds.contains(user.id)) {
         if (mounted) {
           setState(() {
           _loading = false;
-          _error = AppLocalizations.of(context)!.userAlreadyAdded;
+          _error = l10n.userAlreadyAdded;
         });
         }
         return;
