@@ -370,6 +370,9 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                               hideYear: scroll?.hideYear ?? false,
                               showHoverOverlay:
                                   scroll?.showHoverOverlay ?? true,
+                              showPlayIcon: scroll?.showPlayIcon ?? true,
+                              highlightTitleOnHover:
+                                  scroll?.highlightTitleOnHover ?? false,
                               cardBorderRadius: scroll?.cardBorderRadius,
                               hoverScale: scroll?.hoverScale,
                               onTap: () => context.push(

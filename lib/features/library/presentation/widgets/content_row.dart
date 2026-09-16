@@ -48,6 +48,8 @@ class ContentRow extends ConsumerStatefulWidget {
     this.hideTitle = false,
     this.hideYear = false,
     this.showHoverOverlay = true,
+    this.showPlayIcon = true,
+    this.highlightTitleOnHover = false,
     this.cardBorderRadius,
     this.hoverScale,
     this.isNextPoster = false,
@@ -134,8 +136,16 @@ class ContentRow extends ConsumerStatefulWidget {
   /// Oculta el año bajo el título.
   final bool hideYear;
 
-  /// Si es `false` no muestra el overlay de play/oscurecimiento al hacer hover.
+  /// Si es `false` no muestra la capa oscura (alpha) al hacer hover.
+  /// Independiente de [showPlayIcon]: puede haber play sin oscurecer.
   final bool showHoverOverlay;
+
+  /// Si es `false` no muestra el botón de play al hacer hover.
+  final bool showPlayIcon;
+
+  /// Si es `true`, el título bajo la tarjeta se remarca en intensidad
+  /// (atenuado en reposo, plena intensidad + negrita en hover).
+  final bool highlightTitleOnHover;
 
   /// Radio de borde de las tarjetas de esta fila (poster y backdrop).
   /// Si es `null` se usa el global del skin.
@@ -438,6 +448,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     hideTitle: widget.hideTitle,
                     hideYear: widget.hideYear,
                     showHoverOverlay: widget.showHoverOverlay,
+                    showPlayIcon: widget.showPlayIcon,
+                    highlightTitleOnHover: widget.highlightTitleOnHover,
                     cardBorderRadius: widget.cardBorderRadius,
                     hoverScale: widget.hoverScale,
                     onTap: widget.onItemTap == null
@@ -469,6 +481,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     hideTitle: widget.hideTitle,
                     hideYear: widget.hideYear,
                     showHoverOverlay: widget.showHoverOverlay,
+                    showPlayIcon: widget.showPlayIcon,
+                    highlightTitleOnHover: widget.highlightTitleOnHover,
                     cardBorderRadius: widget.cardBorderRadius,
                     hoverScale: widget.hoverScale,
                     onTap: widget.onItemTap == null

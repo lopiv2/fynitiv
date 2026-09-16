@@ -183,6 +183,8 @@ class HomeScroll {
     this.hideTitle = false,
     this.hideYear = false,
     this.showHoverOverlay = true,
+    this.showPlayIcon = true,
+    this.highlightTitleOnHover = false,
     this.cardBorderRadius,
     this.hoverScale,
     this.showSeeMore = true,
@@ -248,9 +250,17 @@ class HomeScroll {
   /// Oculta el año bajo el título (solo afecta al subtítulo de año).
   final bool hideYear;
 
-  /// Si es `false` no muestra el overlay oscuro con icono de play al hacer
-  /// hover (útil para skins que quieren solo escala/borde sin oscurecer).
+  /// Si es `false` no muestra la capa oscura (alpha) al hacer hover
+  /// (útil para skins que quieren solo escala/borde sin oscurecer).
+  /// Independiente de [showPlayIcon]: puede haber play sin oscurecer.
   final bool showHoverOverlay;
+
+  /// Si es `false` no muestra el botón de play al hacer hover.
+  final bool showPlayIcon;
+
+  /// Si es `true`, el título bajo la tarjeta se remarca en intensidad
+  /// (atenuado en reposo, plena intensidad + negrita en hover).
+  final bool highlightTitleOnHover;
 
   /// Radio de borde de las tarjetas de este scroll (poster y backdrop).
   /// Si es `null` se usa el global `cardBorderRadius` del skin.
@@ -294,6 +304,8 @@ class HomeScroll {
     'hideTitle': hideTitle,
     'hideYear': hideYear,
     'showHoverOverlay': showHoverOverlay,
+    'showPlayIcon': showPlayIcon,
+    'highlightTitleOnHover': highlightTitleOnHover,
     if (cardBorderRadius != null) 'cardBorderRadius': cardBorderRadius,
     if (hoverScale != null) 'hoverScale': hoverScale,
     'showSeeMore': showSeeMore,
@@ -342,6 +354,13 @@ class HomeScroll {
     hideTitle: json['hideTitle'] as bool? ?? false,
     hideYear: json['hideYear'] as bool? ?? false,
     showHoverOverlay: json['showHoverOverlay'] as bool? ?? true,
+    // Compat: skins guardados sin la clave heredan el valor del overlay
+    // (antes ambas cosas iban juntas).
+    showPlayIcon:
+        json['showPlayIcon'] as bool? ??
+        (json['showHoverOverlay'] as bool? ?? true),
+    highlightTitleOnHover:
+        json['highlightTitleOnHover'] as bool? ?? false,
     cardBorderRadius: (json['cardBorderRadius'] as num?)?.toDouble(),
     hoverScale: (json['hoverScale'] as num?)?.toDouble(),
     showSeeMore: json['showSeeMore'] as bool? ?? true,
@@ -377,7 +396,9 @@ class HomeScroll {
        other.logoSize == logoSize &&
         other.hideTitle == hideTitle &&
         other.hideYear == hideYear &&
-        other.showHoverOverlay == showHoverOverlay &&
+         other.showHoverOverlay == showHoverOverlay &&
+        other.showPlayIcon == showPlayIcon &&
+        other.highlightTitleOnHover == highlightTitleOnHover &&
         other.cardBorderRadius == cardBorderRadius &&
         other.hoverScale == hoverScale &&
         other.showSeeMore == showSeeMore &&
@@ -406,6 +427,8 @@ class HomeScroll {
     hideTitle,
     hideYear,
     showHoverOverlay,
+    showPlayIcon,
+    highlightTitleOnHover,
     cardBorderRadius,
     hoverScale,
     showSeeMore,

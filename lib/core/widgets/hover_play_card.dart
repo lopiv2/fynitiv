@@ -43,7 +43,8 @@ class HoverPlayCard extends StatefulWidget {
     this.onHoverChanged,
     this.onPointerSignal,
     this.overlayBelowEntry,
-    this.showPlayOverlay = true,
+    this.showHoverDarkening = true,
+    this.showPlayIcon = true,
     this.hoverScale,
     this.resume = false,
     this.ageRating,
@@ -88,9 +89,15 @@ class HoverPlayCard extends StatefulWidget {
   /// flechas activas de la fila). El z-order se fija al insertar la entrada.
   final OverlayEntry? Function()? overlayBelowEntry;
 
-  /// Si es `false` no muestra el oscurecimiento + icono de play al hacer hover
+  /// Si es `false` no muestra la capa oscura (alpha) al hacer hover
   /// (solo aplica cuando `showExtension` es `false`).
-  final bool showPlayOverlay;
+  /// Independiente de [showPlayIcon]: puede haber play sin oscurecer.
+  final bool showHoverDarkening;
+
+  /// Si es `false` no muestra el botón de play al hacer hover
+  /// (solo aplica cuando `showExtension` es `false`).
+  /// Independiente de [showHoverDarkening].
+  final bool showPlayIcon;
 
   /// Escala de expansión al hacer hover cuando `showExtension` es true.
   /// `null` => usa `kCardExpandScale` (1.3). `1.0` => sin escalado, solo panel.
@@ -324,8 +331,15 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
                 Opacity(opacity: hideOriginal ? 0 : 1, child: widget.child),
                 if (_hovered &&
                     !widget.showExtension &&
-                    widget.showPlayOverlay)
-                  Positioned.fill(child: IgnorePointer(child: _PlayOverlay())),
+                    (widget.showHoverDarkening || widget.showPlayIcon))
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: _PlayOverlay(
+                        darkening: widget.showHoverDarkening,
+                        showPlayIcon: widget.showPlayIcon,
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -501,28 +515,41 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
   }
 }
 
-/// Oscurece la tarjeta y muestra un botón circular de play centrado.
+/// Capa de hover: oscurecido (alpha) y/o botón circular de play centrado.
+/// Ambos son independientes: puede haber play sin oscurecer y viceversa.
 class _PlayOverlay extends StatelessWidget {
+  const _PlayOverlay({this.darkening = true, this.showPlayIcon = true});
+
+  final bool darkening;
+  final bool showPlayIcon;
+
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: Colors.black.withValues(alpha: 0.35),
-      child: Center(
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.55),
-            shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 1.5),
-          ),
-          child: const Icon(
-            Icons.play_arrow_rounded,
-            color: Colors.white,
-            size: 32,
-          ),
-        ),
-      ),
+      color: darkening
+          ? Colors.black.withValues(alpha: 0.35)
+          : Colors.transparent,
+      child: showPlayIcon
+          ? Padding(
+            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 60.0),
+            child: Center(
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.black,
+                    size: 32,
+                  ),
+                ),
+              ),
+          )
+          : const SizedBox.shrink(),
     );
   }
 }

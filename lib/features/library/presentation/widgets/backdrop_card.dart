@@ -41,6 +41,8 @@ class BackdropCard extends ConsumerStatefulWidget {
     this.hideTitle = false,
     this.hideYear = false,
     this.showHoverOverlay = true,
+    this.showPlayIcon = true,
+    this.highlightTitleOnHover = false,
     this.cardBorderRadius,
     this.hoverScale,
     this.onHoverChanged,
@@ -68,6 +70,8 @@ class BackdropCard extends ConsumerStatefulWidget {
   final bool hideTitle;
   final bool hideYear;
   final bool showHoverOverlay;
+  final bool showPlayIcon;
+  final bool highlightTitleOnHover;
   final double? cardBorderRadius;
   final double? hoverScale;
   final ValueChanged<bool>? onHoverChanged;
@@ -78,12 +82,37 @@ class BackdropCard extends ConsumerStatefulWidget {
   ConsumerState<BackdropCard> createState() => _BackdropCardState();
 }
 
-class _BackdropCardState extends ConsumerState<BackdropCard> {
+class _BackdropCardState extends ConsumerState<BackdropCard>
+    with SingleTickerProviderStateMixin {
   bool _isHovered = false;
+
+  /// Anima el color del título/subtítulo hacia plena intensidad al hacer
+  /// hover (y de vuelta al salir). Mismo timing que el borde (180 ms).
+  late final AnimationController _highlightController;
+
+  @override
+  void initState() {
+    super.initState();
+    _highlightController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    );
+  }
+
+  @override
+  void dispose() {
+    _highlightController.dispose();
+    super.dispose();
+  }
 
   void _setHovered(bool v) {
     if (_isHovered == v) return;
     setState(() => _isHovered = v);
+    if (v) {
+      _highlightController.forward();
+    } else {
+      _highlightController.reverse();
+    }
   }
 
   Widget _cachedImage(String url, Widget Function() onError) {
@@ -213,12 +242,19 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
         subtitle = epName;
         cardTitle = series;
       }
-    } else if (widget.item.type == BaseItemKind.series) {
-      final year = widget.item.productionYear;
-      if (year != null) subtitle = '$year';
-    } else if (widget.item.type == BaseItemKind.movie) {
-      final year = widget.item.productionYear;
-      if (year != null) subtitle = '$year';
+    } else if (widget.item.type == BaseItemKind.series ||
+        widget.item.type == BaseItemKind.movie) {
+      // Pelis/series bajo la imagen: "año • género1, género2" (la pastilla
+      // de edad se pinta delante al renderizar). Respeta hideYear.
+      final parts = <String>[];
+      if (!widget.hideYear && widget.item.productionYear != null) {
+        parts.add('${widget.item.productionYear}');
+      }
+      final genreText = (widget.item.genres ?? const <String>[])
+          .take(3)
+          .join(', ');
+      if (genreText.isNotEmpty) parts.add(genreText);
+      if (parts.isNotEmpty) subtitle = parts.join(' • ');
     } else {
       final people = widget.item.people;
       if (people != null && people.isNotEmpty) {
@@ -258,6 +294,14 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
       final y = widget.item.productionYear?.toString();
       if (y != null && subtitle == y) subtitle = null;
     }
+    // Pastilla de edad delante del subtítulo (pelis/series/episodios). En
+    // episodios el texto ya trae "S:E - nombre"; aquí solo se añade el badge.
+    final subtitleAgeRating =
+        (widget.item.type == BaseItemKind.movie ||
+                widget.item.type == BaseItemKind.series ||
+                widget.item.type == BaseItemKind.episode)
+            ? (widget.item.officialRating ?? '').trim()
+            : '';
     bool isNew = false;
     if (widget.showNewBadge) {
       final now = DateTime.now();
@@ -364,6 +408,20 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
     final isImageHovered =
         _isHovered || (AppHoverScope.of(context)?.hovered ?? false);
 
+    // Extremos del resaltado de título y subtítulo al hacer hover (solo si
+    // el skin lo pide): en reposo van atenuados, en hover a plena intensidad.
+    // El color se interpola con [_highlightController] para una transición
+    // suave; el peso cambia directo (FontWeight no interpola).
+    final titleDimColor = !widget.highlightTitleOnHover
+        ? (marqueeEnabled ? textPrimary.withAlpha(200) : textPrimary)
+        : textPrimary.withAlpha(150);
+    final titleFullColor = textPrimary;
+    final titleWeight = FontWeight.w700;
+    final subtitleDimColor = skin?.textSecondary ?? Colors.white70;
+    final subtitleFullColor = !widget.highlightTitleOnHover
+        ? subtitleDimColor
+        : textPrimary;
+
     final cardContent = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,10 +430,10 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius * 6),
+            borderRadius: BorderRadius.circular(radius * 12),
             border: Border.all(
               color: isImageHovered ? Colors.white : Colors.transparent,
-              width: isImageHovered ? 2.5 : 0,
+              width: isImageHovered ? 3.5 : 0,
             ),
           ),
           child: ClipRRect(
@@ -395,20 +453,28 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
                     bottom: 0,
                     height: widget.bottomVignetteHeight,
                     child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.transparent,
-                              Colors.black.withValues(
-                                alpha: widget.bottomVignetteOpacity.clamp(
-                                  0.0,
-                                  1.0,
+                      // Solo radio inferior: la viñeta muere en transparente
+                      // arriba y debe seguir la curva de la imagen abajo para
+                      // no "cortar" las esquinas con el borde del hover.
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.vertical(
+                          bottom: Radius.circular(radius * 6),
+                        ),
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(
+                                  alpha: widget.bottomVignetteOpacity.clamp(
+                                    0.0,
+                                    1.0,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ),
@@ -530,11 +596,19 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
                     left: 0,
                     right: 0,
                     bottom: 0,
-                    child: LinearProgressIndicator(
-                      value: (progress / 100).clamp(0.0, 1.0),
-                      minHeight: 5,
-                      backgroundColor: Colors.black38,
-                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    // La pista negra es a todo lo ancho: se recorta con el
+                    // mismo radio inferior de la imagen para que no deje
+                    // esquinas cuadradas sobre la curva del borde del hover.
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(radius * 6),
+                      ),
+                      child: LinearProgressIndicator(
+                        value: (progress / 100).clamp(0.0, 1.0),
+                        minHeight: 5,
+                        backgroundColor: Colors.black38,
+                        valueColor: AlwaysStoppedAnimation<Color>(accent),
+                      ),
                     ),
                   ),
                 if (!widget.showMetaOverlay &&
@@ -569,45 +643,73 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
             const SizedBox(height: 2),
           ],
           if (!widget.hideTitle)
-            marqueeEnabled
-                ? Padding(
-                    padding: const EdgeInsets.fromLTRB(3.5, 0, 0, 0),
-                    child: MarqueeText(
-                      text: cardTitle,
-                      style: TextStyle(
-                        color: textPrimary.withAlpha(200),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                      isHovered: _isHovered,
-                      enabled: true,
-                    ),
-                  )
-                : Padding(
-                    padding: const EdgeInsets.fromLTRB(3.5, 0, 0, 0),
-                    child: Text(
-                      cardTitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: textPrimary,
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
+            AnimatedBuilder(
+              animation: _highlightController,
+              builder: (context, _) {
+                final titleColor = Color.lerp(
+                  titleDimColor,
+                  titleFullColor,
+                  Curves.easeOut.transform(_highlightController.value),
+                );
+                final style = TextStyle(
+                  color: titleColor,
+                  fontSize: 14,
+                  fontWeight: titleWeight,
+                );
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(3.5, 0, 0, 0),
+                  child: marqueeEnabled
+                      ? MarqueeText(
+                          text: cardTitle,
+                          style: style,
+                          isHovered: _isHovered,
+                          enabled: true,
+                        )
+                      : Text(
+                          cardTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: style,
+                        ),
+                );
+              },
+            ),
           if (subtitle != null) ...[
             const SizedBox(height: 1),
             Padding(
               padding: const EdgeInsets.fromLTRB(3.5, 2, 0, 0),
-              child: Text(
-                subtitle,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: skin?.textSecondary ?? Colors.white70,
-                  fontSize: 10,
-                ),
+              // El subtítulo también se remarca en hover; el texto de tiempo
+              // restante queda fuera de aquí y no cambia.
+              child: AnimatedBuilder(
+                animation: _highlightController,
+                builder: (context, _) {
+                  final text = Text(
+                    subtitle!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Color.lerp(
+                        subtitleDimColor,
+                        subtitleFullColor,
+                        Curves.easeOut.transform(
+                          _highlightController.value,
+                        ),
+                      ),
+                      fontSize: 10,
+                    ),
+                  );
+                  // Pelis/series/episodios: pastilla de edad delante, como en
+                  // la foto ("R 2008 • Comedy, Drama").
+                  if (subtitleAgeRating.isEmpty) return text;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _AgePill(rating: subtitleAgeRating),
+                      const SizedBox(width: 5),
+                      Flexible(child: text),
+                    ],
+                  );
+                },
               ),
             ),
           ],
@@ -624,7 +726,8 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
         onPlay: widget.onTap ?? () {},
         onImageTap: widget.onImageTap,
         showExtension: showExtension,
-        showPlayOverlay: widget.showHoverOverlay,
+        showHoverDarkening: widget.showHoverOverlay,
+        showPlayIcon: widget.showPlayIcon,
         hoverScale: widget.hoverScale,
         onHoverChanged: (v) {
           _setHovered(v);
@@ -638,6 +741,33 @@ class _BackdropCardState extends ConsumerState<BackdropCard> {
         runTimeTicks: widget.item.runTimeTicks,
         overview: widget.item.overview,
         child: cardContent,
+      ),
+    );
+  }
+}
+
+/// Pastilla oscura con el rating de edad (ej. "R", "12+"). Compartida por
+/// [_MetaLine] (sobre la imagen) y el subtítulo bajo la imagen.
+class _AgePill extends StatelessWidget {
+  const _AgePill({required this.rating});
+
+  final String rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3A3A42),
+        borderRadius: BorderRadius.circular(3),
+      ),
+      child: Text(
+        rating,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }
@@ -699,21 +829,7 @@ class _MetaLine extends StatelessWidget {
       mainAxisAlignment: rowAlign,
       children: [
         if (ageRating.isNotEmpty) ...[
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: const Color(0xFF3A3A42),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Text(
-              ageRating,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 9,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          _AgePill(rating: ageRating),
           if (parts.isNotEmpty) const SizedBox(width: 5),
         ],
         Flexible(

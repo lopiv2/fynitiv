@@ -127,6 +127,8 @@ class VodScreen extends ConsumerWidget {
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: cfg?.showPlayIcon ?? true,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
         isNextPoster: isNextPoster,
@@ -169,6 +171,8 @@ class VodScreen extends ConsumerWidget {
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: cfg?.showPlayIcon ?? true,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
         isNextPoster: isNextPoster,
@@ -210,6 +214,8 @@ class VodScreen extends ConsumerWidget {
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: cfg?.showPlayIcon ?? true,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
         isNextPoster: isNextPoster,
@@ -348,6 +354,8 @@ class VodScreen extends ConsumerWidget {
                 hideTitle: scroll.hideTitle,
                 hideYear: scroll.hideYear,
                 showHoverOverlay: scroll.showHoverOverlay,
+                showPlayIcon: scroll.showPlayIcon,
+                highlightTitleOnHover: scroll.highlightTitleOnHover,
                 cardBorderRadius: scroll.cardBorderRadius,
                 hoverScale: scroll.hoverScale,
                 bottomVignetteHeight: scroll.bottomVignetteHeight,
@@ -561,6 +569,10 @@ class VodScreen extends ConsumerWidget {
                       hideYear: recentScroll?.hideYear ?? false,
                       showHoverOverlay:
                           recentScroll?.showHoverOverlay ?? true,
+                      showPlayIcon:
+                          recentScroll?.showPlayIcon ?? true,
+                      highlightTitleOnHover:
+                          recentScroll?.highlightTitleOnHover ?? false,
                       cardBorderRadius: recentScroll?.cardBorderRadius,
                       hoverScale: recentScroll?.hoverScale,
                       isNextPoster: isNextPoster,
@@ -655,6 +667,10 @@ class VodScreen extends ConsumerWidget {
                       hideYear: libraryScroll?.hideYear ?? false,
                       showHoverOverlay:
                           libraryScroll?.showHoverOverlay ?? true,
+                      showPlayIcon:
+                          libraryScroll?.showPlayIcon ?? true,
+                      highlightTitleOnHover:
+                          libraryScroll?.highlightTitleOnHover ?? false,
                       cardBorderRadius: libraryScroll?.cardBorderRadius,
                       hoverScale: libraryScroll?.hoverScale,
                       isNextPoster: isNextPoster,
@@ -716,6 +732,8 @@ class VodScreen extends ConsumerWidget {
                     hideTitle: s.hideTitle,
                     hideYear: s.hideYear,
                     showHoverOverlay: s.showHoverOverlay,
+                    showPlayIcon: s.showPlayIcon,
+                    highlightTitleOnHover: s.highlightTitleOnHover,
                     cardBorderRadius: s.cardBorderRadius,
                     hoverScale: s.hoverScale,
                     isNextPoster: isNextPoster,

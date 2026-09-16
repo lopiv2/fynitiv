@@ -38,6 +38,8 @@ class PosterCard extends ConsumerStatefulWidget {
     this.hideTitle = false,
     this.hideYear = false,
     this.showHoverOverlay = true,
+    this.showPlayIcon = true,
+    this.highlightTitleOnHover = false,
     this.cardBorderRadius,
     this.hoverScale,
     this.onHoverChanged,
@@ -65,6 +67,8 @@ class PosterCard extends ConsumerStatefulWidget {
   final bool hideTitle;
   final bool hideYear;
   final bool showHoverOverlay;
+  final bool showPlayIcon;
+  final bool highlightTitleOnHover;
   final double? cardBorderRadius;
   final double? hoverScale;
   final ValueChanged<bool>? onHoverChanged;
@@ -152,6 +156,13 @@ class _PosterCardState extends ConsumerState<PosterCard> {
     }
     final isImageHovered =
         _isHovered || (AppHoverScope.of(context)?.hovered ?? false);
+    // Resaltado del título al hacer hover (solo si el skin lo pide):
+    // en reposo el título va atenuado, en hover a plena intensidad + negrita.
+    final titleHighlighted = widget.highlightTitleOnHover && _isHovered;
+    final titleColor = !widget.highlightTitleOnHover
+        ? textPrimary
+        : (titleHighlighted ? textPrimary : textPrimary.withAlpha(150));
+    final titleWeight = titleHighlighted ? FontWeight.w700 : null;
     final resume = (widget.item.userData?.playbackPositionTicks ?? 0) > 0;
     final artist =
         (widget.item.artists?.firstOrNull?.trim().isNotEmpty == true
@@ -502,7 +513,11 @@ class _PosterCardState extends ConsumerState<PosterCard> {
             marqueeEnabled
                 ? MarqueeText(
                     text: cardTitle,
-                    style: TextStyle(color: textPrimary, fontSize: 14),
+                    style: TextStyle(
+                      color: titleColor,
+                      fontSize: 14,
+                      fontWeight: titleWeight,
+                    ),
                     isHovered: _isHovered,
                     enabled: true,
                   )
@@ -510,7 +525,11 @@ class _PosterCardState extends ConsumerState<PosterCard> {
                     cardTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: textPrimary, fontSize: 13),
+                    style: TextStyle(
+                      color: titleColor,
+                      fontSize: 13,
+                      fontWeight: titleWeight,
+                    ),
                   ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
@@ -537,7 +556,8 @@ class _PosterCardState extends ConsumerState<PosterCard> {
         onPlay: widget.onTap ?? () {},
         onImageTap: widget.onImageTap,
         showExtension: showExtension,
-        showPlayOverlay: widget.showHoverOverlay,
+        showHoverDarkening: widget.showHoverOverlay,
+        showPlayIcon: widget.showPlayIcon,
         hoverScale: widget.hoverScale,
         onHoverChanged: (v) {
           _setHovered(v);
