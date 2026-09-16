@@ -1222,4 +1222,82 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get effects => 'Efectos';
+
+  @override
+  String get liveTvTabTv => 'TV';
+
+  @override
+  String get liveTvTabRadio => 'Radio';
+
+  @override
+  String get liveTvRadio => 'Live TV / Radio';
+
+  @override
+  String get radioSearchHint => 'Buscar emisora, ej. Rock, Jazz, España...';
+
+  @override
+  String get radioSearch => 'Buscar';
+
+  @override
+  String get radioClear => 'Limpiar';
+
+  @override
+  String get radioCountry => 'País';
+
+  @override
+  String get radioLanguage => 'Idioma';
+
+  @override
+  String get radioTag => 'Género / Tag';
+
+  @override
+  String get radioAll => 'Todos';
+
+  @override
+  String get radioFavorites => 'Favoritas';
+
+  @override
+  String get radioRecent => 'Recientes';
+
+  @override
+  String get radioNoResults => 'Sin resultados';
+
+  @override
+  String get radioNoResultsHint =>
+      'Prueba con otro término o limpia los filtros';
+
+  @override
+  String get radioLive => 'EN DIRECTO';
+
+  @override
+  String get radioPlay => 'Reproducir';
+
+  @override
+  String get radioPause => 'Pausar';
+
+  @override
+  String get radioStop => 'Parar';
+
+  @override
+  String get radioNowPlaying => 'Reproduciendo';
+
+  @override
+  String radioFavoritesCount(int count) {
+    return 'Favoritas ($count)';
+  }
+
+  @override
+  String get radioFeatured => 'Emisoras destacadas';
+
+  @override
+  String get radioSeeAll => 'Ver todas >';
+
+  @override
+  String get radioGenres => 'Géneros';
+
+  @override
+  String get radioAllStations => 'Todas las emisoras';
+
+  @override
+  String get radioStations => 'emisoras';
 }

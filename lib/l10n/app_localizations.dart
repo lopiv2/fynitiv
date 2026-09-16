@@ -2341,6 +2341,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Effects'**
   String get effects;
+
+  /// No description provided for @liveTvTabTv.
+  ///
+  /// In en, this message translates to:
+  /// **'TV'**
+  String get liveTvTabTv;
+
+  /// No description provided for @liveTvTabRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Radio'**
+  String get liveTvTabRadio;
+
+  /// No description provided for @liveTvRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Live TV / Radio'**
+  String get liveTvRadio;
+
+  /// No description provided for @radioSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search station, e.g. Rock, Jazz, Spain...'**
+  String get radioSearchHint;
+
+  /// No description provided for @radioSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get radioSearch;
+
+  /// No description provided for @radioClear.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get radioClear;
+
+  /// No description provided for @radioCountry.
+  ///
+  /// In en, this message translates to:
+  /// **'Country'**
+  String get radioCountry;
+
+  /// No description provided for @radioLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Language'**
+  String get radioLanguage;
+
+  /// No description provided for @radioTag.
+  ///
+  /// In en, this message translates to:
+  /// **'Genre / Tag'**
+  String get radioTag;
+
+  /// No description provided for @radioAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All'**
+  String get radioAll;
+
+  /// No description provided for @radioFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get radioFavorites;
+
+  /// No description provided for @radioRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent'**
+  String get radioRecent;
+
+  /// No description provided for @radioNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results'**
+  String get radioNoResults;
+
+  /// No description provided for @radioNoResultsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Try another term or clear filters'**
+  String get radioNoResultsHint;
+
+  /// No description provided for @radioLive.
+  ///
+  /// In en, this message translates to:
+  /// **'LIVE'**
+  String get radioLive;
+
+  /// No description provided for @radioPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get radioPlay;
+
+  /// No description provided for @radioPause.
+  ///
+  /// In en, this message translates to:
+  /// **'Pause'**
+  String get radioPause;
+
+  /// No description provided for @radioStop.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop'**
+  String get radioStop;
+
+  /// No description provided for @radioNowPlaying.
+  ///
+  /// In en, this message translates to:
+  /// **'Now playing'**
+  String get radioNowPlaying;
+
+  /// No description provided for @radioFavoritesCount.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites ({count})'**
+  String radioFavoritesCount(int count);
+
+  /// No description provided for @radioFeatured.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured stations'**
+  String get radioFeatured;
+
+  /// No description provided for @radioSeeAll.
+  ///
+  /// In en, this message translates to:
+  /// **'See all >'**
+  String get radioSeeAll;
+
+  /// No description provided for @radioGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get radioGenres;
+
+  /// No description provided for @radioAllStations.
+  ///
+  /// In en, this message translates to:
+  /// **'All stations'**
+  String get radioAllStations;
+
+  /// No description provided for @radioStations.
+  ///
+  /// In en, this message translates to:
+  /// **'stations'**
+  String get radioStations;
 }
 
 class _AppLocalizationsDelegate

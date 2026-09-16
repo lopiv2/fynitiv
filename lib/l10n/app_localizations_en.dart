@@ -1221,4 +1221,81 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get effects => 'Effects';
+
+  @override
+  String get liveTvTabTv => 'TV';
+
+  @override
+  String get liveTvTabRadio => 'Radio';
+
+  @override
+  String get liveTvRadio => 'Live TV / Radio';
+
+  @override
+  String get radioSearchHint => 'Search station, e.g. Rock, Jazz, Spain...';
+
+  @override
+  String get radioSearch => 'Search';
+
+  @override
+  String get radioClear => 'Clear';
+
+  @override
+  String get radioCountry => 'Country';
+
+  @override
+  String get radioLanguage => 'Language';
+
+  @override
+  String get radioTag => 'Genre / Tag';
+
+  @override
+  String get radioAll => 'All';
+
+  @override
+  String get radioFavorites => 'Favorites';
+
+  @override
+  String get radioRecent => 'Recent';
+
+  @override
+  String get radioNoResults => 'No results';
+
+  @override
+  String get radioNoResultsHint => 'Try another term or clear filters';
+
+  @override
+  String get radioLive => 'LIVE';
+
+  @override
+  String get radioPlay => 'Play';
+
+  @override
+  String get radioPause => 'Pause';
+
+  @override
+  String get radioStop => 'Stop';
+
+  @override
+  String get radioNowPlaying => 'Now playing';
+
+  @override
+  String radioFavoritesCount(int count) {
+    return 'Favorites ($count)';
+  }
+
+  @override
+  String get radioFeatured => 'Featured stations';
+
+  @override
+  String get radioSeeAll => 'See all >';
+
+  @override
+  String get radioGenres => 'Genres';
+
+  @override
+  String get radioAllStations => 'All stations';
+
+  @override
+  String get radioStations => 'stations';
 }

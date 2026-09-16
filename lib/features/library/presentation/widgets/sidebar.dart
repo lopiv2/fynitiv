@@ -104,7 +104,7 @@ class Sidebar extends ConsumerWidget {
       ),
       _NavItem(
         faIcon: FontAwesomeIcons.tv,
-        label: l10n.liveTv,
+        label: l10n.liveTvRadio,
         selected: currentIndex == 3,
         textPrimary: textPrimary,
         textSecondary: textSecondary,

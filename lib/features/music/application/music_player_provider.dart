@@ -122,6 +122,55 @@ class MusicPlayerController extends Notifier<MusicPlayerState> {
     return const MusicPlayerState();
   }
 
+  /// Reproduce una URL directa (Radio Browser) compartiendo el mismo Player.
+  /// Crea una sesión sintética para que el MiniPlayerBar siga funcionando.
+  Future<void> playRadioUrl({
+    required String url,
+    required String title,
+    String artist = '',
+    String coverUrl = '',
+    double? volume,
+  }) async {
+    final p = player;
+    // Sesión sintética para radio: sin item Jellyfin, streamUrl = url de la emisora.
+    final fakeSession = PlaybackSession(
+      serverUrl: '',
+      streamUrl: url,
+      itemId: 'radio',
+      itemName: title,
+    );
+    state = state.copyWith(
+      item: null,
+      session: fakeSession,
+      error: null,
+      clearError: true,
+      completed: false,
+      volume: volume ?? state.volume,
+    );
+    // Guardar metadata de radio en el estado extendido vía copyWith con item null.
+    // El título se resuelve desde session.itemName.
+    try {
+      if (volume != null) {
+        try {
+          await p.setVolume(volume);
+        } catch (_) {}
+      }
+      await p.open(
+        Media(
+          url,
+          httpHeaders: const {
+            'User-Agent':
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+          },
+        ),
+      );
+      await p.play();
+      state = state.copyWith(playing: true, volume: volume ?? state.volume);
+    } catch (e) {
+      state = state.copyWith(error: '$e');
+    }
+  }
+
   Future<void> playFromSession(PlaybackSession session, BaseItemDto? item, {Duration? start, double? volume}) async {
     final p = player;
     state = state.copyWith(item: item, session: session, error: null, clearError: true, completed: false, volume: volume ?? state.volume);

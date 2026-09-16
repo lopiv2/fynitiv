@@ -15,8 +15,8 @@ class PlaybackSession {
     required this.itemName,
     required this.serverUrl,
     required this.streamUrl,
-    required this.mediaSource,
-    required this.externalSubtitles,
+    this.mediaSource,
+    this.externalSubtitles = const [],
     this.start,
   });
 
@@ -24,7 +24,7 @@ class PlaybackSession {
   final String itemName;
   final String serverUrl;
   final String streamUrl;
-  final MediaSourceInfo mediaSource;
+  final MediaSourceInfo? mediaSource;
 
   /// Subtítulos externos (ficheros .srt/.vtt servidos por Jellyfin).
   final List<SubtitleTrack> externalSubtitles;

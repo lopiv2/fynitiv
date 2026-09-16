@@ -110,7 +110,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   /// True si el contenido es solo audio (sin pista de vídeo).
   bool get _isAudio {
-    final streams = _session.mediaSource.mediaStreams;
+    final streams = _session.mediaSource?.mediaStreams;
     if (streams == null || streams.isEmpty) return false;
     return !streams.any((s) => s.type == MediaStreamType.video);
   }
@@ -697,7 +697,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       artist: widget.item?.artists?.join(', ') ?? '',
                       album: widget.item?.album ?? '',
                       year: widget.item?.productionYear,
-                      logoUrl: widget.item != null ? itemLogoUrl(_session.serverUrl, widget.item!) : null,
+                      logoUrl: widget.item != null
+                          ? itemLogoUrl(_session.serverUrl, widget.item!)
+                          : null,
                       serverUrl: _session.serverUrl,
                       playing: displayPlaying,
                       progress: displayDuration.inMilliseconds > 0
@@ -713,18 +715,14 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       onTogglePlay: _togglePlay,
                       onSeekChanged: (d) =>
                           _onSliderChanged(d.inMilliseconds / 1000),
-                      onSeekEnd: (d) =>
-                          _onSliderEnd(d.inMilliseconds / 1000),
+                      onSeekEnd: (d) => _onSliderEnd(d.inMilliseconds / 1000),
                       onSkipBackward: () =>
                           _seekBy(const Duration(seconds: -10)),
-                      onSkipForward: () =>
-                          _seekBy(const Duration(seconds: 10)),
+                      onSkipForward: () => _seekBy(const Duration(seconds: 10)),
                       volume: hasSoloud ? soloudState.volume : _volume,
                       onVolumeChanged: (v) {
                         if (_isAudio && hasSoloud) {
-                          ref
-                              .read(soloudMusicProvider.notifier)
-                              .setVolume(v);
+                          ref.read(soloudMusicProvider.notifier).setVolume(v);
                         } else {
                           setState(() => _volume = v);
                           _player.setVolume(v);
@@ -761,26 +759,26 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
               Positioned.fill(
                 child: MouseRegion(
                   onHover: (_) => _showControls(),
-                onExit: (_) {
-                  _hideTimer?.cancel();
-                  if (_playing && mounted) {
-                    setState(() => _controlsVisible = false);
-                  }
-                },
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _handleTap,
-                  child: AnimatedOpacity(
-                    opacity: _controlsVisible ? 1 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: IgnorePointer(
-                      ignoring: !_controlsVisible,
-                      child: _buildOverlay(),
+                  onExit: (_) {
+                    _hideTimer?.cancel();
+                    if (_playing && mounted) {
+                      setState(() => _controlsVisible = false);
+                    }
+                  },
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _handleTap,
+                    child: AnimatedOpacity(
+                      opacity: _controlsVisible ? 1 : 0,
+                      duration: const Duration(milliseconds: 200),
+                      child: IgnorePointer(
+                        ignoring: !_controlsVisible,
+                        child: _buildOverlay(),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
             // Toggle pill Portada/Letra/Efectos: siempre visible y por encima
             // del GestureDetector para recibir taps. En portada va a la
             // derecha (foto de referencia); en el resto, centrado.
@@ -815,9 +813,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       child: SizedBox(
                         width: 360,
                         child: AudioEqDrawer(
-                          onClose: () => ref
-                              .read(eqDrawerOpenProvider.notifier)
-                              .close(),
+                          onClose: () =>
+                              ref.read(eqDrawerOpenProvider.notifier).close(),
                         ),
                       ),
                     ),
@@ -1634,10 +1631,7 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
             // Barra superior: solo atrás (la pill vive en el parent, derecha).
             Row(
               children: [
-                _CoverDarkButton(
-                  icon: Icons.arrow_back,
-                  onTap: widget.onBack,
-                ),
+                _CoverDarkButton(icon: Icons.arrow_back, onTap: widget.onBack),
               ],
             ),
             const SizedBox(height: 8),
@@ -1679,60 +1673,67 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                               errorBuilder: (_, _, _) => _CoverFallback(),
                             ),
                           ),
-                        const SizedBox(height: 20),
-                        if (widget.artist.isNotEmpty || widget.logoUrl != null)
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: _ArtistLogoOrName(
-                              artist: widget.artist,
-                              serverUrl: widget.serverUrl,
-                              trackLogoUrl: widget.logoUrl,
-                              accent: accent,
-                              height: 64,
-                              fontSize: 14,
-                              center: true,
-                            ),
-                          ),
-                        if (widget.title.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              widget.title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: textPrimary,
-                                fontSize: 27,
-                                fontWeight: FontWeight.w800,
-                                height: 1.1,
+                          const SizedBox(height: 20),
+                          if (widget.artist.isNotEmpty ||
+                              widget.logoUrl != null)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
                               ),
-                            ),
-                          ),
-                        ],
-                        if (albumLine.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 24),
-                            child: Text(
-                              albumLine,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: textSecondary,
+                              child: _ArtistLogoOrName(
+                                artist: widget.artist,
+                                serverUrl: widget.serverUrl,
+                                trackLogoUrl: widget.logoUrl,
+                                accent: accent,
+                                height: 64,
                                 fontSize: 14,
-                                fontWeight: FontWeight.w400,
+                                center: true,
                               ),
                             ),
-                          ),
+                          if (widget.title.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Text(
+                                widget.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: textPrimary,
+                                  fontSize: 27,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (albumLine.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                              ),
+                              child: Text(
+                                albumLine,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
-                      ],
-                    ),
-                  );
-                },
-              ),
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
             // Tiempos + progreso con seek.
@@ -1841,10 +1842,7 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
             // Top bar: atrás + breadcrumb (la pill va en el parent, derecha).
             Row(
               children: [
-                _CoverDarkButton(
-                  icon: Icons.arrow_back,
-                  onTap: widget.onBack,
-                ),
+                _CoverDarkButton(icon: Icons.arrow_back, onTap: widget.onBack),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -1875,7 +1873,10 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       flex: 4,
                       child: Center(
                         child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 380, maxHeight: 380),
+                          constraints: const BoxConstraints(
+                            maxWidth: 380,
+                            maxHeight: 380,
+                          ),
                           child: AspectRatio(
                             aspectRatio: 1,
                             child: Container(
@@ -1888,85 +1889,96 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                                     offset: const Offset(0, 12),
                                   ),
                                 ],
-                                border: Border.all(color: Colors.white10, width: 1),
+                                border: Border.all(
+                                  color: Colors.white10,
+                                  width: 1,
+                                ),
                               ),
                               clipBehavior: Clip.antiAlias,
                               child: Image.network(
-                              widget.url,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) => _CoverFallback(),
+                                widget.url,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) => _CoverFallback(),
+                              ),
                             ),
                           ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 40),
-                  // Columna derecha: cabecera + letra
-                  Flexible(
-                    flex: 6,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (artist.isNotEmpty || widget.logoUrl != null)
-                          _ArtistLogoOrName(
-                            artist: artist,
-                            serverUrl: widget.serverUrl,
-                            trackLogoUrl: widget.logoUrl,
-                            accent: accent,
-                            height: 66,
-                            fontSize: 13,
-                            center: false,
-                          ),
-                        if (trackTitle.isNotEmpty) ...[
-                          const SizedBox(height: 4),
-                          Text(
-                            trackTitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: textPrimary,
-                              fontSize: 30,
-                              fontWeight: FontWeight.w800,
-                              height: 1.1,
+                    const SizedBox(width: 40),
+                    // Columna derecha: cabecera + letra
+                    Flexible(
+                      flex: 6,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (artist.isNotEmpty || widget.logoUrl != null)
+                            _ArtistLogoOrName(
+                              artist: artist,
+                              serverUrl: widget.serverUrl,
+                              trackLogoUrl: widget.logoUrl,
+                              accent: accent,
+                              height: 66,
+                              fontSize: 13,
+                              center: false,
+                            ),
+                          if (trackTitle.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            Text(
+                              trackTitle,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontSize: 30,
+                                fontWeight: FontWeight.w800,
+                                height: 1.1,
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 18),
+                          // Lista de letra
+                          Expanded(
+                            child: Consumer(
+                              builder: (context, ref, _) {
+                                final query = LrcQuery(
+                                  artist: widget.artist,
+                                  track: widget.title,
+                                  album: widget.album,
+                                  duration: widget.duration.inSeconds > 0
+                                      ? widget.duration
+                                      : null,
+                                );
+                                final async = ref.watch(
+                                  lrcLyricsProvider(query),
+                                );
+                                return async.when(
+                                  loading: () => const Center(
+                                    child: CircularProgressIndicator(
+                                      color: Colors.white54,
+                                    ),
+                                  ),
+                                  error: (_, _) => const SizedBox.shrink(),
+                                  data: (result) {
+                                    if (result == null) {
+                                      return const SizedBox.shrink();
+                                    }
+                                    return _CoverLyricsView(
+                                      result: result,
+                                      position: widget.position,
+                                      accent: accent,
+                                      textPrimary: textPrimary,
+                                      textSecondary: textSecondary,
+                                    );
+                                  },
+                                );
+                              },
                             ),
                           ),
                         ],
-                        const SizedBox(height: 18),
-                        // Lista de letra
-                        Expanded(
-                          child: Consumer(
-                            builder: (context, ref, _) {
-                              final query = LrcQuery(
-                                artist: widget.artist,
-                                track: widget.title,
-                                album: widget.album,
-                                duration: widget.duration.inSeconds > 0 ? widget.duration : null,
-                              );
-                              final async = ref.watch(lrcLyricsProvider(query));
-                              return async.when(
-                                loading: () => const Center(
-                                  child: CircularProgressIndicator(color: Colors.white54),
-                                ),
-                                error: (_, _) => const SizedBox.shrink(),
-                                data: (result) {
-                                  if (result == null) return const SizedBox.shrink();
-                                  return _CoverLyricsView(
-                                    result: result,
-                                    position: widget.position,
-                                    accent: accent,
-                                    textPrimary: textPrimary,
-                                    textSecondary: textSecondary,
-                                  );
-                                },
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
                 ),
               ),
             ),
@@ -2032,7 +2044,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     const Spacer(),
                     _CoverDarkButton(
                       icon: Icons.equalizer_rounded,
-                      onTap: () => ref.read(eqDrawerOpenProvider.notifier).open(),
+                      onTap: () =>
+                          ref.read(eqDrawerOpenProvider.notifier).open(),
                     ),
                     const SizedBox(width: 10),
                     _CoverDarkButton(
@@ -2067,7 +2080,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
     // Efecto actual viene del skin de música / skin global (mismo que Apariencia).
     final musicSkin = ref.watch(musicPlayerSkinControllerProvider).value;
     final skin = ref.watch(skinControllerProvider).value;
-    final currentEffect = musicSkin?.waveformEffect ?? skin?.audioWaveformEffect ?? waveform;
+    final currentEffect =
+        musicSkin?.waveformEffect ?? skin?.audioWaveformEffect ?? waveform;
     final displayEffect = currentEffect;
 
     return SafeArea(
@@ -2078,10 +2092,7 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
           children: [
             Row(
               children: [
-                _CoverDarkButton(
-                  icon: Icons.arrow_back,
-                  onTap: widget.onBack,
-                ),
+                _CoverDarkButton(icon: Icons.arrow_back, onTap: widget.onBack),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(
@@ -2110,10 +2121,16 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                   decoration: BoxDecoration(
                     color: Colors.white.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.10), width: 1),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.10),
+                      width: 1,
+                    ),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 16,
+                  ),
                   child: SizedBox(
                     height: 200,
                     width: double.infinity,
@@ -2144,7 +2161,11 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(10),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, offset: const Offset(0, 3)),
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.35),
+                          blurRadius: 10,
+                          offset: const Offset(0, 3),
+                        ),
                       ],
                     ),
                     clipBehavior: Clip.antiAlias,
@@ -2176,17 +2197,27 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                             widget.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: textPrimary, fontSize: 16, fontWeight: FontWeight.w800),
+                            style: TextStyle(
+                              color: textPrimary,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
                           ),
                         ),
                         if (widget.album.isNotEmpty)
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12.0,
+                            ),
                             child: Text(
                               widget.album,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: TextStyle(color: textSecondary, fontSize: 13, fontWeight: FontWeight.w400),
+                              style: TextStyle(
+                                color: textSecondary,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w400,
+                              ),
                             ),
                           ),
                       ],
@@ -2196,9 +2227,14 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                   Consumer(
                     builder: (context, ref, _) {
                       final l10n = AppLocalizations.of(context)!;
-                      final mSkin = ref.watch(musicPlayerSkinControllerProvider).value;
+                      final mSkin = ref
+                          .watch(musicPlayerSkinControllerProvider)
+                          .value;
                       final s = ref.watch(skinControllerProvider).value;
-                      final cur = mSkin?.waveformEffect ?? s?.audioWaveformEffect ?? waveform;
+                      final cur =
+                          mSkin?.waveformEffect ??
+                          s?.audioWaveformEffect ??
+                          waveform;
                       return Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10),
                         decoration: BoxDecoration(
@@ -2210,37 +2246,71 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                           child: DropdownButton<AudioWaveformEffect>(
                             value: cur,
                             dropdownColor: const Color(0xFF1A2568),
-                            icon: const Icon(Icons.arrow_drop_down, color: Colors.white70),
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                            icon: const Icon(
+                              Icons.arrow_drop_down,
+                              color: Colors.white70,
+                            ),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
                             items: [
                               for (final entry in [
-                                (AudioWaveformEffect.equalizer, l10n.effectEqualizer),
+                                (
+                                  AudioWaveformEffect.equalizer,
+                                  l10n.effectEqualizer,
+                                ),
                                 (AudioWaveformEffect.wave, l10n.effectWave),
                                 (AudioWaveformEffect.mirror, l10n.effectMirror),
                                 (AudioWaveformEffect.bars, l10n.effectBars),
                                 (AudioWaveformEffect.surfer, l10n.effectSurfer),
-                                (AudioWaveformEffect.audioFlux, l10n.effectAudioFlux),
-                                (AudioWaveformEffect.frequency, l10n.effectFrequency),
+                                (
+                                  AudioWaveformEffect.audioFlux,
+                                  l10n.effectAudioFlux,
+                                ),
+                                (
+                                  AudioWaveformEffect.frequency,
+                                  l10n.effectFrequency,
+                                ),
                               ])
                                 DropdownMenuItem(
                                   value: entry.$1,
-                                  child: Text(entry.$2, style: const TextStyle(color: Colors.white)),
+                                  child: Text(
+                                    entry.$2,
+                                    style: const TextStyle(color: Colors.white),
+                                  ),
                                 ),
                             ],
                             onChanged: (v) {
                               if (v == null) return;
-                              final ms = ref.read(musicPlayerSkinControllerProvider).value;
+                              final ms = ref
+                                  .read(musicPlayerSkinControllerProvider)
+                                  .value;
                               if (ms != null) {
-                                ref.read(musicPlayerSkinControllerProvider.notifier).apply(ms.copyWith(waveformEffect: v));
+                                ref
+                                    .read(
+                                      musicPlayerSkinControllerProvider
+                                          .notifier,
+                                    )
+                                    .apply(ms.copyWith(waveformEffect: v));
                               } else {
                                 // Si aún no hay skin de música, aplicar preset con el efecto elegido.
-                                ref.read(musicPlayerSkinControllerProvider.notifier).apply(
-                                      MusicPlayerSkinPresets.jellyfinClassic.copyWith(waveformEffect: v),
+                                ref
+                                    .read(
+                                      musicPlayerSkinControllerProvider
+                                          .notifier,
+                                    )
+                                    .apply(
+                                      MusicPlayerSkinPresets.jellyfinClassic
+                                          .copyWith(waveformEffect: v),
                                     );
                               }
                               final sk = ref.read(skinControllerProvider).value;
                               if (sk != null) {
-                                ref.read(skinControllerProvider.notifier).apply(sk.copyWith(audioWaveformEffect: v));
+                                ref
+                                    .read(skinControllerProvider.notifier)
+                                    .apply(sk.copyWith(audioWaveformEffect: v));
                               }
                             },
                           ),
@@ -2312,7 +2382,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     const Spacer(),
                     _CoverDarkButton(
                       icon: Icons.equalizer_rounded,
-                      onTap: () => ref.read(eqDrawerOpenProvider.notifier).open(),
+                      onTap: () =>
+                          ref.read(eqDrawerOpenProvider.notifier).open(),
                     ),
                     const SizedBox(width: 10),
                     _CoverDarkButton(
@@ -2414,8 +2485,8 @@ class _CoverProgressBarState extends State<_CoverProgressBar> {
   double? _dragFraction;
 
   Duration _at(double fraction) {
-    final ms =
-        (widget.duration.inMilliseconds * fraction.clamp(0.0, 1.0)).round();
+    final ms = (widget.duration.inMilliseconds * fraction.clamp(0.0, 1.0))
+        .round();
     return Duration(milliseconds: ms);
   }
 
@@ -2448,8 +2519,7 @@ class _CoverProgressBarState extends State<_CoverProgressBar> {
             setState(() => _dragFraction = null);
             widget.onSeekEnd?.call(_at(f));
           },
-          onHorizontalDragCancel: () =>
-              setState(() => _dragFraction = null),
+          onHorizontalDragCancel: () => setState(() => _dragFraction = null),
           child: SizedBox(
             height: 24,
             child: Center(
@@ -2540,13 +2610,27 @@ class _CoverLyricsViewState extends State<_CoverLyricsView> {
     if (idx != _current) {
       setState(() => _current = idx);
       if (idx >= 0 && _controller.hasClients) {
-        final off = (idx * 36.0 - 80).clamp(0.0, _controller.position.maxScrollExtent);
-        _controller.animateTo(off, duration: const Duration(milliseconds: 550), curve: Curves.easeInOutCubic);
+        final off = (idx * 36.0 - 80).clamp(
+          0.0,
+          _controller.position.maxScrollExtent,
+        );
+        _controller.animateTo(
+          off,
+          duration: const Duration(milliseconds: 550),
+          curve: Curves.easeInOutCubic,
+        );
       } else if (idx >= 0) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!mounted || !_controller.hasClients) return;
-          final off = (idx * 36.0 - 80).clamp(0.0, _controller.position.maxScrollExtent);
-          _controller.animateTo(off, duration: const Duration(milliseconds: 550), curve: Curves.easeInOutCubic);
+          final off = (idx * 36.0 - 80).clamp(
+            0.0,
+            _controller.position.maxScrollExtent,
+          );
+          _controller.animateTo(
+            off,
+            duration: const Duration(milliseconds: 550),
+            curve: Curves.easeInOutCubic,
+          );
         });
       }
     }
@@ -2562,7 +2646,14 @@ class _CoverLyricsViewState extends State<_CoverLyricsView> {
   Widget build(BuildContext context) {
     if (widget.result.isInstrumental) {
       return Center(
-        child: Text('Instrumental', style: TextStyle(color: widget.textSecondary, fontSize: 16, fontStyle: FontStyle.italic)),
+        child: Text(
+          'Instrumental',
+          style: TextStyle(
+            color: widget.textSecondary,
+            fontSize: 16,
+            fontStyle: FontStyle.italic,
+          ),
+        ),
       );
     }
     final synced = widget.result.syncedLines;
@@ -2577,7 +2668,11 @@ class _CoverLyricsViewState extends State<_CoverLyricsView> {
           padding: const EdgeInsets.only(right: 12, left: 4, top: 4, bottom: 4),
           child: SelectableText(
             widget.result.plainLyrics,
-            style: TextStyle(color: widget.textPrimary.withValues(alpha: 0.85), fontSize: 15, height: 1.6),
+            style: TextStyle(
+              color: widget.textPrimary.withValues(alpha: 0.85),
+              fontSize: 15,
+              height: 1.6,
+            ),
           ),
         ),
       );
@@ -2690,17 +2785,17 @@ class _ArtistLogoOrName extends ConsumerWidget {
   Widget _text() => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 12.0),
     child: Text(
-          artist,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: center ? TextAlign.center : TextAlign.start,
-          style: TextStyle(
-            color: accent,
-            fontSize: fontSize,
-            fontWeight: center ? FontWeight.w600 : FontWeight.w700,
-            letterSpacing: center ? 0 : 0.2,
-          ),
-        ),
+      artist,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: center ? TextAlign.center : TextAlign.start,
+      style: TextStyle(
+        color: accent,
+        fontSize: fontSize,
+        fontWeight: center ? FontWeight.w600 : FontWeight.w700,
+        letterSpacing: center ? 0 : 0.2,
+      ),
+    ),
   );
 
   @override

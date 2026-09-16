@@ -1,25 +1,14 @@
-import 'dart:async';
-
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/dashboard_background.dart';
-import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../radio/presentation/radio_screen.dart';
 import '../application/live_state.dart';
-import '../application/live_tv_player_provider.dart';
-import '../application/live_tv_ui.dart';
-import '../domain/channel.dart';
-import 'widgets/channel_sidebar.dart';
-import 'widgets/epg_view.dart';
-import 'widgets/epg_viewport.dart';
-import 'widgets/floating_player.dart';
-import 'widgets/live_preview.dart';
-import 'widgets/mini_guide.dart';
+import 'live_tv_tab.dart';
 
-/// Live TV: sidebar de canales + preview + guía EPG + reproductor flotante.
+/// Live TV + Radio con dos tabs (TV / Radio).
 class LiveTvScreen extends ConsumerStatefulWidget {
   const LiveTvScreen({super.key});
 
@@ -28,248 +17,171 @@ class LiveTvScreen extends ConsumerStatefulWidget {
 }
 
 class _LiveTvScreenState extends ConsumerState<LiveTvScreen>
-    with WidgetsBindingObserver {
-  final EpgViewportController _viewport = EpgViewportController();
-  late final Timer _clock = Timer.periodic(
-    const Duration(seconds: 30),
-    (_) {
-      if (mounted) setState(() => _now = DateTime.now());
-    },
-  );
-  DateTime _now = DateTime.now();
-  bool _playerDisposed = false;
-  bool _wasOnLive = true;
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  int _prevTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _listenToRoute());
-  }
-
-  void _listenToRoute() {
-    final router = GoRouter.of(context);
-    router.routerDelegate.addListener(_onRouteChanged);
-    _onRouteChanged();
-  }
-
-  void _onRouteChanged() {
-    if (!mounted) return;
-    final location = GoRouterState.of(context).uri.toString();
-    final isOnLive = location.startsWith('/live');
-    if (_wasOnLive && !isOnLive) {
-      _closeChannel();
-      ref.read(liveTvPlayerProvider.notifier).close();
-    }
-    _wasOnLive = isOnLive;
+    _tabController = TabController(length: 2, vsync: this);
+    _prevTabIndex = _tabController.index;
+    _tabController.addListener(() {
+      if (_tabController.index != _prevTabIndex &&
+          !_tabController.indexIsChanging) {
+        _prevTabIndex = _tabController.index;
+        if (mounted) setState(() {});
+      } else if (_tabController.indexIsChanging &&
+          _tabController.index != _prevTabIndex) {
+        _prevTabIndex = _tabController.index;
+        if (mounted) setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
-    GoRouter.of(context).routerDelegate.removeListener(_onRouteChanged);
-    WidgetsBinding.instance.removeObserver(this);
-    _stopPlayer();
-    _clock.cancel();
-    _viewport.dispose();
+    _tabController.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final playerState = ref.read(liveTvPlayerProvider);
-    if (playerState.channelId == null) return;
-
-    switch (state) {
-      case AppLifecycleState.detached:
-        _stopPlayer();
-      case AppLifecycleState.inactive:
-      case AppLifecycleState.paused:
-      case AppLifecycleState.hidden:
-        ref.read(liveTvPlayerProvider.notifier).player.pause();
-      case AppLifecycleState.resumed:
-        break;
-    }
-  }
-
-  Future<void> _stopPlayer() async {
-    if (_playerDisposed) return;
-    _playerDisposed = true;
-    await ref.read(liveTvPlayerProvider.notifier).close();
-  }
-
-  void _selectChannel(Channel channel) {
-    ref.read(liveTvStateProvider.notifier).selectChannel(channel.id);
-  }
-
-  void _openFullscreen() {
-    context.push('/live/fullscreen');
-  }
-
-  void _closeChannel() {
-    ref.read(liveTvStateProvider.notifier).selectChannel(null);
-    ref.read(liveTvPlayerProvider.notifier).stop();
-    ref.read(liveTvUiProvider.notifier).setFloating(false);
-  }
-
-  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final visible = ref.read(liveTvStateProvider).visibleChannels;
-    final selected = ref.read(liveTvStateProvider).selectedChannelId;
-    final index = visible.indexWhere((c) => c.id == selected);
-    switch (event.logicalKey) {
-      case LogicalKeyboardKey.arrowDown:
-        if (index >= 0 && index < visible.length - 1) {
-          _selectChannel(visible[index + 1]);
-        }
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.arrowUp:
-        if (index > 0) _selectChannel(visible[index - 1]);
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.arrowLeft:
-        _viewport.panBy(-80, 0);
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.arrowRight:
-        _viewport.panBy(80, 0);
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.enter:
-        _openFullscreen();
-        return KeyEventResult.handled;
-      case LogicalKeyboardKey.escape:
-        if (ref.read(liveTvUiProvider).floating) {
-          ref.read(liveTvUiProvider.notifier).setFloating(false);
-        } else {
-          _closeChannel();
-        }
-        return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
   }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final state = ref.watch(liveTvStateProvider);
-    final ui = ref.watch(liveTvUiProvider);
-
-    // Reproduce el canal al seleccionarlo.
-    ref.listen<String?>(
-      liveTvStateProvider.select((s) => s.selectedChannelId),
-      (_, _) {
-        final channel = ref.read(liveTvStateProvider).selectedChannel;
-        if (channel != null) {
-          ref.read(liveTvPlayerProvider.notifier).playChannel(channel);
-        }
-      },
-    );
+    final isRadioTab = _tabController.index == 1;
+    final headerTitle = isRadioTab ? l10n.liveTvTabRadio : l10n.liveTvTabTv;
 
     return Scaffold(
       body: DashboardBackground(
-        child: state.loading && state.channels.isEmpty
-            ? const Center(child: AppLoader())
-            : state.error != null && state.channels.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
+        child: Column(
+          children: [
+            // Header con título dinámico + tabs centrados + controles
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 14, 16, 6),
+              child: Row(
+                children: [
+                  // Izquierda: título dinámico según toggle
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isRadioTab)
                         const Icon(
-                          Icons.live_tv_rounded,
-                          color: Colors.white24,
-                          size: 48,
+                          Icons.radio_rounded,
+                          color: Colors.white,
+                          size: 28,
+                        )
+                      else
+                        const FaIcon(
+                          FontAwesomeIcons.towerBroadcast,
+                          color: Colors.white,
+                          size: 28,
                         ),
-                        const SizedBox(height: 12),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 32),
-                          child: Text(
-                            '${state.error}',
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(color: Colors.white54),
-                          ),
+                      const SizedBox(width: 8),
+                      Text(
+                        headerTitle,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: () => ref
-                              .read(liveTvStateProvider.notifier)
-                              .reload(),
-                          icon: const Icon(Icons.refresh_rounded, size: 18),
-                          label: Text(l10n.retry),
-                        ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  // Centro: tabs TV / Radio centrados (más compactos)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: MediaQuery.sizeOf(context).width * 0.3,
                     ),
-                  )
-                : Focus(
-                    autofocus: true,
-                    onKeyEvent: _onKeyEvent,
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 14, 16, 6),
-                          child: Row(
-                            children: [
-                              Text(
-                                l10n.liveTv,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const Spacer(),
-                              IconButton(
-                                tooltip: l10n.retry,
-                                onPressed: () => ref
-                                    .read(liveTvStateProvider.notifier)
-                                    .reload(),
-                                icon: const Icon(
-                                  Icons.refresh_rounded,
-                                  color: Colors.white54,
-                                  size: 20,
-                                ),
-                              ),
-                            ],
-                          ),
+                    child: Center(
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                        Expanded(
-                          child: Stack(
-                            children: [
-                              Row(
+                        child: TabBar(
+                          controller: _tabController,
+                          isScrollable: true,
+                          tabAlignment: TabAlignment.center,
+                          dividerColor: Colors.transparent,
+                          indicator: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          indicatorSize: TabBarIndicatorSize.tab,
+                          labelColor: Colors.black,
+                          unselectedLabelColor: Colors.white70,
+                          labelStyle: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
+                          unselectedLabelStyle: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          tabs: [
+                            Tab(
+                              height: 26,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  const ChannelSidebar(),
-                                  Expanded(
-                                    child: Column(
-                                      children: [
-                                        LivePreview(
-                                          now: _now,
-                                          onFullscreen: _openFullscreen,
-                                          onClose: _closeChannel,
-                                        ),
-                                        MiniGuide(
-                                          now: _now,
-                                          onSelect: _selectChannel,
-                                        ),
-                                        Expanded(
-                                          child: EpgView(
-                                            viewport: _viewport,
-                                            now: _now,
-                                            onSelectChannel: _selectChannel,
-                                            onOpenFullscreen: _openFullscreen,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  FaIcon(
+                                    FontAwesomeIcons.tv,
+                                    size: 24,
+                                    color: _tabController.index == 0
+                                        ? Colors.black
+                                        : Colors.white70,
                                   ),
+                                  const SizedBox(width: 12),
+                                  Text(l10n.liveTvTabTv),
                                 ],
                               ),
-                              if (ui.floating)
-                                FloatingPlayer(
-                                  now: _now,
-                                  onExpand: _openFullscreen,
-                                ),
-                            ],
-                          ),
+                            ),
+                            Tab(
+                              height: 26,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.radio_rounded,
+                                    size: 28,
+                                    color: _tabController.index == 1
+                                        ? Colors.black
+                                        : Colors.white70,
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(l10n.liveTvTabRadio),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
                   ),
+                  // Derecha: solo retry en TV, nada en Radio (player duplicado eliminado)
+                  if (!isRadioTab)
+                    IconButton(
+                      tooltip: l10n.retry,
+                      onPressed: () =>
+                          ref.read(liveTvStateProvider.notifier).reload(),
+                      icon: const Icon(
+                        Icons.refresh_rounded,
+                        color: Colors.white54,
+                        size: 20,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: const [LiveTvTab(), RadioScreen()],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

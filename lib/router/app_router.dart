@@ -15,6 +15,7 @@ import '../features/library/presentation/library_view_screen.dart';
 import '../features/live_tv/presentation/live_fullscreen_player.dart';
 import '../features/live_tv/presentation/live_tv_screen.dart';
 import '../features/movies/presentation/all_movies_screen.dart';
+import '../features/radio/presentation/radio_all_screen.dart';
 import '../features/music/application/deezer_providers.dart';
 import '../features/music/presentation/artist_detail_screen.dart';
 import '../features/music/presentation/music_screen.dart';
@@ -89,6 +90,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/live/fullscreen',
         builder: (_, _) => const LiveTvFullscreenPlayer(),
       ),
+      GoRoute(path: '/radio/all', builder: (_, _) => const RadioAllScreen()),
       // Todas las películas del servidor (grid con desplazamiento infinito).
       GoRoute(path: '/movies', builder: (_, _) => const AllMoviesScreen()),
       StatefulShellRoute.indexedStack(
