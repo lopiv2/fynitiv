@@ -38,17 +38,26 @@ class _LiveTvTabState extends ConsumerState<LiveTvTab> with WidgetsBindingObserv
   DateTime _now = DateTime.now();
   bool _playerDisposed = false;
   bool _wasOnLive = true;
+  GoRouter? _router;
+  // Guardar notifiers para uso seguro en dispose (ref no es seguro ahí)
+  late LiveTvPlayerController _playerNotifier;
+  late dynamic _stateNotifier;
+  late dynamic _uiNotifier;
 
   @override
   void initState() {
     super.initState();
+    // Capturar notifiers de forma segura para dispose
+    _playerNotifier = ref.read(liveTvPlayerProvider.notifier);
+    _stateNotifier = ref.read(liveTvStateProvider.notifier);
+    _uiNotifier = ref.read(liveTvUiProvider.notifier);
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) => _listenToRoute());
   }
 
   void _listenToRoute() {
-    final router = GoRouter.of(context);
-    router.routerDelegate.addListener(_onRouteChanged);
+    _router = GoRouter.of(context);
+    _router!.routerDelegate.addListener(_onRouteChanged);
     _onRouteChanged();
   }
 
@@ -58,7 +67,7 @@ class _LiveTvTabState extends ConsumerState<LiveTvTab> with WidgetsBindingObserv
     final isOnLive = location.startsWith('/live');
     if (_wasOnLive && !isOnLive) {
       _closeChannel();
-      ref.read(liveTvPlayerProvider.notifier).close();
+      _playerNotifier.close();
     }
     _wasOnLive = isOnLive;
   }
@@ -66,10 +75,11 @@ class _LiveTvTabState extends ConsumerState<LiveTvTab> with WidgetsBindingObserv
   @override
   void dispose() {
     try {
-      GoRouter.of(context).routerDelegate.removeListener(_onRouteChanged);
+      _router?.routerDelegate.removeListener(_onRouteChanged);
     } catch (_) {}
     WidgetsBinding.instance.removeObserver(this);
-    _stopPlayer();
+    // No usar ref aquí — usar notifier guardado
+    _stopPlayerSync();
     _clock.cancel();
     _viewport.dispose();
     super.dispose();
@@ -77,38 +87,59 @@ class _LiveTvTabState extends ConsumerState<LiveTvTab> with WidgetsBindingObserv
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Usar notifier guardado si está disponible, si no fallback a container
     final playerState = ref.read(liveTvPlayerProvider);
     if (playerState.channelId == null) return;
     switch (state) {
       case AppLifecycleState.detached:
-        _stopPlayer();
+        _stopPlayerSync();
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
       case AppLifecycleState.hidden:
-        ref.read(liveTvPlayerProvider.notifier).player.pause();
+        try {
+          _playerNotifier.player.pause();
+        } catch (_) {
+          try { ref.read(liveTvPlayerProvider.notifier).player.pause(); } catch (_) {}
+        }
       case AppLifecycleState.resumed:
         break;
     }
   }
 
-  Future<void> _stopPlayer() async {
+  void _stopPlayerSync() {
     if (_playerDisposed) return;
     _playerDisposed = true;
-    await ref.read(liveTvPlayerProvider.notifier).close();
+    // Cierre sin await y sin ref — seguro en dispose
+    try {
+      _playerNotifier.close();
+    } catch (_) {
+      // Fallback silencioso: no usar ref
+    }
   }
 
   void _selectChannel(Channel channel) {
-    ref.read(liveTvStateProvider.notifier).selectChannel(channel.id);
+    try {
+      (_stateNotifier as dynamic).selectChannel(channel.id);
+    } catch (_) {
+      ref.read(liveTvStateProvider.notifier).selectChannel(channel.id);
+    }
   }
 
   void _openFullscreen() {
+    if (!mounted) return;
     context.push('/live/fullscreen');
   }
 
   void _closeChannel() {
-    ref.read(liveTvStateProvider.notifier).selectChannel(null);
-    ref.read(liveTvPlayerProvider.notifier).stop();
-    ref.read(liveTvUiProvider.notifier).setFloating(false);
+    try {
+      (_stateNotifier as dynamic).selectChannel(null);
+      _playerNotifier.stop();
+      (_uiNotifier as dynamic).setFloating(false);
+    } catch (_) {
+      try { ref.read(liveTvStateProvider.notifier).selectChannel(null); } catch (_) {}
+      try { ref.read(liveTvPlayerProvider.notifier).stop(); } catch (_) {}
+      try { ref.read(liveTvUiProvider.notifier).setFloating(false); } catch (_) {}
+    }
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {

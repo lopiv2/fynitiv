@@ -130,23 +130,39 @@ class RadioApi {
     }
   }
 
-  /// Click counter (Radio Browser pide POST /json/url/{uuid} al reproducir).
+  /// Click counter + devuelve URL fresca (Radio Browser GET /json/url/{uuid} → {"url":"http://..."}).
   Future<void> click(String stationUuid) async {
-    if (stationUuid.isEmpty) return;
+    await resolveStreamUrl(stationUuid);
+  }
+
+  Future<String?> resolveStreamUrl(String stationUuid) async {
+    if (stationUuid.isEmpty) return null;
     for (final base in [_primaryBase, _fallbackBase]) {
       try {
-        await _dio.get<Object?>(
+        final res = await _dio.get<Object?>(
           '$base/json/url/$stationUuid',
           options: Options(
             headers: {'User-Agent': _userAgent},
+            responseType: ResponseType.json,
             validateStatus: (_) => true,
           ),
         );
-        return;
+        final data = res.data;
+        if (data is Map && data['url'] is String && (data['url'] as String).trim().isNotEmpty) {
+          return (data['url'] as String).trim();
+        }
+        if (data is String) {
+          try {
+            final decoded = jsonDecode(data);
+            if (decoded is Map && decoded['url'] is String) return (decoded['url'] as String).trim();
+          } catch (_) {}
+        }
+        return null;
       } catch (_) {
         continue;
       }
     }
+    return null;
   }
 
   // Listas para filtros (no requieren hidebroken).

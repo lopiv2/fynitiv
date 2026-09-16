@@ -5,7 +5,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/skin/radio_skin.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../music/application/music_player_provider.dart';
+import '../../../music/application/soloud_music_provider.dart';
 import '../../application/radio_providers.dart';
 import '../../data/radio_station.dart';
 
@@ -29,12 +29,12 @@ class StationCard extends ConsumerWidget {
     final accent = skin.accent;
     final cardBg = skin.cardBackground;
     final l10n = AppLocalizations.of(context)!;
-    final player = ref.watch(musicPlayerProvider);
+    final player = ref.watch(soloudMusicProvider);
     final isThisStationPlaying = isPlaying && player.session?.streamUrl == station.streamUrl;
 
     Future<void> handlePlay() async {
       // Capturar notifiers de forma síncrona para evitar usar ref tras suspensión
-      final musicNotifier = ref.read(musicPlayerProvider.notifier);
+      final musicNotifier = ref.read(soloudMusicProvider.notifier);
       final selectedNotifier = ref.read(radioSelectedStationProvider.notifier);
       final recentNotifier = ref.read(radioRecentProvider.notifier);
       final radioApi = ref.read(radioApiProvider);
@@ -50,11 +50,12 @@ class StationCard extends ConsumerWidget {
       selectedNotifier.set(station);
       // push es síncrono en memoria, persistencia en background
       recentNotifier.push(station);
+      String? freshUrl;
       try {
-        await radioApi.click(station.stationUuid);
+        freshUrl = await radioApi.resolveStreamUrl(station.stationUuid);
       } catch (_) {}
       if (!context.mounted) return;
-      final url = station.streamUrl;
+      final url = (freshUrl != null && freshUrl.isNotEmpty) ? freshUrl : station.streamUrl;
       if (url.isEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -72,7 +73,7 @@ class StationCard extends ConsumerWidget {
             );
         // Verificar si quedó error en el player
         if (context.mounted) {
-          final after = ref.read(musicPlayerProvider);
+          final after = ref.read(soloudMusicProvider);
           if (after.error != null && after.error!.isNotEmpty) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text(after.error!)),
@@ -222,11 +223,11 @@ class StationCard extends ConsumerWidget {
                       // Pause / Resume
                       InkWell(
                         onTap: () {
-                          final p = ref.read(musicPlayerProvider);
+                          final p = ref.read(soloudMusicProvider);
                           if (p.playing) {
-                            ref.read(musicPlayerProvider.notifier).pause();
+                            ref.read(soloudMusicProvider.notifier).pause();
                           } else {
-                            ref.read(musicPlayerProvider.notifier).toggle();
+                            ref.read(soloudMusicProvider.notifier).toggle();
                           }
                         },
                         borderRadius: BorderRadius.circular(16),
@@ -244,7 +245,7 @@ class StationCard extends ConsumerWidget {
                       const SizedBox(width: 4),
                       // Stop
                       InkWell(
-                        onTap: () => ref.read(musicPlayerProvider.notifier).stop(),
+                        onTap: () => ref.read(soloudMusicProvider.notifier).stop(),
                         borderRadius: BorderRadius.circular(16),
                         child: Container(
                           width: 28,

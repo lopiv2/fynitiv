@@ -6,7 +6,7 @@ import '../../../core/skin/radio_skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../music/application/music_player_provider.dart';
+import '../../music/application/soloud_music_provider.dart';
 import '../application/radio_providers.dart';
 import 'widgets/radio_filters.dart';
 import 'widgets/station_card.dart';
@@ -21,7 +21,7 @@ class RadioAllScreen extends ConsumerWidget {
     if (skin == null) return const Scaffold(body: Center(child: AppLoader()));
     final searchAsync = ref.watch(radioSearchProvider);
     final favs = ref.watch(radioFavoritesProvider);
-    final player = ref.watch(musicPlayerProvider);
+    final player = ref.watch(soloudMusicProvider);
     final selected = ref.watch(radioSelectedStationProvider);
     final isRadioPlaying = player.session?.itemId == 'radio' && player.playing;
     final playingName = player.session?.itemName;

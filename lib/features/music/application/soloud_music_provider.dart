@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'dart:developer' as developer;
+
 import '../../library/application/image_url.dart';
 import '../../player/application/playback_provider.dart';
 import '../../../core/audio/soloud_initializer.dart';
@@ -492,6 +494,58 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     if (ms < 0) ms = 0;
     if (state.duration.inMilliseconds > 0 && ms > state.duration.inMilliseconds) ms = state.duration.inMilliseconds;
     seek(Duration(milliseconds: ms));
+  }
+
+  Future<void> playRadioUrl({required String url, required String title, String artist = '', String coverUrl = '', double? volume}) async {
+    final session = PlaybackSession(serverUrl: '', streamUrl: url, itemId: 'radio', itemName: title);
+    final isHls = url.contains('.m3u8');
+    // Radio en vivo: intentar siempre SoLoud (para FFT real), salvo HLS
+    if (!isHls && _soloudReady) {
+      developer.log('[Radio] Intentando SoLoud loadUrl: $url', name: 'Radio');
+      state = state.copyWith(session: session, item: null, error: null, clearError: true, completed: false, buffering: true, volume: volume ?? state.volume);
+      try { await _fallbackPlayer?.stop(); } catch (_) {}
+      if (_handle != null) { try { SoLoud.instance.stop(_handle!); } catch (_) {} _handle = null; }
+      if (_source != null) { try { SoLoud.instance.disposeSource(_source!); } catch (_) {} _source = null; }
+      _stopPosTimer();
+      try { SoLoud.instance.setVisualizationEnabled(true); } catch (_) {}
+      try {
+        _source = await SoLoud.instance.loadUrl(url).timeout(const Duration(seconds: 8), onTimeout: () {
+          developer.log('[Radio] SoLoud timeout 8s para $url → fallback MediaKit', name: 'Radio');
+          throw TimeoutException('SoLoud loadUrl timeout 8s');
+        });
+        final vol = (volume ?? state.volume).clamp(0, 100) / 100.0;
+        _handle = SoLoud.instance.play(_source!, volume: vol);
+        developer.log('[Radio] SoLoud OK, engine=soloud', name: 'Radio');
+        state = state.copyWith(playing: true, buffering: false, completed: false, duration: Duration.zero, engine: PlaybackEngine.soloud, volume: volume ?? state.volume);
+        _startSoloudPosTimer();
+        try { _applyEq(ref.read(audioEqProvider)); } catch (_) {}
+        return;
+      } catch (e) {
+        developer.log('[Radio] SoLoud fallo ($e) → fallback MediaKit', name: 'Radio');
+        if (_handle != null) { try { SoLoud.instance.stop(_handle!); } catch (_) {} _handle = null; }
+        if (_source != null) { try { SoLoud.instance.disposeSource(_source!); } catch (_) {} _source = null; }
+      }
+    } else {
+      if (isHls) developer.log('[Radio] HLS detectado, MediaKit directo: $url', name: 'Radio');
+      if (!_soloudReady) developer.log('[Radio] SoLoud no listo, MediaKit: $url', name: 'Radio');
+    }
+    // Fallback MediaKit
+    developer.log('[Radio] MediaKit open: $url', name: 'Radio');
+    state = state.copyWith(session: session, item: null, error: null, clearError: true, completed: false, buffering: true, volume: volume ?? state.volume, engine: PlaybackEngine.mediaKit);
+    if (_handle != null) { try { SoLoud.instance.stop(_handle!); } catch (_) {} _handle = null; }
+    if (_source != null) { try { SoLoud.instance.disposeSource(_source!); } catch (_) {} _source = null; }
+    _stopPosTimer();
+    try {
+      final p = _fallback;
+      if (volume != null) { try { await p.setVolume(volume); } catch (_) {} }
+      await p.open(Media(url, httpHeaders: const {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'}));
+      await p.play();
+      developer.log('[Radio] MediaKit playing OK', name: 'Radio');
+      state = state.copyWith(playing: true, buffering: false, engine: PlaybackEngine.mediaKit, volume: volume ?? state.volume);
+    } catch (e) {
+      developer.log('[Radio] MediaKit fallo: $e', name: 'Radio');
+      state = state.copyWith(error: '$e', buffering: false, engine: PlaybackEngine.none);
+    }
   }
 
   /// Para AudioFlux: expone si SoLoud está activo y sonando.
