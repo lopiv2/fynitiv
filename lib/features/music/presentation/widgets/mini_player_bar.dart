@@ -22,11 +22,13 @@ class MiniPlayerBar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // SoLoud primario para música, fallback a MediaKit legacy
+    // SoLoud primario para música, fallback a MediaKit legacy.
+    // Al terminar la canción (completed) la barra desaparece: no debe
+    // quedarse presente ni en mini ni al volver del fullscreen.
     final soloudState = ref.watch(soloudMusicProvider);
     final legacyState = ref.watch(musicPlayerProvider);
-    final useSoloud = soloudState.hasItem;
-    final legacy = legacyState.hasItem ? legacyState : null;
+    final useSoloud = soloudState.hasItem && !soloudState.completed;
+    final legacy = legacyState.hasItem && !legacyState.completed ? legacyState : null;
     final effectiveHasItem = useSoloud || legacy != null;
     if (!effectiveHasItem) return const SizedBox.shrink();
 

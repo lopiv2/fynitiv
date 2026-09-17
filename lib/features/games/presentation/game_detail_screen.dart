@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+
 import '../../../core/audio/game_bg_player.dart';
 import '../../../core/audio/khinsider_player.dart';
 import '../../../core/settings/game_bg_music_controller.dart';
@@ -51,7 +52,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
             ref.invalidate(rommContinuePlayingProvider);
           }),
     );
-    Future.microtask(() => GameBgPlayer.instance.leave());
+    // Corta el fondo del hub para que no se solape con el OST del juego.
+    Future.microtask(() => GameBgPlayer.instance.suspendForDetail());
     _khinsiderSub = KhinsiderPlayer.instance.currentTrackStream.listen((track) {
       if (mounted) setState(() => _currentTrack = track);
     });
@@ -63,6 +65,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     WidgetsBinding.instance.removeObserver(this);
     _khinsiderSub?.cancel();
     KhinsiderPlayer.instance.stop();
+    // Retoma el fondo del hub con reshuffle al salir del detalle.
+    GameBgPlayer.instance.returnFromDetail();
     super.dispose();
   }
 

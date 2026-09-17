@@ -1,16 +1,25 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
-import 'package:audio_flux/audio_flux.dart';
-
+import '../../../../core/skin/radio_skin.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../music/application/soloud_music_provider.dart';
 import '../../../../core/widgets/audio_waveform.dart';
 
+/// Panel de efectos de la radio: selector de onda + visualización.
+///
+/// Mismos 7 efectos de onda que el Music player screen
+/// (`player_screen.dart` `_buildEffectsLayout`) y misma fuente de estado
+/// (`skinControllerProvider.audioWaveformEffect`). Los efectos que
+/// requieren SoLoud (`audioFlux`, `frequency`) funcionan en radio gracias
+/// a la señal sintética de `radioFakeSignalProvider` (la radio suele ir
+/// por MediaKit y no tiene FFT real).
 class RadioEffectsPanel extends ConsumerWidget {
-  const RadioEffectsPanel({super.key});
+  const RadioEffectsPanel({super.key, this.radioSkin});
+
+  final RadioSkin? radioSkin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -19,11 +28,20 @@ class RadioEffectsPanel extends ConsumerWidget {
     final skin = skinAsync.value;
     final effect = skin?.audioWaveformEffect ?? AudioWaveformEffect.equalizer;
 
+    final cardColor =
+        radioSkin?.cardBackground ??
+        skin?.sidebarBackground ??
+        const Color(0xFF1E293B);
+    final accent =
+        radioSkin?.accent ?? skin?.accent ?? const Color(0xFF22D3EE);
+    final textPrimary = radioSkin?.textPrimary ?? skin?.textPrimary;
+    final textSecondary = radioSkin?.textSecondary ?? skin?.textSecondary;
+
     return Container(
       height: 200,
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
       decoration: BoxDecoration(
-        color: skin?.sidebarBackground ?? const Color(0xFF1E293B),
+        color: cardColor,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white12),
         boxShadow: [
@@ -44,7 +62,7 @@ class RadioEffectsPanel extends ConsumerWidget {
                   Text(
                     l10n.effects,
                     style: TextStyle(
-                      color: skin?.textPrimary ?? Colors.white,
+                      color: textPrimary ?? Colors.white,
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                     ),
@@ -53,7 +71,7 @@ class RadioEffectsPanel extends ConsumerWidget {
                   Text(
                     l10n.audioWaveformEffect,
                     style: TextStyle(
-                      color: skin?.textSecondary ?? Colors.white70,
+                      color: textSecondary ?? Colors.white70,
                       fontSize: 11,
                     ),
                   ),
@@ -86,11 +104,52 @@ class RadioEffectsPanel extends ConsumerWidget {
                       fontWeight: FontWeight.w600,
                     ),
                     items: [
-                      for (final e in AudioWaveformEffect.values)
+                      for (final entry in [
+                        (
+                          AudioWaveformEffect.equalizer,
+                          l10n.effectEqualizer,
+                        ),
+                        (AudioWaveformEffect.wave, l10n.effectWave),
+                        (AudioWaveformEffect.mirror, l10n.effectMirror),
+                        (AudioWaveformEffect.bars, l10n.effectBars),
+                        (AudioWaveformEffect.surfer, l10n.effectSurfer),
+                        (
+                          AudioWaveformEffect.audioFlux,
+                          l10n.effectAudioFlux,
+                        ),
+                        (
+                          AudioWaveformEffect.frequency,
+                          l10n.effectFrequency,
+                        ),
+                        (
+                          AudioWaveformEffect.ledSpectrum,
+                          l10n.effectLedSpectrum,
+                        ),
+                        (
+                          AudioWaveformEffect.soundEclipse,
+                          l10n.effectSoundEclipse,
+                        ),
+                        (
+                          AudioWaveformEffect.soundSinus,
+                          l10n.effectSoundSinus,
+                        ),
+                        (
+                          AudioWaveformEffect.raymarching,
+                          l10n.effectRaymarching,
+                        ),
+                        (
+                          AudioWaveformEffect.smokeRings,
+                          l10n.effectSmokeRings,
+                        ),
+                        (
+                          AudioWaveformEffect.circularSpectrum,
+                          l10n.effectCircularSpectrum,
+                        ),
+                      ])
                         DropdownMenuItem(
-                          value: e,
+                          value: entry.$1,
                           child: Text(
-                            _label(l10n, e),
+                            entry.$2,
                             style: const TextStyle(color: Colors.white),
                           ),
                         ),
@@ -124,7 +183,8 @@ class RadioEffectsPanel extends ConsumerWidget {
                   return AudioWaveform(
                     playing: isPlaying,
                     effect: effect,
-                    color: skin?.accent ?? const Color(0xFF22D3EE),
+                    color: accent,
+                    expanded: true,
                     isRadio: true,
                   );
                 },
@@ -135,142 +195,4 @@ class RadioEffectsPanel extends ConsumerWidget {
       ),
     );
   }
-
-  String _label(AppLocalizations l10n, AudioWaveformEffect e) {
-    switch (e) {
-      case AudioWaveformEffect.equalizer:
-        return l10n.effectEqualizer;
-      case AudioWaveformEffect.wave:
-        return l10n.effectWave;
-      case AudioWaveformEffect.mirror:
-        return l10n.effectMirror;
-      case AudioWaveformEffect.bars:
-        return l10n.effectBars;
-      case AudioWaveformEffect.surfer:
-        return l10n.effectSurfer;
-      case AudioWaveformEffect.audioFlux:
-        return l10n.effectAudioFlux;
-      case AudioWaveformEffect.frequency:
-        return l10n.effectFrequency;
-    }
-  }
-}
-
-class _AnimatedMiniWave extends StatefulWidget {
-  const _AnimatedMiniWave({required this.color, required this.effect});
-  final Color color;
-  final AudioWaveformEffect effect;
-  @override
-  State<_AnimatedMiniWave> createState() => _AnimatedMiniWaveState();
-}
-
-class _AnimatedMiniWaveState extends State<_AnimatedMiniWave>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 800),
-  )..repeat();
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (_, _) => CustomPaint(
-        painter: _MiniWavePainter(
-          color: widget.color,
-          effect: widget.effect,
-          phase: _c.value,
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniWavePainter extends CustomPainter {
-  _MiniWavePainter({required this.color, required this.effect, this.phase = 0});
-  final Color color;
-  final AudioWaveformEffect effect;
-  final double phase;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color.withValues(alpha: 0.9)
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round;
-    final paintDim = Paint()
-      ..color = color.withValues(alpha: 0.32)
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round;
-    final anim = phase;
-    switch (effect) {
-      case AudioWaveformEffect.bars:
-        final count = 10;
-        final gap = size.width / count;
-        for (var i = 0; i < count; i++) {
-          final base = (i % 2 == 0 ? size.height * 0.38 : size.height * 0.22);
-          final h =
-              base * (phase == 0 ? 1 : (0.6 + 0.4 * (1 + (i + anim * 10) % 2)));
-          final x = i * gap + gap / 2;
-          canvas.drawLine(
-            Offset(x, size.height / 2 - h / 2),
-            Offset(x, size.height / 2 + h / 2),
-            paint,
-          );
-        }
-        break;
-      case AudioWaveformEffect.wave:
-      case AudioWaveformEffect.mirror:
-        final path = Path();
-        for (var i = 0; i < size.width; i++) {
-          final wave =
-              size.height *
-              0.18 *
-              ((i % 2 == 0 ? 1 : -1) *
-                  (phase == 0 ? 1 : (0.8 + 0.2 * (anim * 6 + i * 0.12) % 1)));
-          final y = size.height / 2 + wave;
-          if (i == 0) path.moveTo(i.toDouble(), y);
-          path.lineTo(i.toDouble(), y);
-        }
-        canvas.drawPath(path, paint);
-        break;
-      case AudioWaveformEffect.surfer:
-        final path2 = Path();
-        path2.moveTo(0, size.height * 0.6);
-        for (var i = 0; i < size.width; i++) {
-          path2.lineTo(
-            i.toDouble(),
-            size.height * 0.6 + 10 * ((i / 10 + anim) % 1),
-          );
-        }
-        canvas.drawPath(path2, paint);
-        break;
-      default:
-        final count = 12;
-        final gap = size.width / count;
-        for (var i = 0; i < count; i++) {
-          final base = size.height * (0.15 + (i % 4) * 0.07);
-          final h = phase == 0
-              ? base
-              : base * (0.65 + 0.7 * ((i * 0.7 + anim * 12) % 1));
-          final x = i * gap + gap / 2;
-          canvas.drawLine(
-            Offset(x, size.height / 2 - h / 2),
-            Offset(x, size.height / 2 + h / 2),
-            i % 3 == 0 ? paint : paintDim,
-          );
-        }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _MiniWavePainter oldDelegate) =>
-      oldDelegate.phase != phase ||
-      oldDelegate.color != color ||
-      oldDelegate.effect != effect;
 }

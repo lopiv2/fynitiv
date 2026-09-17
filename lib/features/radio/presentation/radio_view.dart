@@ -3,14 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/skin/radio_skin_controller.dart';
-import '../../../core/skin/skin.dart';
-import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_loader.dart';
-import '../../../core/widgets/audio_waveform.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../music/application/soloud_music_provider.dart';
 import '../application/radio_geo_provider.dart';
 import '../application/radio_providers.dart';
+import 'widgets/radio_effects_panel.dart';
 import 'widgets/radio_genre_chips.dart';
 import 'widgets/radio_hero.dart';
 import 'widgets/station_card.dart';
@@ -49,29 +47,11 @@ class RadioView extends ConsumerWidget {
               child: RadioHero(skin: skin, station: selected),
             ),
           ),
-          // Panel efectos — waveform compartido (movido desde hero)
+          // Panel efectos — selector de onda + visualización con señal falsa.
           SliverPadding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
             sliver: SliverToBoxAdapter(
-              child: Builder(
-                builder: (context) {
-                  final isPlaying = isRadioPlaying;
-                  final skinEffect = ref.watch(skinControllerProvider).value?.audioWaveformEffect ?? AudioWaveformEffect.equalizer;
-                  return Container(
-                    height: 110,
-                    decoration: BoxDecoration(
-                      color: skin.cardBackground,
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: Colors.white12),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Opacity(
-                      opacity: 0.85,
-                      child: AudioWaveform(playing: isPlaying, progress: 0, effect: skinEffect, color: skin.accent, expanded: true, isRadio: true),
-                    ),
-                  );
-                },
-              ),
+              child: RadioEffectsPanel(radioSkin: skin),
             ),
           ),
           // Géneros

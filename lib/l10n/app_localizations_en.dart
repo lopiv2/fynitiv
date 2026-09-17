@@ -377,6 +377,24 @@ class AppLocalizationsEn extends AppLocalizations {
   String get effectFrequency => 'Frequency';
 
   @override
+  String get effectLedSpectrum => '2D Led Spectrum';
+
+  @override
+  String get effectSoundEclipse => 'SoundEclipse';
+
+  @override
+  String get effectSoundSinus => 'Sound Sinus';
+
+  @override
+  String get effectRaymarching => 'Raymarching';
+
+  @override
+  String get effectSmokeRings => 'Smoke Rings';
+
+  @override
+  String get effectCircularSpectrum => 'Circular Spectrum';
+
+  @override
   String get preview => 'Preview';
 
   @override

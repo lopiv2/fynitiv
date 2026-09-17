@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 
-import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:morphnext/morphnext.dart';
 
+import '../core/audio/soloud_single_player.dart';
 import '../core/widgets/language_selector.dart';
 import '../core/widgets/scale_button.dart';
 import '../features/auth/application/auth_controller.dart';
@@ -108,12 +108,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   ];
 
   late final AnimationController _controller;
-  late final AudioPlayer _audioPlayer;
+  late final SoloudSinglePlayer _audioPlayer;
 
   @override
   void initState() {
     super.initState();
-    _audioPlayer = AudioPlayer();
+    _audioPlayer = SoloudSinglePlayer();
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 13),
@@ -132,7 +132,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// Reproduce el audio logo de la splash.
   Future<void> _playLogo() async {
     await _audioPlayer.stop();
-    await _audioPlayer.play(AssetSource('audio/splash_reveal.mp3'));
+    await _audioPlayer.playAsset('audio/splash_reveal.mp3');
   }
 
   /// Reinicia la animación y el audio desde cero.

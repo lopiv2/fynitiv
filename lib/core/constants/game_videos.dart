@@ -3,7 +3,7 @@
 const kGameVideos = <String>[
   'assets/video/Aurora.mp4',
   'assets/video/dancing_controllers_retro.mp4',
-  'assets/video/Drice Palmeras.mp4',
+  'assets/video/Drice_Palmeras.mp4',
   'assets/video/Lava.mp4',
   'assets/video/Neon.mp4',
   'assets/video/Rings_2.mp4',

@@ -812,6 +812,42 @@ abstract class AppLocalizations {
   /// **'Frequency'**
   String get effectFrequency;
 
+  /// No description provided for @effectLedSpectrum.
+  ///
+  /// In en, this message translates to:
+  /// **'2D Led Spectrum'**
+  String get effectLedSpectrum;
+
+  /// No description provided for @effectSoundEclipse.
+  ///
+  /// In en, this message translates to:
+  /// **'SoundEclipse'**
+  String get effectSoundEclipse;
+
+  /// No description provided for @effectSoundSinus.
+  ///
+  /// In en, this message translates to:
+  /// **'Sound Sinus'**
+  String get effectSoundSinus;
+
+  /// No description provided for @effectRaymarching.
+  ///
+  /// In en, this message translates to:
+  /// **'Raymarching'**
+  String get effectRaymarching;
+
+  /// No description provided for @effectSmokeRings.
+  ///
+  /// In en, this message translates to:
+  /// **'Smoke Rings'**
+  String get effectSmokeRings;
+
+  /// No description provided for @effectCircularSpectrum.
+  ///
+  /// In en, this message translates to:
+  /// **'Circular Spectrum'**
+  String get effectCircularSpectrum;
+
   /// No description provided for @preview.
   ///
   /// In en, this message translates to:

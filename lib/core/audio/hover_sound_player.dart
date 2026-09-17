@@ -1,4 +1,4 @@
-import 'package:audioplayers/audioplayers.dart';
+import 'soloud_single_player.dart';
 
 /// Singleton para reproducir sonido corto de hover/focus.
 /// Usa volumen del sistema (no override).
@@ -6,7 +6,7 @@ class HoverSoundPlayer {
   HoverSoundPlayer._();
   static final HoverSoundPlayer instance = HoverSoundPlayer._();
 
-  final AudioPlayer _player = AudioPlayer();
+  final SoloudSinglePlayer _player = SoloudSinglePlayer();
   int _lastPlayMs = 0;
   static const int _debounceMs = 90;
 
@@ -16,22 +16,13 @@ class HoverSoundPlayer {
     if (now - _lastPlayMs < _debounceMs) return;
     _lastPlayMs = now;
     try {
-      await _player.stop();
-      await _player.play(AssetSource(asset));
+      await _player.playAsset(asset);
     } catch (_) {}
   }
 
-  Future<void> preload(List<String> assets) async {
-    for (final a in assets) {
-      if (a.isEmpty) continue;
-      try {
-        await _player.setSource(AssetSource(a));
-      } catch (_) {}
-    }
-    try {
-      await _player.stop();
-    } catch (_) {}
-  }
+  /// Precalienta la caché compartida para arrancar sin delay.
+  Future<void> preload(List<String> assets) =>
+      _player.preloadAssets(assets);
 
   void dispose() {
     _player.dispose();

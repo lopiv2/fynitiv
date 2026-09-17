@@ -394,7 +394,61 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     }
   }
 
+  /// Vuelve a reproducir desde el inicio tras completarse.
+  ///
+  /// Al terminar, el voice-handle de SoLoud queda muerto: `seek`/`resume`
+  /// sobre él son no-ops y el timer de posición está parado. Hay que
+  /// soltar la voz muerta y lanzar `play` de nuevo sobre la fuente ya
+  /// cargada (sin recargar la URL).
+  Future<void> replay() async {
+    if (state.engine == PlaybackEngine.soloud && _source != null) {
+      if (_handle != null) {
+        try {
+          SoLoud.instance.stop(_handle!);
+        } catch (_) {}
+        _handle = null;
+      }
+      try {
+        final vol = state.volume.clamp(0, 100) / 100.0;
+        _handle = SoLoud.instance.play(_source!, volume: vol);
+        try {
+          _applyEq(ref.read(audioEqProvider));
+        } catch (_) {}
+        state = state.copyWith(
+          playing: true,
+          completed: false,
+          buffering: false,
+          position: Duration.zero,
+          error: null,
+          clearError: true,
+        );
+        _startSoloudPosTimer();
+      } catch (e) {
+        state = state.copyWith(error: '$e', buffering: false, playing: false);
+      }
+      return;
+    }
+    if (state.engine == PlaybackEngine.mediaKit) {
+      try {
+        await _fallback.seek(Duration.zero);
+      } catch (_) {}
+      try {
+        await _fallback.play();
+      } catch (_) {}
+      state = state.copyWith(
+        playing: true,
+        completed: false,
+        position: Duration.zero,
+      );
+      return;
+    }
+  }
+
   void resume() {
+    if (state.completed) {
+      replay();
+      return;
+    }
     if (state.engine == PlaybackEngine.soloud && _handle != null) {
       try {
         SoLoud.instance.pauseSwitch(_handle!);
@@ -413,9 +467,7 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
 
   void toggle() {
     if (state.completed) {
-      seek(Duration.zero);
-      resume();
-      state = state.copyWith(completed: false);
+      replay();
       return;
     }
     if (state.playing) {
@@ -498,38 +550,8 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
 
   Future<void> playRadioUrl({required String url, required String title, String artist = '', String coverUrl = '', double? volume}) async {
     final session = PlaybackSession(serverUrl: '', streamUrl: url, itemId: 'radio', itemName: title);
-    final isHls = url.contains('.m3u8');
-    // Radio en vivo: intentar siempre SoLoud (para FFT real), salvo HLS
-    if (!isHls && _soloudReady) {
-      developer.log('[Radio] Intentando SoLoud loadUrl: $url', name: 'Radio');
-      state = state.copyWith(session: session, item: null, error: null, clearError: true, completed: false, buffering: true, volume: volume ?? state.volume);
-      try { await _fallbackPlayer?.stop(); } catch (_) {}
-      if (_handle != null) { try { SoLoud.instance.stop(_handle!); } catch (_) {} _handle = null; }
-      if (_source != null) { try { SoLoud.instance.disposeSource(_source!); } catch (_) {} _source = null; }
-      _stopPosTimer();
-      try { SoLoud.instance.setVisualizationEnabled(true); } catch (_) {}
-      try {
-        _source = await SoLoud.instance.loadUrl(url).timeout(const Duration(seconds: 8), onTimeout: () {
-          developer.log('[Radio] SoLoud timeout 8s para $url → fallback MediaKit', name: 'Radio');
-          throw TimeoutException('SoLoud loadUrl timeout 8s');
-        });
-        final vol = (volume ?? state.volume).clamp(0, 100) / 100.0;
-        _handle = SoLoud.instance.play(_source!, volume: vol);
-        developer.log('[Radio] SoLoud OK, engine=soloud', name: 'Radio');
-        state = state.copyWith(playing: true, buffering: false, completed: false, duration: Duration.zero, engine: PlaybackEngine.soloud, volume: volume ?? state.volume);
-        _startSoloudPosTimer();
-        try { _applyEq(ref.read(audioEqProvider)); } catch (_) {}
-        return;
-      } catch (e) {
-        developer.log('[Radio] SoLoud fallo ($e) → fallback MediaKit', name: 'Radio');
-        if (_handle != null) { try { SoLoud.instance.stop(_handle!); } catch (_) {} _handle = null; }
-        if (_source != null) { try { SoLoud.instance.disposeSource(_source!); } catch (_) {} _source = null; }
-      }
-    } else {
-      if (isHls) developer.log('[Radio] HLS detectado, MediaKit directo: $url', name: 'Radio');
-      if (!_soloudReady) developer.log('[Radio] SoLoud no listo, MediaKit: $url', name: 'Radio');
-    }
-    // Fallback MediaKit
+    // La radio siempre va directa por MediaKit: SoLoud no maneja estos
+    // streams (los efectos visuales usan la señal sintética).
     developer.log('[Radio] MediaKit open: $url', name: 'Radio');
     state = state.copyWith(session: session, item: null, error: null, clearError: true, completed: false, buffering: true, volume: volume ?? state.volume, engine: PlaybackEngine.mediaKit);
     if (_handle != null) { try { SoLoud.instance.stop(_handle!); } catch (_) {} _handle = null; }

@@ -50,7 +50,6 @@ dependencies:
   # Generación de deviceId (UUID v4)
   uuid: ^4.6.0
   material_ui: ^1.0.0
-  audioplayers: ^6.8.1
   # Localización (gen-l10n)
   flutter_localizations:
     sdk: flutter

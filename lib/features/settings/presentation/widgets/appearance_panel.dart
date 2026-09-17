@@ -623,6 +623,30 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                         (AudioWaveformEffect.surfer, l10n.effectSurfer),
                         (AudioWaveformEffect.audioFlux, l10n.effectAudioFlux),
                         (AudioWaveformEffect.frequency, l10n.effectFrequency),
+                        (
+                          AudioWaveformEffect.ledSpectrum,
+                          l10n.effectLedSpectrum,
+                        ),
+                        (
+                          AudioWaveformEffect.soundEclipse,
+                          l10n.effectSoundEclipse,
+                        ),
+                        (
+                          AudioWaveformEffect.soundSinus,
+                          l10n.effectSoundSinus,
+                        ),
+                        (
+                          AudioWaveformEffect.raymarching,
+                          l10n.effectRaymarching,
+                        ),
+                        (
+                          AudioWaveformEffect.smokeRings,
+                          l10n.effectSmokeRings,
+                        ),
+                        (
+                          AudioWaveformEffect.circularSpectrum,
+                          l10n.effectCircularSpectrum,
+                        ),
                       ])
                         DropdownMenuItem(
                           value: effect,

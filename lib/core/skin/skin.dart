@@ -22,7 +22,7 @@ enum LogoOverlayPosition { none, topLeft, topRight, bottomLeft, bottomRight }
 enum CardImageType { poster, backdrop }
 
 /// Efecto de la animación de onda del reproductor de audio.
-enum AudioWaveformEffect { equalizer, wave, mirror, bars, surfer, audioFlux, frequency }
+enum AudioWaveformEffect { equalizer, wave, mirror, bars, surfer, audioFlux, frequency, ledSpectrum, soundEclipse, soundSinus, raymarching, smokeRings, circularSpectrum }
 
 /// Tipo de transición entre banners del slider de novedades.
 enum SliderTransition { slide, fade }

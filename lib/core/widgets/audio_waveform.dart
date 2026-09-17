@@ -4,13 +4,21 @@ import 'dart:typed_data';
 
 import 'package:audio_flux/audio_flux.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 import '../../features/music/application/soloud_music_provider.dart';
+import '../../features/radio/application/radio_fake_signal_provider.dart';
 import '../audio/soloud_initializer.dart';
 import '../skin/skin.dart';
+import 'circular_spectrum.dart';
+import 'led_spectrum.dart';
+import 'raymarch.dart';
+import 'smoke_rings.dart';
+import 'sound_eclipse.dart';
+import 'sound_sinus.dart';
 
 /// Widget compartido para ondas de audio — reutilizado por PlayerScreen y Radio.
 ///
@@ -93,7 +101,12 @@ class _AudioWaveformState extends ConsumerState<AudioWaveform>
             soloudReady && soloudState.isSoloud && soloudState.playing;
         if (!soloudReady || !hasSoloudPlaying) {
           if (widget.isRadio && widget.playing) {
-            return SizedBox.expand(child: ClipRRect(borderRadius: BorderRadius.circular(12), child: const FakeFrequencyVisualizer()));
+            return const SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                child: FakeFrequencyVisualizer(),
+              ),
+            );
           }
           return AnimatedBuilder(
             animation: Listenable.merge([_controller, _explosionController]),
@@ -132,7 +145,15 @@ class _AudioWaveformState extends ConsumerState<AudioWaveform>
             soloudReady && soloudState.isSoloud && soloudState.playing;
         if (!soloudReady || !hasSoloudPlaying) {
           if (widget.isRadio && widget.playing) {
-            return SizedBox.expand(child: ClipRRect(borderRadius: BorderRadius.circular(12), child: const FakeFrequencyVisualizer()));
+            return SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: FakeWaveformVisualizer(
+                  color: widget.color,
+                  expanded: true,
+                ),
+              ),
+            );
           }
           return AnimatedBuilder(
             animation: Listenable.merge([_controller, _explosionController]),
@@ -178,6 +199,228 @@ class _AudioWaveformState extends ConsumerState<AudioWaveform>
           ),
         );
       }
+      if (widget.effect == AudioWaveformEffect.ledSpectrum) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          if (widget.isRadio && widget.playing) {
+            return const SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                child: FakeLedSpectrumVisualizer(),
+              ),
+            );
+          }
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: WaveformPainter(
+                  effect: widget.effect,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: trackColor,
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.expand(
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            child: LedSpectrumVisualizer(),
+          ),
+        );
+      }
+      if (widget.effect == AudioWaveformEffect.soundEclipse) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          if (widget.isRadio && widget.playing) {
+            return const SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                child: FakeSoundEclipseVisualizer(),
+              ),
+            );
+          }
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: WaveformPainter(
+                  effect: widget.effect,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: trackColor,
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.expand(
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            child: SoundEclipseVisualizer(),
+          ),
+        );
+      }
+      if (widget.effect == AudioWaveformEffect.soundSinus) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          if (widget.isRadio && widget.playing) {
+            return const SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                child: FakeSoundSinusVisualizer(),
+              ),
+            );
+          }
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: WaveformPainter(
+                  effect: widget.effect,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: trackColor,
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.expand(
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            child: SoundSinusVisualizer(),
+          ),
+        );
+      }
+      if (widget.effect == AudioWaveformEffect.raymarching) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          if (widget.isRadio && widget.playing) {
+            return const SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                child: FakeRaymarchVisualizer(),
+              ),
+            );
+          }
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: WaveformPainter(
+                  effect: widget.effect,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: trackColor,
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.expand(
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            child: RaymarchVisualizer(),
+          ),
+        );
+      }
+      if (widget.effect == AudioWaveformEffect.smokeRings) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          if (widget.isRadio && widget.playing) {
+            return const SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                child: FakeSmokeRingsVisualizer(),
+              ),
+            );
+          }
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: WaveformPainter(
+                  effect: widget.effect,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: trackColor,
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.expand(
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            child: SmokeRingsVisualizer(),
+          ),
+        );
+      }
+      if (widget.effect == AudioWaveformEffect.circularSpectrum) {
+        final soloudReady = SoloudInitializer.isInitialized;
+        final soloudState = ref.watch(soloudMusicProvider);
+        final hasSoloudPlaying =
+            soloudReady && soloudState.isSoloud && soloudState.playing;
+        if (!soloudReady || !hasSoloudPlaying) {
+          if (widget.isRadio && widget.playing) {
+            return const SizedBox.expand(
+              child: ClipRRect(
+                borderRadius: BorderRadius.all(Radius.circular(12)),
+                child: FakeCircularSpectrumVisualizer(),
+              ),
+            );
+          }
+          return AnimatedBuilder(
+            animation: Listenable.merge([_controller, _explosionController]),
+            builder: (context, _) => SizedBox.expand(
+              child: CustomPaint(
+                painter: WaveformPainter(
+                  effect: widget.effect,
+                  phase: _controller.value,
+                  progress: widget.progress,
+                  color: widget.color,
+                  trackColor: trackColor,
+                  explosion: _explosionController.value,
+                ),
+              ),
+            ),
+          );
+        }
+        return const SizedBox.expand(
+          child: ClipRRect(
+            borderRadius: BorderRadius.all(Radius.circular(12)),
+            child: CircularSpectrumVisualizer(),
+          ),
+        );
+      }
       if (widget.effect == AudioWaveformEffect.surfer) {
         return AnimatedBuilder(
           animation: Listenable.merge([_controller, _explosionController]),
@@ -215,7 +458,14 @@ class _AudioWaveformState extends ConsumerState<AudioWaveform>
           soloudReady && soloudState.isSoloud && soloudState.playing;
       if (!soloudReady || !hasSoloudPlaying) {
         if (widget.isRadio && widget.playing) {
-          return SizedBox(height: 52, width: double.infinity, child: ClipRRect(borderRadius: BorderRadius.circular(6), child: const FakeFrequencyVisualizer()));
+          return SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: FakeWaveformVisualizer(color: widget.color),
+            ),
+          );
         }
         return AnimatedBuilder(
           animation: Listenable.merge([_controller, _explosionController]),
@@ -273,7 +523,14 @@ class _AudioWaveformState extends ConsumerState<AudioWaveform>
           soloudReady && soloudState.isSoloud && soloudState.playing;
       if (!soloudReady || !hasSoloudPlaying) {
         if (widget.isRadio && widget.playing) {
-          return SizedBox(height: 52, width: double.infinity, child: ClipRRect(borderRadius: BorderRadius.circular(6), child: const FakeFrequencyVisualizer()));
+          return const SizedBox(
+            height: 52,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+              child: FakeFrequencyVisualizer(),
+            ),
+          );
         }
         return AnimatedBuilder(
           animation: Listenable.merge([_controller, _explosionController]),
@@ -300,6 +557,270 @@ class _AudioWaveformState extends ConsumerState<AudioWaveform>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: const FrequencyVisualizer(),
+        ),
+      );
+    }
+    if (widget.effect == AudioWaveformEffect.ledSpectrum) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      if (!soloudReady || !hasSoloudPlaying) {
+        if (widget.isRadio && widget.playing) {
+          return const SizedBox(
+            height: 130,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+              child: FakeLedSpectrumVisualizer(),
+            ),
+          );
+        }
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WaveformPainter(
+                effect: widget.effect,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: trackColor,
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return const SizedBox(
+        height: 130,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+          child: LedSpectrumVisualizer(),
+        ),
+      );
+    }
+    if (widget.effect == AudioWaveformEffect.soundEclipse) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      if (!soloudReady || !hasSoloudPlaying) {
+        if (widget.isRadio && widget.playing) {
+          return const SizedBox(
+            height: 130,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+              child: FakeSoundEclipseVisualizer(),
+            ),
+          );
+        }
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WaveformPainter(
+                effect: widget.effect,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: trackColor,
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return const SizedBox(
+        height: 130,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+          child: SoundEclipseVisualizer(),
+        ),
+      );
+    }
+    if (widget.effect == AudioWaveformEffect.soundSinus) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      if (!soloudReady || !hasSoloudPlaying) {
+        if (widget.isRadio && widget.playing) {
+          return const SizedBox(
+            height: 130,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+              child: FakeSoundSinusVisualizer(),
+            ),
+          );
+        }
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WaveformPainter(
+                effect: widget.effect,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: trackColor,
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return const SizedBox(
+        height: 130,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+          child: SoundSinusVisualizer(),
+        ),
+      );
+    }
+    if (widget.effect == AudioWaveformEffect.raymarching) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      if (!soloudReady || !hasSoloudPlaying) {
+        if (widget.isRadio && widget.playing) {
+          return const SizedBox(
+            height: 130,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+              child: FakeRaymarchVisualizer(),
+            ),
+          );
+        }
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WaveformPainter(
+                effect: widget.effect,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: trackColor,
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return const SizedBox(
+        height: 130,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+          child: RaymarchVisualizer(),
+        ),
+      );
+    }
+    if (widget.effect == AudioWaveformEffect.smokeRings) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      if (!soloudReady || !hasSoloudPlaying) {
+        if (widget.isRadio && widget.playing) {
+          return const SizedBox(
+            height: 130,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+              child: FakeSmokeRingsVisualizer(),
+            ),
+          );
+        }
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WaveformPainter(
+                effect: widget.effect,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: trackColor,
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return const SizedBox(
+        height: 130,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+          child: SmokeRingsVisualizer(),
+        ),
+      );
+    }
+    if (widget.effect == AudioWaveformEffect.circularSpectrum) {
+      final soloudReady = SoloudInitializer.isInitialized;
+      final soloudState = ref.watch(soloudMusicProvider);
+      final hasSoloudPlaying =
+          soloudReady && soloudState.isSoloud && soloudState.playing;
+      if (!soloudReady || !hasSoloudPlaying) {
+        if (widget.isRadio && widget.playing) {
+          return const SizedBox(
+            height: 130,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.all(Radius.circular(6)),
+              child: FakeCircularSpectrumVisualizer(),
+            ),
+          );
+        }
+        return AnimatedBuilder(
+          animation: Listenable.merge([_controller, _explosionController]),
+          builder: (context, _) => SizedBox(
+            height: 72,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WaveformPainter(
+                effect: widget.effect,
+                phase: _controller.value,
+                progress: widget.progress,
+                color: widget.color,
+                trackColor: trackColor,
+                explosion: _explosionController.value,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        );
+      }
+      return const SizedBox(
+        height: 130,
+        width: double.infinity,
+        child: ClipRRect(
+          borderRadius: BorderRadius.all(Radius.circular(6)),
+          child: CircularSpectrumVisualizer(),
         ),
       );
     }
@@ -452,32 +973,300 @@ class SymmetricFftPainter extends CustomPainter {
   bool shouldRepaint(covariant SymmetricFftPainter oldDelegate) => true;
 }
 
-class FakeFrequencyVisualizer extends StatefulWidget {
+/// Visualizador de frecuencia con señal sintética para la radio.
+///
+/// Consume [radioFakeSignalProvider] (FFT falsa suavizada con beat) en lugar
+/// de `SoLoud.instance.audioVisualizationEvents`, que no existe cuando la
+/// radio suena vía MediaKit. Se congela en pausa porque el provider deja
+/// de emitir.
+class FakeFrequencyVisualizer extends ConsumerWidget {
   const FakeFrequencyVisualizer({super.key});
   @override
-  State<FakeFrequencyVisualizer> createState() => _FakeFrequencyVisualizerState();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fft = ref.watch(radioFakeSignalProvider);
+    return CustomPaint(
+      size: Size.infinite,
+      painter: SymmetricFftPainter(fft: fft, audioScale: 1.8),
+    );
+  }
 }
 
-class _FakeFrequencyVisualizerState extends State<FakeFrequencyVisualizer> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 350))..repeat();
-  final _rng = math.Random();
-  Float32List _fft = Float32List(64);
+/// Espectro LED con señal sintética para la radio.
+///
+/// Mismo [LedSpectrumPainter] que en música, alimentado con la FFT falsa
+/// de [radioFakeSignalProvider] (la radio suele ir por MediaKit sin FFT
+/// real de SoLoud). Se congela en pausa porque el provider deja de emitir.
+class FakeLedSpectrumVisualizer extends ConsumerWidget {
+  const FakeLedSpectrumVisualizer({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fft = ref.watch(radioFakeSignalProvider);
+    return CustomPaint(
+      size: Size.infinite,
+      painter: LedSpectrumPainter(fft: fft),
+    );
+  }
+}
+
+/// Eclipse sonoro con señal sintética para la radio.
+///
+/// Mismo [SoundEclipsePainter] que en música (con rotación continua),
+/// alimentado con la FFT falsa de [radioFakeSignalProvider]. La rotación
+/// se congela en pausa junto con la señal, porque el provider deja de
+/// emitir y el ticker solo avanza cuando hay reproducción.
+class FakeSoundEclipseVisualizer extends ConsumerStatefulWidget {
+  const FakeSoundEclipseVisualizer({super.key});
+  @override
+  ConsumerState<FakeSoundEclipseVisualizer> createState() =>
+      _FakeSoundEclipseVisualizerState();
+}
+
+/// Onda sinus con señal sintética para la radio.
+///
+/// Mismo [SoundSinusPainter] que en música (con tiempo continuo),
+/// alimentado con la FFT falsa de [radioFakeSignalProvider]. El tiempo
+/// se congela en pausa junto con la señal.
+class FakeSoundSinusVisualizer extends ConsumerStatefulWidget {
+  const FakeSoundSinusVisualizer({super.key});
+  @override
+  ConsumerState<FakeSoundSinusVisualizer> createState() =>
+      _FakeSoundSinusVisualizerState();
+}
+
+/// Sala raymarcheada con señal sintética para la radio.
+///
+/// Mismo [RaymarchPainter] que en música, alimentado con la FFT falsa de
+/// [radioFakeSignalProvider] y la onda falsa de [radioFakeWaveProvider].
+/// Se congela en pausa porque los providers dejan de emitir.
+class FakeRaymarchVisualizer extends ConsumerWidget {
+  const FakeRaymarchVisualizer({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fft = ref.watch(radioFakeSignalProvider);
+    final wave = ref.watch(radioFakeWaveProvider);
+    return CustomPaint(
+      size: Size.infinite,
+      painter: RaymarchPainter(fft: fft, wave: wave),
+    );
+  }
+}
+
+/// Anillos de humo con señal sintética para la radio.
+///
+/// Mismo [SmokeRingsPainter] que en música (con tiempo continuo),
+/// alimentado con la FFT falsa de [radioFakeSignalProvider]. El tiempo
+/// se congela en pausa junto con la señal.
+class FakeSmokeRingsVisualizer extends ConsumerStatefulWidget {
+  const FakeSmokeRingsVisualizer({super.key});
+  @override
+  ConsumerState<FakeSmokeRingsVisualizer> createState() =>
+      _FakeSmokeRingsVisualizerState();
+}
+
+/// Espectro circular con señal sintética para la radio.
+///
+/// Mismo [CircularSpectrumPainter] que en música, alimentado con la FFT
+/// falsa de [radioFakeSignalProvider]. Se congela en pausa porque el
+/// provider deja de emitir.
+class FakeCircularSpectrumVisualizer extends ConsumerWidget {
+  const FakeCircularSpectrumVisualizer({super.key});
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fft = ref.watch(radioFakeSignalProvider);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        CustomPaint(
+          size: Size.infinite,
+          painter: CircularSpectrumPainter(fft: fft),
+        ),
+        CircularFlare(fft: fft),
+      ],
+    );
+  }
+}
+
+class _FakeSmokeRingsVisualizerState
+    extends ConsumerState<FakeSmokeRingsVisualizer>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker;
+  double _time = 0;
+  double _pending = 0;
+  Duration? _lastTick;
+
   @override
   void initState() {
     super.initState();
-    _generate();
-    _c.addListener(_generate);
+    // Repintado limitado a ~30fps para no saturar la CPU/GPU.
+    _ticker = createTicker((elapsed) {
+      final dt = _lastTick == null
+          ? 0.016
+          : (elapsed - _lastTick!).inMicroseconds / 1e6;
+      _lastTick = elapsed;
+      final playing = ref.read(
+        soloudMusicProvider.select(
+          (s) => s.playing && s.session?.itemId == 'radio',
+        ),
+      );
+      if (!playing) {
+        _pending = 0;
+        return;
+      }
+      _pending += dt;
+      if (_pending < 1 / 30 || !mounted) return;
+      setState(() {
+        _time += _pending;
+        _pending = 0;
+      });
+    });
+    _ticker.start();
   }
-  void _generate() {
-    if (!mounted) return;
-    final next = Float32List(64);
-    for (var i = 0; i < 64; i++) next[i] = _rng.nextDouble() * 0.9 + 0.1;
-    setState(() => _fft = next);
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
   }
+
   @override
-  void dispose() { _c.dispose(); super.dispose(); }
+  Widget build(BuildContext context) {
+    final fft = ref.watch(radioFakeSignalProvider);
+    return RepaintBoundary(
+      child: CustomPaint(
+        size: Size.infinite,
+        painter: SmokeRingsPainter(fft: fft, time: _time),
+      ),
+    );
+  }
+}
+
+class _FakeSoundSinusVisualizerState
+    extends ConsumerState<FakeSoundSinusVisualizer>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker;
+  double _time = 0;
+  Duration? _lastTick;
+
   @override
-  Widget build(BuildContext context) => CustomPaint(size: Size.infinite, painter: SymmetricFftPainter(fft: _fft, audioScale: 1.8));
+  void initState() {
+    super.initState();
+    _ticker = createTicker((elapsed) {
+      final dt = _lastTick == null
+          ? 0.016
+          : (elapsed - _lastTick!).inMicroseconds / 1e6;
+      _lastTick = elapsed;
+      final playing = ref.read(
+        soloudMusicProvider.select(
+          (s) => s.playing && s.session?.itemId == 'radio',
+        ),
+      );
+      if (playing && mounted) {
+        setState(() => _time += dt);
+      }
+    });
+    _ticker.start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fft = ref.watch(radioFakeSignalProvider);
+    return CustomPaint(
+      size: Size.infinite,
+      painter: SoundSinusPainter(fft: fft, time: _time),
+    );
+  }
+}
+
+class _FakeSoundEclipseVisualizerState
+    extends ConsumerState<FakeSoundEclipseVisualizer>
+    with SingleTickerProviderStateMixin {
+  late final Ticker _ticker;
+  double _rotation = 0;
+  Duration? _lastTick;
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker((elapsed) {
+      final dt = _lastTick == null
+          ? 0.016
+          : (elapsed - _lastTick!).inMicroseconds / 1e6;
+      _lastTick = elapsed;
+      final playing = ref.read(
+        soloudMusicProvider.select(
+          (s) => s.playing && s.session?.itemId == 'radio',
+        ),
+      );
+      if (playing && mounted) {
+        setState(() => _rotation += dt * 0.10);
+      }
+    });
+    _ticker.start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final fft = ref.watch(radioFakeSignalProvider);
+    return CustomPaint(
+      size: Size.infinite,
+      painter: SoundEclipsePainter(fft: fft, rotation: _rotation),
+    );
+  }
+}
+
+/// Visualizador AudioFlux con señal sintética para la radio.
+///
+/// Usa el MISMO pintor `Waveform` de audio_flux y los MISMOS `ModelParams`
+/// que el Music player (`FluxType.waveform`: barras de 3px, spacing 0.5,
+/// chunk 1, gradiente del color del skin), pero alimentado con la onda
+/// falsa de [radioFakeWaveProvider] en lugar de `DataSources.soloud`
+/// (no disponible cuando la radio va por MediaKit). El resultado es
+/// pixel-idéntico al del reproductor de música.
+class FakeWaveformVisualizer extends ConsumerWidget {
+  const FakeWaveformVisualizer({
+    super.key,
+    required this.color,
+    this.expanded = false,
+  });
+  final Color color;
+  final bool expanded;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wave = ref.watch(radioFakeWaveProvider);
+    return Waveform(
+      dataCallback: ({bool alwaysReturnData = false}) => wave,
+      params: ModelParams(
+        backgroundColor: Colors.transparent,
+        barColor: color,
+        barGradient: LinearGradient(
+          colors: [color, color.withValues(alpha: 0.6)],
+        ),
+        audioScale: expanded ? 1.6 : 1.4,
+        fftParams: const FftParams(
+          minBinIndex: 1,
+          maxBinIndex: 120,
+          fftSmoothing: 0.85,
+        ),
+        waveformParams: const WaveformPainterParams(
+          barsWidth: 3,
+          barSpacingScale: 0.5,
+          chunkSize: 1,
+        ),
+      ),
+    );
+  }
 }
 
 class SurferWave extends StatelessWidget {
@@ -773,6 +1562,24 @@ class WaveformPainter extends CustomPainter {
         break;
       case AudioWaveformEffect.frequency:
         _paintBars(canvas, size, mirrored: true, animated: true);
+        break;
+      case AudioWaveformEffect.ledSpectrum:
+        _paintBars(canvas, size, mirrored: false, animated: true);
+        break;
+      case AudioWaveformEffect.soundEclipse:
+        _paintBars(canvas, size, mirrored: false, animated: true);
+        break;
+      case AudioWaveformEffect.soundSinus:
+        _paintBars(canvas, size, mirrored: false, animated: true);
+        break;
+      case AudioWaveformEffect.raymarching:
+        _paintBars(canvas, size, mirrored: false, animated: true);
+        break;
+      case AudioWaveformEffect.smokeRings:
+        _paintBars(canvas, size, mirrored: false, animated: true);
+        break;
+      case AudioWaveformEffect.circularSpectrum:
+        _paintBars(canvas, size, mirrored: false, animated: true);
         break;
     }
   }
