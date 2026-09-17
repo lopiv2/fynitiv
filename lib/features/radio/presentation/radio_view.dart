@@ -70,24 +70,22 @@ class RadioView extends ConsumerWidget {
             ),
           ),
           const SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
+            padding: EdgeInsets.fromLTRB(16, 10, 16, 16),
             sliver: SliverToBoxAdapter(child: RadioGenreChips()),
           ),
           // Favoritas entre géneros y destacadas (oculta si no hay).
           ...favStationsAsync.when(
             data: (stations) => stations.isEmpty
-                ? const <Widget>[
-                    SliverToBoxAdapter(child: SizedBox.shrink()),
-                  ]
+                ? const <Widget>[SliverToBoxAdapter(child: SizedBox.shrink())]
                 : <Widget>[
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      padding: const EdgeInsets.fromLTRB(16, 58, 16, 8),
                       sliver: SliverToBoxAdapter(
                         child: Text(
                           l10n.radioFavorites,
                           style: TextStyle(
                             color: skin.textPrimary,
-                            fontSize: 14,
+                            fontSize: 22,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -98,11 +96,11 @@ class RadioView extends ConsumerWidget {
                       sliver: SliverGrid(
                         gridDelegate:
                             const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 300,
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          childAspectRatio: 1.85,
-                        ),
+                              maxCrossAxisExtent: 300,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              childAspectRatio: 1.85,
+                            ),
                         delegate: SliverChildBuilderDelegate((context, i) {
                           final s = stations[i];
                           final isPlaying =
@@ -131,7 +129,7 @@ class RadioView extends ConsumerWidget {
           ),
           // Emisoras destacadas header
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+            padding: const EdgeInsets.fromLTRB(16, 58, 16, 8),
             sliver: SliverToBoxAdapter(
               child: Row(
                 children: [
@@ -139,7 +137,7 @@ class RadioView extends ConsumerWidget {
                     l10n.radioFeatured,
                     style: TextStyle(
                       color: skin.textPrimary,
-                      fontSize: 14,
+                      fontSize: 22,
                       fontWeight: FontWeight.w800,
                     ),
                   ),

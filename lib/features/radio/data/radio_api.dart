@@ -6,6 +6,67 @@ import 'package:dio/dio.dart';
 
 import 'radio_station.dart';
 
+/// País para filtros de Radio Browser con bandera.
+class RadioCountry {
+  const RadioCountry({required this.name, required this.code});
+
+  final String name;
+  final String code; // ISO 3166-1 alpha-2, ej. "ES"
+
+  /// Emoji de bandera a partir del código ISO. Vacío si no hay código.
+  String get flag {
+    if (code.length != 2) return '';
+    final c = code.toUpperCase();
+    final a = c.codeUnitAt(0) - 0x41 + 0x1F1E6;
+    final b = c.codeUnitAt(1) - 0x41 + 0x1F1E6;
+    if (a < 0x1F1E6 || a > 0x1F1FF || b < 0x1F1E6 || b > 0x1F1FF) return '';
+    return String.fromCharCode(a) + String.fromCharCode(b);
+  }
+}
+
+/// Fallback nombre -> código para países donde el mirror no trae iso_3166_1.
+const _countryNameToCode = <String, String>{
+  'Spain': 'ES',
+  'United States': 'US',
+  'United Kingdom': 'GB',
+  'France': 'FR',
+  'Germany': 'DE',
+  'Italy': 'IT',
+  'Portugal': 'PT',
+  'Mexico': 'MX',
+  'Argentina': 'AR',
+  'Colombia': 'CO',
+  'Chile': 'CL',
+  'Peru': 'PE',
+  'Brazil': 'BR',
+  'Canada': 'CA',
+  'Australia': 'AU',
+  'Japan': 'JP',
+  'South Korea': 'KR',
+  'India': 'IN',
+  'Poland': 'PL',
+  'Netherlands': 'NL',
+  'Belgium': 'BE',
+  'Sweden': 'SE',
+  'Norway': 'NO',
+  'Denmark': 'DK',
+  'Finland': 'FI',
+  'Turkey': 'TR',
+  'Russia': 'RU',
+  'Ukraine': 'UA',
+  'Greece': 'GR',
+  'Romania': 'RO',
+  'Czech Republic': 'CZ',
+  'Hungary': 'HU',
+  'Austria': 'AT',
+  'Switzerland': 'CH',
+  'Ireland': 'IE',
+  'New Zealand': 'NZ',
+  'South Africa': 'ZA',
+  'The United Kingdom Of Great Britain And Northern Ireland': 'GB',
+  'The United States Of America': 'US',
+};
+
 /// Cliente para Radio Browser API.
 ///
 /// Usa https://all.api.radio-browser.info (round-robin de mirrors) con
@@ -167,7 +228,7 @@ class RadioApi {
 
   // Listas para filtros (no requieren hidebroken).
 
-  Future<List<String>> countries() async {
+  Future<List<RadioCountry>> countries() async {
     for (final base in [_primaryBase, _fallbackBase]) {
       try {
         final res = await _dio.get<Object?>(
@@ -175,15 +236,19 @@ class RadioApi {
           options: _opts,
         );
         final list = _parseList(res.data);
-        final names = <String>[];
+        final out = <RadioCountry>[];
         for (final e in list) {
-          if (e is Map && e['name'] is String) {
-            final n = (e['name'] as String).trim();
-            if (n.isNotEmpty) names.add(n);
+          if (e is Map) {
+            final n = (e['name'] as String?)?.trim() ?? '';
+            if (n.isEmpty) continue;
+            final rawCode = (e['iso_3166_1'] as String?)?.trim().toUpperCase() ?? '';
+            // Algunos mirrors devuelven código vacío para "The United..." etc. Intentar fallback.
+            final code = rawCode.isNotEmpty ? rawCode : _countryNameToCode[n] ?? '';
+            out.add(RadioCountry(name: n, code: code));
           }
         }
-        names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-        return names;
+        out.sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+        return out;
       } catch (_) {
         continue;
       }

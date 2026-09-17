@@ -32,8 +32,7 @@ class RadioEffectsPanel extends ConsumerWidget {
         radioSkin?.cardBackground ??
         skin?.sidebarBackground ??
         const Color(0xFF1E293B);
-    final accent =
-        radioSkin?.accent ?? skin?.accent ?? const Color(0xFF22D3EE);
+    final accent = radioSkin?.accent ?? skin?.accent ?? const Color(0xFF22D3EE);
     final textPrimary = radioSkin?.textPrimary ?? skin?.textPrimary;
     final textSecondary = radioSkin?.textSecondary ?? skin?.textSecondary;
 
@@ -105,22 +104,13 @@ class RadioEffectsPanel extends ConsumerWidget {
                     ),
                     items: [
                       for (final entry in [
-                        (
-                          AudioWaveformEffect.equalizer,
-                          l10n.effectEqualizer,
-                        ),
+                        (AudioWaveformEffect.equalizer, l10n.effectEqualizer),
                         (AudioWaveformEffect.wave, l10n.effectWave),
                         (AudioWaveformEffect.mirror, l10n.effectMirror),
                         (AudioWaveformEffect.bars, l10n.effectBars),
                         (AudioWaveformEffect.surfer, l10n.effectSurfer),
-                        (
-                          AudioWaveformEffect.audioFlux,
-                          l10n.effectAudioFlux,
-                        ),
-                        (
-                          AudioWaveformEffect.frequency,
-                          l10n.effectFrequency,
-                        ),
+                        (AudioWaveformEffect.audioFlux, l10n.effectAudioFlux),
+                        (AudioWaveformEffect.frequency, l10n.effectFrequency),
                         (
                           AudioWaveformEffect.ledSpectrum,
                           l10n.effectLedSpectrum,
@@ -129,18 +119,12 @@ class RadioEffectsPanel extends ConsumerWidget {
                           AudioWaveformEffect.soundEclipse,
                           l10n.effectSoundEclipse,
                         ),
-                        (
-                          AudioWaveformEffect.soundSinus,
-                          l10n.effectSoundSinus,
-                        ),
+                        (AudioWaveformEffect.soundSinus, l10n.effectSoundSinus),
                         (
                           AudioWaveformEffect.raymarching,
                           l10n.effectRaymarching,
                         ),
-                        (
-                          AudioWaveformEffect.smokeRings,
-                          l10n.effectSmokeRings,
-                        ),
+                        (AudioWaveformEffect.smokeRings, l10n.effectSmokeRings),
                         (
                           AudioWaveformEffect.circularSpectrum,
                           l10n.effectCircularSpectrum,
