@@ -41,8 +41,12 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
+    final isBackground = state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden;
+    if (isBackground) {
+      // No pausar la música de fondo si estamos en la rama de juegos.
+      if (_insideGames) return;
       GameBgPlayer.instance.pauseForExternal();
     } else if (state == AppLifecycleState.resumed) {
       GameBgPlayer.instance.resumeIfNeeded();

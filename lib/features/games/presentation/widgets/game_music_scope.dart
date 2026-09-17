@@ -37,7 +37,12 @@ class _GameMusicScopeState extends ConsumerState<GameMusicScope> with WidgetsBin
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+    final isBackground = state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden;
+    if (isBackground) {
+      // No pausar si seguimos en /games: la música debe seguir aunque se pierda el foco.
+      if (_inside) return;
       GameBgPlayer.instance.pauseForExternal();
     } else if (state == AppLifecycleState.resumed) {
       GameBgPlayer.instance.resumeIfNeeded();

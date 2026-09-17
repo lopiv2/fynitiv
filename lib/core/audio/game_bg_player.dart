@@ -118,6 +118,9 @@ class GameBgPlayer {
   }
 
   Future<void> pauseForExternal() async {
+    // En la pantalla de juegos la música debe seguir sonando aunque la app
+    // pierda el foco (inactive/paused). Si seguimos dentro de /games, no pausar.
+    if (_inside && !_muted) return;
     try {
       await _player.pause();
     } catch (_) {}

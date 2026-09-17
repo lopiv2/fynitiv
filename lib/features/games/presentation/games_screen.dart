@@ -20,6 +20,7 @@ import '../application/romm_providers.dart';
 import '../data/platform_asset_resolver.dart';
 import '../data/platform_category.dart';
 import '../data/platform_led_color.dart';
+import '../data/platform_machine_asset_resolver.dart';
 import '../domain/romm_platform.dart';
 
 /// Juego online: estilo Steam / Apple Arcade
@@ -52,164 +53,161 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
     final topPadding = libraryPageTopPadding(context, skin);
 
     final content = auth.loading
-            ? const Center(child: AppLoader())
-            : !auth.authenticated
-            ? _NoServer(onConfigure: () => context.go('/settings'))
-            : config.isLoading
-            ? const Center(child: AppLoader())
-            : platforms.when(
-                loading: () => const Center(child: AppLoader()),
-                error: (e, _) => _ErrorView(
-                  error: e,
-                  onRetry: () => ref.invalidate(rommPlatformsProvider),
-                ),
-                data: (list) {
-                  if (list.isEmpty) {
-                    return _EmptyView(
-                      message: l10n.gamesEmpty,
-                      onConfigure: () => context.go('/settings'),
-                    );
-                  }
-                  // Filtrado por búsqueda + categoría
-                  final filtered = list.where((p) {
-                    final asset = PlatformAssetResolver.resolve(p);
-                    final cat = categoryForPlatform(asset, p.slug);
-                    final matchesCategory =
-                        _filter == PlatformCategory.all || cat == _filter;
-                    if (!matchesCategory) return false;
-                    if (_query.isEmpty) return true;
-                    final q = _query.toLowerCase();
-                    return p.displayName.toLowerCase().contains(q) ||
-                        p.slug.toLowerCase().contains(q) ||
-                        p.name.toLowerCase().contains(q);
-                  }).toList();
+        ? const Center(child: AppLoader())
+        : !auth.authenticated
+        ? _NoServer(onConfigure: () => context.go('/settings'))
+        : config.isLoading
+        ? const Center(child: AppLoader())
+        : platforms.when(
+            loading: () => const Center(child: AppLoader()),
+            error: (e, _) => _ErrorView(
+              error: e,
+              onRetry: () => ref.invalidate(rommPlatformsProvider),
+            ),
+            data: (list) {
+              if (list.isEmpty) {
+                return _EmptyView(
+                  message: l10n.gamesEmpty,
+                  onConfigure: () => context.go('/settings'),
+                );
+              }
+              // Filtrado por búsqueda + categoría
+              final filtered = list.where((p) {
+                final asset = PlatformAssetResolver.resolve(p);
+                final cat = categoryForPlatform(asset, p.slug);
+                final matchesCategory =
+                    _filter == PlatformCategory.all || cat == _filter;
+                if (!matchesCategory) return false;
+                if (_query.isEmpty) return true;
+                final q = _query.toLowerCase();
+                return p.displayName.toLowerCase().contains(q) ||
+                    p.slug.toLowerCase().contains(q) ||
+                    p.name.toLowerCase().contains(q);
+              }).toList();
 
-                  // Datos para “Continuar jugando” (ROMs con last_played, ordenados por API)
-                  final continueAsync = ref.watch(rommContinuePlayingProvider);
-                  final token = ref.watch(rommRepositoryProvider)?.token;
-                  final headers = token != null && token.isNotEmpty
-                      ? <String, String>{'Authorization': 'Bearer $token'}
-                      : null;
+              // Datos para “Continuar jugando” (ROMs con last_played, ordenados por API)
+              final continueAsync = ref.watch(rommContinuePlayingProvider);
+              final token = ref.watch(rommRepositoryProvider)?.token;
+              final headers = token != null && token.isNotEmpty
+                  ? <String, String>{'Authorization': 'Bearer $token'}
+                  : null;
 
-                  return FocusTraversalGroup(
-                    policy: ReadingOrderTraversalPolicy(),
-                    child: CustomScrollView(
-                      slivers: [
-                      SliverToBoxAdapter(
-                        child: _HeroHeader(
-                          totalPlatforms: list.length,
-                          totalGames: list.fold<int>(
-                            0,
-                            (s, p) => s + p.romCount,
-                          ),
-                          query: _query,
-                          onQueryChanged: (v) => setState(() => _query = v),
-                          controller: _searchController,
-                        ),
+              return FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: _HeroHeader(
+                        totalPlatforms: list.length,
+                        totalGames: list.fold<int>(0, (s, p) => s + p.romCount),
+                        query: _query,
+                        onQueryChanged: (v) => setState(() => _query = v),
+                        controller: _searchController,
                       ),
-                      // Fila horizontal “Continuar jugando” reutilizando ContentRow/HoverPlayCard
+                    ),
+                    // Fila horizontal “Continuar jugando” reutilizando ContentRow/HoverPlayCard
+                    SliverToBoxAdapter(
+                      child: continueAsync.when(
+                        loading: () => const SizedBox.shrink(),
+                        error: (_, _) => const SizedBox.shrink(),
+                        data: (games) {
+                          if (games.isEmpty) return const SizedBox.shrink();
+                          return GameContentRow(
+                            title: l10n.continuePlaying,
+                            games: games,
+                            headers: headers,
+                            // Estilo foto con AppHover universal (hover/relajado) según diseño
+                            height: 280,
+                            cardWidth: 220,
+                            useContinueStyle: true,
+                            onGameTap: (g) =>
+                                context.push('/games/rom/${g.id}'),
+                          );
+                        },
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                        child: ScrollTitle(title: l10n.platforms),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _FilterChips(
+                        selected: _filter,
+                        onSelected: (c) => setState(() => _filter = c),
+                        counts: _countsByCategory(list),
+                      ),
+                    ),
+                    if (filtered.isEmpty)
                       SliverToBoxAdapter(
-                        child: continueAsync.when(
-                          loading: () => const SizedBox.shrink(),
-                          error: (_, _) => const SizedBox.shrink(),
-                          data: (games) {
-                            if (games.isEmpty) return const SizedBox.shrink();
-                            return GameContentRow(
-                              title: l10n.continuePlaying,
-                              games: games,
-                              headers: headers,
-                              // Estilo foto con AppHover universal (hover/relajado) según diseño
-                              height: 280,
-                              cardWidth: 220,
-                              useContinueStyle: true,
-                              onGameTap: (g) =>
-                                  context.push('/games/rom/${g.id}'),
+                        child: Padding(
+                          padding: const EdgeInsets.all(32),
+                          child: Center(
+                            child: Text(
+                              l10n.noResultsForQuery(_query),
+                              style: const TextStyle(color: Colors.white54),
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                        sliver: SliverLayoutBuilder(
+                          builder: (context, constraints) {
+                            final w = constraints.crossAxisExtent;
+                            int crossCount;
+                            if (w < 500) {
+                              crossCount = 2;
+                            } else if (w < 800) {
+                              crossCount = 3;
+                            } else if (w < 1100) {
+                              crossCount = 4;
+                            } else if (w < 1400) {
+                              crossCount = 5;
+                            } else {
+                              crossCount = 6;
+                            }
+                            return SliverGrid(
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: crossCount,
+                                    mainAxisSpacing: 14,
+                                    crossAxisSpacing: 14,
+                                    childAspectRatio: 0.95,
+                                  ),
+                              delegate: SliverChildBuilderDelegate(
+                                (context, i) => _PlatformCard(
+                                  platform: filtered[i],
+                                  heroTag: 'platform-logo-${filtered[i].id}',
+                                ),
+                                childCount: filtered.length,
+                              ),
                             );
                           },
                         ),
                       ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
-                          child: ScrollTitle(title: l10n.platforms),
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: _FilterChips(
-                          selected: _filter,
-                          onSelected: (c) => setState(() => _filter = c),
-                          counts: _countsByCategory(list),
-                        ),
-                      ),
-                      if (filtered.isEmpty)
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.all(32),
-                            child: Center(
-                              child: Text(
-                                l10n.noResultsForQuery(_query),
-                                style: const TextStyle(color: Colors.white54),
-                              ),
-                            ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                        child: Text(
+                          l10n.platformsAndGamesCount(
+                            filtered.length,
+                            filtered.fold<int>(0, (s, p) => s + p.romCount),
                           ),
-                        )
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                          sliver: SliverLayoutBuilder(
-                            builder: (context, constraints) {
-                              final w = constraints.crossAxisExtent;
-                              int crossCount;
-                              if (w < 500) {
-                                crossCount = 2;
-                              } else if (w < 800) {
-                                crossCount = 3;
-                              } else if (w < 1100) {
-                                crossCount = 4;
-                              } else if (w < 1400) {
-                                crossCount = 5;
-                              } else {
-                                crossCount = 6;
-                              }
-                              return SliverGrid(
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: crossCount,
-                                      mainAxisSpacing: 14,
-                                      crossAxisSpacing: 14,
-                                      childAspectRatio: 0.95,
-                                    ),
-                                delegate: SliverChildBuilderDelegate(
-                                  (context, i) => _PlatformCard(
-                                    platform: filtered[i],
-                                    heroTag: 'platform-logo-${filtered[i].id}',
-                                  ),
-                                  childCount: filtered.length,
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                          child: Text(
-                            l10n.platformsAndGamesCount(
-                              filtered.length,
-                              filtered.fold<int>(0, (s, p) => s + p.romCount),
-                            ),
-                            style: const TextStyle(
-                              color: Colors.white38,
-                              fontSize: 12,
-                            ),
+                          style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 12,
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  );
-                },
+                    ),
+                  ],
+                ),
               );
+            },
+          );
     return Scaffold(
       body: GameVideoBackground(
         child: Column(
@@ -606,6 +604,7 @@ class _PlatformCard extends ConsumerWidget {
         : null;
 
     final localAsset = PlatformAssetResolver.resolve(platform);
+    final machineAsset = PlatformMachineAssetResolver.resolve(platform);
 
     Widget logoContent;
     if (localAsset != null) {
@@ -630,6 +629,10 @@ class _PlatformCard extends ConsumerWidget {
         color: Colors.transparent,
       );
     }
+
+    final hasLogo =
+        localAsset != null ||
+        (platform.logoUrl != null && platform.logoUrl!.isNotEmpty);
 
     // Hero visible y más lento: vuelo con arc + fade/scale, placeholder transparente
     final heroLogo = Hero(
@@ -667,11 +670,43 @@ class _PlatformCard extends ConsumerWidget {
       child: Material(
         type: MaterialType.transparency,
         child: Padding(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           child: Center(child: logoContent),
         ),
       ),
     );
+
+    // Header arriba: titulo o logo centrado
+    final header = Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      alignment: Alignment.center,
+      child: hasLogo
+          ? heroLogo
+          : Text(
+              platform.displayName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: textPrimary,
+                fontSize: 13.5,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+    );
+
+    // Centro: imagen de máquina si existe, si no vacío
+    Widget machineContent;
+    if (machineAsset != null) {
+      machineContent = Image.asset(
+        machineAsset,
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      );
+    } else {
+      machineContent = const SizedBox.shrink();
+    }
 
     // Card con glassmorphism + fallback a DashboardBackground si blur falla
     final cardChild = Container(
@@ -697,55 +732,41 @@ class _PlatformCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          header,
           Expanded(
-            child: Container(margin: const EdgeInsets.all(10), child: heroLogo),
+            child: Container(
+              margin: const EdgeInsets.fromLTRB(10, 2, 10, 6),
+              child: Center(child: machineContent),
+            ),
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
               children: [
-                Text(
-                  platform.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: textPrimary,
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.18),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accent.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    l10n.gamesCount(platform.romCount),
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Text(
-                        l10n.gamesCount(platform.romCount),
-                        style: TextStyle(
-                          color: accent,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    const Spacer(),
-                    Icon(
-                      Icons.chevron_right_rounded,
-                      color: textSecondary.withValues(alpha: 0.6),
-                      size: 16,
-                    ),
-                  ],
+                const Spacer(),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  color: textSecondary.withValues(alpha: 0.6),
+                  size: 16,
                 ),
               ],
             ),
@@ -818,8 +839,8 @@ class _PlatformLogoImage extends StatelessWidget {
       fit: BoxFit.contain,
       placeholder: (context, _) => const Center(
         child: SizedBox(
-          width: 20,
-          height: 20,
+          width: 30,
+          height: 30,
           child: CircularProgressIndicator(strokeWidth: 2),
         ),
       ),

@@ -133,6 +133,7 @@ flutter:
     - assets/images/videogames/platforms/Handhelds/
     - assets/images/videogames/platforms/Arcade/
     - assets/images/videogames/platforms/Computers/ScummVM.png
+    - assets/images/videogames/machines/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
