@@ -41,7 +41,9 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
     final program = channel != null
         ? state.currentProgramOf(channel.id, widget.now)
         : null;
-    final hideVideo = ui.floating || ui.fullscreen;
+    // En la tab Radio no se monta la textura de vídeo (el audio sigue).
+    final tabActive = ref.watch(liveTvTabActiveProvider);
+    final hideVideo = ui.floating || ui.fullscreen || !tabActive;
 
     ref.listen<Object?>(
       liveTvStateProvider.select((s) => s.selectedChannelId),

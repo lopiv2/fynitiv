@@ -25,6 +25,7 @@ class RadioView extends ConsumerWidget {
 
     final featuredAsync = ref.watch(radioFeaturedByCountryProvider);
     final favs = ref.watch(radioFavoritesProvider);
+    final favStationsAsync = ref.watch(radioFavoriteStationsProvider);
     final player = ref.watch(soloudMusicProvider);
     final selected = ref.watch(radioSelectedStationProvider);
     final isRadioPlaying = player.session?.itemId == 'radio' && player.playing;
@@ -71,6 +72,62 @@ class RadioView extends ConsumerWidget {
           const SliverPadding(
             padding: EdgeInsets.fromLTRB(16, 0, 16, 16),
             sliver: SliverToBoxAdapter(child: RadioGenreChips()),
+          ),
+          // Favoritas entre géneros y destacadas (oculta si no hay).
+          ...favStationsAsync.when(
+            data: (stations) => stations.isEmpty
+                ? const <Widget>[
+                    SliverToBoxAdapter(child: SizedBox.shrink()),
+                  ]
+                : <Widget>[
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                      sliver: SliverToBoxAdapter(
+                        child: Text(
+                          l10n.radioFavorites,
+                          style: TextStyle(
+                            color: skin.textPrimary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 300,
+                          mainAxisSpacing: 12,
+                          crossAxisSpacing: 12,
+                          childAspectRatio: 1.85,
+                        ),
+                        delegate: SliverChildBuilderDelegate((context, i) {
+                          final s = stations[i];
+                          final isPlaying =
+                              isRadioPlaying && playingName == s.name;
+                          return StationCard(
+                            station: s,
+                            skin: skin,
+                            isPlaying: isPlaying,
+                            isFav: true,
+                          );
+                        }, childCount: stations.length),
+                      ),
+                    ),
+                  ],
+            loading: () => const <Widget>[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.symmetric(vertical: 8),
+                  child: Center(child: AppLoader()),
+                ),
+              ),
+            ],
+            error: (e, _) => const <Widget>[
+              SliverToBoxAdapter(child: SizedBox.shrink()),
+            ],
           ),
           // Emisoras destacadas header
           SliverPadding(

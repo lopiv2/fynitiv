@@ -6,6 +6,7 @@ import '../../../core/theme/dashboard_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../radio/presentation/radio_screen.dart';
 import '../application/live_state.dart';
+import '../application/live_tv_ui.dart';
 import 'live_tv_tab.dart';
 
 /// Live TV + Radio con dos tabs (TV / Radio).
@@ -30,10 +31,16 @@ class _LiveTvScreenState extends ConsumerState<LiveTvScreen>
       if (_tabController.index != _prevTabIndex &&
           !_tabController.indexIsChanging) {
         _prevTabIndex = _tabController.index;
+        ref
+            .read(liveTvTabActiveProvider.notifier)
+            .setActive(_tabController.index == 0);
         if (mounted) setState(() {});
       } else if (_tabController.indexIsChanging &&
           _tabController.index != _prevTabIndex) {
         _prevTabIndex = _tabController.index;
+        ref
+            .read(liveTvTabActiveProvider.notifier)
+            .setActive(_tabController.index == 0);
         if (mounted) setState(() {});
       }
     });

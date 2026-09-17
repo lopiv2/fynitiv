@@ -33,7 +33,10 @@ class LiveTvTab extends ConsumerStatefulWidget {
 class _LiveTvTabState extends ConsumerState<LiveTvTab> with WidgetsBindingObserver {
   final EpgViewportController _viewport = EpgViewportController();
   late final Timer _clock = Timer.periodic(const Duration(seconds: 30), (_) {
-    if (mounted) setState(() => _now = DateTime.now());
+    if (!mounted) return;
+    // En la tab Radio no se reconstruye nada de Live TV.
+    if (!ref.read(liveTvTabActiveProvider)) return;
+    setState(() => _now = DateTime.now());
   });
   DateTime _now = DateTime.now();
   bool _playerDisposed = false;
@@ -109,12 +112,17 @@ class _LiveTvTabState extends ConsumerState<LiveTvTab> with WidgetsBindingObserv
   void _stopPlayerSync() {
     if (_playerDisposed) return;
     _playerDisposed = true;
-    // Cierre sin await y sin ref — seguro en dispose
-    try {
-      _playerNotifier.close();
-    } catch (_) {
-      // Fallback silencioso: no usar ref
-    }
+    // Diferido fuera del ciclo de vida: dispose puede ocurrir durante un
+    // build (transición del router) y Riverpod no permite modificar
+    // providers ahí ("Tried to modify a provider while building").
+    // Sin ref y sin await — seguro en dispose.
+    Future(() {
+      try {
+        _playerNotifier.close();
+      } catch (_) {
+        // Fallback silencioso: no usar ref
+      }
+    });
   }
 
   void _selectChannel(Channel channel) {

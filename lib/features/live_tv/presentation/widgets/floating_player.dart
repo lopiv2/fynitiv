@@ -31,6 +31,7 @@ class _FloatingPlayerState extends ConsumerState<FloatingPlayer> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final state = ref.watch(liveTvStateProvider);
+    final tabActive = ref.watch(liveTvTabActiveProvider);
     final controller = ref.read(liveTvPlayerProvider.notifier).videoController;
     final channel = state.selectedChannel;
     final program =
@@ -65,12 +66,22 @@ class _FloatingPlayerState extends ConsumerState<FloatingPlayer> {
             child: Stack(
               children: [
                 Positioned.fill(
-                  child: Video(
-                    controller: controller,
-                    controls: NoVideoControls,
-                    fit: BoxFit.contain,
-                    fill: const Color(0xFF000000),
-                  ),
+                  child: tabActive
+                      ? Video(
+                          controller: controller,
+                          controls: NoVideoControls,
+                          fit: BoxFit.contain,
+                          fill: const Color(0xFF000000),
+                        )
+                      : Container(
+                          color: Colors.black,
+                          alignment: Alignment.center,
+                          child: const Icon(
+                            Icons.live_tv,
+                            color: Colors.white24,
+                            size: 40,
+                          ),
+                        ),
                 ),
                 // Barra superior con la info del programa (también arrastra).
                 Positioned(

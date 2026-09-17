@@ -31,3 +31,18 @@ final liveTvUiProvider =
     NotifierProvider<LiveTvUiController, LiveTvUiState>(
   LiveTvUiController.new,
 );
+
+/// True mientras la tab TV está visible (false en la tab Radio).
+/// Los vídeos (preview + flotante) y el reloj de la EPG lo usan para no
+/// renderizar ni reconstruir nada en segundo plano. El audio no se toca.
+final liveTvTabActiveProvider =
+    NotifierProvider<LiveTvTabActiveController, bool>(
+  LiveTvTabActiveController.new,
+);
+
+class LiveTvTabActiveController extends Notifier<bool> {
+  @override
+  bool build() => true;
+
+  void setActive(bool value) => state = value;
+}
