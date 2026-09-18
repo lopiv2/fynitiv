@@ -430,16 +430,16 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
           duration: const Duration(milliseconds: 180),
           curve: Curves.easeOut,
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(radius * 12),
+            borderRadius: BorderRadius.circular(radius * 2),
             border: Border.all(
               color: isImageHovered ? Colors.white : Colors.transparent,
               width: isImageHovered ? 3.5 : 0,
             ),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(radius * 6),
+            borderRadius: BorderRadius.circular(radius * 2),
             child: HoverPlayRadius(
-              radius: radius * 6,
+              radius: radius * 2,
               child: AspectRatio(
                 aspectRatio: 16 / 9,
                 child: Stack(
@@ -458,7 +458,7 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
                       // no "cortar" las esquinas con el borde del hover.
                       child: ClipRRect(
                         borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(radius * 6),
+                          bottom: Radius.circular(radius * 2),
                         ),
                         child: DecoratedBox(
                           decoration: BoxDecoration(

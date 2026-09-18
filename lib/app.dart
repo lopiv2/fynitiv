@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' as fm;
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -35,15 +36,19 @@ class FynitivApp extends ConsumerWidget {
       ],
       routerConfig: router,
       debugShowCheckedModeBanner: false,
-      builder: (context, child) => DeviceSimulatorHost(
-        // Material de Flutter global: `material_ui` usa su PROPIO Material
-        // (tipo distinto), así que los widgets de Flutter (TextField, etc.) no
-        // encontraban un Material de su tipo y fallaban. Al envolver la app
-        // entera con el Material de Flutter, todos los widgets de Flutter
-        // tienen su ancestro Material sin envolver cada pantalla.
-        child: fm.Material(
-          type: fm.MaterialType.transparency,
-          child: child ?? const SizedBox.shrink(),
+      // Sistema universal de notificaciones (toasts): no depende de
+      // ScaffoldMessenger ni del contexto, ver AGENTS.md.
+      builder: EasyLoading.init(
+        builder: (context, child) => DeviceSimulatorHost(
+          // Material de Flutter global: `material_ui` usa su PROPIO Material
+          // (tipo distinto), así que los widgets de Flutter (TextField, etc.) no
+          // encontraban un Material de su tipo y fallaban. Al envolver la app
+          // entera con el Material de Flutter, todos los widgets de Flutter
+          // tienen su ancestro Material sin envolver cada pantalla.
+          child: fm.Material(
+            type: fm.MaterialType.transparency,
+            child: child ?? const SizedBox.shrink(),
+          ),
         ),
       ),
     );

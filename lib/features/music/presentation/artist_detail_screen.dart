@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/artist_logo_name.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../player/application/playback_provider.dart';
 import '../application/music_player_provider.dart';
@@ -181,7 +182,13 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
                     bottom: 32,
                     right: 24,
                     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text(widget.artistName, maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                      ArtistLogoName(
+                        artistName: widget.artistName,
+                        artistEntity: widget.jellyfinArtist,
+                        serverUrl: serverUrl,
+                        logoHeight: 120,
+                        textStyle: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w900, letterSpacing: -1),
+                      ),
                       const SizedBox(height: 6),
                       if (deezerDetailAsync != null)
                         deezerDetailAsync.when(
@@ -371,12 +378,19 @@ class _ArtistDetailScreenState extends ConsumerState<ArtistDetailScreen> {
       hasMore = total > jellyAll.length;
     }
     final isLoading = firstLoading || deezerAsync.isLoading;
+    final appBarTitle = ArtistLogoName(
+      artistName: widget.artistName,
+      artistEntity: widget.jellyfinArtist,
+      serverUrl: serverUrl,
+      logoHeight: 28,
+      textStyle: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
+    );
     if (isLoading) {
-      return Scaffold(backgroundColor: const Color(0xFF121212), appBar: AppBar(title: Text(widget.artistName, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)), body: const Center(child: AppLoader()));
+      return Scaffold(backgroundColor: const Color(0xFF121212), appBar: AppBar(title: appBarTitle, backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)), body: const Center(child: AppLoader()));
     }
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(title: Text(widget.artistName, style: const TextStyle(color: Colors.white)), backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)),
+      appBar: AppBar(title: appBarTitle, backgroundColor: const Color(0xFF121212), iconTheme: const IconThemeData(color: Colors.white)),
       body: ListView(
         controller: _scrollController,
         padding: const EdgeInsets.all(24),

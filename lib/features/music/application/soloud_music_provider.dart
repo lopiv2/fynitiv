@@ -10,6 +10,7 @@ import 'dart:developer' as developer;
 import '../../library/application/image_url.dart';
 import '../../player/application/playback_provider.dart';
 import '../../../core/audio/soloud_initializer.dart';
+import '../../../core/audio/app_volume_provider.dart';
 import 'audio_eq_provider.dart';
 
 /// Motor activo para playback de música.
@@ -189,7 +190,24 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     });
     // Reaplicar EQ cuando cambie el estado (incluido al iniciar)
     ref.listen<AudioEqState>(audioEqProvider, (prev, next) => _applyEq(next));
+    // Volumen universal: aplica al estado y al motor en vivo sin reescribir
+    // el global (evita bucles: este camino nunca llama a setVolume global).
+    ref.listen<double>(appVolumeProvider, (prev, next) => _applyGlobalVolume(next));
     return const SoloudMusicState();
+  }
+
+  void _applyGlobalVolume(double v) {
+    final clamped = v.clamp(0, 100).toDouble();
+    state = state.copyWith(volume: clamped);
+    if (state.engine == PlaybackEngine.soloud && _handle != null) {
+      try {
+        SoLoud.instance.setVolume(_handle!, clamped / 100.0);
+      } catch (_) {}
+    } else if (state.engine == PlaybackEngine.mediaKit) {
+      try {
+        _fallbackPlayer?.setVolume(clamped);
+      } catch (_) {}
+    }
   }
 
   void _applyEq(AudioEqState eq) {
@@ -347,14 +365,14 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
       }
     }
 
-    // Fallback MediaKit (HLS o error SoLoud)
+    // Fallback MediaKit (HLS o error SoLoud): aplicar siempre el volumen
+    // efectivo (global si no se pasa explícito), no el 100 del Player nuevo.
     try {
       final p = _fallback;
-      if (volume != null) {
-        try {
-          await p.setVolume(volume);
-        } catch (_) {}
-      }
+      final startVol = (volume ?? state.volume).clamp(0, 100).toDouble();
+      try {
+        await p.setVolume(startVol);
+      } catch (_) {}
       await p.open(
         Media(
           session.streamUrl,
@@ -479,6 +497,7 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
 
   void stop() {
     _stopPosTimer();
+    final keptVolume = state.volume;
     if (_handle != null) {
       try {
         SoLoud.instance.stop(_handle!);
@@ -494,7 +513,8 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     try {
       _fallbackPlayer?.stop();
     } catch (_) {}
-    state = const SoloudMusicState();
+    // Parar no resetea el volumen universal: la siguiente canción lo hereda.
+    state = SoloudMusicState(volume: keptVolume);
   }
 
   void seek(Duration pos) {
@@ -516,6 +536,10 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
 
   void setVolume(double v) {
     final clamped = v.clamp(0, 100).toDouble();
+    // Publica al volumen universal (el listener lo reaplica sin bucle).
+    try {
+      ref.read(appVolumeProvider.notifier).setVolume(clamped);
+    } catch (_) {}
     if (state.engine == PlaybackEngine.soloud && _handle != null) {
       try {
         SoLoud.instance.setVolume(_handle!, clamped / 100.0);

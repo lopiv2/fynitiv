@@ -82,6 +82,8 @@ dependencies:
   animated_gradient: ^0.0.3
   flutter_soloud: ^5.1.0
   audio_flux: ^2.0.0
+  # Sistema universal de notificaciones/toasts en toda la app
+  flutter_easyloading: ^4.0.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

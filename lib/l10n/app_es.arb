@@ -490,5 +490,11 @@
   "radioSeeAll": "Ver todas >",
   "radioGenres": "Géneros",
   "radioAllStations": "Todas las emisoras",
-  "radioStations": "emisoras"
+  "radioStations": "emisoras",
+  "autoEq": "Auto-EQ por género",
+  "autoEqOff": "Auto-EQ desactivado",
+  "autoEqApplied": "Auto-EQ: {preset} (género: {genre})",
+  "@autoEqApplied": {"placeholders": {"preset": {"type": "String"}, "genre": {"type": "String"}}},
+  "autoEqNoMatch": "Auto-EQ: sin preajuste para este género",
+  "autoEqTooltip": "Aplica el preajuste de ecualizador según el género de la canción. Si no coincide con ningún perfil, mantiene el actual."
 }

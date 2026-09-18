@@ -129,7 +129,6 @@ abstract final class SkinPresets {
           genres: [],
           imageSource: RowImageSource.thumb,
           cardType: HomeScrollCardType.backdrop,
-          cardBorderRadius: 1,
           tapAction: HomeScrollTapAction.play,
           showHoverOverlay: false,
           showPlayIcon: true,

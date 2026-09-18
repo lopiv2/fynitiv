@@ -1980,6 +1980,25 @@ final trailerStreamProvider = FutureProvider.family<String?, BaseItemDto>((
   return null;
 });
 
+/// Quita tildes/diacríticos (para comparar nombres con/sin acento).
+/// Cubre tildes precompuestas (NFC: á) y marcas combinantes (NFD: a + ́).
+String _stripAccents(String s) {
+  var v = s;
+  const from = 'áéíóúüñàèìòùâêîôûäëïöçÁÉÍÓÚÜÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÇ';
+  const to = 'aeiouunaeiooaeiouaeiocAEIOUUNAEIOOAEIOUAEIOC';
+  for (int i = 0; i < from.length; i++) {
+    v = v.replaceAll(from[i], to[i]);
+  }
+  // Marcas diacríticas combinantes U+0300..U+036F (forma NFD).
+  v = v.replaceAll(RegExp('[\u0300-\u036f]'), '');
+  return v;
+}
+
+/// Normaliza un nombre de artista para comparar (minúsculas, sin tildes).
+/// Evita que "Rosalía" no coincida por la tilde o por una normalización
+/// Unicode distinta entre Deezer y la biblioteca.
+String _normArtistName(String s) => _stripAccents(s.toLowerCase().trim());
+
 /// Artista Jellyfin por nombre (para logo / imagen). Cache 5 min.
 final artistEntityByNameProvider = FutureProvider.family<BaseItemDto?, String>((ref, name) async {
   ref.cacheFor(const Duration(minutes: 5));
@@ -1987,26 +2006,71 @@ final artistEntityByNameProvider = FutureProvider.family<BaseItemDto?, String>((
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null || name.trim().isEmpty) return null;
   final q = name.trim();
-  // 1) AlbumArtists search (contiene logo/primary)
-  try {
-    final res = await client.getArtistsApi().getAlbumArtists(
-      userId: userId,
-      searchTerm: q,
-      limit: 5,
-      fields: [ItemFields.primaryImageAspectRatio],
-      enableImageTypes: [ImageType.primary, ImageType.logo, ImageType.thumb],
-      enableImages: true,
-    );
-    final items = res.data?.items ?? const <BaseItemDto>[];
-    for (final a in items) {
-      if ((a.name ?? '').toLowerCase().trim() == q.toLowerCase()) return a;
+  final nq = _normArtistName(q);
+  // 1) AlbumArtists search (contiene logo/primary). Si no hay resultados y
+  // el nombre lleva tildes, se reintenta sin ellas (bibliotecas etiquetadas
+  // sin acentos, ej. "Rosalia").
+  Future<List<BaseItemDto>> searchArtists(String term) async {
+    try {
+      final res = await client.getArtistsApi().getAlbumArtists(
+        userId: userId,
+        searchTerm: term,
+        limit: 5,
+        fields: [ItemFields.primaryImageAspectRatio],
+        enableImageTypes: [ImageType.primary, ImageType.logo, ImageType.thumb],
+        enableImages: true,
+      );
+      return res.data?.items ?? const <BaseItemDto>[];
+    } catch (_) {
+      return const <BaseItemDto>[];
     }
-    if (items.isNotEmpty) return items.first;
-  } catch (_) {}
-  // 2) getArtistByName
-  try {
-    final res = await client.getArtistsApi().getArtistByName(name: q, userId: userId).timeout(const Duration(seconds: 8));
-    if (res.data != null) return res.data;
-  } catch (_) {}
+  }
+
+  // Coincidencia insensible a tildes: exacta primero, por contención después.
+  // Ante varias entidades con el mismo nombre (duplicados en la biblioteca),
+  // se prefiere la que tenga logo: la primera puede venir sin imágenes.
+  bool hasLogo(BaseItemDto a) =>
+      a.imageTags?.keys.any((k) => k.toLowerCase() == 'logo') ?? false;
+
+  BaseItemDto? matchIn(List<BaseItemDto> items) {
+    final exact = items
+        .where((a) => _normArtistName(a.name ?? '') == nq)
+        .toList();
+    for (final a in exact) {
+      if (hasLogo(a)) return a;
+    }
+    if (exact.isNotEmpty) return exact.first;
+    final partial = items.where((a) {
+      final na = _normArtistName(a.name ?? '');
+      return na.isNotEmpty && (na.contains(nq) || nq.contains(na));
+    }).toList();
+    for (final a in partial) {
+      if (hasLogo(a)) return a;
+    }
+    if (partial.isNotEmpty) return partial.first;
+    return null;
+  }
+
+  var items = await searchArtists(q);
+  final hit = matchIn(items);
+  if (hit != null) return hit;
+  final plain = _stripAccents(q);
+  if (plain != q) {
+    items = await searchArtists(plain);
+    final hitPlain = matchIn(items);
+    if (hitPlain != null) return hitPlain;
+  }
+  // 2) getArtistByName. El nombre va en el path: hay que codificarlo, si no
+  // los caracteres no ASCII (la í de "Rosalía") rompen la petición en
+  // jellyfin_dart (lo interpola en crudo).
+  for (final candidate in [q, if (plain != q) plain]) {
+    try {
+      final res = await client
+          .getArtistsApi()
+          .getArtistByName(name: Uri.encodeComponent(candidate), userId: userId)
+          .timeout(const Duration(seconds: 8));
+      if (res.data != null) return res.data;
+    } catch (_) {}
+  }
   return null;
 });

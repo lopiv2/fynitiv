@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:material_ui/material_ui.dart';
 
 import '../../application/audio_eq_provider.dart';
 import '../../application/soloud_music_provider.dart';
@@ -198,8 +200,14 @@ class AudioEqDrawer extends ConsumerWidget {
                       Expanded(
                         child: OutlinedButton(
                           onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Preajuste guardado'), backgroundColor: Color(0xFF1E1E2E)),
+                            // Sistema universal de notificaciones (ver AGENTS.md).
+                            unawaited(
+                              EasyLoading.showToast(
+                                'Preajuste guardado',
+                                toastPosition: EasyLoadingToastPosition.bottom,
+                                maskType: EasyLoadingMaskType.none,
+                                dismissOnTap: true,
+                              ),
                             );
                           },
                           style: OutlinedButton.styleFrom(

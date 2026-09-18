@@ -16,6 +16,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:palette_generator/palette_generator.dart';
 
 import '../../../core/audio/soloud_initializer.dart';
+import '../../../core/audio/app_volume_provider.dart';
 import '../../music/application/soloud_music_provider.dart';
 
 import '../../music/application/lrclib_providers.dart';
@@ -23,6 +24,7 @@ import '../../music/application/player_view_mode.dart';
 import '../../music/application/audio_eq_provider.dart';
 import '../../music/data/lrclib_repository.dart';
 import '../../music/presentation/widgets/audio_eq_drawer.dart';
+import '../../music/presentation/widgets/auto_eq_toggle.dart';
 import '../../library/application/library_providers.dart';
 
 import '../../../core/skin/music_player_skin_controller.dart';
@@ -131,9 +133,24 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         '?maxWidth=800';
   }
 
+  /// Géneros del audio para el Auto-EQ. El item de navegación suele venir
+  /// sin géneros (listas que no piden ese campo), así que se usa el detalle
+  /// completo del item como respaldo.
+  List<String>? get _audioGenres {
+    final nav = widget.item?.genres;
+    if (nav != null && nav.isNotEmpty) return nav;
+    final detail = ref.watch(itemDetailProvider(_session.itemId)).value;
+    return detail?.genres;
+  }
+
   @override
   void initState() {
     super.initState();
+    // Volumen universal como punto de partida (vídeo y fallback MediaKit).
+    try {
+      _volume = ref.read(appVolumeProvider).clamp(0, 100).toDouble();
+      _player.setVolume(_volume);
+    } catch (_) {}
     WidgetsBinding.instance.addObserver(this);
     // `auto-copy` evita el desfase A/V que algunos GPUs/drivers producen con
     // la decodificación directa por hardware (`auto`) junto a `vo=libmpv`.
@@ -357,14 +374,16 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         try {
           ref.read(musicPlayerProvider.notifier).stop();
         } catch (_) {}
-        // Abrir via SoLoud primario (con fallback MediaKit interno)
+        // Abrir via SoLoud primario (con fallback MediaKit interno).
+        // Sin handoff se pasa null para heredar el volumen universal.
         Duration? miniPos;
-        double miniVol = 100;
+        double? miniVol;
         if (soloudMini.hasItem && soloudId == curId) {
           miniPos = soloudMini.position;
-          miniVol = soloudMini.volume;
-          _volume = miniVol;
-          if (mounted) setState(() => _volume = miniVol);
+          final hv = soloudMini.volume;
+          miniVol = hv;
+          _volume = hv;
+          if (mounted) setState(() => _volume = hv);
         } else {
           // Si había otro track en SoLoud, se sobreescribe
         }
@@ -375,9 +394,10 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
             if (mini.hasItem &&
                 (mini.item?.id ?? mini.session?.itemId) == curId) {
               miniPos = mini.position;
-              miniVol = mini.volume;
-              _volume = miniVol;
-              if (mounted) setState(() => _volume = miniVol);
+              final hv = mini.volume;
+              miniVol = hv;
+              _volume = hv;
+              if (mounted) setState(() => _volume = hv);
             }
           } catch (_) {}
         }
@@ -389,6 +409,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
               start: miniPos,
               volume: miniVol,
             );
+        _volume = ref.read(soloudMusicProvider).volume;
+        if (mounted) setState(() {});
         try {
           await _player.pause();
         } catch (_) {}
@@ -397,9 +419,10 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         // Si SoLoud falla, caer a MediaKit local
       }
     }
-    // Si viene desde el mini-player (mismo track), heredar volumen/posición y pausar mini para no solapar
+    // Si viene desde el mini-player (mismo track), heredar volumen/posición
+    // y pausar mini para no solapar. Sin handoff, volumen universal.
     Duration? miniPos;
-    double miniVol = 100;
+    double? miniVol;
     try {
       final mini = ref.read(musicPlayerProvider);
       if (mini.hasItem) {
@@ -407,16 +430,17 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         final curId = _session.itemId;
         if (miniId != null && miniId == curId) {
           miniPos = mini.position;
-          miniVol = mini.volume;
+          final hv = mini.volume;
+          miniVol = hv;
           if (mini.playing) {
             // Pausar mini para la transición inversa sin doble audio
             ref.read(musicPlayerProvider.notifier).pause();
           }
-          _volume = miniVol;
+          _volume = hv;
           try {
-            await _player.setVolume(miniVol);
+            await _player.setVolume(hv);
           } catch (_) {}
-          if (mounted) setState(() => _volume = miniVol);
+          if (mounted) setState(() => _volume = hv);
         } else {
           // Mini con otra pista: limpiarlo para no dejar dos audios
           ref.read(musicPlayerProvider.notifier).stop();
@@ -443,6 +467,14 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         ),
       );
       await _player.play();
+      // Aplicar volumen: handoff del mini o universal. El Player nuevo
+      // arranca a 100 por defecto y hay que corregirlo siempre.
+      final double startVol = miniVol ?? ref.read(appVolumeProvider);
+      _volume = startVol.clamp(0, 100).toDouble();
+      try {
+        await _player.setVolume(_volume);
+      } catch (_) {}
+      if (mounted) setState(() {});
       // Si venía del mini, miniPos tiene prioridad sobre session.start
       if (miniPos != null && miniPos > Duration.zero) {
         try {
@@ -668,6 +700,17 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   @override
   Widget build(BuildContext context) {
+    // El vídeo local sigue al volumen universal si cambia desde otra
+    // pantalla (el audio va por soloudMusicProvider, ya sincronizado).
+    ref.listen<double>(appVolumeProvider, (prev, next) {
+      if (!mounted || _isAudio) return;
+      if ((_volume - next).abs() < 0.001) return;
+      _volume = next;
+      try {
+        _player.setVolume(next);
+      } catch (_) {}
+      if (mounted) setState(() {});
+    });
     // Estado SoLoud para audio: primario, con fallback a MediaKit local
     final soloudState = _isAudio ? ref.watch(soloudMusicProvider) : null;
     final hasSoloud = soloudState != null && soloudState.hasItem;
@@ -702,6 +745,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       artist: widget.item?.artists?.join(', ') ?? '',
                       album: widget.item?.album ?? '',
                       year: widget.item?.productionYear,
+                      genres: _audioGenres,
                       logoUrl: widget.item != null
                           ? itemLogoUrl(_session.serverUrl, widget.item!)
                           : null,
@@ -731,6 +775,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                         } else {
                           setState(() => _volume = v);
                           _player.setVolume(v);
+                          try {
+                            ref.read(appVolumeProvider.notifier).setVolume(v);
+                          } catch (_) {}
                         }
                       },
                       onToggleFullscreen: _toggleFullscreen,
@@ -1025,6 +1072,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                             } else {
                               setState(() => _volume = v);
                               _player.setVolume(v);
+                              try {
+                                ref.read(appVolumeProvider.notifier).setVolume(v);
+                              } catch (_) {}
                             }
                           },
                         ),
@@ -1473,6 +1523,7 @@ class _AudioCover extends ConsumerStatefulWidget {
     required this.artist,
     required this.album,
     this.year,
+    this.genres,
     this.logoUrl,
     this.serverUrl,
     required this.playing,
@@ -1496,6 +1547,7 @@ class _AudioCover extends ConsumerStatefulWidget {
   final String artist;
   final String album;
   final int? year;
+  final List<String>? genres;
   final String? logoUrl;
   final String? serverUrl;
   final bool playing;
@@ -1532,12 +1584,52 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-EQ inicial al abrir la pantalla.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _maybeApplyAutoEq(showFeedback: false);
+    });
+  }
+
+  void _maybeApplyAutoEq({bool showFeedback = true}) {
+    try {
+      final eq = ref.read(audioEqProvider);
+      if (!eq.autoEq) return;
+      final applied =
+          ref.read(audioEqProvider.notifier).applyAutoEqForGenres(widget.genres);
+      if (showFeedback && mounted) {
+        // Solo avisar si ha habido cambio real de canción (lo llama
+        // didUpdateWidget) o si hay coincidencia en la apertura.
+        if (applied != null) {
+          showAutoEqFeedback(context, applied);
+        } else if (oldGenresKey != _genresKey(widget.genres)) {
+          showAutoEqFeedback(context, null);
+        }
+      }
+    } catch (_) {}
+  }
+
+  String _genresKey(List<String>? g) =>
+      (g ?? const []).map((e) => e.trim().toLowerCase()).join('|');
+  String? oldGenresKey;
+
+  @override
   void didUpdateWidget(covariant _AudioCover oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.url != widget.url) {
       // No setState aquí: didUpdateWidget corre dentro del update del parent
       // y setState marcaría dirty durante el build -> !_dirty
       _palette = null;
+    }
+    if (oldWidget.url != widget.url ||
+        _genresKey(oldWidget.genres) != _genresKey(widget.genres)) {
+      oldGenresKey = _genresKey(oldWidget.genres);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _maybeApplyAutoEq(showFeedback: true);
+      });
     }
   }
 
@@ -1801,6 +1893,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       ),
                     ),
                     const Spacer(),
+                    AutoEqToggleButton(genres: widget.genres),
+                    const SizedBox(width: 10),
                     _CoverDarkButton(
                       icon: Icons.equalizer_rounded,
                       onTap: () =>
@@ -2047,6 +2141,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       ),
                     ),
                     const Spacer(),
+                    AutoEqToggleButton(genres: widget.genres),
+                    const SizedBox(width: 10),
                     _CoverDarkButton(
                       icon: Icons.equalizer_rounded,
                       onTap: () =>
@@ -2412,6 +2508,8 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       ),
                     ),
                     const Spacer(),
+                    AutoEqToggleButton(genres: widget.genres),
+                    const SizedBox(width: 10),
                     _CoverDarkButton(
                       icon: Icons.equalizer_rounded,
                       onTap: () =>
@@ -2815,7 +2913,7 @@ class _ArtistLogoOrName extends ConsumerWidget {
   final bool center;
 
   Widget _text() => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 12.0),
+    padding: const EdgeInsets.symmetric(horizontal: 0.0),
     child: Text(
       artist,
       maxLines: 1,

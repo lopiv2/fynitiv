@@ -1318,4 +1318,22 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get radioStations => 'emisoras';
+
+  @override
+  String get autoEq => 'Auto-EQ por género';
+
+  @override
+  String get autoEqOff => 'Auto-EQ desactivado';
+
+  @override
+  String autoEqApplied(String preset, String genre) {
+    return 'Auto-EQ: $preset (género: $genre)';
+  }
+
+  @override
+  String get autoEqNoMatch => 'Auto-EQ: sin preajuste para este género';
+
+  @override
+  String get autoEqTooltip =>
+      'Aplica el preajuste de ecualizador según el género de la canción. Si no coincide con ningún perfil, mantiene el actual.';
 }

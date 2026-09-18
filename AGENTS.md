@@ -24,6 +24,13 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 
 - Debes utilizar el loader en cualquier parte que este haciendo una peticion DIO a una Api de Jellyfin o externa mientras carga los datos
 
+## Sistema universal de notificaciones (flutter_easyloading)
+
+- Usar siempre `flutter_easyloading` como sistema universal de notificaciones/toasts en toda la app. No usar `ScaffoldMessenger`/`SnackBar` para avisos al usuario.
+- El paquete ya está configurado globalmente: `EasyLoading.init()` en el `builder` de `app.dart` y estilo oscuro corporativo en `main.dart` (`_configEasyLoading`).
+- Uso: `unawaited(EasyLoading.showToast(text, toastPosition: EasyLoadingToastPosition.bottom, maskType: EasyLoadingMaskType.none, dismissOnTap: true))`. Usar `showSuccess`/`showError`/`showInfo` cuando el mensaje sea de éxito/error/info. El `maskType.none` es obligatorio en toasts para no bloquear la interacción.
+- Los textos de las notificaciones siguen la norma de traducción con cadenas ARB (inglés y español mínimo).
+
 ## Utilizar siempre metodos de la api de jellyfin_dart
 
 - Debes utilizar metodos de la api del paquete jellyfin_dart con funciones para obtener datos de la api de Jellyfin cuando se pueda, para agilizar las llamadas a la api, y la obtencion de datos

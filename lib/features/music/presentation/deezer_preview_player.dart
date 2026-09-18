@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 
+import '../../../core/audio/app_volume_provider.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/deezer_providers.dart';
 
@@ -34,7 +35,12 @@ class _DeezerPreviewPlayerScreenState extends ConsumerState<DeezerPreviewPlayerS
   void initState() {
     super.initState();
     _player = Player();
-    // Baja el volumen antes de reproducir para que no suene alto al entrar
+    // Hereda el volumen universal en vez del fijo anterior.
+    try {
+      final global = ref.read(appVolumeProvider).clamp(0, 100).toDouble();
+      _volume = global;
+      _previousVolume = global > 0 ? global : 40;
+    } catch (_) {}
     _player.setVolume(_volume);
     _playingSub = _player.stream.playing.listen((v) {
       if (mounted) setState(() => _playing = v);
@@ -61,6 +67,9 @@ class _DeezerPreviewPlayerScreenState extends ConsumerState<DeezerPreviewPlayerS
       if (clamped > 0) _previousVolume = clamped;
     });
     _player.setVolume(clamped);
+    try {
+      ref.read(appVolumeProvider.notifier).setVolume(clamped);
+    } catch (_) {}
   }
 
   void _toggleMute() {

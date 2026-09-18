@@ -6,6 +6,7 @@ import 'package:media_kit/media_kit.dart';
 
 import '../../library/application/image_url.dart';
 import '../../player/application/playback_provider.dart';
+import '../../../core/audio/app_volume_provider.dart';
 
 /// Estado del mini reproductor global de música.
 class MusicPlayerState {
@@ -106,10 +107,20 @@ class MusicPlayerController extends Notifier<MusicPlayerState> {
     }));
   }
 
+  /// Aplica el volumen universal sin reescribirlo (evita bucles).
+  void _applyGlobalVolume(double v) {
+    final clamped = v.clamp(0, 100).toDouble();
+    state = state.copyWith(volume: clamped);
+    try {
+      _player?.setVolume(clamped);
+    } catch (_) {}
+  }
+
   @override
   MusicPlayerState build() {
     // Mantener vivo aunque no haya listeners (para segundo plano)
     ref.keepAlive();
+    ref.listen<double>(appVolumeProvider, (prev, next) => _applyGlobalVolume(next));
     ref.onDispose(() {
       _disposed = true;
       for (final s in _subs) {
@@ -150,11 +161,10 @@ class MusicPlayerController extends Notifier<MusicPlayerState> {
     // Guardar metadata de radio en el estado extendido vía copyWith con item null.
     // El título se resuelve desde session.itemName.
     try {
-      if (volume != null) {
-        try {
-          await p.setVolume(volume);
-        } catch (_) {}
-      }
+      final startVol = (volume ?? state.volume).clamp(0, 100).toDouble();
+      try {
+        await p.setVolume(startVol);
+      } catch (_) {}
       await p.open(
         Media(
           url,
@@ -175,12 +185,12 @@ class MusicPlayerController extends Notifier<MusicPlayerState> {
     final p = player;
     state = state.copyWith(item: item, session: session, error: null, clearError: true, completed: false, volume: volume ?? state.volume);
     try {
-      // Aplica volumen heredado antes de abrir para no solapar con el grande
-      if (volume != null) {
-        try {
-          await p.setVolume(volume);
-        } catch (_) {}
-      }
+      // Aplica siempre el volumen efectivo (global si no hay explícito),
+      // no el 100 por defecto del Player.
+      final startVol = (volume ?? state.volume).clamp(0, 100).toDouble();
+      try {
+        await p.setVolume(startVol);
+      } catch (_) {}
       await p.open(
         Media(
           session.streamUrl,
@@ -235,10 +245,12 @@ class MusicPlayerController extends Notifier<MusicPlayerState> {
   }
 
   void stop() {
+    final keptVolume = state.volume;
     try {
       player.stop();
     } catch (_) {}
-    state = const MusicPlayerState();
+    // Parar no resetea el volumen universal: la siguiente canción lo hereda.
+    state = MusicPlayerState(volume: keptVolume);
   }
 
   void seek(Duration pos) {
@@ -247,8 +259,12 @@ class MusicPlayerController extends Notifier<MusicPlayerState> {
   }
 
   void setVolume(double v) {
-    player.setVolume(v);
-    state = state.copyWith(volume: v);
+    final clamped = v.clamp(0, 100).toDouble();
+    player.setVolume(clamped);
+    state = state.copyWith(volume: clamped);
+    try {
+      ref.read(appVolumeProvider.notifier).setVolume(clamped);
+    } catch (_) {}
   }
 
   void seekBy(Duration delta) {

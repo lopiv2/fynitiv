@@ -2527,6 +2527,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'stations'**
   String get radioStations;
+
+  /// No description provided for @autoEq.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-EQ by genre'**
+  String get autoEq;
+
+  /// No description provided for @autoEqOff.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-EQ off'**
+  String get autoEqOff;
+
+  /// No description provided for @autoEqApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-EQ: {preset} (genre: {genre})'**
+  String autoEqApplied(String preset, String genre);
+
+  /// No description provided for @autoEqNoMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto-EQ: no matching preset for this genre'**
+  String get autoEqNoMatch;
+
+  /// No description provided for @autoEqTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies the equalizer preset matching the song genre. If there is no match, it keeps the current one.'**
+  String get autoEqTooltip;
 }
 
 class _AppLocalizationsDelegate

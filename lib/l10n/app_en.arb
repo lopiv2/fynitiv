@@ -493,5 +493,11 @@
   "radioSeeAll": "See all >",
   "radioGenres": "Genres",
   "radioAllStations": "All stations",
-  "radioStations": "stations"
+  "radioStations": "stations",
+  "autoEq": "Auto-EQ by genre",
+  "autoEqOff": "Auto-EQ off",
+  "autoEqApplied": "Auto-EQ: {preset} (genre: {genre})",
+  "@autoEqApplied": {"placeholders": {"preset": {"type": "String"}, "genre": {"type": "String"}}},
+  "autoEqNoMatch": "Auto-EQ: no matching preset for this genre",
+  "autoEqTooltip": "Applies the equalizer preset matching the song genre. If there is no match, it keeps the current one."
 }
