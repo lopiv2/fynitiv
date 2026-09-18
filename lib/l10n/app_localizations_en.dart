@@ -1334,4 +1334,94 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get autoEqTooltip =>
       'Applies the equalizer preset matching the song genre. If there is no match, it keeps the current one.';
+
+  @override
+  String get personBiography => 'Biography';
+
+  @override
+  String get personBorn => 'Born';
+
+  @override
+  String get personDied => 'Died';
+
+  @override
+  String get personFilmography => 'Filmography';
+
+  @override
+  String get personNoBiography => 'No biography available.';
+
+  @override
+  String get searchTypeMovie => 'Movie';
+
+  @override
+  String get searchTypeSeries => 'Series';
+
+  @override
+  String get searchTypeEpisode => 'Episode';
+
+  @override
+  String get searchTypeSong => 'Song';
+
+  @override
+  String get searchTypeAlbum => 'Album';
+
+  @override
+  String get searchTypePerson => 'Person';
+
+  @override
+  String get searchTypePlaylist => 'Playlist';
+
+  @override
+  String get searchTypeBook => 'Book';
+
+  @override
+  String get searchTypeAudioBook => 'Audiobook';
+
+  @override
+  String get searchTypeChannel => 'Channel';
+
+  @override
+  String get searchTypeProgram => 'Program';
+
+  @override
+  String get searchTypeVideo => 'Video';
+
+  @override
+  String get searchTypeMusicVideo => 'Music video';
+
+  @override
+  String get searchTypeTrailer => 'Trailer';
+
+  @override
+  String get artistTabSummary => 'Overview';
+
+  @override
+  String get artistTabRelated => 'Related artists';
+
+  @override
+  String get artistTabAbout => 'About';
+
+  @override
+  String get artistNoRelated => 'No related artists';
+
+  @override
+  String get discography => 'Discography';
+
+  @override
+  String get discographyPopular => 'Top titles';
+
+  @override
+  String get discographySinglesEps => 'Singles & EPs';
+
+  @override
+  String get discographySingle => 'Single';
+
+  @override
+  String get discographyEp => 'EP';
+
+  @override
+  String get artistInfoTitle => 'Info';
+
+  @override
+  String get artistWorldRank => 'in the world';
 }

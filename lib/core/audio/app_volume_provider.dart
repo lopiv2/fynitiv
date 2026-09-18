@@ -1,5 +1,3 @@
-import 'dart:developer' as developer;
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,7 +19,6 @@ class AppVolumeController extends Notifier<double> {
       final saved = prefs.getDouble(_kAppVolumeKey);
       if (saved != null) {
         state = saved.clamp(0, 100).toDouble();
-        developer.log('[Volume] cargado: $state', name: 'Volume');
       }
     } catch (_) {}
   }
@@ -37,7 +34,6 @@ class AppVolumeController extends Notifier<double> {
     final next = v.clamp(0, 100).toDouble();
     if ((next - state).abs() < 0.001) return;
     state = next;
-    developer.log('[Volume] global -> $next', name: 'Volume');
     _persist();
   }
 }

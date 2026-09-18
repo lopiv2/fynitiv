@@ -11,6 +11,7 @@ import '../features/household/presentation/household_wizard_screen.dart';
 import '../core/skin/home_scroll.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/item_detail_screen.dart';
+import '../features/library/presentation/person_detail_screen.dart';
 import '../features/library/presentation/library_view_screen.dart';
 import '../features/live_tv/presentation/live_fullscreen_player.dart';
 import '../features/live_tv/presentation/live_tv_screen.dart';
@@ -107,6 +108,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'details/:itemId',
                     builder: (context, state) =>
                         ItemDetailScreen(item: state.extra as BaseItemDto),
+                  ),
+                  GoRoute(
+                    path: 'person/:personId',
+                    builder: (context, state) =>
+                        PersonDetailScreen(person: state.extra as BaseItemDto),
                   ),
                 ],
               ),

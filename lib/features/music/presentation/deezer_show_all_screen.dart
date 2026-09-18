@@ -5,6 +5,7 @@ import '../../../core/skin/music_player_skin.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/deezer_providers.dart';
 import 'deezer_preview_player.dart';
+import 'widgets/media_card.dart';
 
 class DeezerShowAllScreen extends StatelessWidget {
   const DeezerShowAllScreen({
@@ -33,19 +34,55 @@ class DeezerShowAllScreen extends StatelessWidget {
       body: isTracks
           ? GridView.builder(
               padding: const EdgeInsets.all(24),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 170, mainAxisSpacing: 16, crossAxisSpacing: 16, childAspectRatio: 0.72),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 170,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.72,
+              ),
               itemCount: tracks.length,
               itemBuilder: (context, i) {
                 final t = tracks[i];
                 return GestureDetector(
-                  onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => DeezerPreviewPlayerScreen(track: t))),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => DeezerPreviewPlayerScreen(track: t),
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      ClipRRect(borderRadius: BorderRadius.circular(skin.cardRadius), child: AspectRatio(aspectRatio: 1, child: t.cover.isNotEmpty ? Image.network(t.cover, fit: BoxFit.cover) : Container(color: skin.accent.withValues(alpha: 0.15)))),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(skin.cardRadius),
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: t.cover.isNotEmpty
+                              ? Image.network(t.cover, fit: BoxFit.cover)
+                              : Container(
+                                  color: skin.accent.withValues(alpha: 0.15),
+                                ),
+                        ),
+                      ),
                       const SizedBox(height: 8),
-                      Text(t.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: skin.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                      Text(t.artistName, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: skin.textSecondary, fontSize: 11)),
+                      Text(
+                        t.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: skin.textPrimary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        t.artistName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: skin.textSecondary,
+                          fontSize: 11,
+                        ),
+                      ),
                     ],
                   ),
                 );
@@ -53,19 +90,30 @@ class DeezerShowAllScreen extends StatelessWidget {
             )
           : GridView.builder(
               padding: const EdgeInsets.all(24),
-              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(maxCrossAxisExtent: 150, mainAxisSpacing: 16, crossAxisSpacing: 16, childAspectRatio: 0.85),
+              gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                maxCrossAxisExtent: 160,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.85,
+              ),
               itemCount: artists.length,
               itemBuilder: (context, i) {
                 final a = artists[i];
-                return GestureDetector(
-                  onTap: () => context.push('/music/artist/${Uri.encodeComponent(a.name)}', extra: a),
-                  child: Column(
-                    children: [
-                      ClipOval(child: SizedBox(width: 120, height: 120, child: a.picture.isNotEmpty ? Image.network(a.picture, fit: BoxFit.cover) : Container(color: Colors.white12))),
-                      const SizedBox(height: 8),
-                      Text(a.name, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center, style: TextStyle(color: skin.textPrimary, fontSize: 13, fontWeight: FontWeight.w600)),
-                      Text(AppLocalizations.of(context)!.artist, style: TextStyle(color: skin.textSecondary, fontSize: 11)),
-                    ],
+                return MediaCard(
+                  title: a.name,
+                  subtitle: AppLocalizations.of(context)!.artist,
+                  circular: true,
+                  imageSize: 120,
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  textPrimary: skin.textPrimary,
+                  textSecondary: skin.textSecondary,
+                  playBackground: skin.accent,
+                  playSize: 42,
+                  centerText: true,
+                  onTap: () => context.push(
+                    '/music/artist/${Uri.encodeComponent(a.name)}',
+                    extra: a,
                   ),
                 );
               },

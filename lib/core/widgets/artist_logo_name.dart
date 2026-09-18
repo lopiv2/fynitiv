@@ -19,6 +19,7 @@ class ArtistLogoName extends ConsumerWidget {
     this.logoHeight = 56,
     this.textStyle,
     this.textAlign = TextAlign.start,
+    this.maxWidth,
   });
 
   final String artistName;
@@ -27,6 +28,11 @@ class ArtistLogoName extends ConsumerWidget {
   final double logoHeight;
   final TextStyle? textStyle;
   final TextAlign textAlign;
+
+  /// Ancho máximo del logo: los logos de Jellyfin suelen ser panorámicos y
+  /// en ventanas anchas sprawlean ocupando toda la cabecera (parece
+  /// centrado); acotarlo lo deja en bloque a la izquierda.
+  final double? maxWidth;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -64,7 +70,7 @@ class ArtistLogoName extends ConsumerWidget {
   }
 
   Widget _logoImage(String url, Widget fallback) {
-    return Image.network(
+    final image = Image.network(
       url,
       height: logoHeight,
       fit: BoxFit.contain,
@@ -73,5 +79,12 @@ class ArtistLogoName extends ConsumerWidget {
           : Alignment.centerLeft,
       errorBuilder: (_, _, _) => fallback,
     );
+    final capped = maxWidth == null
+        ? image
+        : ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth!),
+            child: Align(alignment: Alignment.centerLeft, child: image),
+          );
+    return capped;
   }
 }

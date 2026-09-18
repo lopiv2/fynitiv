@@ -1073,7 +1073,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                               setState(() => _volume = v);
                               _player.setVolume(v);
                               try {
-                                ref.read(appVolumeProvider.notifier).setVolume(v);
+                                ref
+                                    .read(appVolumeProvider.notifier)
+                                    .setVolume(v);
                               } catch (_) {}
                             }
                           },
@@ -1597,8 +1599,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
     try {
       final eq = ref.read(audioEqProvider);
       if (!eq.autoEq) return;
-      final applied =
-          ref.read(audioEqProvider.notifier).applyAutoEqForGenres(widget.genres);
+      final applied = ref
+          .read(audioEqProvider.notifier)
+          .applyAutoEqForGenres(widget.genres);
       if (showFeedback && mounted) {
         // Solo avisar si ha habido cambio real de canción (lo llama
         // didUpdateWidget) o si hay coincidencia en la apertura.
@@ -2283,7 +2286,7 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12.0),
+                          padding: const EdgeInsets.symmetric(horizontal: 10.0),
                           child: _ArtistLogoOrName(
                             artist: widget.artist,
                             serverUrl: widget.serverUrl,

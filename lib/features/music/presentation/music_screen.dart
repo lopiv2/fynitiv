@@ -156,7 +156,7 @@ class MusicAlbumScreen extends ConsumerWidget {
                       },
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 16),
                   Row(
                     children: [
                       if (album != null && serverUrl != null)
@@ -164,8 +164,8 @@ class MusicAlbumScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(mSkin?.cardRadius ?? 10),
                           child: Image.network(
                             itemImageUrl(serverUrl, album!),
-                            width: 64,
-                            height: 64,
+                            width: 120,
+                            height: 120,
                             fit: BoxFit.cover,
                             errorBuilder: (_, _, _) => const SizedBox.shrink(),
                           ),
@@ -218,6 +218,13 @@ class MusicAlbumScreen extends ConsumerWidget {
                         itemBuilder: (context, i) {
                           final track = list[i];
                           final index = (track.indexNumber ?? i + 1).toString();
+                          final ticks = track.runTimeTicks;
+                          String durStr = '';
+                          if (ticks != null && ticks > 0) {
+                            final ms = ticks ~/ 10000;
+                            durStr =
+                                '${ms ~/ 60000}:${((ms % 60000) ~/ 1000).toString().padLeft(2, '0')}';
+                          }
                           return ListTile(
                             leading: Text(
                               index,
@@ -251,6 +258,18 @@ class MusicAlbumScreen extends ConsumerWidget {
                                 return Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
+                                    if (durStr.isNotEmpty)
+                                      Text(
+                                        durStr,
+                                        style: TextStyle(
+                                          color:
+                                              mSkin?.textSecondary ??
+                                              Colors.white54,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    if (durStr.isNotEmpty)
+                                      const SizedBox(width: 12),
                                     IconButton(
                                       tooltip: 'Reproducir',
                                       icon: Icon(Icons.play_circle_fill_rounded, color: mSkin?.accent ?? Colors.white, size: 28),

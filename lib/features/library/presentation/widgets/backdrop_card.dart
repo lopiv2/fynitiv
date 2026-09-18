@@ -40,6 +40,7 @@ class BackdropCard extends ConsumerStatefulWidget {
     this.logoSize,
     this.hideTitle = false,
     this.hideYear = false,
+    this.subtitleOverride,
     this.showHoverOverlay = true,
     this.showPlayIcon = true,
     this.highlightTitleOnHover = false,
@@ -69,6 +70,11 @@ class BackdropCard extends ConsumerStatefulWidget {
   final double? logoSize;
   final bool hideTitle;
   final bool hideYear;
+
+  /// Subtítulo forzado bajo la tarjeta (y en el panel de hover). Si viene
+  /// no vacío sustituye al calculado por tipo (ej. en búsqueda se muestra
+  /// el tipo de resultado: persona, artista, canción...).
+  final String? subtitleOverride;
   final bool showHoverOverlay;
   final bool showPlayIcon;
   final bool highlightTitleOnHover;
@@ -287,6 +293,10 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
       }
       if (subtitle != null && subtitle.isEmpty) subtitle = null;
     }
+    // Subtítulo forzado (ej. búsqueda: tipo de resultado). Sustituye al
+    // calculado por tipo cuando viene no vacío.
+    final forced = widget.subtitleOverride?.trim();
+    if (forced != null && forced.isNotEmpty) subtitle = forced;
     if (widget.hideTitle) {
       cardTitle = '';
     }

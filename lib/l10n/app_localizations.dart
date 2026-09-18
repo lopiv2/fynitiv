@@ -2557,6 +2557,186 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Applies the equalizer preset matching the song genre. If there is no match, it keeps the current one.'**
   String get autoEqTooltip;
+
+  /// No description provided for @personBiography.
+  ///
+  /// In en, this message translates to:
+  /// **'Biography'**
+  String get personBiography;
+
+  /// No description provided for @personBorn.
+  ///
+  /// In en, this message translates to:
+  /// **'Born'**
+  String get personBorn;
+
+  /// No description provided for @personDied.
+  ///
+  /// In en, this message translates to:
+  /// **'Died'**
+  String get personDied;
+
+  /// No description provided for @personFilmography.
+  ///
+  /// In en, this message translates to:
+  /// **'Filmography'**
+  String get personFilmography;
+
+  /// No description provided for @personNoBiography.
+  ///
+  /// In en, this message translates to:
+  /// **'No biography available.'**
+  String get personNoBiography;
+
+  /// No description provided for @searchTypeMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'Movie'**
+  String get searchTypeMovie;
+
+  /// No description provided for @searchTypeSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get searchTypeSeries;
+
+  /// No description provided for @searchTypeEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'Episode'**
+  String get searchTypeEpisode;
+
+  /// No description provided for @searchTypeSong.
+  ///
+  /// In en, this message translates to:
+  /// **'Song'**
+  String get searchTypeSong;
+
+  /// No description provided for @searchTypeAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'Album'**
+  String get searchTypeAlbum;
+
+  /// No description provided for @searchTypePerson.
+  ///
+  /// In en, this message translates to:
+  /// **'Person'**
+  String get searchTypePerson;
+
+  /// No description provided for @searchTypePlaylist.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlist'**
+  String get searchTypePlaylist;
+
+  /// No description provided for @searchTypeBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Book'**
+  String get searchTypeBook;
+
+  /// No description provided for @searchTypeAudioBook.
+  ///
+  /// In en, this message translates to:
+  /// **'Audiobook'**
+  String get searchTypeAudioBook;
+
+  /// No description provided for @searchTypeChannel.
+  ///
+  /// In en, this message translates to:
+  /// **'Channel'**
+  String get searchTypeChannel;
+
+  /// No description provided for @searchTypeProgram.
+  ///
+  /// In en, this message translates to:
+  /// **'Program'**
+  String get searchTypeProgram;
+
+  /// No description provided for @searchTypeVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Video'**
+  String get searchTypeVideo;
+
+  /// No description provided for @searchTypeMusicVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Music video'**
+  String get searchTypeMusicVideo;
+
+  /// No description provided for @searchTypeTrailer.
+  ///
+  /// In en, this message translates to:
+  /// **'Trailer'**
+  String get searchTypeTrailer;
+
+  /// No description provided for @artistTabSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get artistTabSummary;
+
+  /// No description provided for @artistTabRelated.
+  ///
+  /// In en, this message translates to:
+  /// **'Related artists'**
+  String get artistTabRelated;
+
+  /// No description provided for @artistTabAbout.
+  ///
+  /// In en, this message translates to:
+  /// **'About'**
+  String get artistTabAbout;
+
+  /// No description provided for @artistNoRelated.
+  ///
+  /// In en, this message translates to:
+  /// **'No related artists'**
+  String get artistNoRelated;
+
+  /// No description provided for @discography.
+  ///
+  /// In en, this message translates to:
+  /// **'Discography'**
+  String get discography;
+
+  /// No description provided for @discographyPopular.
+  ///
+  /// In en, this message translates to:
+  /// **'Top titles'**
+  String get discographyPopular;
+
+  /// No description provided for @discographySinglesEps.
+  ///
+  /// In en, this message translates to:
+  /// **'Singles & EPs'**
+  String get discographySinglesEps;
+
+  /// No description provided for @discographySingle.
+  ///
+  /// In en, this message translates to:
+  /// **'Single'**
+  String get discographySingle;
+
+  /// No description provided for @discographyEp.
+  ///
+  /// In en, this message translates to:
+  /// **'EP'**
+  String get discographyEp;
+
+  /// No description provided for @artistInfoTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Info'**
+  String get artistInfoTitle;
+
+  /// No description provided for @artistWorldRank.
+  ///
+  /// In en, this message translates to:
+  /// **'in the world'**
+  String get artistWorldRank;
 }
 
 class _AppLocalizationsDelegate

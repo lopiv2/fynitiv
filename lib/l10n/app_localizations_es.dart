@@ -1336,4 +1336,94 @@ class AppLocalizationsEs extends AppLocalizations {
   @override
   String get autoEqTooltip =>
       'Aplica el preajuste de ecualizador según el género de la canción. Si no coincide con ningún perfil, mantiene el actual.';
+
+  @override
+  String get personBiography => 'Biografía';
+
+  @override
+  String get personBorn => 'Nacimiento';
+
+  @override
+  String get personDied => 'Fallecimiento';
+
+  @override
+  String get personFilmography => 'Filmografía';
+
+  @override
+  String get personNoBiography => 'Sin biografía disponible.';
+
+  @override
+  String get searchTypeMovie => 'Película';
+
+  @override
+  String get searchTypeSeries => 'Serie';
+
+  @override
+  String get searchTypeEpisode => 'Episodio';
+
+  @override
+  String get searchTypeSong => 'Canción';
+
+  @override
+  String get searchTypeAlbum => 'Álbum';
+
+  @override
+  String get searchTypePerson => 'Persona';
+
+  @override
+  String get searchTypePlaylist => 'Playlist';
+
+  @override
+  String get searchTypeBook => 'Libro';
+
+  @override
+  String get searchTypeAudioBook => 'Audiolibro';
+
+  @override
+  String get searchTypeChannel => 'Canal';
+
+  @override
+  String get searchTypeProgram => 'Programa';
+
+  @override
+  String get searchTypeVideo => 'Vídeo';
+
+  @override
+  String get searchTypeMusicVideo => 'Videoclip';
+
+  @override
+  String get searchTypeTrailer => 'Tráiler';
+
+  @override
+  String get artistTabSummary => 'Resumen';
+
+  @override
+  String get artistTabRelated => 'Artistas relacionados';
+
+  @override
+  String get artistTabAbout => 'Sobre';
+
+  @override
+  String get artistNoRelated => 'Sin artistas relacionados';
+
+  @override
+  String get discography => 'Discografía';
+
+  @override
+  String get discographyPopular => 'Títulos populares';
+
+  @override
+  String get discographySinglesEps => 'Sencillos y EP';
+
+  @override
+  String get discographySingle => 'Sencillo';
+
+  @override
+  String get discographyEp => 'EP';
+
+  @override
+  String get artistInfoTitle => 'Información';
+
+  @override
+  String get artistWorldRank => 'del mundo';
 }

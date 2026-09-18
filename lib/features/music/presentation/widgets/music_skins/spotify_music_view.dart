@@ -2,16 +2,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../../core/constants/ui_constants.dart';
 import '../../../../../core/settings/music_chart_source.dart';
 import '../../../../../core/settings/music_chart_source_controller.dart';
 import '../../../../../core/skin/music_player_skin.dart';
-import '../../../../../core/widgets/app_hover.dart';
 import '../../../../../core/widgets/app_loader.dart';
 import '../../../../../core/widgets/horizontal_scroll_behavior.dart';
+import '../../../../../core/widgets/responsive_carousel.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../library/application/image_url.dart';
 import '../../../../library/application/library_providers.dart';
 import '../../../application/deezer_providers.dart';
+import '../media_card.dart';
 import '../../deezer_preview_player.dart';
 import '../../deezer_show_all_screen.dart';
 
@@ -68,7 +70,7 @@ class SpotifyMusicView extends ConsumerWidget {
                           l10n.trendingSongs,
                           style: TextStyle(
                             color: skin.textPrimary,
-                            fontSize: 20,
+                            fontSize: kSectionTitleFontSize,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -102,22 +104,49 @@ class SpotifyMusicView extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 252,
-                  child: ScrollConfiguration(
-                    behavior: const HorizontalScrollBehavior(),
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      clipBehavior: Clip.none,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: songs.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 14),
-                      itemBuilder: (context, i) =>
-                          _SpotifyDeezerSongCard(track: songs[i], skin: skin),
-                    ),
-                  ),
+                const SizedBox(height: kSectionTitleGap),
+                ResponsiveCarousel(
+                  itemCount: songs.length,
+                  extraHeight: 64,
+                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.none,
+                  itemBuilder: (context, i, cardWidth) {
+                    final track = songs[i];
+                    return Consumer(
+                      builder: (context, ref, _) {
+                        final exists =
+                            ref
+                                .watch(
+                                  deezerTrackExistsInJellyfinProvider(track),
+                                )
+                                .value ??
+                            false;
+                        return MediaCard(
+                          title: track.title,
+                          subtitle: track.artistName,
+                          showExplicit: track.explicit,
+                          imageUrl: track.cover.isNotEmpty ? track.cover : null,
+                          fallbackBackground: skin.accent.withValues(
+                            alpha: 0.15,
+                          ),
+                          badgeAsset: exists
+                              ? 'assets/images/jellyfin.png'
+                              : 'assets/images/logo_deezer.png',
+                          dimOnHover: true,
+                          width: cardWidth,
+                          textPrimary: skin.textPrimary,
+                          textSecondary: skin.textSecondary,
+                          playBackground: skin.accent,
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) =>
+                                  DeezerPreviewPlayerScreen(track: track),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
                 ),
               ],
             );
@@ -151,7 +180,7 @@ class SpotifyMusicView extends ConsumerWidget {
                           l10n.trendingSongs,
                           style: TextStyle(
                             color: skin.textPrimary,
-                            fontSize: 20,
+                            fontSize: kSectionTitleFontSize,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -202,25 +231,46 @@ class SpotifyMusicView extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 252,
-                  child: ScrollConfiguration(
-                    behavior: const HorizontalScrollBehavior(),
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      clipBehavior: Clip.none,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: songs.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 14),
-                      itemBuilder: (context, i) => _SpotifySongCard(
-                        item: songs[i],
-                        serverUrl: serverUrl,
-                        skin: skin,
-                      ),
-                    ),
-                  ),
+                const SizedBox(height: kSectionTitleGap),
+                ResponsiveCarousel(
+                  itemCount: songs.length,
+                  extraHeight: 64,
+                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.none,
+                  itemBuilder: (context, i, cardWidth) {
+                    final item = songs[i];
+                    final title = (item.name ?? '').toString();
+                    final artists = (item.artists is List)
+                        ? (item.artists as List).join(', ')
+                        : (item.artists?.toString() ?? '');
+                    return MediaCard(
+                      title: title,
+                      subtitle: artists.isNotEmpty
+                          ? artists
+                          : (item.album ?? ''),
+                      showExplicit:
+                          (item.officialRating
+                                  ?.toString()
+                                  .toLowerCase()
+                                  .contains('explicit') ??
+                              false) ||
+                          title.toLowerCase().contains('explicit') ||
+                          (title.hashCode % 3 == 0),
+                      imageUrl: (serverUrl != null && item.id != null)
+                          ? itemImageUrl(serverUrl!, item, maxWidth: 400)
+                          : null,
+                      fallbackBackground: skin.accent.withValues(alpha: 0.15),
+                      badgeAsset: 'assets/images/jellyfin.png',
+                      badgeSize: 18,
+                      dimOnHover: true,
+                      width: cardWidth,
+                      textPrimary: skin.textPrimary,
+                      textSecondary: skin.textSecondary,
+                      playBackground: skin.accent,
+                      onTap: () =>
+                          context.push('/player/${item.id}', extra: item),
+                    );
+                  },
                 ),
               ],
             );
@@ -258,7 +308,7 @@ class SpotifyMusicView extends ConsumerWidget {
                           l10n.popularArtists,
                           style: TextStyle(
                             color: skin.textPrimary,
-                            fontSize: 20,
+                            fontSize: kSectionTitleFontSize,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -292,24 +342,36 @@ class SpotifyMusicView extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 200,
-                  child: ScrollConfiguration(
-                    behavior: const HorizontalScrollBehavior(),
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      clipBehavior: Clip.none,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: artists.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 18),
-                      itemBuilder: (context, i) => _SpotifyDeezerArtistCard(
-                        artist: artists[i],
-                        skin: skin,
+                const SizedBox(height: kSectionTitleGap),
+                ResponsiveCarousel(
+                  itemCount: artists.length,
+                  spacing: 18,
+                  extraHeight: 60,
+                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.none,
+                  itemBuilder: (context, i, cardWidth) {
+                    final artist = artists[i];
+                    return MediaCard(
+                      title: artist.name,
+                      subtitle: AppLocalizations.of(context)!.artist,
+                      circular: true,
+                      imageSize: cardWidth - 16,
+                      width: cardWidth,
+                      padding: const EdgeInsets.all(8),
+                      textPrimary: skin.textPrimary,
+                      textSecondary: skin.textSecondary,
+                      playBackground: skin.accent,
+                      imageUrl: artist.picture.isNotEmpty
+                          ? artist.picture
+                          : null,
+                      playSize: 40,
+                      centerText: true,
+                      onTap: () => context.push(
+                        '/music/artist/${Uri.encodeComponent(artist.name)}',
+                        extra: artist,
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             );
@@ -343,7 +405,7 @@ class SpotifyMusicView extends ConsumerWidget {
                           l10n.popularArtists,
                           style: TextStyle(
                             color: skin.textPrimary,
-                            fontSize: 20,
+                            fontSize: kSectionTitleFontSize,
                             fontWeight: FontWeight.w800,
                           ),
                         ),
@@ -389,25 +451,39 @@ class SpotifyMusicView extends ConsumerWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  height: 200,
-                  child: ScrollConfiguration(
-                    behavior: const HorizontalScrollBehavior(),
-                    child: ListView.separated(
-                      scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
-                      clipBehavior: Clip.none,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: artists.length,
-                      separatorBuilder: (_, _) => const SizedBox(width: 18),
-                      itemBuilder: (context, i) => _SpotifyArtistCard(
-                        item: artists[i],
-                        serverUrl: serverUrl,
-                        skin: skin,
+                const SizedBox(height: kSectionTitleGap),
+                ResponsiveCarousel(
+                  itemCount: artists.length,
+                  spacing: 18,
+                  extraHeight: 60,
+                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.none,
+                  itemBuilder: (context, i, cardWidth) {
+                    final item = artists[i];
+                    final name = (item.name ?? '').toString();
+                    return MediaCard(
+                      title: name,
+                      subtitle: AppLocalizations.of(context)!.artist,
+                      circular: true,
+                      imageSize: cardWidth - 16,
+                      imageUrl: (serverUrl != null && item.id != null)
+                          ? itemImageUrl(serverUrl!, item, maxWidth: 400)
+                          : null,
+                      fallbackText: name.isNotEmpty
+                          ? name[0].toUpperCase()
+                          : '?',
+                      width: cardWidth,
+                      textPrimary: skin.textPrimary,
+                      textSecondary: skin.textSecondary,
+                      playBackground: skin.accent,
+                      playSize: 40,
+                      centerText: true,
+                      onTap: () => context.push(
+                        '/music/artist/${Uri.encodeComponent(name)}',
+                        extra: item,
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
               ],
             );
@@ -439,7 +515,7 @@ class SpotifyMusicView extends ConsumerWidget {
                         l10n.myPlaylists,
                         style: TextStyle(
                           color: skin.textPrimary,
-                          fontSize: 20,
+                          fontSize: kSectionTitleFontSize,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -486,147 +562,36 @@ class SpotifyMusicView extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 230,
-                child: ScrollConfiguration(
-                  behavior: const HorizontalScrollBehavior(),
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    clipBehavior: Clip.none,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: list.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 14),
-                    itemBuilder: (context, i) {
-                      final item = list[i];
-                      final url = serverUrl != null && item.id != null
-                          ? itemImageUrl(serverUrl!, item, maxWidth: 400)
-                          : null;
-                      return AppHover(
-                        effect: AppHoverEffect.highlight,
-                        config: AppHoverConfig.spotify(
-                          accent: skin.accent,
-                          radius: 8,
-                        ),
-                        onTap: () => context.push(
-                          '/music/playlist/${item.id}',
-                          extra: item,
-                        ),
-                        child: SizedBox(
-                          width: 150,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Builder(
-                                  builder: (context) {
-                                    final hovered =
-                                        AppHoverScope.of(context)?.hovered ??
-                                        false;
-                                    return Stack(
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          child: SizedBox(
-                                            width: 134,
-                                            height: 134,
-                                            child: url != null
-                                                ? Image.network(
-                                                    url,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (_, _, _) =>
-                                                        Container(
-                                                          color: skin.accent
-                                                              .withValues(
-                                                                alpha: 0.15,
-                                                              ),
-                                                          child: const Icon(
-                                                            Icons.playlist_play,
-                                                            color:
-                                                                Colors.white70,
-                                                          ),
-                                                        ),
-                                                  )
-                                                : Container(
-                                                    color: skin.accent
-                                                        .withValues(
-                                                          alpha: 0.15,
-                                                        ),
-                                                    child: const Icon(
-                                                      Icons.playlist_play,
-                                                      color: Colors.white70,
-                                                    ),
-                                                  ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 6,
-                                          bottom: 6,
-                                          child: Image.asset(
-                                            'assets/images/jellyfin.png',
-                                            height: 14,
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 8,
-                                          bottom: hovered ? 8 : 0,
-                                          child: AnimatedOpacity(
-                                            duration: const Duration(
-                                              milliseconds: 180,
-                                            ),
-                                            opacity: hovered ? 1 : 0,
-                                            child: Container(
-                                              width: 36,
-                                              height: 36,
-                                              decoration: BoxDecoration(
-                                                color: skin.accent,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.play_arrow_rounded,
-                                                color: Colors.black,
-                                                size: 20,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  item.name ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: skin.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  'Playlist',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: skin.textSecondary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+              const SizedBox(height: kSectionTitleGap),
+              ResponsiveCarousel(
+                itemCount: list.length,
+                extraHeight: 58,
+                physics: const BouncingScrollPhysics(),
+                clipBehavior: Clip.none,
+                itemBuilder: (context, i, cardWidth) {
+                  final item = list[i];
+                  final url = serverUrl != null && item.id != null
+                      ? itemImageUrl(serverUrl!, item, maxWidth: 400)
+                      : null;
+                  return MediaCard(
+                    title: item.name ?? '',
+                    subtitle: 'Playlist',
+                    imageUrl: url,
+                    fallbackIcon: Icons.playlist_play,
+                    fallbackIconColor: Colors.white70,
+                    fallbackBackground: skin.accent.withValues(alpha: 0.15),
+                    width: cardWidth,
+                    imageSize: cardWidth - 16,
+                    badgeAsset: 'assets/images/jellyfin.png',
+                    badgeSize: 14,
+                    playSize: 36,
+                    playBackground: skin.accent,
+                    textPrimary: skin.textPrimary,
+                    textSecondary: skin.textSecondary,
+                    onTap: () =>
+                        context.push('/music/playlist/${item.id}', extra: item),
+                  );
+                },
               ),
             ],
           );
@@ -654,7 +619,7 @@ class SpotifyMusicView extends ConsumerWidget {
                         l10n.recentlyAdded,
                         style: TextStyle(
                           color: skin.textPrimary,
-                          fontSize: 20,
+                          fontSize: kSectionTitleFontSize,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
@@ -705,138 +670,36 @@ class SpotifyMusicView extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: 14),
-              SizedBox(
-                height: 220,
-                child: ScrollConfiguration(
-                  behavior: const HorizontalScrollBehavior(),
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal,
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    clipBehavior: Clip.none,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: list.length,
-                    separatorBuilder: (_, _) => const SizedBox(width: 14),
-                    itemBuilder: (context, i) {
-                      final item = list[i];
-                      final url = serverUrl != null && item.id != null
-                          ? itemImageUrl(serverUrl!, item, maxWidth: 400)
-                          : null;
-                      return AppHover(
-                        effect: AppHoverEffect.highlight,
-                        config: AppHoverConfig.spotify(
-                          accent: skin.accent,
-                          radius: 8,
-                        ),
-                        onTap: () =>
-                            context.push('/player/${item.id}', extra: item),
-                        child: SizedBox(
-                          width: 150,
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Builder(
-                                  builder: (context) {
-                                    final hovered =
-                                        AppHoverScope.of(context)?.hovered ??
-                                        false;
-                                    return Stack(
-                                      children: [
-                                        ClipRRect(
-                                          borderRadius: BorderRadius.circular(
-                                            6,
-                                          ),
-                                          child: SizedBox(
-                                            width: 134,
-                                            height: 134,
-                                            child: url != null
-                                                ? Image.network(
-                                                    url,
-                                                    fit: BoxFit.cover,
-                                                    errorBuilder: (_, _, _) =>
-                                                        Container(
-                                                          color: skin.accent
-                                                              .withValues(
-                                                                alpha: 0.15,
-                                                              ),
-                                                        ),
-                                                  )
-                                                : Container(
-                                                    color: const Color(
-                                                      0xFF2A2A2A,
-                                                    ),
-                                                  ),
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 6,
-                                          bottom: 6,
-                                          child: Image.asset(
-                                            'assets/images/jellyfin.png',
-                                            height: 14,
-                                          ),
-                                        ),
-                                        Positioned(
-                                          right: 8,
-                                          bottom: hovered ? 8 : 0,
-                                          child: AnimatedOpacity(
-                                            duration: const Duration(
-                                              milliseconds: 180,
-                                            ),
-                                            opacity: hovered ? 1 : 0,
-                                            child: Container(
-                                              width: 36,
-                                              height: 36,
-                                              decoration: BoxDecoration(
-                                                color: skin.accent,
-                                                shape: BoxShape.circle,
-                                              ),
-                                              child: const Icon(
-                                                Icons.play_arrow_rounded,
-                                                color: Colors.black,
-                                                size: 20,
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  item.name ?? '',
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: skin.textPrimary,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  (item.artists != null &&
-                                          item.artists!.isNotEmpty)
-                                      ? item.artists!.first
-                                      : (item.albumArtist ?? ''),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: skin.textSecondary,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+              const SizedBox(height: kSectionTitleGap),
+              ResponsiveCarousel(
+                itemCount: list.length,
+                extraHeight: 58,
+                physics: const BouncingScrollPhysics(),
+                clipBehavior: Clip.none,
+                itemBuilder: (context, i, cardWidth) {
+                  final item = list[i];
+                  final url = serverUrl != null && item.id != null
+                      ? itemImageUrl(serverUrl!, item, maxWidth: 400)
+                      : null;
+                  return MediaCard(
+                    title: item.name ?? '',
+                    subtitle: (item.artists != null && item.artists!.isNotEmpty)
+                        ? item.artists!.first
+                        : (item.albumArtist ?? ''),
+                    imageUrl: url,
+                    fallbackBackground: skin.accent.withValues(alpha: 0.15),
+                    width: cardWidth,
+                    imageSize: cardWidth - 16,
+                    badgeAsset: 'assets/images/jellyfin.png',
+                    badgeSize: 14,
+                    playSize: 36,
+                    playBackground: skin.accent,
+                    textPrimary: skin.textPrimary,
+                    textSecondary: skin.textSecondary,
+                    onTap: () =>
+                        context.push('/player/${item.id}', extra: item),
+                  );
+                },
               ),
             ],
           );
@@ -851,587 +714,13 @@ class SpotifyMusicView extends ConsumerWidget {
         children: [
           const SizedBox(height: 24),
           trendingSection(),
-          const SizedBox(height: 32),
+          const SizedBox(height: kBetweenSectionsGap),
           artistsSection(),
-          const SizedBox(height: 32),
+          const SizedBox(height: kBetweenSectionsGap),
           playlistsSection(),
-          const SizedBox(height: 32),
+          const SizedBox(height: kBetweenSectionsGap),
           recentlyAddedSection(),
         ],
-      ),
-    );
-  }
-}
-
-// Jellyfin local cards (universal hover)
-class _SpotifySongCard extends StatelessWidget {
-  const _SpotifySongCard({
-    required this.item,
-    required this.serverUrl,
-    required this.skin,
-  });
-  final dynamic item;
-  final String? serverUrl;
-  final MusicPlayerSkin skin;
-  @override
-  Widget build(BuildContext context) {
-    final title = (item.name ?? '') as String;
-    final artists = (item.artists is List)
-        ? (item.artists as List).join(', ')
-        : (item.artists?.toString() ?? '');
-    final subtitle = artists.isNotEmpty ? artists : (item.album ?? '');
-    final hasExplicit =
-        (item.officialRating?.toString().toLowerCase().contains('explicit') ??
-            false) ||
-        title.toLowerCase().contains('explicit') ||
-        (title.hashCode % 3 == 0);
-    final imageUrl = (serverUrl != null && item.id != null)
-        ? itemImageUrl(serverUrl!, item, maxWidth: 400)
-        : null;
-    return AppHover(
-      effect: AppHoverEffect.highlight,
-      config: AppHoverConfig.spotify(accent: skin.accent, radius: 8),
-      onTap: () => context.push('/player/${item.id}', extra: item),
-      child: SizedBox(
-        width: 160,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Builder(
-                builder: (context) {
-                  final hovered = AppHoverScope.of(context)?.hovered ?? false;
-                  return Stack(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(6),
-                        child: AspectRatio(
-                          aspectRatio: 1,
-                          child: imageUrl != null
-                              ? Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Container(
-                                    color: skin.accent.withValues(alpha: 0.15),
-                                  ),
-                                )
-                              : Container(
-                                  color: const Color(0xFF2A2A2A),
-                                  child: Icon(
-                                    Icons.music_note,
-                                    color: skin.textSecondary,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      Positioned.fill(
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(6),
-                            color: Colors.black.withValues(
-                              alpha: hovered ? 0.08 : 0,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 6,
-                        bottom: 6,
-                        child: Image.asset(
-                          'assets/images/jellyfin.png',
-                          height: 18,
-                          errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                        ),
-                      ),
-                      AnimatedPositioned(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOut,
-                        right: 8,
-                        bottom: hovered ? 8 : 0,
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 180),
-                          opacity: hovered ? 1 : 0,
-                          child: Container(
-                            width: 44,
-                            height: 44,
-                            decoration: BoxDecoration(
-                              color: skin.accent,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.black,
-                              size: 26,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: skin.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Row(
-                children: [
-                  if (hasExplicit) ...[
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 3,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF6A6A6A),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                      child: const Text(
-                        'E',
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          height: 1,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                  ],
-                  Expanded(
-                    child: Text(
-                      subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: skin.textSecondary, fontSize: 12),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SpotifyArtistCard extends StatelessWidget {
-  const _SpotifyArtistCard({
-    required this.item,
-    required this.serverUrl,
-    required this.skin,
-  });
-  final dynamic item;
-  final String? serverUrl;
-  final MusicPlayerSkin skin;
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final name = (item.name ?? '') as String;
-    final imageUrl = (serverUrl != null && item.id != null)
-        ? itemImageUrl(serverUrl!, item, maxWidth: 400)
-        : null;
-    return AppHover(
-      effect: AppHoverEffect.highlight,
-      config: AppHoverConfig.spotify(accent: skin.accent, radius: 8),
-      onTap: () => context.push(
-        '/music/artist/${Uri.encodeComponent(name)}',
-        extra: item,
-      ),
-      child: SizedBox(
-        width: 132,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            children: [
-              Builder(
-                builder: (context) {
-                  final hovered = AppHoverScope.of(context)?.hovered ?? false;
-                  return Stack(
-                    children: [
-                      ClipOval(
-                        child: SizedBox(
-                          width: 116,
-                          height: 116,
-                          child: imageUrl != null
-                              ? Image.network(
-                                  imageUrl,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) =>
-                                      _artistFallback(skin),
-                                )
-                              : _artistFallback(
-                                  skin,
-                                  letter: name.isNotEmpty
-                                      ? name[0].toUpperCase()
-                                      : '?',
-                                ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 6,
-                        bottom: 6,
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 180),
-                          opacity: hovered ? 1 : 0,
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: skin.accent,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.black,
-                              size: 22,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: skin.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                l10n.artist,
-                style: TextStyle(color: skin.textSecondary, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _artistFallback(MusicPlayerSkin skin, {String letter = '?'}) =>
-      Container(
-        color: const Color(0xFF2A2A2A),
-        alignment: Alignment.center,
-        child: Text(
-          letter,
-          style: TextStyle(
-            color: skin.textSecondary,
-            fontSize: 32,
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      );
-}
-
-// Deezer global cards (universal hover)
-class _SpotifyDeezerSongCard extends StatelessWidget {
-  const _SpotifyDeezerSongCard({required this.track, required this.skin});
-  final DeezerTrack track;
-  final MusicPlayerSkin skin;
-  @override
-  Widget build(BuildContext context) {
-    return Consumer(
-      builder: (context, ref, _) {
-        final exists =
-            ref.watch(deezerTrackExistsInJellyfinProvider(track)).value ??
-            false;
-        final logoAsset = exists
-            ? 'assets/images/jellyfin.png'
-            : 'assets/images/logo_deezer.png';
-        return AppHover(
-          effect: AppHoverEffect.highlight,
-          config: AppHoverConfig.spotify(accent: skin.accent, radius: 8),
-          onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => DeezerPreviewPlayerScreen(track: track),
-            ),
-          ),
-          child: SizedBox(
-            width: 160,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Builder(
-                    builder: (context) {
-                      final hovered =
-                          AppHoverScope.of(context)?.hovered ?? false;
-                      return Stack(
-                        children: [
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(6),
-                            child: AspectRatio(
-                              aspectRatio: 1,
-                              child: track.cover.isNotEmpty
-                                  ? Image.network(
-                                      track.cover,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, _, _) => Container(
-                                        color: skin.accent.withValues(
-                                          alpha: 0.15,
-                                        ),
-                                      ),
-                                    )
-                                  : Container(
-                                      color: const Color(0xFF2A2A2A),
-                                      child: Icon(
-                                        Icons.music_note,
-                                        color: skin.textSecondary,
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          Positioned.fill(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(6),
-                                color: Colors.black.withValues(
-                                  alpha: hovered ? 0.08 : 0,
-                                ),
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            right: 6,
-                            bottom: 6,
-                            child: Image.asset(
-                              logoAsset,
-                              height: 16,
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
-                            ),
-                          ),
-                          AnimatedPositioned(
-                            duration: const Duration(milliseconds: 180),
-                            curve: Curves.easeOut,
-                            right: 8,
-                            bottom: hovered ? 34 : 26,
-                            child: AnimatedOpacity(
-                              duration: const Duration(milliseconds: 180),
-                              opacity: hovered ? 1 : 0,
-                              child: Container(
-                                width: 44,
-                                height: 44,
-                                decoration: BoxDecoration(
-                                  color: skin.accent,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.35,
-                                      ),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: const Icon(
-                                  Icons.play_arrow_rounded,
-                                  color: Colors.black,
-                                  size: 26,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: skin.textPrimary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Row(
-                    children: [
-                      if (track.explicit) ...[
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 3,
-                            vertical: 1,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF6A6A6A),
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: const Text(
-                            'E',
-                            style: TextStyle(
-                              color: Colors.black,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                      ],
-                      Expanded(
-                        child: Text(
-                          track.artistName,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: skin.textSecondary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _SpotifyDeezerArtistCard extends StatelessWidget {
-  const _SpotifyDeezerArtistCard({required this.artist, required this.skin});
-  final DeezerArtist artist;
-  final MusicPlayerSkin skin;
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return AppHover(
-      effect: AppHoverEffect.highlight,
-      config: AppHoverConfig.spotify(accent: skin.accent, radius: 8),
-      onTap: () => context.push(
-        '/music/artist/${Uri.encodeComponent(artist.name)}',
-        extra: artist,
-      ),
-      child: SizedBox(
-        width: 132,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            children: [
-              Builder(
-                builder: (context) {
-                  final hovered = AppHoverScope.of(context)?.hovered ?? false;
-                  return Stack(
-                    children: [
-                      ClipOval(
-                        child: SizedBox(
-                          width: 116,
-                          height: 116,
-                          child: artist.picture.isNotEmpty
-                              ? Image.network(
-                                  artist.picture,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Container(
-                                    color: const Color(0xFF2A2A2A),
-                                    child: Icon(
-                                      Icons.person,
-                                      color: skin.textSecondary,
-                                    ),
-                                  ),
-                                )
-                              : Container(
-                                  color: const Color(0xFF2A2A2A),
-                                  child: Icon(
-                                    Icons.person,
-                                    color: skin.textSecondary,
-                                  ),
-                                ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 6,
-                        bottom: 6,
-                        child: AnimatedOpacity(
-                          duration: const Duration(milliseconds: 180),
-                          opacity: hovered ? 1 : 0,
-                          child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: skin.accent,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.35),
-                                  blurRadius: 8,
-                                ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.play_arrow_rounded,
-                              color: Colors.black,
-                              size: 22,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-              Text(
-                artist.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: skin.textPrimary,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                l10n.artist,
-                style: TextStyle(color: skin.textSecondary, fontSize: 12),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

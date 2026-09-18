@@ -150,6 +150,44 @@ final deezerArtistDetailProvider = FutureProvider.family<Map<String, dynamic>?, 
   return null;
 });
 
+/// Busca un artista en Deezer por nombre y devuelve el primer resultado.
+/// Sirve para resolver el id Deezer cuando se navega solo con el artista
+/// de Jellyfin (ej. desde el buscar) y así poder pedir relacionados y detalle.
+final deezerArtistSearchProvider =
+    FutureProvider.family<DeezerArtist?, String>((ref, name) async {
+  final query = name.trim();
+  if (query.isEmpty) return null;
+  try {
+    final res = await _dioDeezer.get(
+      'https://api.deezer.com/search/artist',
+      queryParameters: {'q': query, 'limit': 1},
+    );
+    final data = res.data as Map<String, dynamic>;
+    final list = data['data'] as List? ?? const [];
+    if (list.isEmpty) return null;
+    return DeezerArtist.fromJson(list.first as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+});
+
+/// Artistas relacionados de Deezer (`/artist/{id}/related`).
+final deezerRelatedArtistsProvider =
+    FutureProvider.family<List<DeezerArtist>, int>((ref, deezerId) async {
+  if (deezerId <= 0) return const [];
+  try {
+    final res = await _dioDeezer.get(
+      'https://api.deezer.com/artist/$deezerId/related',
+    );
+    final data = res.data as Map<String, dynamic>;
+    return ((data['data'] as List? ?? [])
+            .map((e) => DeezerArtist.fromJson(e as Map<String, dynamic>))
+            .toList());
+  } catch (_) {
+    return const [];
+  }
+});
+
 /// Verifica si un DeezerTrack existe en la biblioteca Jellyfin (por búsqueda título+artista).
 final deezerTrackExistsInJellyfinProvider = FutureProvider.family<bool, DeezerTrack>((ref, track) async {
   final client = ref.watch(jellyfinClientProvider);

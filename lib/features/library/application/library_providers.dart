@@ -591,6 +591,159 @@ final similarItemsProvider =
       }
     });
 
+/// Filmografía de una persona: películas y series donde aparece, para el
+/// carrusel de la pantalla de detalle de persona. Clave: (personId, personName).
+/// Intenta primero por `personIds` (índice exacto) y si no hay nada reintenta
+/// por nombre de persona, que cubre personas cuyo id de búsqueda no indexa.
+final personFilmographyProvider =
+    FutureProvider.family<List<BaseItemDto>, (String, String)>((
+  ref,
+  args,
+) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  final personId = args.$1.trim();
+  final personName = args.$2.trim();
+  if (client == null ||
+      userId == null ||
+      (personId.isEmpty && personName.isEmpty)) {
+    return const [];
+  }
+  Future<List<BaseItemDto>> fetch({List<String>? ids, String? name}) {
+    return client
+        .getItemsApi()
+        .getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+          personIds: ids,
+          person: name,
+          limit: 20,
+          sortBy: [ItemSortBy.productionYear, ItemSortBy.sortName],
+          sortOrder: [SortOrder.descending, SortOrder.ascending],
+          fields: [
+            ItemFields.overview,
+            ItemFields.genres,
+            ItemFields.people,
+            ItemFields.primaryImageAspectRatio,
+          ],
+          enableImageTypes: [
+            ImageType.primary,
+            ImageType.thumb,
+            ImageType.backdrop,
+            ImageType.logo,
+          ],
+        )
+        .then((res) => res.data?.items ?? const <BaseItemDto>[]);
+  }
+
+  try {
+    if (personId.isNotEmpty) {
+      final byId = await fetch(ids: [personId]);
+      if (byId.isNotEmpty) return byId;
+    }
+    if (personName.isNotEmpty) {
+      return await fetch(name: personName);
+    }
+    return const [];
+  } catch (_) {
+    return const [];
+  }
+});
+
+/// Artista de Jellyfin por nombre (`ArtistsApi.getArtistByName` de
+/// `jellyfin_dart`), para resolver la ficha (biografía) cuando se navega
+/// solo con el nombre — ej. un artista Deezer que sí existe en la
+/// biblioteca pero llegó sin item Jellyfin.
+final jellyfinArtistByNameProvider =
+    FutureProvider.family<BaseItemDto?, String>((ref, name) async {
+  final query = name.trim();
+  if (query.isEmpty) return null;
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return null;
+  try {
+    final res = await client
+        .getArtistsApi()
+        .getArtistByName(name: query, userId: userId)
+        .timeout(const Duration(seconds: 8));
+    final artist = res.data;
+    debugPrint(
+      '[ArtistBio] lookup "$query" -> '
+      '${artist == null ? 'null' : 'id=${artist.id} overview=${artist.overview?.length ?? 0} chars'}',
+    );
+    return artist;
+  } catch (e) {
+    debugPrint('[ArtistBio] lookup "$query" error: $e');
+    return null;
+  }
+});
+
+/// Discografía Jellyfin de un artista: sus álbumes con nº de pistas
+/// (`childCount`, para separar álbumes de sencillos/EP) y reproducciones
+/// (para "Títulos populares"). Clave: (artistId, artistName). Intenta por
+/// `albumArtistIds`, luego por nombre exacto y luego por término.
+final artistDiscographyProvider =
+    FutureProvider.family<List<BaseItemDto>, (String, String)>((
+  ref,
+  args,
+) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  final artistId = args.$1.trim();
+  final artistName = args.$2.trim();
+  if (client == null ||
+      userId == null ||
+      (artistId.isEmpty && artistName.isEmpty)) {
+    return const [];
+  }
+  Future<List<BaseItemDto>> fetch({
+    List<String>? ids,
+    List<String>? names,
+    String? term,
+  }) {
+    return client
+        .getItemsApi()
+        .getItems(
+          userId: userId,
+          recursive: true,
+          includeItemTypes: [BaseItemKind.musicAlbum],
+          albumArtistIds: ids,
+          artists: names,
+          searchTerm: term,
+          limit: 50,
+          sortBy: [ItemSortBy.productionYear, ItemSortBy.sortName],
+          sortOrder: [SortOrder.descending, SortOrder.ascending],
+          fields: [
+            ItemFields.childCount,
+            ItemFields.primaryImageAspectRatio,
+            ItemFields.genres,
+          ],
+          enableImageTypes: [ImageType.primary],
+          enableUserData: true,
+          enableImages: true,
+        )
+        .then((res) => res.data?.items ?? const <BaseItemDto>[]);
+  }
+
+  try {
+    if (artistId.isNotEmpty) {
+      final byId = await fetch(ids: [artistId]);
+      if (byId.isNotEmpty) return byId;
+    }
+    if (artistName.isNotEmpty) {
+      final byName = await fetch(names: [artistName]);
+      if (byName.isNotEmpty) return byName;
+      return await fetch(term: artistName);
+    }
+    return const [];
+  } catch (_) {
+    return const [];
+  }
+});
+
 /// Detalle completo de un item, incluidos reparto, estudio y pistas.
 final itemDetailProvider = FutureProvider.family<BaseItemDto?, String>((
   ref,
