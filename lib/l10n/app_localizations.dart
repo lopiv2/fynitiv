@@ -968,6 +968,18 @@ abstract class AppLocalizations {
   /// **'Add to favorites'**
   String get addToFavorites;
 
+  /// No description provided for @removeFromFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from favorites'**
+  String get removeFromFavorites;
+
+  /// No description provided for @download.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get download;
+
   /// No description provided for @details.
   ///
   /// In en, this message translates to:
@@ -1051,6 +1063,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Audio'**
   String get audio;
+
+  /// No description provided for @audioTrackDefault.
+  ///
+  /// In en, this message translates to:
+  /// **'Default'**
+  String get audioTrackDefault;
 
   /// No description provided for @vod.
   ///
@@ -2749,12 +2767,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'from Jellyfin'**
   String get ostThemeFromJellyfin;
-
-  /// No description provided for @ostThemeFromThemerr.
-  ///
-  /// In en, this message translates to:
-  /// **'from ThemerrDB'**
-  String get ostThemeFromThemerr;
 
   /// No description provided for @ostMuteTheme.
   ///

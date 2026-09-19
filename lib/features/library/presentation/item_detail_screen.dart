@@ -73,8 +73,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
     }
   }
 
-  /// Autoplay del theme en el detalle (cadena Jellyfin -> ThemerrDB).
-  /// Silencioso si no hay cobertura; toma propiedad frente al hover.
+  /// Autoplay del theme en el detalle (solo Jellyfin: theme.mp3).
+  /// Silencioso si no hay theme; toma propiedad frente al hover.
   void _maybeStartTheme(ItemTheme? theme) {
     debugPrint(
       '[Theme] detalle "${widget.item.name}" theme=${theme == null ? 'null' : '${theme.source}'} started=$_themeStarted',
@@ -274,12 +274,14 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
     _resolvedItem =
         ref.watch(itemDetailProvider(widget.item.id ?? '')).value ??
         widget.item;
-    // Autoplay del theme (Jellyfin -> ThemerrDB), silencioso sin cobertura.
-    // Usa el item resuelto (con ProviderIds) en vez del de navegación.
+    // Autoplay del theme (solo Jellyfin: theme.mp3), silencioso sin theme.
     ref.listen<AsyncValue<ItemTheme?>>(
       itemThemeProvider(item),
       (_, next) => next.whenData(_maybeStartTheme),
     );
+    // El listen no re-dispara si el provider ya resolvió (caché keepAlive):
+    // arranca también con el valor actual si ya trae theme.
+    ref.read(itemThemeProvider(item)).whenData(_maybeStartTheme);
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
     final imageUrl = serverUrl == null
@@ -1033,14 +1035,21 @@ class _DetailActions extends StatelessWidget {
           children: [
             _DetailActionButton(
               icon: Icons.play_circle_outline,
+              tooltip: l10n.watchTrailer,
               onTap: onTrailer,
             ),
+            const SizedBox(width: 12),
             _DetailActionButton(
               icon: isFavorite ? Icons.favorite : Icons.add,
+              tooltip: isFavorite
+                  ? l10n.removeFromFavorites
+                  : l10n.addToFavorites,
               onTap: onFavorite,
             ),
+            const SizedBox(width: 12),
             _DetailActionButton(
               icon: Icons.download_outlined,
+              tooltip: l10n.download,
               onTap: downloading ? () {} : onDownload,
             ),
           ],
@@ -1163,15 +1172,21 @@ class _DetailDescription extends StatelessWidget {
 }
 
 class _DetailActionButton extends StatelessWidget {
-  const _DetailActionButton({required this.icon, required this.onTap});
+  const _DetailActionButton({
+    required this.icon,
+    required this.onTap,
+    this.tooltip,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onTap,
+      tooltip: tooltip,
       icon: Icon(icon, color: Colors.white, size: 25),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints.tightFor(width: 50, height: 50),
@@ -1183,9 +1198,9 @@ class _DetailActionButton extends StatelessWidget {
   }
 }
 
-/// Chip del theme/OST en la ficha: muestra loader mientras resuelve la
-/// cadena Jellyfin -> ThemerrDB (petición DIO), etiqueta de origen y
-/// botón de mute. Silencioso si no hay cobertura (ocupa cero espacio).
+/// Chip del theme/OST en la ficha: muestra loader mientras resuelve el
+/// theme de Jellyfin (theme.mp3), etiqueta de origen y botón de mute.
+/// Silencioso si no hay theme (ocupa cero espacio).
 class _ItemThemeChip extends ConsumerStatefulWidget {
   const _ItemThemeChip({required this.item});
 
@@ -1209,9 +1224,7 @@ class _ItemThemeChipState extends ConsumerState<_ItemThemeChip> {
       data: (theme) {
         if (theme == null) return const SizedBox.shrink();
         final muted = ItemThemePlayer.instance.isMuted;
-        final sourceLabel = theme.source == ItemThemeSource.jellyfin
-            ? l10n.ostThemeFromJellyfin
-            : l10n.ostThemeFromThemerr;
+        final sourceLabel = l10n.ostThemeFromJellyfin;
         return Row(
           mainAxisSize: MainAxisSize.min,
           children: [

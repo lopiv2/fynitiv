@@ -457,6 +457,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get addToFavorites => 'Agregar a favoritos';
 
   @override
+  String get removeFromFavorites => 'Quitar de favoritos';
+
+  @override
+  String get download => 'Descargar';
+
+  @override
   String get details => 'Detalles';
 
   @override
@@ -490,13 +496,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get subtitle => 'Subtítulos';
 
   @override
-  String get subtitlesOff => 'Desactivados';
+  String get subtitlesOff => 'Apagado';
 
   @override
   String get replay => 'Volver a reproducir';
 
   @override
   String get audio => 'Audio';
+
+  @override
+  String get audioTrackDefault => 'Predeterminado';
 
   @override
   String get vod => 'VOD';
@@ -1432,9 +1441,6 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ostThemeFromJellyfin => 'desde Jellyfin';
-
-  @override
-  String get ostThemeFromThemerr => 'desde ThemerrDB';
 
   @override
   String get ostMuteTheme => 'Silenciar tema';

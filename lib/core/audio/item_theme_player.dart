@@ -18,9 +18,7 @@ class ItemThemePlayer {
 
   final SoloudSinglePlayer _player = SoloudSinglePlayer(volume: 0.35);
 
-  /// Fallback MediaKit (libmpv): las URLs firmadas de googlevideo a veces
-  /// no las abre SoLoud (su loadUrl hace un fetch simple que YouTube puede
-  /// rechazar), mientras que mpv sí las reproduce (como los trailers).
+  /// Fallback MediaKit (libmpv) por si SoLoud no abre el mp3.
   Player? _fallback;
 
   final StreamController<String?> _currentController =
@@ -49,10 +47,8 @@ class ItemThemePlayer {
     };
   }
 
-  /// Reproduce una URL directa (mp3 Jellyfin o audio/vídeo YouTube).
-  /// Las URLs de googlevideo van directas a MediaKit sin VideoController
-  /// (se oyen sin mostrar imagen); el resto intenta SoLoud primero.
-  /// Solo informa OK si hay audio real en algún motor.
+  /// Reproduce una URL directa (mp3 Jellyfin del theme del item).
+  /// Intenta SoLoud primero y cae a MediaKit si no arranca.
   Future<void> play(String url, {bool inDetail = false}) async {
     _ensureInit();
     debugPrint(
@@ -71,12 +67,6 @@ class ItemThemePlayer {
     _currentUrl = url;
     _currentController.add(url);
     try {
-      // googlevideo nunca abre en SoLoud: directo a mpv (como trailers).
-      if (url.contains('googlevideo.com')) {
-        debugPrint('[Theme] googlevideo -> MediaKit directo');
-        await _playFallback(url, session);
-        return;
-      }
       await _stopFallback();
       await _player.playUrl(url, volume: 0.35);
       if (session != _session) {

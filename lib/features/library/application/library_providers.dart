@@ -11,7 +11,6 @@ import '../../../core/di/providers.dart';
 import '../../../core/i18n/locale_provider.dart';
 import '../../../core/skin/home_scroll.dart';
 import '../../../core/skin/music_player_skin.dart';
-import '../data/themerr/themerr_resolver.dart';
 
 /// Mantiene el provider vivo 5 min tras la última escucha para que al
 /// volver a la pantalla no se refetchee la API ni se recarguen imágenes.
@@ -1855,107 +1854,25 @@ Future<String?> _resolveYoutubeStream(String youtubeId) async {
   }
 }
 
-class _Cached<T> {
-  _Cached(this.value, this.expires);
-  final T value;
-  final DateTime expires;
-  bool get fresh => DateTime.now().isBefore(expires);
-}
-
-/// Stream URLs de YouTube por videoId (1h). Evita repetir manifests y
-/// fundir el rate-limit de la IP al reabrir fichas.
-final _ytAudioUrlCache = <String, _Cached<String>>{};
-
-/// Hits de ThemerrDB por id externo (1h; los MISS 10 min para no
-/// reintentar películas sin cobertura en cada apertura).
-final _themerrJsonCache = <String, _Cached<ThemerrHit?>>{};
-
-/// Resuelve la URL directa del mejor audio de YouTube para streaming
-/// (sin descargar). Cliente iOS primero: sin throttle `n-sig`.
-Future<String?> _resolveYoutubeAudioUrl(String youtubeId) async {
-  final cached = _ytAudioUrlCache[youtubeId];
-  if (cached != null && cached.fresh) {
-    debugPrint('[Theme] YouTube url cache HIT id=$youtubeId');
-    return cached.value;
-  }
-  try {
-    final yt = YoutubeExplode();
-    StreamManifest? manifest;
-    var usedClient = 'ios';
-    try {
-      manifest = await yt.videos.streamsClient
-          .getManifest(youtubeId, ytClients: [YoutubeApiClient.ios])
-          .timeout(const Duration(seconds: 15));
-    } catch (error) {
-      debugPrint('[Theme] YouTube manifest iOS falló id=$youtubeId: $error');
-      usedClient = 'default';
-      manifest = await yt.videos.streamsClient
-          .getManifest(youtubeId)
-          .timeout(const Duration(seconds: 15));
-    }
-    // Como los trailers: preferir contenedor mp4 (el opus/webm en
-    // streaming directo no lo abre mpv) y como último recurso el muxed
-    // (trae vídeo, pero se reproduce sin VideoController: solo suena).
-    final audios = manifest.audioOnly.toList()
-      ..sort((a, b) {
-        final aMp4 = a.container.name == 'mp4' ? 0 : 1;
-        final bMp4 = b.container.name == 'mp4' ? 0 : 1;
-        if (aMp4 != bMp4) return aMp4.compareTo(bMp4);
-        return b.bitrate.compareTo(a.bitrate);
-      });
-    debugPrint(
-      '[Theme] YouTube manifest id=$youtubeId client=$usedClient '
-      'audioOnly=${audios.length} muxed=${manifest.muxed.length}',
-    );
-    final String url;
-    final String kind;
-    if (audios.isNotEmpty) {
-      final best = audios.first;
-      url = best.url.toString();
-      kind = 'audio/${best.container.name} ${best.bitrate} ${best.audioCodec}';
-    } else if (manifest.muxed.isNotEmpty) {
-      url = manifest.muxed.first.url.toString();
-      kind = 'muxed (solo se oye, sin vídeo)';
-    } else {
-      debugPrint('[Theme] YouTube manifest sin streams id=$youtubeId');
-      return null;
-    }
-    debugPrint('[Theme] YouTube best id=$youtubeId kind=$kind');
-    _ytAudioUrlCache[youtubeId] = _Cached(
-      url,
-      DateTime.now().add(const Duration(hours: 1)),
-    );
-    return url;
-  } catch (error) {
-    debugPrint('[Theme] YouTube audio url failed for id=$youtubeId: $error');
-    return null;
-  }
-}
-
-/// Origen del theme resuelto para un item.
-enum ItemThemeSource { jellyfin, themerr }
+/// Origen del theme resuelto para un item (solo Jellyfin: theme.mp3
+/// del directorio de la película/serie servido por el servidor).
+enum ItemThemeSource { jellyfin }
 
 /// Theme resuelto para un item: URL directa reproducible + procedencia.
 class ItemTheme {
   const ItemTheme({
     required this.streamUrl,
     required this.source,
-    this.youtubeId,
     this.themeItemId,
   });
 
-  /// URL directa reproducible (mp3 Jellyfin o audio YouTube).
+  /// URL directa reproducible (mp3 Jellyfin).
   final String streamUrl;
   final ItemThemeSource source;
-
-  /// VideoId de YouTube cuando viene de ThemerrDB (para mostrar/atribuir).
-  final String? youtubeId;
 
   /// Id del theme song en Jellyfin cuando viene del servidor.
   final String? themeItemId;
 }
-
-final _themerrResolver = ThemerrResolver();
 
 /// Theme song nativo de Jellyfin (`GET /Items/{id}/ThemeSongs`).
 /// Devuelve la URL directa del primer theme (`/Audio/{themeId}/stream`).
@@ -1999,119 +1916,12 @@ final jellyfinThemeAudioProvider =
   }
 });
 
-/// Theme de ThemerrDB (curado) para películas y series.
-/// Resuelve `youtube_theme_url` vía Tmdb/Imdb y lo convierte a audio directo.
-/// Para temporadas/episodios hereda el Tmdb de la serie (vía SeriesId).
-final themerrThemeProvider =
-    FutureProvider.family<ThemerrHit?, BaseItemDto>((ref, item) async {
-  ref.cacheFor(const Duration(hours: 1));
-  if (item.type != BaseItemKind.movie &&
-      item.type != BaseItemKind.series &&
-      item.type != BaseItemKind.season &&
-      item.type != BaseItemKind.episode) {
-    debugPrint('[Theme] ThemerrDB skip tipo ${item.type} item=${item.name}');
-    return null;
-  }
-  debugPrint(
-    '[Theme] ThemerrDB lookup item=${item.name} type=${item.type} '
-    'tmdb=${ThemerrResolver.providerIdOf(item, 'Tmdb')} '
-    'imdb=${ThemerrResolver.providerIdOf(item, 'Imdb')}',
-  );
-  try {
-    // Las filas (getItems) no siempre incluyen ProviderIds: si faltan,
-    // se pide el detalle completo (GET /Items/{id} sí los devuelve).
-    var effective = item;
-    if (ThemerrResolver.providerIdOf(item, 'Tmdb') == null &&
-        ThemerrResolver.providerIdOf(item, 'Imdb') == null) {
-      final client = ref.watch(jellyfinClientProvider);
-      final userId = ref.watch(currentUserIdProvider);
-      final itemId = item.id;
-      if (client != null && userId != null && itemId != null && itemId.isNotEmpty) {
-        try {
-          debugPrint(
-            '[Theme] ThemerrDB sin providerIds, pidiendo detalle item=${item.name}',
-          );
-          final detail = await client
-              .getUserLibraryApi()
-              .getItem(itemId: itemId, userId: userId)
-              .timeout(const Duration(seconds: 8));
-          if (detail.data != null) {
-            effective = detail.data!;
-            debugPrint(
-              '[Theme] ThemerrDB detalle item=${item.name} '
-              'tmdb=${ThemerrResolver.providerIdOf(effective, 'Tmdb')} '
-              'imdb=${ThemerrResolver.providerIdOf(effective, 'Imdb')}',
-            );
-          }
-        } catch (error) {
-          debugPrint('[Theme] ThemerrDB detalle falló item=${item.name}: $error');
-        }
-      }
-    }
-    String? seriesTmdb;
-    final seriesId = effective.seriesId;
-    if ((effective.type == BaseItemKind.season ||
-            effective.type == BaseItemKind.episode) &&
-        seriesId != null &&
-        seriesId.isNotEmpty) {
-      final client = ref.watch(jellyfinClientProvider);
-      final userId = ref.watch(currentUserIdProvider);
-      if (client != null && userId != null) {
-        try {
-          final series = await client
-              .getUserLibraryApi()
-              .getItem(itemId: seriesId, userId: userId)
-              .timeout(const Duration(seconds: 8));
-          final data = series.data;
-          if (data != null) {
-            seriesTmdb = ThemerrResolver.providerIdOf(data, 'Tmdb');
-          }
-        } catch (_) {}
-      }
-    }
-    // Cache en memoria por id externo: evita repetir los GET a ThemerrDB
-    // (cada apertura resolvía dos veces por el item navegable + resuelto).
-    final tmdb = ThemerrResolver.providerIdOf(effective, 'Tmdb');
-    final imdb = ThemerrResolver.providerIdOf(effective, 'Imdb');
-    final cacheKey = tmdb != null ? 'tmdb:$tmdb' : (imdb != null ? 'imdb:$imdb' : null);
-    final cachedHit = cacheKey != null ? _themerrJsonCache[cacheKey] : null;
-    if (cachedHit != null && cachedHit.fresh) {
-      debugPrint('[Theme] ThemerrDB json cache HIT item=${item.name}');
-      return cachedHit.value;
-    }
-    final hit = await _themerrResolver
-        .resolve(effective, seriesTmdbId: seriesTmdb)
-        .timeout(const Duration(seconds: 12));
-    if (cacheKey != null) {
-      // Los MISS caducan antes para no reintentar sin cobertura a cada clic.
-      _themerrJsonCache[cacheKey] = _Cached(
-        hit,
-        DateTime.now().add(
-          hit == null ? const Duration(minutes: 10) : const Duration(hours: 1),
-        ),
-      );
-    }
-    if (hit == null) {
-      debugPrint('[Theme] ThemerrDB MISS item=${item.name}');
-    } else {
-      debugPrint(
-        '[Theme] ThemerrDB HIT item=${item.name} youtubeId=${hit.youtubeId}',
-      );
-    }
-    return hit;
-  } catch (error) {
-    debugPrint('[Theme] ThemerrDB failed for ${item.id}: $error');
-    return null;
-  }
-});
-
-/// Cadena de theme para un item: Jellyfin nativo -> ThemerrDB.
-/// Sin búsqueda ciega de YouTube (evita falsos positivos en hover).
+/// Theme para un item: solo Jellyfin nativo (theme.mp3 del directorio).
+/// Null si el servidor no tiene themes.
 final itemThemeProvider =
     FutureProvider.family<ItemTheme?, BaseItemDto>((ref, item) async {
   ref.cacheFor(_kLibraryCache);
   debugPrint('[Theme] resolve start item=${item.name} type=${item.type}');
-  // 1) Nativo Jellyfin (respeta también el plugin Themerr-jellyfin del server).
   try {
     final jellyfinUrl = await ref.watch(jellyfinThemeAudioProvider(item).future);
     if (jellyfinUrl != null && jellyfinUrl.isNotEmpty) {
@@ -2124,32 +1934,8 @@ final itemThemeProvider =
   } catch (error) {
     debugPrint('[Theme] resolve jellyfin error item=${item.name}: $error');
   }
-  // 2) Fallback curado ThemerrDB -> audio YouTube en streaming directo.
-  try {
-    final hit = await ref.watch(themerrThemeProvider(item).future);
-    if (hit == null) {
-      debugPrint('[Theme] resolve -> null (sin cobertura) item=${item.name}');
-      return null;
-    }
-    final audioUrl = await _resolveYoutubeAudioUrl(hit.youtubeId);
-    if (audioUrl == null || audioUrl.isEmpty) {
-      debugPrint(
-        '[Theme] resolve -> null (audio YT vacío) item=${item.name} id=${hit.youtubeId}',
-      );
-      return null;
-    }
-    debugPrint(
-      '[Theme] resolve -> themerr item=${item.name} id=${hit.youtubeId}',
-    );
-    return ItemTheme(
-      streamUrl: audioUrl,
-      source: ItemThemeSource.themerr,
-      youtubeId: hit.youtubeId,
-    );
-  } catch (error) {
-    debugPrint('[Theme] resolve themerr error item=${item.name}: $error');
-    return null;
-  }
+  debugPrint('[Theme] resolve -> null (sin theme.mp3) item=${item.name}');
+  return null;
 });
 
 /// Items de una fila del music player configurada por el skin de música.

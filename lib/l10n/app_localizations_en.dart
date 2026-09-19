@@ -456,6 +456,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get addToFavorites => 'Add to favorites';
 
   @override
+  String get removeFromFavorites => 'Remove from favorites';
+
+  @override
+  String get download => 'Download';
+
+  @override
   String get details => 'Details';
 
   @override
@@ -496,6 +502,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get audio => 'Audio';
+
+  @override
+  String get audioTrackDefault => 'Default';
 
   @override
   String get vod => 'VOD';
@@ -1430,9 +1439,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ostThemeFromJellyfin => 'from Jellyfin';
-
-  @override
-  String get ostThemeFromThemerr => 'from ThemerrDB';
 
   @override
   String get ostMuteTheme => 'Mute theme song';

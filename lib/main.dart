@@ -11,7 +11,6 @@ import 'core/audio/hover_sound_player.dart';
 import 'core/audio/soloud_initializer.dart';
 import 'core/constants/button_sounds.dart';
 import 'core/network/image_http_overrides.dart';
-import 'features/library/data/themerr/themerr_resolver.dart';
 
 void _configEasyLoading() {
   // Estilo universal de notificaciones/toasts (ver AGENTS.md).
@@ -45,7 +44,5 @@ void main() async {
       for (final s in kButtonSounds) s.asset,
     ]),
   );
-  // Limpieza best-effort de themes antiguos (no bloquea el arranque).
-  unawaited(pruneStaleThemeCache());
   runApp(const ProviderScope(child: FynitivApp()));
 }

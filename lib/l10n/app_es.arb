@@ -147,6 +147,8 @@
   "adFreeEasterEggClose": "Seguir disfrutando",
   "watchNow": "Ver ahora",
   "addToFavorites": "Agregar a favoritos",
+  "removeFromFavorites": "Quitar de favoritos",
+  "download": "Descargar",
   "details": "Detalles",
   "watchTrailer": "Ver trailer",
   "playbackFailed": "No se pudo iniciar la reproducción.",
@@ -156,9 +158,10 @@
   "fullscreen": "Pantalla completa",
   "exitFullscreen": "Salir de pantalla completa",
   "subtitle": "Subtítulos",
-  "subtitlesOff": "Desactivados",
+  "subtitlesOff": "Apagado",
   "replay": "Volver a reproducir",
   "audio": "Audio",
+  "audioTrackDefault": "Predeterminado",
   "vod": "VOD",
   "liveTv": "Live TV",
   "liveTvChannels": "Canales",
@@ -529,7 +532,6 @@
   "artistWorldRank": "del mundo",
   "ostTheme": "Tema principal",
   "ostThemeFromJellyfin": "desde Jellyfin",
-  "ostThemeFromThemerr": "desde ThemerrDB",
   "ostMuteTheme": "Silenciar tema",
   "ostUnmuteTheme": "Activar tema"
 }

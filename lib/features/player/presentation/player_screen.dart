@@ -14,9 +14,11 @@ import 'package:media_kit_video/media_kit_video.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:palette_generator/palette_generator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/audio/soloud_initializer.dart';
 import '../../../core/audio/app_volume_provider.dart';
+import '../../../core/audio/item_theme_player.dart';
 import '../../music/application/soloud_music_provider.dart';
 
 import '../../music/application/lrclib_providers.dart';
@@ -111,6 +113,23 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   Tracks _tracks = const Tracks();
   AudioTrack? _selectedAudio;
   SubtitleTrack? _selectedSubtitle;
+
+  /// La restauración del audio guardado se intenta una sola vez por
+  /// sesión, cuando mpv ya informa de las pistas.
+  bool _audioRestored = false;
+
+  /// Pistas de audio de mpv (sin auto/no).
+  List<AudioTrack> get _mpvAudioTracks => _tracks.audio
+      .where((t) => t.id != 'auto' && t.id != 'no')
+      .toList();
+
+  /// Audios de Jellyfin en el mismo orden (para etiquetas y persistencia).
+  List<MediaStream> get _jellyAudio =>
+      (_session.mediaSource?.mediaStreams ?? const <MediaStream>[])
+          .where((s) => s.type == MediaStreamType.audio)
+          .toList();
+
+  static String _audioPrefKey(String itemId) => 'audio_track_index_$itemId';
   bool _dragging = false;
   bool _fullscreen = false;
 
@@ -146,6 +165,10 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   @override
   void initState() {
     super.initState();
+    // El theme de la ficha se detiene al reproducir (no pausa: con pausa
+    // la URL seguía guardada y cualquier resume (p. ej. volver del segundo
+    // plano) lo reactivaba sobre la peli/serie).
+    ItemThemePlayer.instance.stop();
     // Volumen universal como punto de partida (vídeo y fallback MediaKit).
     try {
       _volume = ref.read(appVolumeProvider).clamp(0, 100).toDouble();
@@ -210,6 +233,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     _subs.add(
       _player.stream.tracks.listen((t) {
         if (mounted) setState(() => _tracks = t);
+        unawaited(_maybeRestoreAudio());
       }),
     );
     _subs.add(
@@ -308,6 +332,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       sub.cancel();
     }
     _stopPlayer();
+    // Sin resume: el theme se detuvo al entrar y no debe volver solo.
     _focus.dispose();
     super.dispose();
   }
@@ -915,9 +940,25 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         ? _session.itemName
         : (widget.item?.name ?? '');
 
-    final audioTracks = _tracks.audio
-        .where((t) => t.id != 'auto' && t.id != 'no' && t.title != null)
-        .toList();
+    // Sin exigir título: mpv no informa título en pistas integradas
+    // (solo idioma como "spa"/"eng"), y con ese filtro el botón
+    // no aparecía nunca aunque la peli tuviera varios audios.
+    // Metadatos de Jellyfin para las etiquetas (idioma - codec - canales):
+    // en direct play van en el mismo orden que las pistas de mpv.
+    final audioTracks = _mpvAudioTracks;
+    final jellyAudio = _jellyAudio;
+    // Subtítulos de Jellyfin en el mismo orden que las pistas de mpv
+    // (integrados) y que los externos servidos por el servidor.
+    final jellySubs =
+        (_session.mediaSource?.mediaStreams ?? const <MediaStream>[])
+            .where((s) => s.type == MediaStreamType.subtitle)
+            .toList();
+    final embeddedSubMeta =
+        jellySubs.where((s) => s.isExternal != true).toList();
+    final externalSubMeta = jellySubs.where((s) {
+      final d = s.deliveryUrl;
+      return d != null && d.isNotEmpty;
+    }).toList();
     final hasSubtitles =
         _tracks.subtitle.any((t) => t.id != 'auto' && t.id != 'no') ||
         _session.externalSubtitles.isNotEmpty;
@@ -1085,6 +1126,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                           _SubtitleButton(
                             tracks: _tracks,
                             external: _session.externalSubtitles,
+                            embeddedMeta: embeddedSubMeta,
+                            externalMeta: externalSubMeta,
                             selected: _selectedSubtitle,
                             onSelected: _selectSubtitle,
                           ),
@@ -1093,6 +1136,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                         if (audioTracks.length > 1) ...[
                           _AudioButton(
                             tracks: audioTracks,
+                            meta: jellyAudio,
                             selected: _selectedAudio,
                             onSelected: _selectAudio,
                           ),
@@ -1142,12 +1186,45 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   }
 
   Future<void> _selectAudio(String id) async {
-    for (final t in _tracks.audio) {
-      if (t.id == id) {
-        await _player.setAudioTrack(t);
-        return;
+    final mpv = _mpvAudioTracks;
+    final pos = mpv.indexWhere((t) => t.id == id);
+    if (pos < 0) return;
+    await _player.setAudioTrack(mpv[pos]);
+    // Persistencia por item: índice de stream de Jellyfin (estable entre
+    // sesiones para el mismo fichero). Sin metadatos no se puede restaurar.
+    try {
+      final jelly = _jellyAudio;
+      final streamIndex = pos < jelly.length ? jelly[pos].index : null;
+      if (streamIndex != null) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_audioPrefKey(_session.itemId), streamIndex);
       }
+    } catch (_) {}
+  }
+
+  /// Restaura el audio guardado para este item (una vez por sesión).
+  /// No hace nada si solo hay una pista o no hay preferencia guardada.
+  Future<void> _maybeRestoreAudio() async {
+    if (_audioRestored || !mounted || _playerDisposed) return;
+    final mpv = _mpvAudioTracks;
+    final jelly = _jellyAudio;
+    // Sin las pistas aún (o una sola) se reintenta en el próximo evento.
+    if (mpv.length < 2 || jelly.isEmpty) return;
+    _audioRestored = true;
+    int? saved;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      saved = prefs.getInt(_audioPrefKey(_session.itemId));
+    } catch (_) {
+      return;
     }
+    if (saved == null || !mounted || _playerDisposed) return;
+    final pos = jelly.indexWhere((s) => s.index == saved);
+    if (pos < 0 || pos >= mpv.length) return;
+    if (_selectedAudio?.id == mpv[pos].id) return;
+    try {
+      await _player.setAudioTrack(mpv[pos]);
+    } catch (_) {}
   }
 
   static String _formatDuration(Duration d) {
@@ -4552,17 +4629,23 @@ class _VolumeButtonState extends State<_VolumeButton> {
   }
 }
 
-/// Botón de subtítulos con menú de pistas.
+/// Botón de subtítulos con menú de pistas ("Idioma - Predeterminado - Formato").
 class _SubtitleButton extends StatelessWidget {
   const _SubtitleButton({
     required this.tracks,
     required this.external,
+    required this.embeddedMeta,
+    required this.externalMeta,
     required this.selected,
     required this.onSelected,
   });
 
   final Tracks tracks;
   final List<SubtitleTrack> external;
+
+  /// Metadatos de Jellyfin en el mismo orden (para las etiquetas).
+  final List<MediaStream> embeddedMeta;
+  final List<MediaStream> externalMeta;
   final SubtitleTrack? selected;
   final ValueChanged<String> onSelected;
 
@@ -4570,24 +4653,57 @@ class _SubtitleButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final hasExternal = external.isNotEmpty;
+    final embedded = tracks.subtitle
+        .where((t) => t.id != 'auto' && t.id != 'no')
+        .toList();
 
-    String labelOf(String id, SubtitleTrack t) {
+    // Metadatos Jellyfin > título mpv > idioma mpv > "Subtítulo N".
+    String labelOf(SubtitleTrack t, MediaStream? m, int index) {
+      if (m != null) {
+        final parts = <String>[];
+        final lang = _trackLanguageName(m.language);
+        if (lang.isNotEmpty) parts.add(lang);
+        if (m.isDefault == true) parts.add(l10n.audioTrackDefault);
+        final format = _subtitleFormatLabel(m);
+        if (format.isNotEmpty) parts.add(format);
+        final label = parts.join(' - ');
+        if (label.isNotEmpty) return label;
+      }
       final base = t.title ?? t.language;
       if (base != null && base.isNotEmpty) return base;
-      if (id.startsWith('ext:')) {
-        final idx = int.tryParse(id.substring(4));
-        if (idx != null && idx < external.length) {
-          final et = external[idx];
-          return et.title ?? et.language ?? l10n.subtitle;
-        }
-      }
-      return l10n.subtitle;
+      return '${l10n.subtitle} ${index + 1}';
     }
 
     final selectedId = selected?.id ?? 'auto';
     bool isSelected(String id, SubtitleTrack? t) {
       if (id == 'no') return selectedId == 'no';
       return t != null && t.id == selectedId;
+    }
+
+    Widget row(String id, SubtitleTrack? t, String label) {
+      final sel = isSelected(id, t);
+      return Container(
+        color: sel ? const Color(0x2AFFFFFF) : Colors.transparent,
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          children: [
+            Icon(
+              sel ? Icons.check_rounded : null,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     return PopupMenuButton<String>(
@@ -4597,114 +4713,308 @@ class _SubtitleButton extends StatelessWidget {
       onSelected: onSelected,
       itemBuilder: (context) => [
         PopupMenuItem<String>(
-          value: 'no',
-          child: Row(
-            children: [
-              Icon(
-                isSelected('no', null) ? Icons.check_rounded : null,
-                color: Colors.white,
-                size: 18,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                l10n.subtitlesOff,
-                style: const TextStyle(color: Colors.white),
-              ),
-            ],
+          enabled: false,
+          child: Text(
+            l10n.subtitlesLabel,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        for (final t in tracks.subtitle)
-          if (t.id != 'auto' && t.id != 'no')
-            PopupMenuItem<String>(
-              value: t.id,
-              child: Row(
-                children: [
-                  Icon(
-                    isSelected(t.id, t) ? Icons.check_rounded : null,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      t.title ?? t.language ?? l10n.subtitle,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
+        PopupMenuItem<String>(
+          value: 'no',
+          child: row('no', null, l10n.subtitlesOff),
+        ),
+        for (var i = 0; i < embedded.length; i++)
+          PopupMenuItem<String>(
+            value: embedded[i].id,
+            child: row(
+              embedded[i].id,
+              embedded[i],
+              labelOf(
+                embedded[i],
+                i < embeddedMeta.length ? embeddedMeta[i] : null,
+                i,
               ),
             ),
+          ),
         if (hasExternal) const PopupMenuDivider(),
         for (var i = 0; i < external.length; i++)
           PopupMenuItem<String>(
             value: external[i].id,
-            child: Row(
-              children: [
-                Icon(
-                  isSelected(external[i].id, external[i])
-                      ? Icons.check_rounded
-                      : null,
-                  color: Colors.white,
-                  size: 18,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    labelOf(external[i].id, external[i]),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
+            child: row(
+              external[i].id,
+              external[i],
+              labelOf(
+                external[i],
+                i < externalMeta.length ? externalMeta[i] : null,
+                i,
+              ),
             ),
           ),
       ],
       child: const Padding(
         padding: EdgeInsets.all(8),
-        child: Icon(Icons.subtitles_rounded, color: Colors.white),
+        child: Icon(Icons.closed_caption, color: Colors.white),
       ),
     );
   }
 }
 
-/// Botón de audio con menú de pistas.
+/// Nombre de idioma para códigos ISO 639 (2 y 3 letras) de Jellyfin.
+String _trackLanguageName(String? code) {
+  if (code == null || code.isEmpty) return '';
+  const names = <String, String>{
+    'en': 'English',
+    'eng': 'English',
+    'es': 'Spanish',
+    'spa': 'Spanish',
+    'esp': 'Spanish',
+    'fr': 'French',
+    'fre': 'French',
+    'fra': 'French',
+    'de': 'German',
+    'ger': 'German',
+    'deu': 'German',
+    'it': 'Italian',
+    'ita': 'Italian',
+    'pt': 'Portuguese',
+    'por': 'Portuguese',
+    'nl': 'Dutch',
+    'dut': 'Dutch',
+    'nld': 'Dutch',
+    'ru': 'Russian',
+    'rus': 'Russian',
+    'ja': 'Japanese',
+    'jpn': 'Japanese',
+    'zh': 'Chinese',
+    'chi': 'Chinese',
+    'zho': 'Chinese',
+    'ko': 'Korean',
+    'kor': 'Korean',
+    'ar': 'Arabic',
+    'ara': 'Arabic',
+    'hi': 'Hindi',
+    'hin': 'Hindi',
+    'tr': 'Turkish',
+    'tur': 'Turkish',
+    'pl': 'Polish',
+    'pol': 'Polish',
+    'sv': 'Swedish',
+    'swe': 'Swedish',
+    'no': 'Norwegian',
+    'nor': 'Norwegian',
+    'da': 'Danish',
+    'dan': 'Danish',
+    'fi': 'Finnish',
+    'fin': 'Finnish',
+    'el': 'Greek',
+    'gre': 'Greek',
+    'ell': 'Greek',
+    'cs': 'Czech',
+    'cze': 'Czech',
+    'ces': 'Czech',
+    'sk': 'Slovak',
+    'slo': 'Slovak',
+    'slk': 'Slovak',
+    'hu': 'Hungarian',
+    'hun': 'Hungarian',
+    'ro': 'Romanian',
+    'rum': 'Romanian',
+    'ron': 'Romanian',
+    'uk': 'Ukrainian',
+    'ukr': 'Ukrainian',
+    'vi': 'Vietnamese',
+    'vie': 'Vietnamese',
+    'th': 'Thai',
+    'tha': 'Thai',
+    'id': 'Indonesian',
+    'ind': 'Indonesian',
+    'ms': 'Malay',
+    'msa': 'Malay',
+    'he': 'Hebrew',
+    'heb': 'Hebrew',
+    'ca': 'Catalan',
+    'cat': 'Catalan',
+    'eu': 'Basque',
+    'eus': 'Basque',
+    'baq': 'Basque',
+    'gl': 'Galician',
+    'glg': 'Galician',
+  };
+  return names[code.toLowerCase()] ?? code;
+}
+
+/// Etiqueta comercial del codec de Jellyfin ("ac3" -> "Dolby Digital"...).
+String _audioCodecLabel(MediaStream m) {
+  final codec = (m.codec ?? '').toLowerCase();
+  final profile = (m.profile ?? '').toUpperCase();
+  switch (codec) {
+    case 'ac3':
+      return 'Dolby Digital';
+    case 'eac3':
+    case 'ec3':
+      return 'Dolby Digital Plus';
+    case 'truehd':
+      return 'Dolby TrueHD';
+    case 'dts':
+    case 'dca':
+      return 'DTS';
+    case 'dtshd':
+    case 'dts-hd':
+    case 'dtsma':
+      return 'DTS-HD MA';
+    case 'aac':
+      return profile.contains('HE') ? 'HE-AAC' : 'AAC';
+    case 'mp3':
+      return 'MP3';
+    case 'flac':
+      return 'FLAC';
+    case 'opus':
+      return 'Opus';
+    case 'vorbis':
+      return 'Vorbis';
+    case 'alac':
+      return 'ALAC';
+    case 'pcm':
+    case 'pcm_s16le':
+    case 'pcm_s24le':
+    case 'pcm_s32le':
+      return 'PCM';
+    case 'wmapro':
+      return 'WMA Pro';
+    case 'wmav2':
+      return 'WMA';
+    default:
+      return (m.codec ?? '').toUpperCase();
+  }
+}
+
+/// Formato del subtítulo de Jellyfin ("srt" -> "SUBRIP"...).
+String _subtitleFormatLabel(MediaStream m) {
+  switch ((m.codec ?? '').toLowerCase()) {
+    case 'srt':
+    case 'subrip':
+      return 'SUBRIP';
+    case 'ass':
+      return 'ASS';
+    case 'ssa':
+      return 'SSA';
+    case 'pgssub':
+    case 'pgs':
+      return 'PGS';
+    case 'dvdsub':
+      return 'VOBSUB';
+    case 'dvbsub':
+      return 'DVBSUB';
+    case 'vtt':
+    case 'webvtt':
+      return 'VTT';
+    case 'mov_text':
+      return 'MOV_TEXT';
+    case 'microdvd':
+      return 'MicroDVD';
+    default:
+      return (m.codec ?? '').toUpperCase();
+  }
+}
+
+/// Etiqueta de canales ("Stereo", "5.1"...).
+String _audioChannelsLabel(int? channels) {
+  switch (channels) {
+    case 1:
+      return 'Mono';
+    case 2:
+      return 'Stereo';
+    case 6:
+      return '5.1';
+    case 7:
+      return '6.1';
+    case 8:
+      return '7.1';
+    default:
+      return (channels != null && channels > 0) ? '$channels ch' : '';
+  }
+}
+
+/// Botón de audio con menú de pistas ("Idioma - Codec - Canales").
 class _AudioButton extends StatelessWidget {
   const _AudioButton({
     required this.tracks,
+    required this.meta,
     required this.selected,
     required this.onSelected,
   });
 
+  /// Pistas de mpv (las que se seleccionan).
   final List<AudioTrack> tracks;
+
+  /// Metadatos de Jellyfin en el mismo orden (para las etiquetas).
+  final List<MediaStream> meta;
   final AudioTrack? selected;
   final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+
+    // Metadatos Jellyfin > título mpv > idioma mpv > "Audio N".
+    String labelOf(AudioTrack t, int index) {
+      final m = index < meta.length ? meta[index] : null;
+      if (m != null) {
+        final parts = <String>[];
+        final lang = _trackLanguageName(m.language);
+        if (lang.isNotEmpty) parts.add(lang);
+        final codec = _audioCodecLabel(m);
+        if (codec.isNotEmpty) parts.add(codec);
+        final channels = _audioChannelsLabel(m.channels);
+        if (channels.isNotEmpty) parts.add(channels);
+        var label = parts.join(' - ');
+        if (m.isDefault == true) {
+          label = label.isEmpty
+              ? l10n.audioTrackDefault
+              : '$label - ${l10n.audioTrackDefault}';
+        }
+        if (label.isNotEmpty) return label;
+      }
+      final base = t.title ?? t.language;
+      if (base != null && base.isNotEmpty) return base;
+      return '${l10n.audio} ${index + 1}';
+    }
+
     return PopupMenuButton<String>(
       tooltip: l10n.audio,
       offset: const Offset(0, -60),
       color: const Color(0xEE1A1A1A),
       onSelected: onSelected,
       itemBuilder: (context) => [
-        for (final t in tracks)
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Text(
+            l10n.audio,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        for (var i = 0; i < tracks.length; i++)
           PopupMenuItem<String>(
-            value: t.id,
+            value: tracks[i].id,
             child: Row(
               children: [
                 Icon(
-                  selected?.id == t.id ? Icons.check_rounded : null,
+                  selected?.id == tracks[i].id ? Icons.check_rounded : null,
                   color: Colors.white,
                   size: 18,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    t.title ?? t.language ?? l10n.audio,
+                    labelOf(tracks[i], i),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(color: Colors.white),

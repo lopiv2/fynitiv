@@ -148,6 +148,8 @@
   "adFreeEasterEggClose": "Keep enjoying",
   "watchNow": "Watch now",
   "addToFavorites": "Add to favorites",
+  "removeFromFavorites": "Remove from favorites",
+  "download": "Download",
   "details": "Details",
   "watchTrailer": "Watch trailer",
   "playbackFailed": "Couldn't start playback.",
@@ -162,6 +164,7 @@
   "subtitlesOff": "Off",
   "replay": "Replay",
   "audio": "Audio",
+  "audioTrackDefault": "Default",
   "vod": "VOD",
   "liveTv": "Live TV",
   "liveTvChannels": "Channels",
@@ -532,7 +535,6 @@
   "artistWorldRank": "in the world",
   "ostTheme": "Theme song",
   "ostThemeFromJellyfin": "from Jellyfin",
-  "ostThemeFromThemerr": "from ThemerrDB",
   "ostMuteTheme": "Mute theme song",
   "ostUnmuteTheme": "Unmute theme song"
 }
