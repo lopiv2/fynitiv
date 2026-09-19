@@ -9,6 +9,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../../core/audio/item_theme_player.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
 import '../../../core/widgets/app_hover.dart';
@@ -30,7 +31,8 @@ class ItemDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<ItemDetailScreen> createState() => _ItemDetailScreenState();
 }
 
-class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
+class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
+    with WidgetsBindingObserver {
   final GlobalKey _detailsKey = GlobalKey();
   final GlobalKey _relatedKey = GlobalKey();
   BaseItemDto? _resolvedItem;
@@ -41,23 +43,62 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
   Player? _trailerPlayer;
   VideoController? _trailerVideoController;
   String? _trailerError;
+  bool _themeStarted = false;
 
   BaseItemDto get item => _resolvedItem ?? widget.item;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _isFavorite = widget.item.userData?.isFavorite;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _trailerPlayer?.dispose();
+    // El theme del detalle no debe sonar fuera de la ficha.
+    ItemThemePlayer.instance.leaveDetail();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      ItemThemePlayer.instance.pauseForExternal();
+    } else if (state == AppLifecycleState.resumed) {
+      ItemThemePlayer.instance.resumeIfNeeded();
+    }
+  }
+
+  /// Autoplay del theme en el detalle (cadena Jellyfin -> ThemerrDB).
+  /// Silencioso si no hay cobertura; toma propiedad frente al hover.
+  void _maybeStartTheme(ItemTheme? theme) {
+    debugPrint(
+      '[Theme] detalle "${widget.item.name}" theme=${theme == null ? 'null' : '${theme.source}'} started=$_themeStarted',
+    );
+    if (_themeStarted) return;
+    final url = theme?.streamUrl;
+    if (url == null || url.isEmpty) {
+      debugPrint('[Theme] detalle sin theme "${widget.item.name}"');
+      return;
+    }
+    if (ItemThemePlayer.instance.isPlayingUrl(url)) {
+      debugPrint('[Theme] detalle ya sonando');
+      _themeStarted = true;
+      return;
+    }
+    _themeStarted = true;
+    debugPrint('[Theme] detalle play source=${theme?.source}');
+    ItemThemePlayer.instance.play(url, inDetail: true);
   }
 
   Future<void> _openTrailer() async {
     if (_trailerLoading || _trailerPlayer != null) return;
+    // El trailer (vídeo) tiene prioridad sobre el theme de fondo.
+    ItemThemePlayer.instance.pauseForExternal();
     final itemId = item.id;
     if (itemId == null || itemId.isEmpty) return;
     setState(() {
@@ -127,6 +168,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     _trailerError = null;
     if (mounted) setState(() {});
     await player?.dispose();
+    ItemThemePlayer.instance.resumeIfNeeded();
   }
 
   Future<void> _toggleFavorite() async {
@@ -232,6 +274,12 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
     _resolvedItem =
         ref.watch(itemDetailProvider(widget.item.id ?? '')).value ??
         widget.item;
+    // Autoplay del theme (Jellyfin -> ThemerrDB), silencioso sin cobertura.
+    // Usa el item resuelto (con ProviderIds) en vez del de navegación.
+    ref.listen<AsyncValue<ItemTheme?>>(
+      itemThemeProvider(item),
+      (_, next) => next.whenData(_maybeStartTheme),
+    );
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
     final imageUrl = serverUrl == null
@@ -366,8 +414,12 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen> {
                             compact: compact,
                           ),
                         ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(36, 8, 36, 0),
+                          child: _ItemThemeChip(item: item),
+                        ),
                         SizedBox(
-                          height: compact ? 100 : constraints.maxHeight * 0.27,
+                          height: compact ? 92 : constraints.maxHeight * 0.05,
                         ),
                         Padding(
                           padding: EdgeInsets.fromLTRB(
@@ -1127,6 +1179,87 @@ class _DetailActionButton extends StatelessWidget {
         side: const BorderSide(color: Colors.white70, width: 2),
         shape: const CircleBorder(),
       ),
+    );
+  }
+}
+
+/// Chip del theme/OST en la ficha: muestra loader mientras resuelve la
+/// cadena Jellyfin -> ThemerrDB (petición DIO), etiqueta de origen y
+/// botón de mute. Silencioso si no hay cobertura (ocupa cero espacio).
+class _ItemThemeChip extends ConsumerStatefulWidget {
+  const _ItemThemeChip({required this.item});
+
+  final BaseItemDto item;
+
+  @override
+  ConsumerState<_ItemThemeChip> createState() => _ItemThemeChipState();
+}
+
+class _ItemThemeChipState extends ConsumerState<_ItemThemeChip> {
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final themeAsync = ref.watch(itemThemeProvider(widget.item));
+    return themeAsync.when(
+      loading: () => const Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(height: 28, width: 28, child: AppLoader(size: 22)),
+      ),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (theme) {
+        if (theme == null) return const SizedBox.shrink();
+        final muted = ItemThemePlayer.instance.isMuted;
+        final sourceLabel = theme.source == ItemThemeSource.jellyfin
+            ? l10n.ostThemeFromJellyfin
+            : l10n.ostThemeFromThemerr;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.music_note_outlined,
+              color: Colors.white70,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                '${l10n.ostTheme} · $sourceLabel',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: muted ? l10n.ostUnmuteTheme : l10n.ostMuteTheme,
+              onPressed: () async {
+                final next = !ItemThemePlayer.instance.isMuted;
+                await ItemThemePlayer.instance.setMuted(next);
+                if (mounted) setState(() {});
+                // Si se reactiva y el theme sigue disponible, retoma.
+                if (!next) {
+                  final t = ref.read(itemThemeProvider(widget.item)).value;
+                  final url = t?.streamUrl ?? theme.streamUrl;
+                  if (url.isNotEmpty) {
+                    await ItemThemePlayer.instance.play(url, inDetail: true);
+                  }
+                }
+              },
+              icon: Icon(
+                muted ? Icons.volume_off_outlined : Icons.volume_up_outlined,
+                color: Colors.white70,
+                size: 20,
+              ),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -1424,4 +1424,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get artistWorldRank => 'in the world';
+
+  @override
+  String get ostTheme => 'Theme song';
+
+  @override
+  String get ostThemeFromJellyfin => 'from Jellyfin';
+
+  @override
+  String get ostThemeFromThemerr => 'from ThemerrDB';
+
+  @override
+  String get ostMuteTheme => 'Mute theme song';
+
+  @override
+  String get ostUnmuteTheme => 'Unmute theme song';
 }

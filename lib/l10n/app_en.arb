@@ -529,5 +529,10 @@
   "discographySingle": "Single",
   "discographyEp": "EP",
   "artistInfoTitle": "Info",
-  "artistWorldRank": "in the world"
+  "artistWorldRank": "in the world",
+  "ostTheme": "Theme song",
+  "ostThemeFromJellyfin": "from Jellyfin",
+  "ostThemeFromThemerr": "from ThemerrDB",
+  "ostMuteTheme": "Mute theme song",
+  "ostUnmuteTheme": "Unmute theme song"
 }

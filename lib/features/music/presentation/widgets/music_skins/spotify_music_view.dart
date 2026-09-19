@@ -7,7 +7,6 @@ import '../../../../../core/settings/music_chart_source.dart';
 import '../../../../../core/settings/music_chart_source_controller.dart';
 import '../../../../../core/skin/music_player_skin.dart';
 import '../../../../../core/widgets/app_loader.dart';
-import '../../../../../core/widgets/horizontal_scroll_behavior.dart';
 import '../../../../../core/widgets/responsive_carousel.dart';
 import '../../../../../l10n/app_localizations.dart';
 import '../../../../library/application/image_url.dart';

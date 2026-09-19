@@ -526,5 +526,10 @@
   "discographySingle": "Sencillo",
   "discographyEp": "EP",
   "artistInfoTitle": "Información",
-  "artistWorldRank": "del mundo"
+  "artistWorldRank": "del mundo",
+  "ostTheme": "Tema principal",
+  "ostThemeFromJellyfin": "desde Jellyfin",
+  "ostThemeFromThemerr": "desde ThemerrDB",
+  "ostMuteTheme": "Silenciar tema",
+  "ostUnmuteTheme": "Activar tema"
 }

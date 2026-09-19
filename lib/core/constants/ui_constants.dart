@@ -4,6 +4,7 @@
 ///
 /// Los títulos de las filas del home usan su propio estilo centralizado
 /// ([ScrollTitle]); el resto de cabeceras de sección usan [kSectionTitleFontSize].
+library;
 
 /// Tamaño único de los títulos de sección de música (Discografía,
 /// Populares, Artistas relacionados...).

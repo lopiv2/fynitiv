@@ -2737,6 +2737,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'in the world'**
   String get artistWorldRank;
+
+  /// No description provided for @ostTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Theme song'**
+  String get ostTheme;
+
+  /// No description provided for @ostThemeFromJellyfin.
+  ///
+  /// In en, this message translates to:
+  /// **'from Jellyfin'**
+  String get ostThemeFromJellyfin;
+
+  /// No description provided for @ostThemeFromThemerr.
+  ///
+  /// In en, this message translates to:
+  /// **'from ThemerrDB'**
+  String get ostThemeFromThemerr;
+
+  /// No description provided for @ostMuteTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute theme song'**
+  String get ostMuteTheme;
+
+  /// No description provided for @ostUnmuteTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute theme song'**
+  String get ostUnmuteTheme;
 }
 
 class _AppLocalizationsDelegate
