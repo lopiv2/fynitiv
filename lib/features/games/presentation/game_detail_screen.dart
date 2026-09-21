@@ -6,24 +6,25 @@ import 'package:material_ui/material_ui.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-
 import '../../../core/audio/game_bg_player.dart';
-import '../../../core/audio/khinsider_player.dart';
+import '../../../core/audio/game_ost_player.dart';
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/app_hover_button.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/marquee_text.dart';
 import '../../../l10n/app_localizations.dart';
-import '../application/khinsider_providers.dart';
+import '../application/ost_providers.dart';
 import '../application/romm_providers.dart';
-import '../data/khinsider/khinsider_models.dart';
+import '../domain/game_ost_track.dart';
 import '../domain/romm_game.dart';
+import 'widgets/game_box3d_viewer.dart';
 
 /// Detalle de un juego de ROMM con estilo Origin/EA (Mirror's Edge Catalyst).
 /// Mantiene toda la funcionalidad previa: Play (streaming), Descargar,
-/// Khinsider OST, last_played y mute.
+/// OST (archive.org), last_played y mute.
 class GameDetailScreen extends ConsumerStatefulWidget {
   const GameDetailScreen({super.key, required this.gameId});
 
@@ -37,10 +38,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     with WidgetsBindingObserver {
   bool _launching = false;
   bool _downloading = false;
-  StreamSubscription<KhinsiderTrack?>? _khinsiderSub;
-  KhinsiderTrack? _currentTrack;
-  bool _khinsiderStarted = false;
-  List<KhinsiderTrack> _khinsiderQueue = [];
+  StreamSubscription<GameOstTrack?>? _ostSub;
+  GameOstTrack? _currentTrack;
+  bool _ostStarted = false;
 
   @override
   void initState() {
@@ -54,17 +54,17 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     );
     // Corta el fondo del hub para que no se solape con el OST del juego.
     Future.microtask(() => GameBgPlayer.instance.suspendForDetail());
-    _khinsiderSub = KhinsiderPlayer.instance.currentTrackStream.listen((track) {
+    _ostSub = GameOstPlayer.instance.currentTrackStream.listen((track) {
       if (mounted) setState(() => _currentTrack = track);
     });
-    _currentTrack = KhinsiderPlayer.instance.currentTrack;
+    _currentTrack = GameOstPlayer.instance.currentTrack;
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _khinsiderSub?.cancel();
-    KhinsiderPlayer.instance.stop();
+    _ostSub?.cancel();
+    GameOstPlayer.instance.stop();
     // Retoma el fondo del hub con reshuffle al salir del detalle.
     GameBgPlayer.instance.returnFromDetail();
     super.dispose();
@@ -72,21 +72,19 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      KhinsiderPlayer.instance.pauseForExternal();
-    } else if (state == AppLifecycleState.resumed) {
-      KhinsiderPlayer.instance.resumeIfNeeded();
+    // El OST sigue sonando aunque la app pierda el foco; al volver se
+    // recupera por si el sistema lo cortó (llamada, etc.).
+    if (state == AppLifecycleState.resumed) {
+      GameOstPlayer.instance.resumeIfNeeded();
     }
   }
 
-  void _maybeStartKhinsider(List<KhinsiderTrack> tracks) {
-    if (_khinsiderStarted || tracks.isEmpty) return;
-    _khinsiderStarted = true;
-    _khinsiderQueue = tracks;
+  void _maybeStartOst(List<GameOstTrack> tracks) {
+    if (_ostStarted || tracks.isEmpty) return;
+    _ostStarted = true;
     final muted = ref.read(gameBgMutedProvider);
-    KhinsiderPlayer.instance.setMuted(muted);
-    KhinsiderPlayer.instance.playQueue(tracks);
+    GameOstPlayer.instance.setMuted(muted);
+    GameOstPlayer.instance.playQueue(tracks);
   }
 
   Future<void> _play(RommGame game) async {
@@ -183,26 +181,27 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     ref.listen<bool>(gameBgMutedProvider, (prev, muted) {
-      KhinsiderPlayer.instance.setMuted(muted);
+      GameOstPlayer.instance.setMuted(muted);
     });
-    ref.listen<AsyncValue<List<KhinsiderTrack>>>(
-      khinsiderTracksProvider(widget.gameId),
+    ref.listen<AsyncValue<List<GameOstTrack>>>(
+      ostTracksProvider(widget.gameId),
       (prev, next) {
         final tracks = next.value;
         if (tracks != null && tracks.isNotEmpty) {
-          _maybeStartKhinsider(tracks);
+          _maybeStartOst(tracks);
         }
       },
     );
-    final khinsiderAsync = ref.watch(khinsiderTracksProvider(widget.gameId));
-    khinsiderAsync.whenData((tracks) {
+    final ostAsync = ref.watch(ostTracksProvider(widget.gameId));
+    ostAsync.whenData((tracks) {
       if (tracks.isNotEmpty) {
         WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _maybeStartKhinsider(tracks),
+          (_) => _maybeStartOst(tracks),
         );
       }
     });
 
+    final heightSpace = 80;
     final game = ref.watch(rommGameProvider(widget.gameId));
     final token = ref.watch(rommRepositoryProvider)?.token;
     final headers = token != null && token.isNotEmpty
@@ -309,6 +308,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                           ),
 
                           // Hero block: poster + info (or stacked in compact)
+                          // Wide: izq = carátula + Now Playing (mismo ancho), der = info + lista
                           Padding(
                             padding: EdgeInsets.fromLTRB(
                               compact ? 20 : 60,
@@ -321,11 +321,17 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      _CoverCard(
+                                      GameCoverViewer(
                                         game: g,
                                         headers: headers,
                                         width: 200,
                                         height: 282,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      _OstNowPlayingCard(
+                                        ostAsync: ostAsync,
+                                        currentTrack: _currentTrack,
+                                        game: g,
                                       ),
                                       const SizedBox(height: 20),
                                       _GameHeroInfo(
@@ -342,10 +348,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                         compact: true,
                                       ),
                                       const SizedBox(height: 16),
-                                      _NowPlayingBar(
-                                        khinsiderAsync: khinsiderAsync,
+                                      _OstTrackList(
+                                        ostAsync: ostAsync,
                                         currentTrack: _currentTrack,
-                                        queueLength: _khinsiderQueue.length,
+                                        game: g,
                                       ),
                                     ],
                                   )
@@ -353,11 +359,29 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      _CoverCard(
-                                        game: g,
-                                        headers: headers,
-                                        width: 210,
-                                        height: 296,
+                                      SizedBox(
+                                        width: 260,
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            Center(
+                                              child: GameCoverViewer(
+                                                game: g,
+                                                headers: headers,
+                                                width: 210,
+                                                height: 296,
+                                              ),
+                                            ),
+                                            SizedBox(height: heightSpace.toDouble() * 2),
+                                            _OstNowPlayingCard(
+                                              ostAsync: ostAsync,
+                                              currentTrack: _currentTrack,
+                                              game: g,
+                                              compact: true,
+                                            ),
+                                          ],
+                                        ),
                                       ),
                                       const SizedBox(width: 32),
                                       Expanded(
@@ -378,12 +402,11 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                               game: g,
                                               compact: false,
                                             ),
-                                            const SizedBox(height: 16),
-                                            _NowPlayingBar(
-                                              khinsiderAsync: khinsiderAsync,
+                                            SizedBox(height: heightSpace.toDouble()),
+                                            _OstTrackList(
+                                              ostAsync: ostAsync,
                                               currentTrack: _currentTrack,
-                                              queueLength:
-                                                  _khinsiderQueue.length,
+                                              game: g,
                                             ),
                                           ],
                                         ),
@@ -416,74 +439,7 @@ String _formatDate(DateTime? d) {
 }
 
 // ---------------------------------------------------------------------------
-// Poster
-
-class _CoverCard extends StatelessWidget {
-  const _CoverCard({
-    required this.game,
-    required this.headers,
-    required this.width,
-    required this.height,
-  });
-
-  final RommGame game;
-  final Map<String, String>? headers;
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.18),
-          width: 1,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black54,
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: game.coverLargeUrl != null && game.coverLargeUrl!.isNotEmpty
-            ? Image.network(
-                game.coverLargeUrl!,
-                fit: BoxFit.cover,
-                headers: headers,
-                errorBuilder: (_, _, _) => _CoverFallback(game: game),
-              )
-            : _CoverFallback(game: game),
-      ),
-    );
-  }
-}
-
-class _CoverFallback extends StatelessWidget {
-  const _CoverFallback({required this.game});
-  final RommGame game;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF1A2568),
-      alignment: Alignment.center,
-      child: Text(
-        game.name.isEmpty ? '?' : game.name.substring(0, 1).toUpperCase(),
-        style: const TextStyle(
-          color: Colors.white70,
-          fontSize: 42,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
+// Poster 2D/3D: ver widgets/game_box3d_viewer.dart (GameCoverViewer).
 
 // ---------------------------------------------------------------------------
 // Hero info: title + stats + buttons (Origin layout)
@@ -789,114 +745,535 @@ class _OriginDescriptionState extends State<_OriginDescription> {
 // ---------------------------------------------------------------------------
 // Now playing (preserved)
 
-class _NowPlayingBar extends StatelessWidget {
-  const _NowPlayingBar({
-    required this.khinsiderAsync,
+// ---------------------------------------------------------------------------
+// Sección OST: tarjeta Now Playing + lista de temas (estilo app de música).
+
+const _ostAccent = Color(0xFF8B7CF6);
+
+int _parseOstSecs(String? duration) {
+  if (duration == null) return 0;
+  final parts = duration.split(':');
+  if (parts.length != 2) return 0;
+  final m = int.tryParse(parts[0]) ?? 0;
+  final s = int.tryParse(parts[1]) ?? 0;
+  return m * 60 + s;
+}
+
+String _fmtOstSecs(int total) {
+  final m = (total ~/ 60).toString();
+  final s = (total % 60).toString().padLeft(2, '0');
+  return '$m:$s';
+}
+
+class _OstLoadingBox extends StatelessWidget {
+  const _OstLoadingBox();
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: AppLoader(size: 16, color: Colors.white54),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            '${l10n.nowPlaying}...',
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OstNowPlayingCard extends StatefulWidget {
+  const _OstNowPlayingCard({
+    required this.ostAsync,
     required this.currentTrack,
-    required this.queueLength,
+    required this.game,
+    this.compact = false,
   });
-  final AsyncValue<List<KhinsiderTrack>> khinsiderAsync;
-  final KhinsiderTrack? currentTrack;
-  final int queueLength;
+  final AsyncValue<List<GameOstTrack>> ostAsync;
+  final GameOstTrack? currentTrack;
+  final RommGame game;
+
+  /// Versión estrecha para la columna bajo la carátula (210 px).
+  final bool compact;
+
+  @override
+  State<_OstNowPlayingCard> createState() => _OstNowPlayingCardState();
+}
+
+class _OstNowPlayingCardState extends State<_OstNowPlayingCard> {
+  Timer? _ticker;
+  bool _shuffle = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _shuffle = GameOstPlayer.instance.shuffleEnabled;
+    _ticker = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    return khinsiderAsync.when(
-      loading: () => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white12),
-        ),
-        child: Row(
-          children: [
-            const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: Colors.white54,
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              '${l10n.nowPlaying}...',
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
-            ),
-          ],
-        ),
-      ),
+    return widget.ostAsync.when(
+      loading: () => const _OstLoadingBox(),
       error: (_, _) => const SizedBox.shrink(),
       data: (tracks) {
         if (tracks.isEmpty) return const SizedBox.shrink();
-        final trackName = currentTrack?.name ?? tracks.first.name;
+        final player = GameOstPlayer.instance;
+        final current = widget.currentTrack;
+        final posSecs = player.position.inSeconds;
+        final lenSecs = player.trackLength.inSeconds > 0
+            ? player.trackLength.inSeconds
+            : _parseOstSecs(current?.duration);
+        final sounding = player.sounding;
+        final muted = player.isMuted;
+        final compact = widget.compact;
         return Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          padding: EdgeInsets.fromLTRB(16, 14, 16, compact ? 12 : 12),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.07),
-            borderRadius: BorderRadius.circular(10),
+            color: Colors.white.withValues(alpha: 0.06),
+            borderRadius: BorderRadius.circular(14),
             border: Border.all(color: Colors.white12),
           ),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF2B7FFF).withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Icon(
-                  Icons.music_note_rounded,
-                  color: Color(0xFF2B7FFF),
-                  size: 18,
+              Text(
+                l10n.nowPlaying.toUpperCase(),
+                style: const TextStyle(
+                  color: _ostAccent,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
                 ),
               ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.nowPlaying,
-                      style: const TextStyle(
-                        color: Colors.white38,
-                        fontSize: 10,
-                        letterSpacing: 0.6,
-                        fontWeight: FontWeight.w600,
-                      ),
+              const SizedBox(height: 6),
+              MarqueeText(
+                key: ValueKey(current?.name ?? tracks.first.name),
+                text: current?.name ?? tracks.first.name,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: compact ? 16 : 22,
+                  fontWeight: FontWeight.w800,
+                ),
+                isHovered: true,
+                enabled: true,
+                velocity: 28,
+                gap: 36,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                widget.game.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white54,
+                  fontSize: compact ? 12 : 14,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    tooltip: l10n.ostShuffle,
+                    onPressed: () {
+                      setState(() => _shuffle = !_shuffle);
+                      unawaited(player.setShuffle(_shuffle));
+                    },
+                    icon: Icon(
+                      Icons.shuffle_rounded,
+                      color: _shuffle ? _ostAccent : Colors.white54,
+                      size: compact ? 18 : 20,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      l10n.nowPlayingTrack(trackName),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  ),
+                  IconButton(
+                    tooltip: l10n.ostPrevious,
+                    onPressed: () => unawaited(player.previous()),
+                    icon: Icon(
+                      Icons.skip_previous_rounded,
+                      color: Colors.white,
+                      size: compact ? 22 : 26,
                     ),
-                    if (queueLength > 1)
-                      Text(
-                        '$queueLength tracks • shuffle',
-                        style: const TextStyle(
-                          color: Colors.white38,
-                          fontSize: 10,
+                  ),
+                    const SizedBox(width: 4),
+                      if (player.isLoading)
+                        Container(
+                          width: compact ? 46 : 54,
+                          height: compact ? 46 : 54,
+                          decoration: BoxDecoration(
+                            color: _ostAccent.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          alignment: Alignment.center,
+                          child: AppLoader(
+                            size: compact ? 22 : 26,
+                            color: Colors.white,
+                          ),
+                        )
+                      else
+                        AppHover(
+                          effect: AppHoverEffect.highlightWithScale,
+                          config: AppHoverConfig(
+                            borderRadius: BorderRadius.circular(14),
+                            highlightNormal: _ostAccent,
+                            highlightHovered: const Color(0xFF9D8FF7),
+                            scale: 1.06,
+                          ),
+                          onTap: () => unawaited(player.toggle()),
+                          playSoundOnHover: true,
+                          child: Container(
+                            width: compact ? 46 : 54,
+                            height: compact ? 46 : 54,
+                            decoration: BoxDecoration(
+                              color: _ostAccent,
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: Icon(
+                              sounding
+                                  ? Icons.pause_rounded
+                                  : Icons.play_arrow_rounded,
+                              color: Colors.white,
+                              size: compact ? 26 : 30,
+                            ),
+                          ),
                         ),
-                      ),
-                  ],
-                ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    tooltip: l10n.ostNext,
+                    onPressed: () => unawaited(player.next()),
+                    icon: Icon(
+                      Icons.skip_next_rounded,
+                      color: Colors.white,
+                      size: compact ? 22 : 26,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: muted ? l10n.ostUnmute : l10n.ostMute,
+                    onPressed: () => unawaited(player.setMuted(!muted)),
+                    icon: Icon(
+                      muted
+                          ? Icons.volume_off_rounded
+                          : Icons.volume_up_rounded,
+                      color: Colors.white70,
+                      size: compact ? 18 : 20,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.equalizer_rounded,
-                color: Colors.white38,
-                size: 18,
+              const SizedBox(height: 4),
+              Row(
+                children: [
+                  SizedBox(
+                    width: 34,
+                    child: Text(
+                      _fmtOstSecs(posSecs),
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 4,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 7,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 12,
+                        ),
+                        activeTrackColor: _ostAccent,
+                        inactiveTrackColor: Colors.white24,
+                        thumbColor: Colors.white,
+                        overlayColor: _ostAccent.withValues(alpha: 0.2),
+                      ),
+                      child: Slider(
+                        value: lenSecs > 0
+                            ? posSecs.clamp(0, lenSecs).toDouble()
+                            : 0,
+                        max: (lenSecs > 0 ? lenSecs : 1).toDouble(),
+                        onChanged: lenSecs > 0
+                            ? (v) => player.seek(Duration(seconds: v.round()))
+                            : null,
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 34,
+                    child: Text(
+                      _fmtOstSecs(lenSecs),
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(
+                        color: Colors.white54,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
+        );
+      },
+    );
+  }
+}
+
+class _OstTrackList extends StatefulWidget {
+  const _OstTrackList({
+    required this.ostAsync,
+    required this.currentTrack,
+    required this.game,
+  });
+  final AsyncValue<List<GameOstTrack>> ostAsync;
+  final GameOstTrack? currentTrack;
+  final RommGame game;
+
+  @override
+  State<_OstTrackList> createState() => _OstTrackListState();
+}
+
+class _OstTrackListState extends State<_OstTrackList> {
+  final ScrollController _scrollController = ScrollController();
+  List<GlobalKey> _itemKeys = [];
+
+  void _ensureKeys(int count) {
+    if (_itemKeys.length == count) return;
+    _itemKeys = List.generate(count, (_) => GlobalKey());
+  }
+
+  void _scrollToCurrent(List<GameOstTrack> tracks, GameOstTrack? current) {
+    if (current == null || tracks.isEmpty) return;
+    final idx = tracks.indexWhere((t) => t.url == current.url);
+    if (idx < 0) return;
+    _ensureKeys(tracks.length);
+    // Solo saltar cuando la pista ya está sonando (no si está
+    // elegida pero aún cargando por red). Reintenta hasta 2.5s.
+    var attempts = 0;
+    void tryScroll() {
+      if (!mounted) return;
+      if (!GameOstPlayer.instance.sounding) {
+        if (attempts++ < 8) {
+          Future.delayed(const Duration(milliseconds: 300), tryScroll);
+        }
+        return;
+      }
+      final key = _itemKeys[idx];
+      final ctx = key.currentContext;
+      if (ctx != null) {
+        Scrollable.ensureVisible(
+          ctx,
+          duration: const Duration(milliseconds: 350),
+          curve: Curves.easeInOut,
+          alignment: 0.3,
+        );
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) => tryScroll());
+  }
+
+  @override
+  void didUpdateWidget(covariant _OstTrackList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentTrack?.url != widget.currentTrack?.url) {
+      widget.ostAsync.whenData((tracks) {
+        _scrollToCurrent(tracks, widget.currentTrack);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return widget.ostAsync.when(
+      loading: () => const SizedBox.shrink(),
+      error: (_, _) => const SizedBox.shrink(),
+      data: (tracks) {
+        if (tracks.isEmpty) return const SizedBox.shrink();
+        final current = widget.currentTrack;
+        final totalSecs = tracks.fold<int>(
+          0,
+          (s, t) => s + _parseOstSecs(t.duration),
+        );
+        _ensureKeys(tracks.length);
+        // Scroll inicial cuando entra la primera pista (también espera a sounding).
+        if (current != null) {
+          final snapshot = current;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _scrollToCurrent(tracks, snapshot);
+          });
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              totalSecs > 0
+                  ? l10n.ostTracksHeader(tracks.length, _fmtOstSecs(totalSecs))
+                  : l10n.ostTracksCount(tracks.length),
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+              ),
+            ),
+            const SizedBox(height: 6),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 420),
+              child: RawScrollbar(
+                controller: _scrollController,
+                thumbVisibility: true,
+                thickness: 4,
+                radius: const Radius.circular(2),
+                thumbColor: Colors.white38,
+                child: ListView.builder(
+                  controller: _scrollController,
+                  physics: const ClampingScrollPhysics(),
+                  padding: EdgeInsets.zero,
+                  itemCount: tracks.length,
+                  itemBuilder: (context, i) {
+                    final t = tracks[i];
+                    final isCurrent = current != null && current.url == t.url;
+                    return Container(
+                      key: _itemKeys[i],
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        highlightColor: Colors.white.withValues(alpha: 0.06),
+                        focusColor: Colors.white.withValues(alpha: 0.08),
+                        onTap: () =>
+                            unawaited(GameOstPlayer.instance.playTrack(t)),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 9,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isCurrent
+                                ? Colors.white.withValues(alpha: 0.07)
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 26,
+                                child: isCurrent
+                                    ? const Icon(
+                                        Icons.graphic_eq_rounded,
+                                        color: _ostAccent,
+                                        size: 18,
+                                      )
+                                    : Text(
+                                        '${i + 1}',
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                          color: Colors.white38,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                              ),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      t.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color: isCurrent
+                                            ? _ostAccent
+                                            : Colors.white,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    Text(
+                                      widget.game.name,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white38,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (t.duration != null && t.duration!.isNotEmpty)
+                                Text(
+                                  t.duration!,
+                                  style: const TextStyle(
+                                    color: Colors.white38,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              PopupMenuButton<String>(
+                                tooltip: l10n.more,
+                                icon: const Icon(
+                                  Icons.more_vert_rounded,
+                                  color: Colors.white54,
+                                  size: 18,
+                                ),
+                                color: const Color(0xFF232B3A),
+                                onSelected: (_) => unawaited(
+                                  GameOstPlayer.instance.playTrack(t),
+                                ),
+                                itemBuilder: (_) => [
+                                  PopupMenuItem(
+                                    value: 'play',
+                                    child: Text(
+                                      l10n.ostPlay,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         );
       },
     );

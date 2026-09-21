@@ -17,6 +17,7 @@ class GameBgPlayer {
   List<String> _queue = [];
   int _index = 0;
   bool _inside = false;
+  bool _inDetail = false;
   bool _muted = false;
   bool _initialized = false;
   // Token anti-carreras: si se sale (leave) mientras una pista se está
@@ -30,7 +31,7 @@ class GameBgPlayer {
   }
 
   Future<void> _onComplete() async {
-    if (!_inside || _muted || _queue.isEmpty) return;
+    if (!_inside || _inDetail || _muted || _queue.isEmpty) return;
     _index = (_index + 1) % _queue.length;
     await _playCurrent(_session);
   }
@@ -62,6 +63,7 @@ class GameBgPlayer {
     _ensureInit();
     if (_inside) return;
     _inside = true;
+    _inDetail = false;
     _session++;
     _queue = List<String>.from(kThemeTracks)..shuffle(Random());
     _index = 0;
@@ -73,6 +75,7 @@ class GameBgPlayer {
   Future<void> leave() async {
     if (!_inside) return;
     _inside = false;
+    _inDetail = false;
     _session++;
     try {
       await _player.stop();
@@ -81,10 +84,11 @@ class GameBgPlayer {
     _index = 0;
   }
 
-  /// Suspende la voz actual sin salir del estado: para entrar al detalle
-  /// del juego, donde suena el OST propio (Khinsider) y no debe solaparse.
+  /// Para el fondo al entrar al detalle del juego, donde suena el OST
+  /// propio: parado del todo (no pausa) hasta [returnFromDetail].
   /// Es determinista (no depende del timing de rebuild del shell).
   Future<void> suspendForDetail() async {
+    _inDetail = true;
     _session++;
     try {
       await _player.stop();
@@ -94,6 +98,7 @@ class GameBgPlayer {
   /// Vuelve del detalle: para el OST ajeno quien lo llame y retoma el
   /// fondo con reshuffle si seguíamos dentro de juegos.
   Future<void> returnFromDetail() async {
+    _inDetail = false;
     if (!_inside || _muted || _queue.isEmpty) return;
     _session++;
     _queue.shuffle(Random());
@@ -109,7 +114,7 @@ class GameBgPlayer {
       try {
         await _player.stop();
       } catch (_) {}
-    } else if (_inside && _queue.isNotEmpty) {
+    } else if (_inside && !_inDetail && _queue.isNotEmpty) {
       // Al reactivar el sonido, reshuffle y empieza de cero.
       _queue.shuffle(Random());
       _index = 0;
@@ -127,7 +132,7 @@ class GameBgPlayer {
   }
 
   Future<void> resumeIfNeeded() async {
-    if (!_inside || _muted) return;
+    if (!_inside || _inDetail || _muted) return;
     try {
       if (_player.state == SoloudSingleState.paused) {
         await _player.resume();

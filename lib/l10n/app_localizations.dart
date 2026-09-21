@@ -1784,6 +1784,60 @@ abstract class AppLocalizations {
   /// **'{count} games'**
   String gamesCount(int count);
 
+  /// No description provided for @platformInLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'In library'**
+  String get platformInLibrary;
+
+  /// No description provided for @platformOnDisk.
+  ///
+  /// In en, this message translates to:
+  /// **'On disk'**
+  String get platformOnDisk;
+
+  /// No description provided for @platformFirmware.
+  ///
+  /// In en, this message translates to:
+  /// **'Firmware'**
+  String get platformFirmware;
+
+  /// No description provided for @platformGeneration.
+  ///
+  /// In en, this message translates to:
+  /// **'Generation {generation}'**
+  String platformGeneration(int generation);
+
+  /// No description provided for @gameView2D.
+  ///
+  /// In en, this message translates to:
+  /// **'2D'**
+  String get gameView2D;
+
+  /// No description provided for @gameView3D.
+  ///
+  /// In en, this message translates to:
+  /// **'3D'**
+  String get gameView3D;
+
+  /// No description provided for @gameBoxLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Loading 3D box...'**
+  String get gameBoxLoading;
+
+  /// No description provided for @gameBoxNoData.
+  ///
+  /// In en, this message translates to:
+  /// **'No 3D box, showing cover'**
+  String get gameBoxNoData;
+
+  /// No description provided for @gameBoxWebViewMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'3D view not available on this device'**
+  String get gameBoxWebViewMissing;
+
   /// No description provided for @noResultsForQuery.
   ///
   /// In en, this message translates to:
@@ -2125,6 +2179,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Now playing'**
   String get nowPlaying;
+
+  /// No description provided for @ostShuffle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle'**
+  String get ostShuffle;
+
+  /// No description provided for @ostNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next'**
+  String get ostNext;
+
+  /// No description provided for @ostPrevious.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous'**
+  String get ostPrevious;
+
+  /// No description provided for @ostPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play'**
+  String get ostPlay;
+
+  /// No description provided for @ostMute.
+  ///
+  /// In en, this message translates to:
+  /// **'Mute'**
+  String get ostMute;
+
+  /// No description provided for @ostUnmute.
+  ///
+  /// In en, this message translates to:
+  /// **'Unmute'**
+  String get ostUnmute;
+
+  /// No description provided for @ostTracksHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks • {duration}'**
+  String ostTracksHeader(int count, String duration);
+
+  /// No description provided for @ostTracksCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks'**
+  String ostTracksCount(int count);
+
+  /// No description provided for @ostQueueShuffle.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks • shuffle'**
+  String ostQueueShuffle(int count);
+
+  /// No description provided for @ostQueueOrdered.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks • in order'**
+  String ostQueueOrdered(int count);
 
   /// No description provided for @nowPlayingTrack.
   ///

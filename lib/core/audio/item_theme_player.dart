@@ -9,7 +9,7 @@ import 'soloud_single_player.dart';
 /// Player singleton para themes/OST de items Jellyfin (solo detalle).
 ///
 /// Una sola voz sobre SoLoud, volumen bajo de fondo (0.35), con token
-/// anti-carreras como [KhinsiderPlayer]: si se sale del detalle o cambia el
+/// anti-carreras como [GameOstPlayer]: si se sale del detalle o cambia el
 /// hover mientras se carga la pista, el play tardío se aborta y no suena
 /// fuera de contexto.
 class ItemThemePlayer {

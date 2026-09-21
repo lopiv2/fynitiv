@@ -146,6 +146,35 @@ class RommRepository {
         return strVal(p['fs_slug']);
       }
 
+      String? pickOptString(Map p, List<String> keys) {
+        for (final k in keys) {
+          final v = p[k];
+          if (v is String && v.trim().isNotEmpty) return v.trim();
+        }
+        return null;
+      }
+
+      int pickSize(Map p) {
+        final v = p['fs_size_bytes'];
+        if (v is num) return v.toInt();
+        return 0;
+      }
+
+      int? pickGeneration(Map p) {
+        final v = p['generation'];
+        if (v is num) return v.toInt();
+        if (v is String) return int.tryParse(v.trim());
+        return null;
+      }
+
+      int pickFirmwareCount(Map p) {
+        final c = p['firmware_count'];
+        if (c is num) return c.toInt();
+        final f = p['firmware'];
+        if (f is List) return f.length;
+        return 0;
+      }
+
       final mapped = [
         for (final p in list)
           if (p is Map<String, dynamic>)
@@ -162,6 +191,12 @@ class RommRepository {
                 // Prioridad: logo_path interno de ROMM > url_logo externo IGDB
                 (p['logo_path'] ?? p['path_logo'] ?? p['url_logo'] ?? p['img_path'] ?? p['logo']) as String?,
               ),
+              category: pickOptString(p, const ['category']),
+              generation: pickGeneration(p),
+              familyName: pickOptString(p, const ['family_name']),
+              familySlug: pickOptString(p, const ['family_slug']),
+              fsSizeBytes: pickSize(p),
+              firmwareCount: pickFirmwareCount(p),
             )
           else if (p is Map)
             RommPlatform(
@@ -174,13 +209,19 @@ class RommRepository {
               }(),
               romCount: (p['rom_count'] ?? p['roms_count'] ?? p['count']) is num ? ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num).toInt() : 0,
               logoUrl: _logoUrl((p['logo_path'] ?? p['path_logo'] ?? p['url_logo'])?.toString()),
+              category: pickOptString(p, const ['category']),
+              generation: pickGeneration(p),
+              familyName: pickOptString(p, const ['family_name']),
+              familySlug: pickOptString(p, const ['family_slug']),
+              fsSizeBytes: pickSize(p),
+              firmwareCount: pickFirmwareCount(p),
             ),
       ];
       final filtered = mapped.where((p) => p.romCount > 0).toList();
       // DEBUG: plataformas recibidas de ROMM (para identificar las no mapeadas)
       debugPrint('[ROMM] GET /api/platforms -> raw=${list.length} mapped=${mapped.length} filtered(romCount>0)=${filtered.length} server=$serverUrl');
       for (final p in filtered) {
-        debugPrint('[ROMM] platform id=${p.id} slug="${p.slug}" name="${p.name}" customName="${p.customName}" romCount=${p.romCount} logoUrl="${p.logoUrl}"');
+        debugPrint('[ROMM] platform id=${p.id} slug="${p.slug}" name="${p.name}" customName="${p.customName}" romCount=${p.romCount} logoUrl="${p.logoUrl}" category="${p.category}" generation=${p.generation} family="${p.familyName}" size=${p.fsSizeBytes} firmware=${p.firmwareCount}');
       }
       // También loguea las descartadas por romCount 0 (útil para ver si faltan identificadas)
       final zero = mapped.where((p) => p.romCount == 0).toList();
@@ -193,7 +234,7 @@ class RommRepository {
       // Log crudo de claves para detectar campos nuevos (slug/fs_slug, name/fs_name, logo_path/url_logo)
       if (list.isNotEmpty && list.first is Map) {
         final sample = list.first as Map;
-        debugPrint('[ROMM] sample raw keys: ${sample.keys.toList()} values: id=${sample['id']} slug=${sample['slug']}/${sample['fs_slug']} name=${sample['name']}/${sample['fs_name']} logo_path=${sample['logo_path']} url_logo=${sample['url_logo']} custom_name=${sample['custom_name']}');
+        debugPrint('[ROMM] sample raw keys: ${sample.keys.toList()} values: id=${sample['id']} slug=${sample['slug']}/${sample['fs_slug']} name=${sample['name']}/${sample['fs_name']} logo_path=${sample['logo_path']} url_logo=${sample['url_logo']} custom_name=${sample['custom_name']} category=${sample['category']} generation=${sample['generation']} family=${sample['family_name']} size=${sample['fs_size_bytes']} firmware=${sample['firmware_count'] ?? (sample['firmware'] is List ? (sample['firmware'] as List).length : null)}');
       }
       return filtered;
     } on DioException catch (e) {
@@ -207,7 +248,20 @@ class RommRepository {
             final res = [
               for (final p in list)
                 if (p is Map<String, dynamic>)
-                  RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?)),
+                  RommPlatform(
+                    id: (p['id'] as num?)?.toInt() ?? 0,
+                    slug: (p['slug'] ?? p['fs_slug']) as String? ?? '',
+                    name: (p['name'] ?? p['fs_name']) as String? ?? '',
+                    customName: p['custom_name'] as String?,
+                    romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0,
+                    logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?),
+                    category: (p['category'] as String?)?.trim().isNotEmpty == true ? (p['category'] as String).trim() : null,
+                    generation: (p['generation'] as num?)?.toInt(),
+                    familyName: (p['family_name'] as String?)?.trim().isNotEmpty == true ? (p['family_name'] as String).trim() : null,
+                    familySlug: (p['family_slug'] as String?)?.trim().isNotEmpty == true ? (p['family_slug'] as String).trim() : null,
+                    fsSizeBytes: (p['fs_size_bytes'] as num?)?.toInt() ?? 0,
+                    firmwareCount: (p['firmware_count'] as num?)?.toInt() ?? (p['firmware'] is List ? (p['firmware'] as List).length : 0),
+                  ),
             ];
             debugPrint('[ROMM] fallback noAuth platforms count=${res.length}');
             for (final p in res) {
@@ -225,7 +279,20 @@ class RommRepository {
             final res = [
               for (final p in list)
                 if (p is Map<String, dynamic>)
-                  RommPlatform(id: (p['id'] as num?)?.toInt() ?? 0, slug: (p['slug'] ?? p['fs_slug']) as String? ?? '', name: (p['name'] ?? p['fs_name']) as String? ?? '', customName: p['custom_name'] as String?, romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0, logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?)),
+                  RommPlatform(
+                    id: (p['id'] as num?)?.toInt() ?? 0,
+                    slug: (p['slug'] ?? p['fs_slug']) as String? ?? '',
+                    name: (p['name'] ?? p['fs_name']) as String? ?? '',
+                    customName: p['custom_name'] as String?,
+                    romCount: ((p['rom_count'] ?? p['roms_count'] ?? p['count']) as num?)?.toInt() ?? 0,
+                    logoUrl: _logoUrl((p['logo_path'] ?? p['url_logo']) as String?),
+                    category: (p['category'] as String?)?.trim().isNotEmpty == true ? (p['category'] as String).trim() : null,
+                    generation: (p['generation'] as num?)?.toInt(),
+                    familyName: (p['family_name'] as String?)?.trim().isNotEmpty == true ? (p['family_name'] as String).trim() : null,
+                    familySlug: (p['family_slug'] as String?)?.trim().isNotEmpty == true ? (p['family_slug'] as String).trim() : null,
+                    fsSizeBytes: (p['fs_size_bytes'] as num?)?.toInt() ?? 0,
+                    firmwareCount: (p['firmware_count'] as num?)?.toInt() ?? (p['firmware'] is List ? (p['firmware'] as List).length : 0),
+                  ),
             ];
             debugPrint('[ROMM] fallback /platforms count=${res.length}');
             return res;
@@ -278,6 +345,11 @@ class RommRepository {
   /// Detalle de un juego.
   Future<RommGame> getGame(int id) async {
     final res = await _dio.get('/api/roms/$id', options: _authOptions);
+    final data = res.data;
+    if (data is Map<String, dynamic>) {
+      final keys = data.keys.toList();
+      debugPrint('[ROMM] GET /api/roms/$id keys=$keys back=${data['path_backcover'] ?? data['backcover_path'] ?? data['url_backcover']} spine=${data['path_spine'] ?? data['side_path'] ?? data['url_spine']} box3d=${data['box3d_path'] ?? data['path_box3d'] ?? data['url_box3d']}');
+    }
     return _mapGame(res.data);
   }
 
@@ -290,6 +362,55 @@ class RommRepository {
     if (rawLast != null && rawLast.isNotEmpty) {
       lastPlayed = DateTime.tryParse(rawLast);
     }
+    String pickFirst(List<String> keys) {
+      for (final k in keys) {
+        final v = g?[k];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+      }
+      return '';
+    }
+
+    final frontLarge = pickFirst(const ['path_cover_large', 'cover_large_path']);
+    final frontSmall = pickFirst(const ['path_cover_small', 'cover_small_path']);
+    final frontFallback = pickFirst(const ['url_cover', 'cover_url']);
+    final backRaw = pickFirst(const [
+      'path_backcover',
+      'backcover_path',
+      'path_cover_back',
+      'cover_back_path',
+      'url_backcover',
+      'backcover_url',
+    ]);
+    final spineRaw = pickFirst(const [
+      'path_spine',
+      'spine_path',
+      'path_side',
+      'side_path',
+      'path_cover_side',
+      'path_cover_spine',
+      'cover_side_path',
+      'cover_spine_path',
+      'url_spine',
+      'url_side',
+      'spine_url',
+      'side_url',
+    ]);
+    final box3dRaw = pickFirst(const [
+      'box3d_path',
+      'path_box3d',
+      'path_box_3d',
+      'url_box3d',
+      'box3d_url',
+    ]);
+    String norm(String raw) {
+      if (raw.isEmpty) return '';
+      return assetUrl(raw);
+    }
+
+    final coverSmall = norm(frontSmall.isNotEmpty ? frontSmall : frontFallback);
+    final coverLarge = norm(
+      frontLarge.isNotEmpty ? frontLarge : (frontSmall.isNotEmpty ? frontSmall : frontFallback),
+    );
     return RommGame(
       id: (g?['id'] as num?)?.toInt() ?? 0,
       name: g?['name'] as String? ?? g?['fs_name'] as String? ?? '',
@@ -297,11 +418,35 @@ class RommRepository {
       platformSlug: g?['platform_slug'] as String? ?? '',
       platformDisplayName: g?['platform_display_name'] as String? ?? g?['platform_custom_name'] as String? ?? '',
       summary: g?['summary'] as String?,
-      coverSmallUrl: assetUrl(g?['path_cover_small'] as String?),
-      coverLargeUrl: assetUrl(g?['path_cover_large'] as String?),
+      coverSmallUrl: coverSmall,
+      coverLargeUrl: coverLarge,
+      coverBackUrl: norm(backRaw),
+      coverSpineUrl: norm(spineRaw),
+      box3dUrl: norm(box3dRaw),
       firstFile: firstFile,
       lastPlayed: lastPlayed,
     );
+  }
+
+  /// Descarga un asset protegido de RomM a bytes (para inyectar en WebView
+  /// como base64 sin exponer el token).
+  Future<List<int>?> downloadAssetBytes(String url) async {
+    try {
+      final res = await _dio.get<List<int>>(
+        url,
+        options: Options(
+          headers: {
+            if (_token != null && _token!.isNotEmpty)
+              'Authorization': 'Bearer $_token',
+          },
+          responseType: ResponseType.bytes,
+        ),
+      );
+      return res.data;
+    } catch (e) {
+      debugPrint('[ROMM] asset bytes failed url=$url err=$e');
+      return null;
+    }
   }
 
   /// Marca un juego como jugado: PUT /api/roms/{id}/props?update_last_played=true

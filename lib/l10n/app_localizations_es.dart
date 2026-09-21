@@ -887,6 +887,36 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get platformInLibrary => 'En biblioteca';
+
+  @override
+  String get platformOnDisk => 'En disco';
+
+  @override
+  String get platformFirmware => 'Firmware';
+
+  @override
+  String platformGeneration(int generation) {
+    return 'Generación $generation';
+  }
+
+  @override
+  String get gameView2D => '2D';
+
+  @override
+  String get gameView3D => '3D';
+
+  @override
+  String get gameBoxLoading => 'Cargando caja 3D...';
+
+  @override
+  String get gameBoxNoData => 'Sin caja 3D, mostrando portada';
+
+  @override
+  String get gameBoxWebViewMissing =>
+      'Vista 3D no disponible en este dispositivo';
+
+  @override
   String noResultsForQuery(String query) {
     return 'Sin resultados para \"$query\"';
   }
@@ -1088,6 +1118,44 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get nowPlaying => 'Reproduciendo ahora';
+
+  @override
+  String get ostShuffle => 'Aleatorio';
+
+  @override
+  String get ostNext => 'Siguiente';
+
+  @override
+  String get ostPrevious => 'Anterior';
+
+  @override
+  String get ostPlay => 'Reproducir';
+
+  @override
+  String get ostMute => 'Silenciar';
+
+  @override
+  String get ostUnmute => 'Activar sonido';
+
+  @override
+  String ostTracksHeader(int count, String duration) {
+    return '$count temas • $duration';
+  }
+
+  @override
+  String ostTracksCount(int count) {
+    return '$count temas';
+  }
+
+  @override
+  String ostQueueShuffle(int count) {
+    return '$count temas • aleatorio';
+  }
+
+  @override
+  String ostQueueOrdered(int count) {
+    return '$count temas • en orden';
+  }
 
   @override
   String nowPlayingTrack(String track) {

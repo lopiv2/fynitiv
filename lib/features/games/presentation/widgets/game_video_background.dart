@@ -25,6 +25,24 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
   Player? _player;
   VideoController? _videoController;
   bool _ready = false;
+  bool _counted = false;
+
+  bool _isOff() {
+    return ref.read(gameVideoDisabledProvider) ||
+        ref.read(gameVideoSuspendedProvider);
+  }
+
+  void _incActive() {
+    if (_counted) return;
+    _counted = true;
+    ref.read(gameVideoActiveCountProvider.notifier).increment();
+  }
+
+  void _decActive() {
+    if (!_counted) return;
+    _counted = false;
+    ref.read(gameVideoActiveCountProvider.notifier).decrement();
+  }
 
   @override
   void initState() {
@@ -33,8 +51,7 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
   }
 
   Future<void> _maybeInit() async {
-    final disabled = ref.read(gameVideoDisabledProvider);
-    if (disabled) return;
+    if (_isOff()) return;
     if (_player != null) return;
     final pick = kGameVideos[Random().nextInt(kGameVideos.length)];
     // asset:/// + ruta con espacios codificados como %20
@@ -49,7 +66,10 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
       await player.setPlaylistMode(PlaylistMode.loop);
       await player.open(Media(uri));
       await player.play();
-      if (mounted) setState(() => _ready = true);
+      if (mounted) {
+        _incActive();
+        setState(() => _ready = true);
+      }
       debugPrint('[GameVideoBackground] playing $pick -> $uri');
     } catch (e) {
       debugPrint('[GameVideoBackground] failed $pick ($uri): $e');
@@ -71,7 +91,10 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
             await retryPlayer.setPlaylistMode(PlaylistMode.loop);
             await retryPlayer.open(Media(retryUri));
             await retryPlayer.play();
-            if (mounted) setState(() => _ready = true);
+            if (mounted) {
+              _incActive();
+              setState(() => _ready = true);
+            }
             debugPrint('[GameVideoBackground] retry playing $retryPick');
             return;
           } catch (e2) {
@@ -90,6 +113,7 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
     _player = null;
     _videoController = null;
     _ready = false;
+    _decActive();
   }
 
   @override
@@ -100,17 +124,22 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<bool>(gameVideoDisabledProvider, (prev, next) async {
-      if (next == true) {
+    Future<void> handleOffChange() async {
+      if (_isOff()) {
         await _dispose();
         if (mounted) setState(() {});
-      } else if (next == false && _player == null) {
+      } else if (_player == null) {
         await _maybeInit();
         if (mounted) setState(() {});
       }
-    });
-    final disabled = ref.watch(gameVideoDisabledProvider);
-    if (disabled) {
+    }
+
+    ref.listen<bool>(gameVideoDisabledProvider, (_, _) => handleOffChange());
+    ref.listen<bool>(gameVideoSuspendedProvider, (_, _) => handleOffChange());
+    final off =
+        ref.watch(gameVideoDisabledProvider) ||
+        ref.watch(gameVideoSuspendedProvider);
+    if (off) {
       if (_player != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {
           await _dispose();

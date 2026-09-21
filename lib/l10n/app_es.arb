@@ -305,6 +305,20 @@
       "count": { "type": "int" }
     }
   },
+  "platformInLibrary": "En biblioteca",
+  "platformOnDisk": "En disco",
+  "platformFirmware": "Firmware",
+  "platformGeneration": "Generación {generation}",
+  "@platformGeneration": {
+    "placeholders": {
+      "generation": { "type": "int" }
+    }
+  },
+  "gameView2D": "2D",
+  "gameView3D": "3D",
+  "gameBoxLoading": "Cargando caja 3D...",
+  "gameBoxNoData": "Sin caja 3D, mostrando portada",
+  "gameBoxWebViewMissing": "Vista 3D no disponible en este dispositivo",
   "noResultsForQuery": "Sin resultados para \"{query}\"",
   "@noResultsForQuery": {
     "placeholders": {
@@ -408,6 +422,37 @@
   "loginFailedFallback": "Error al iniciar sesión",
   "pinRequired": "Debes elegir un PIN para la casa",
   "nowPlaying": "Reproduciendo ahora",
+  "ostShuffle": "Aleatorio",
+  "ostNext": "Siguiente",
+  "ostPrevious": "Anterior",
+  "ostPlay": "Reproducir",
+  "ostMute": "Silenciar",
+  "ostUnmute": "Activar sonido",
+  "ostTracksHeader": "{count} temas • {duration}",
+  "@ostTracksHeader": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "duration": { "type": "String" }
+    }
+  },
+  "ostTracksCount": "{count} temas",
+  "@ostTracksCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "ostQueueShuffle": "{count} temas • aleatorio",
+  "@ostQueueShuffle": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "ostQueueOrdered": "{count} temas • en orden",
+  "@ostQueueOrdered": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "nowPlayingTrack": "Reproduciendo: {track}",
   "@nowPlayingTrack": {
     "placeholders": {

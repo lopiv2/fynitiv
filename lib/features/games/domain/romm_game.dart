@@ -9,6 +9,9 @@ class RommGame {
     this.summary,
     this.coverSmallUrl,
     this.coverLargeUrl,
+    this.coverBackUrl,
+    this.coverSpineUrl,
+    this.box3dUrl,
     this.hasStreaming = false,
     this.firstFile,
     this.lastPlayed,
@@ -22,6 +25,16 @@ class RommGame {
   final String? summary;
   final String? coverSmallUrl;
   final String? coverLargeUrl;
+
+  /// Trasera 2D (backcover) si RomM la expone, para la cara trasera del 3D.
+  final String? coverBackUrl;
+
+  /// Lomo lateral 2D (spine/side) si RomM lo expone, para los cantos del 3D.
+  final String? coverSpineUrl;
+
+  /// Caja 3D pre-renderizada de RomM (box3d). Se usa como fallback 2D
+  /// premium cuando no hay trasera+lomo para montar el modelo.
+  final String? box3dUrl;
 
   /// Si ROMM tiene un contenedor de streaming configurado para la plataforma
   /// de este juego (permite jugar en el navegador/emulador web).
@@ -37,6 +50,9 @@ class RommGame {
     String? summary,
     String? coverSmallUrl,
     String? coverLargeUrl,
+    String? coverBackUrl,
+    String? coverSpineUrl,
+    String? box3dUrl,
     bool? hasStreaming,
     String? firstFile,
     DateTime? lastPlayed,
@@ -50,9 +66,19 @@ class RommGame {
       summary: summary ?? this.summary,
       coverSmallUrl: coverSmallUrl ?? this.coverSmallUrl,
       coverLargeUrl: coverLargeUrl ?? this.coverLargeUrl,
+      coverBackUrl: coverBackUrl ?? this.coverBackUrl,
+      coverSpineUrl: coverSpineUrl ?? this.coverSpineUrl,
+      box3dUrl: box3dUrl ?? this.box3dUrl,
       hasStreaming: hasStreaming ?? this.hasStreaming,
       firstFile: firstFile ?? this.firstFile,
       lastPlayed: lastPlayed ?? this.lastPlayed,
     );
+  }
+
+  /// True si hay caras suficientes para montar el modelo 3D.
+  bool get has3DFaces {
+    return (coverLargeUrl ?? coverSmallUrl)?.isNotEmpty == true &&
+        (coverBackUrl?.isNotEmpty == true) &&
+        (coverSpineUrl?.isNotEmpty == true);
   }
 }

@@ -11,7 +11,7 @@ enum SoloudSingleState { idle, playing, paused, completed }
 /// Reproductor monofónico sobre la instancia global de SoLoud.
 ///
 /// Sustituye los usos puntuales de `audioplayers` (splash, hover, fondos de
-/// juego, OST de Khinsider): una sola voz, volumen propio, callback de fin
+/// juego, OST del detalle): una sola voz, volumen propio, callback de fin
 /// vía sondeo del handle (como `soloud_music_provider`) y reutilización de
 /// la fuente cargada entre pistas iguales.
 ///
@@ -178,6 +178,37 @@ class SoloudSinglePlayer {
   /// Libera la fuente cargada si es propia (streams URL). Los assets
   /// cacheados nunca se liberan.
   Future<void> disposeSource() => _disposeOwned();
+
+  /// Posición actual de la voz en curso (cero si no hay).
+  Duration get position {
+    final h = _handle;
+    if (h == null) return Duration.zero;
+    try {
+      return SoLoud.instance.getPosition(h);
+    } catch (_) {
+      return Duration.zero;
+    }
+  }
+
+  /// Duración de la fuente cargada (cero si no hay).
+  Duration get sourceLength {
+    final s = _source;
+    if (s == null) return Duration.zero;
+    try {
+      return SoLoud.instance.getLength(s);
+    } catch (_) {
+      return Duration.zero;
+    }
+  }
+
+  /// Salta a una posición de la voz en curso.
+  void seek(Duration position) {
+    final h = _handle;
+    if (h == null) return;
+    try {
+      SoLoud.instance.seek(h, position);
+    } catch (_) {}
+  }
 
   void dispose() {
     _disposed = true;

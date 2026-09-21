@@ -887,6 +887,35 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get platformInLibrary => 'In library';
+
+  @override
+  String get platformOnDisk => 'On disk';
+
+  @override
+  String get platformFirmware => 'Firmware';
+
+  @override
+  String platformGeneration(int generation) {
+    return 'Generation $generation';
+  }
+
+  @override
+  String get gameView2D => '2D';
+
+  @override
+  String get gameView3D => '3D';
+
+  @override
+  String get gameBoxLoading => 'Loading 3D box...';
+
+  @override
+  String get gameBoxNoData => 'No 3D box, showing cover';
+
+  @override
+  String get gameBoxWebViewMissing => '3D view not available on this device';
+
+  @override
   String noResultsForQuery(String query) {
     return 'No results for \"$query\"';
   }
@@ -1087,6 +1116,44 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get nowPlaying => 'Now playing';
+
+  @override
+  String get ostShuffle => 'Shuffle';
+
+  @override
+  String get ostNext => 'Next';
+
+  @override
+  String get ostPrevious => 'Previous';
+
+  @override
+  String get ostPlay => 'Play';
+
+  @override
+  String get ostMute => 'Mute';
+
+  @override
+  String get ostUnmute => 'Unmute';
+
+  @override
+  String ostTracksHeader(int count, String duration) {
+    return '$count tracks • $duration';
+  }
+
+  @override
+  String ostTracksCount(int count) {
+    return '$count tracks';
+  }
+
+  @override
+  String ostQueueShuffle(int count) {
+    return '$count tracks • shuffle';
+  }
+
+  @override
+  String ostQueueOrdered(int count) {
+    return '$count tracks • in order';
+  }
 
   @override
   String nowPlayingTrack(String track) {

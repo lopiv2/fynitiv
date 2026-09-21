@@ -15,7 +15,9 @@ import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
 import '../data/platform_asset_resolver.dart';
+import '../data/platform_category.dart';
 import '../data/platform_led_color.dart';
+import '../data/platform_machine_asset_resolver.dart';
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
 
@@ -46,6 +48,9 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
     final localAsset = platform != null
         ? PlatformAssetResolver.resolve(platform)
         : null;
+    final machineAsset = platform != null
+        ? PlatformMachineAssetResolver.resolve(platform)
+        : null;
     final topPadding = libraryPageTopPadding(context, skin);
 
     return Scaffold(
@@ -56,10 +61,10 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
             Expanded(
               child: CustomScrollView(
                 slivers: [
-                  // AppBar con glassmorphism + Hero logo
+                  // AppBar con glassmorphism + Hero logo + máquina + info
                   SliverAppBar(
                     pinned: true,
-                    expandedHeight: 220,
+                    expandedHeight: 310,
                     backgroundColor: Colors.transparent,
                     leading: IconButton(
                       tooltip: l10n.back,
@@ -187,84 +192,16 @@ class _GameListScreenState extends ConsumerState<GameListScreen> {
                             background: Padding(
                               padding: const EdgeInsets.only(
                                 top: 56,
-                                left: 24,
-                                right: 24,
-                                bottom: 24,
+                                left: 20,
+                                right: 20,
+                                bottom: 12,
                               ),
-                              child: Align(
-                                alignment: Alignment.topCenter,
-                                child: Hero(
-                                  tag: 'platform-logo-${widget.platformId}',
-                                  createRectTween: (begin, end) =>
-                                      MaterialRectArcTween(
-                                        begin: begin,
-                                        end: end,
-                                      ),
-                                  flightShuttleBuilder:
-                                      (
-                                        flightContext,
-                                        animation,
-                                        flightDirection,
-                                        fromHeroContext,
-                                        toHeroContext,
-                                      ) {
-                                        final hero =
-                                            flightDirection ==
-                                                HeroFlightDirection.push
-                                            ? toHeroContext.widget as Hero
-                                            : fromHeroContext.widget as Hero;
-                                        return FadeTransition(
-                                          opacity: animation.drive(
-                                            CurveTween(curve: Curves.easeInOut),
-                                          ),
-                                          child: ScaleTransition(
-                                            scale: animation.drive(
-                                              Tween<double>(
-                                                begin: 0.92,
-                                                end: 1.0,
-                                              ).chain(
-                                                CurveTween(
-                                                  curve: Curves.easeInOutCubic,
-                                                ),
-                                              ),
-                                            ),
-                                            child: hero.child,
-                                          ),
-                                        );
-                                      },
-                                  placeholderBuilder:
-                                      (context, heroSize, child) =>
-                                          SizedBox.fromSize(
-                                            size: heroSize,
-                                            child: Opacity(
-                                              opacity: 0,
-                                              child: child,
-                                            ),
-                                          ),
-                                  child: Material(
-                                    type: MaterialType.transparency,
-                                    child: SizedBox(
-                                      width: 380,
-                                      height: 380,
-                                      child: localAsset != null
-                                          ? Image.asset(
-                                              localAsset,
-                                              fit: BoxFit.contain,
-                                            )
-                                          : platform?.logoUrl != null &&
-                                                platform!.logoUrl!.isNotEmpty
-                                          ? Image.network(
-                                              platform.logoUrl!,
-                                              fit: BoxFit.contain,
-                                            )
-                                          : const Icon(
-                                              Icons.videogame_asset,
-                                              color: Colors.white70,
-                                              size: 96,
-                                            ),
-                                    ),
-                                  ),
-                                ),
+                              child: _PlatformHeader(
+                                platform: platform,
+                                localAsset: localAsset,
+                                machineAsset: machineAsset,
+                                heroTag:
+                                    'platform-logo-${widget.platformId}',
                               ),
                             ),
                           ),
@@ -505,6 +442,235 @@ class _GameCard extends ConsumerWidget {
   }
 }
 
+class _PlatformHeader extends ConsumerWidget {
+  const _PlatformHeader({
+    required this.platform,
+    required this.localAsset,
+    required this.machineAsset,
+    required this.heroTag,
+  });
+
+  final RommPlatform? platform;
+  final String? localAsset;
+  final String? machineAsset;
+  final String heroTag;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final p = platform;
+    if (p == null) return const SizedBox.shrink();
+
+    final token = ref.watch(rommRepositoryProvider)?.token;
+    final headers = token != null && token.isNotEmpty
+        ? <String, String>{'Authorization': 'Bearer $token'}
+        : null;
+
+    Widget logo;
+    final local = localAsset;
+    if (local != null) {
+      logo = Image.asset(local, fit: BoxFit.contain);
+    } else if (p.logoUrl != null && p.logoUrl!.isNotEmpty) {
+      logo = Image.network(p.logoUrl!, fit: BoxFit.contain, headers: headers);
+    } else {
+      logo = const Icon(
+        Icons.videogame_asset,
+        color: Colors.white70,
+        size: 40,
+      );
+    }
+
+    final heroLogo = Hero(
+      tag: heroTag,
+      createRectTween: (begin, end) =>
+          MaterialRectArcTween(begin: begin, end: end),
+      flightShuttleBuilder:
+          (flightContext, animation, flightDirection, fromHeroContext, toHeroContext) {
+            final hero = flightDirection == HeroFlightDirection.push
+                ? toHeroContext.widget as Hero
+                : fromHeroContext.widget as Hero;
+            return FadeTransition(
+              opacity: animation.drive(CurveTween(curve: Curves.easeInOut)),
+              child: ScaleTransition(
+                scale: animation.drive(
+                  Tween<double>(
+                    begin: 0.92,
+                    end: 1.0,
+                  ).chain(CurveTween(curve: Curves.easeInOutCubic)),
+                ),
+                child: hero.child,
+              ),
+            );
+          },
+      placeholderBuilder: (context, heroSize, child) => SizedBox.fromSize(
+        size: heroSize,
+        child: Opacity(opacity: 0, child: child),
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 54, maxWidth: 280),
+            child: logo,
+          ),
+        ),
+      ),
+    );
+
+    final chips = <String>[];
+    final apiCategory = p.category?.trim() ?? '';
+    if (apiCategory.isNotEmpty) {
+      chips.add(apiCategory);
+    } else {
+      chips.add(categoryForPlatform(localAsset, p.slug).label);
+    }
+    if (p.familyName != null && p.familyName!.trim().isNotEmpty) {
+      chips.add(p.familyName!.trim());
+    }
+    if (p.generation != null) {
+      chips.add(l10n.platformGeneration(p.generation!));
+    }
+
+    final isNarrow = MediaQuery.sizeOf(context).width < 520;
+    final machineSize = isNarrow ? 96.0 : 128.0;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        if (machineAsset case final machine?) ...[
+          SizedBox(
+            width: machineSize,
+            height: machineSize,
+            child: Image.asset(machine, fit: BoxFit.contain),
+          ),
+          const SizedBox(width: 18),
+        ],
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              heroLogo,
+              const SizedBox(height: 6),
+              // Text(
+              //   p.displayName,
+              //   maxLines: 1,
+              //   overflow: TextOverflow.ellipsis,
+              //   style: const TextStyle(
+              //     color: Colors.white,
+              //     fontSize: 26,
+              //     fontWeight: FontWeight.w800,
+              //     letterSpacing: -0.5,
+              //   ),
+              // ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  for (final c in chips) _InfoChip(label: c),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 24,
+                runSpacing: 10,
+                crossAxisAlignment: WrapCrossAlignment.end,
+                children: [
+                  _InfoStat(
+                    value: '${p.romCount}',
+                    label: l10n.platformInLibrary,
+                  ),
+                  _InfoStat(
+                    value: _formatBytes(p.fsSizeBytes),
+                    label: l10n.platformOnDisk,
+                  ),
+                  _InfoStat(
+                    value: '${p.firmwareCount}',
+                    label: l10n.platformFirmware,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+String _formatBytes(int bytes) {
+  if (bytes <= 0) return '—';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var size = bytes.toDouble();
+  var i = 0;
+  while (size >= 1024 && i < units.length - 1) {
+    size /= 1024;
+    i++;
+  }
+  final decimals = size >= 100 ? 0 : size >= 10 ? 1 : 2;
+  return '${size.toStringAsFixed(decimals)} ${units[i]}';
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({required this.label});
+  final String label;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white70,
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoStat extends StatelessWidget {
+  const _InfoStat({required this.value, required this.label});
+  final String value;
+  final String label;
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label.toUpperCase(),
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.6,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _CollapsedPlatformTitle extends StatelessWidget {
   const _CollapsedPlatformTitle({required this.name});
   final String name;
@@ -512,8 +678,8 @@ class _CollapsedPlatformTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     final settings = context
         .dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
-    // FlexibleSpaceBarSettings.currentExtent va de maxExtent (220) a minExtent (kToolbarHeight + padding)
-    const maxExtent = 220.0;
+    // FlexibleSpaceBarSettings.currentExtent va de maxExtent (310) a minExtent (kToolbarHeight + padding)
+    const maxExtent = 310.0;
     final minExtent = settings?.minExtent ?? kToolbarHeight;
     final current = settings?.currentExtent ?? maxExtent;
     final delta = (maxExtent - minExtent).clamp(1.0, double.infinity);

@@ -308,6 +308,20 @@
       "count": { "type": "int" }
     }
   },
+  "platformInLibrary": "In library",
+  "platformOnDisk": "On disk",
+  "platformFirmware": "Firmware",
+  "platformGeneration": "Generation {generation}",
+  "@platformGeneration": {
+    "placeholders": {
+      "generation": { "type": "int" }
+    }
+  },
+  "gameView2D": "2D",
+  "gameView3D": "3D",
+  "gameBoxLoading": "Loading 3D box...",
+  "gameBoxNoData": "No 3D box, showing cover",
+  "gameBoxWebViewMissing": "3D view not available on this device",
   "noResultsForQuery": "No results for \"{query}\"",
   "@noResultsForQuery": {
     "placeholders": {
@@ -411,6 +425,37 @@
   "loginFailedFallback": "Failed to log in",
   "pinRequired": "You must choose a PIN for the house",
   "nowPlaying": "Now playing",
+  "ostShuffle": "Shuffle",
+  "ostNext": "Next",
+  "ostPrevious": "Previous",
+  "ostPlay": "Play",
+  "ostMute": "Mute",
+  "ostUnmute": "Unmute",
+  "ostTracksHeader": "{count} tracks • {duration}",
+  "@ostTracksHeader": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "duration": { "type": "String" }
+    }
+  },
+  "ostTracksCount": "{count} tracks",
+  "@ostTracksCount": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "ostQueueShuffle": "{count} tracks • shuffle",
+  "@ostQueueShuffle": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "ostQueueOrdered": "{count} tracks • in order",
+  "@ostQueueOrdered": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
   "nowPlayingTrack": "Now playing: {track}",
   "@nowPlayingTrack": {
     "placeholders": {
