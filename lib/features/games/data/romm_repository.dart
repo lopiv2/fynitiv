@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
+import '../domain/romm_soundtrack_track.dart';
 
 /// Respuesta paginada de ROMM para /roms.
 class RommGamesPage {
@@ -13,6 +14,14 @@ class RommGamesPage {
 
   final List<RommGame> items;
   final int total;
+}
+
+/// Trasera/caja 3D resueltas por sondeo de recursos ('', si no existen).
+class RommResolvedArtwork {
+  const RommResolvedArtwork({required this.backUrl, required this.box3dUrl});
+
+  final String backUrl;
+  final String box3dUrl;
 }
 
 /// Cliente de la API REST de ROMM (RomM).
@@ -346,11 +355,83 @@ class RommRepository {
   Future<RommGame> getGame(int id) async {
     final res = await _dio.get('/api/roms/$id', options: _authOptions);
     final data = res.data;
-    if (data is Map<String, dynamic>) {
-      final keys = data.keys.toList();
-      debugPrint('[ROMM] GET /api/roms/$id keys=$keys back=${data['path_backcover'] ?? data['backcover_path'] ?? data['url_backcover']} spine=${data['path_spine'] ?? data['side_path'] ?? data['url_spine']} box3d=${data['box3d_path'] ?? data['path_box3d'] ?? data['url_box3d']}');
+    var game = _mapGame(data);
+    // La API no expone trasera/lomo: se resuelven sondeando los recursos
+    // (`.../roms/{platform}/{rom}/cover/big.png` → `.../backcover/...`).
+    // Solo existe el hit que el servidor confirma con 200.
+    if ((game.coverLargeUrl ?? game.coverSmallUrl ?? '').isNotEmpty) {
+      final art = await resolveArtwork(
+        romId: game.id,
+        platformId: game.platformId,
+        coverLarge: game.coverLargeUrl,
+        coverSmall: game.coverSmallUrl,
+      );
+      if (art.backUrl.isNotEmpty || art.box3dUrl.isNotEmpty) {
+        game = game.copyWith(
+          coverBackUrl: art.backUrl,
+          box3dUrl: art.box3dUrl,
+        );
+        debugPrint('[ROMM-3D] id=$id back=${art.backUrl} box3d=${art.box3dUrl}');
+      }
     }
-    return _mapGame(res.data);
+    return game;
+  }
+
+  /// Trasera y caja 3D resueltas por sondeo (con caché por rom).
+  final Map<int, RommResolvedArtwork> _artworkCache = {};
+
+  Future<RommResolvedArtwork> resolveArtwork({
+    required int romId,
+    required int platformId,
+    String? coverLarge,
+    String? coverSmall,
+  }) async {
+    final cached = _artworkCache[romId];
+    if (cached != null) return cached;
+    const empty = RommResolvedArtwork(backUrl: '', box3dUrl: '');
+    final cover = (coverLarge?.isNotEmpty == true ? coverLarge : coverSmall) ?? '';
+    if (cover.isEmpty) {
+      _artworkCache[romId] = empty;
+      return empty;
+    }
+    final back = await _probeFirst([
+      _swapResourceSegment(cover, 'backcover'),
+      _swapResourceSegment(cover, 'backcovers'),
+    ]);
+    final box3d = await _probeFirst([
+      _swapResourceSegment(cover, 'box3d'),
+      _swapResourceSegment(cover, '3dbox'),
+      _swapResourceSegment(cover, '3dboxes'),
+    ]);
+    final resolved = RommResolvedArtwork(backUrl: back, box3dUrl: box3d);
+    _artworkCache[romId] = resolved;
+    return resolved;
+  }
+
+  /// `/assets/romm/resources/roms/15/28901/cover/big.png?ts=…` →
+  /// `/assets/romm/resources/roms/15/28901/backcover/big.png?ts=…`.
+  String _swapResourceSegment(String coverUrl, String segment) {
+    final q = coverUrl.indexOf('?');
+    final path = q >= 0 ? coverUrl.substring(0, q) : coverUrl;
+    final query = q >= 0 ? coverUrl.substring(q) : '';
+    final parts = path.split('/');
+    final i = parts.lastIndexOf('cover');
+    if (i < 0) return '';
+    parts[i] = segment;
+    return '${parts.join('/')}$query';
+  }
+
+  /// Primera URL que el servidor confirma (2xx/3xx). '' si ninguna existe.
+  Future<String> _probeFirst(List<String> urls) async {
+    for (final u in urls) {
+      if (u.isEmpty) continue;
+      try {
+        final res = await _dio.head(u, options: _authOptions);
+        final code = res.statusCode ?? 0;
+        if (code >= 200 && code < 400) return u.split('?').first;
+      } catch (_) {}
+    }
+    return '';
   }
 
   RommGame _mapGame(Map<String, dynamic>? g) {
@@ -362,6 +443,7 @@ class RommRepository {
     if (rawLast != null && rawLast.isNotEmpty) {
       lastPlayed = DateTime.tryParse(rawLast);
     }
+    final firstReleaseDate = _parseReleaseDate(g);
     String pickFirst(List<String> keys) {
       for (final k in keys) {
         final v = g?[k];
@@ -425,7 +507,112 @@ class RommRepository {
       box3dUrl: norm(box3dRaw),
       firstFile: firstFile,
       lastPlayed: lastPlayed,
+      firstReleaseDate: firstReleaseDate,
     );
+  }
+
+  /// Parsea la fecha de lanzamiento de ROMM.
+  ///
+  /// Fuente principal: `metadatum.first_release_date` (entero Unix en
+  /// segundos, estilo IGDB). Fallbacks por proveedor: `igdb_metadata`,
+  /// `ss_metadata`, `launchbox_metadata` (int segundos), `gamelist_metadata`
+  /// y `flashpoint_metadata` (string ISO), más `first_release_date` top-level
+  /// por tolerancia a cambios de esquema.
+  DateTime? _parseReleaseDate(Map<String, dynamic>? g) {
+    if (g == null) return null;
+    dynamic raw;
+    final meta = g['metadatum'];
+    if (meta is Map) {
+      raw = meta['first_release_date'];
+    }
+    raw ??= g['first_release_date'];
+    for (final key in const [
+      'igdb_metadata',
+      'ss_metadata',
+      'launchbox_metadata',
+      'gamelist_metadata',
+      'flashpoint_metadata',
+    ]) {
+      if (raw != null) break;
+      final m = g[key];
+      if (m is Map) {
+        final v = m['first_release_date'];
+        if (v != null) raw = v;
+      }
+    }
+    if (raw == null) return null;
+    if (raw is num) {
+      final v = raw.toInt();
+      if (v <= 0) return null;
+      // Segundos (10 dígitos IGDB) vs milisegundos (13 dígitos).
+      final ms = v > 10000000000 ? v : v * 1000;
+      try {
+        return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true).toLocal();
+      } catch (_) {
+        return null;
+      }
+    }
+    if (raw is String) {
+      final s = raw.trim();
+      if (s.isEmpty) return null;
+      final asInt = int.tryParse(s);
+      if (asInt != null) {
+        if (asInt <= 0) return null;
+        final ms = asInt > 10000000000 ? asInt : asInt * 1000;
+        try {
+          return DateTime.fromMillisecondsSinceEpoch(ms, isUtc: true).toLocal();
+        } catch (_) {
+          return null;
+        }
+      }
+      return DateTime.tryParse(s)?.toLocal();
+    }
+    return null;
+  }
+
+  /// Banda sonora de un juego desde la Music API de ROMM (jukebox).
+  ///
+  /// El NAS guarda `soundtrack/` junto a la ROM y ROMM lo indexa:
+  /// `GET /api/music/tracks?rom_id={id}&order_by=track&order_dir=asc`.
+  /// Cada item trae `stream_url` servida por el propio ROMM.
+  Future<List<RommSoundtrackTrack>> getSoundtrackTracks(int romId) async {
+    const limit = 500;
+    var offset = 0;
+    final items = <RommSoundtrackTrack>[];
+    while (true) {
+      final res = await _dio.get(
+        '/api/music/tracks',
+        queryParameters: {
+          'rom_id': romId,
+          'order_by': 'track',
+          'order_dir': 'asc',
+          'limit': limit,
+          'offset': offset,
+        },
+        options: _authOptions,
+      );
+      final data = res.data as Map<String, dynamic>? ?? const {};
+      final raw = data['items'] as List? ?? const [];
+      final total = (data['total'] as num?)?.toInt() ?? raw.length;
+      for (final t in raw) {
+        if (t is Map<String, dynamic>) {
+          final track = RommSoundtrackTrack.fromJson(t, serverUrl);
+          if (track.streamUrl.isNotEmpty) items.add(track);
+        }
+      }
+      offset += raw.length;
+      if (raw.isEmpty || items.length >= total || raw.length < limit) break;
+    }
+    debugPrint('[ROMM] GET /api/music/tracks?rom_id=$romId → ${items.length} pistas');
+    return items;
+  }
+
+  /// Resuelve una `stream_url` de la Music API a absoluta (puede venir relativa).
+  String resolveStreamUrl(String streamUrl) {
+    final s = streamUrl.trim();
+    if (s.isEmpty) return '';
+    if (s.startsWith('http')) return s;
+    return assetUrl(s);
   }
 
   /// Descarga un asset protegido de RomM a bytes (para inyectar en WebView

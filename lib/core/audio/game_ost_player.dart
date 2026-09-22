@@ -2,13 +2,34 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import '../../features/games/domain/game_ost_track.dart';
 import 'soloud_single_player.dart';
 
-/// Player para OST del detalle de juego (fuente archive.org).
-/// Streaming directo por URL, queue completa en shuffle, volumen 0.5,
-/// respeta mute de GameBg y soporta Now Playing via stream.
+/// Cliente HTTP que inyecta el Bearer de ROMM (las `stream_url` de su
+/// Music API exigen autenticación y `SoLoud.loadUrl` no pone cabeceras).
+class _RommAuthHttpClient extends http.BaseClient {
+  _RommAuthHttpClient(this._token);
+
+  final String _token;
+  final http.Client _inner = http.Client();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (_token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
+/// Player para OST del detalle de juego (Music API de ROMM).
+/// Streaming con Bearer por URL, queue en orden de pista (o shuffle),
+/// volumen 0.5, respeta mute de GameBg y soporta Now Playing via stream.
 class GameOstPlayer {
   GameOstPlayer._();
   static final GameOstPlayer instance = GameOstPlayer._();
@@ -20,6 +41,12 @@ class GameOstPlayer {
   bool _muted = false;
   bool _shuffleEnabled = true;
   bool _initialized = false;
+  // Pausa explícita del usuario (botón play/pausa). `resumeIfNeeded` no debe
+  // reanudar en ese caso: solo recupera cortes del sistema (llamada, etc.).
+  bool _userPaused = false;
+  // Token Bearer de ROMM para el streaming de la Music API.
+  http.Client? _authClient;
+  String _authToken = '';
   // Token anti-carreras: si se sale del detalle mientras se carga la
   // pista, el play tardío debe abortarse.
   int _session = 0;
@@ -40,6 +67,19 @@ class GameOstPlayer {
   bool get isPlaying => _queue.isNotEmpty;
   bool get shuffleEnabled => _shuffleEnabled;
   bool get isMuted => _muted;
+  bool get userPaused => _userPaused;
+
+  /// Configura el Bearer de ROMM para el streaming (llamar antes de
+  /// reproducir; al cerrar sesión pasar null para no reutilizarlo).
+  void setAuthToken(String? token) {
+    final t = token?.trim() ?? '';
+    if (t == _authToken) return;
+    _authToken = t;
+    try {
+      _authClient?.close();
+    } catch (_) {}
+    _authClient = t.isNotEmpty ? _RommAuthHttpClient(t) : null;
+  }
   bool get sounding =>
       _player.state == SoloudSingleState.playing;
   bool get isLoading => _loading;
@@ -104,7 +144,11 @@ class GameOstPlayer {
     _setLoading(true);
     debugPrint('[OST] play idx=$_index/${_shuffled.length} "${track.name}"');
     try {
-      await _player.playUrl(track.url, volume: 0.5);
+      await _player.playUrl(
+        track.url,
+        volume: 0.5,
+        httpClient: _authClient,
+      );
       if (session != _session) {
         // Se salió del detalle durante la carga: no debe sonar fuera.
         await _player.stop();
@@ -131,6 +175,7 @@ class GameOstPlayer {
     _ensureInit();
     if (tracks.isEmpty) return;
     _session++;
+    _userPaused = false;
     _shuffleEnabled = true;
     _queue = List<GameOstTrack>.from(tracks);
     _shuffled = List<GameOstTrack>.from(tracks)..shuffle(Random());
@@ -153,6 +198,7 @@ class GameOstPlayer {
       return;
     }
     _session++;
+    _userPaused = false;
     _index = (_index + 1) % _shuffled.length;
     debugPrint('[OST] next → idx=$_index/${_shuffled.length} "${_shuffled[_index].name}"');
     if (_muted) {
@@ -168,6 +214,7 @@ class GameOstPlayer {
     _ensureInit();
     if (_shuffled.isEmpty) return;
     _session++;
+    _userPaused = false;
     _index = (_index - 1) % _shuffled.length;
     if (_index < 0) _index += _shuffled.length;
     if (_muted) {
@@ -188,6 +235,7 @@ class GameOstPlayer {
       return;
     }
     _session++;
+    _userPaused = false;
     _index = i;
     if (_muted) {
       _current = track;
@@ -204,13 +252,16 @@ class GameOstPlayer {
     if (_player.state == SoloudSingleState.playing) {
       try {
         await _player.pause();
+        _userPaused = true;
       } catch (_) {}
     } else if (_player.state == SoloudSingleState.paused) {
       try {
         await _player.resume();
+        _userPaused = false;
       } catch (_) {}
     } else {
       _session++;
+      _userPaused = false;
       await _playCurrent(_session);
     }
   }
@@ -221,6 +272,7 @@ class GameOstPlayer {
   Future<void> stop() async {
     _setLoading(false);
     _session++;
+    _userPaused = false;
     _queue = [];
     _shuffled = [];
     _index = 0;
@@ -239,7 +291,7 @@ class GameOstPlayer {
       try {
         await _player.stop();
       } catch (_) {}
-    } else if (_shuffled.isNotEmpty) {
+    } else if (_shuffled.isNotEmpty && !_userPaused) {
       await _playCurrent(_session);
     }
   }
@@ -251,7 +303,7 @@ class GameOstPlayer {
   }
 
   Future<void> resumeIfNeeded() async {
-    if (_muted || _shuffled.isEmpty) return;
+    if (_muted || _userPaused || _shuffled.isEmpty) return;
     try {
       if (_player.state == SoloudSingleState.paused) {
         await _player.resume();
@@ -264,6 +316,10 @@ class GameOstPlayer {
 
   void dispose() {
     _player.dispose();
+    try {
+      _authClient?.close();
+    } catch (_) {}
+    _authClient = null;
     _currentTrackController.close();
     _loadingController.close();
   }

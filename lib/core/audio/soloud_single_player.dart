@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_soloud/flutter_soloud.dart';
+import 'package:http/http.dart' as http;
 
 import 'soloud_initializer.dart';
 
@@ -72,13 +73,21 @@ class SoloudSinglePlayer {
 
   /// Reproduce una URL (streaming). No se cachea: se libera al cambiar
   /// de pista o con [disposeSource]/[dispose].
-  Future<void> playUrl(String url, {double? volume}) async {
+  /// [httpClient] permite inyectar cabeceras (p. ej. Bearer de ROMM).
+  Future<void> playUrl(
+    String url, {
+    double? volume,
+    http.Client? httpClient,
+  }) async {
     if (_disposed || !_ready || url.isEmpty) return;
     try {
       await stopVoice();
       if (_source == null || _sourceId != 'url:$url') {
         await _disposeOwned();
-        _source = await SoLoud.instance.loadUrl(url);
+        _source = await SoLoud.instance.loadUrl(
+          url,
+          httpClient: httpClient,
+        );
         _sourceId = 'url:$url';
         _ownsSource = true;
       }

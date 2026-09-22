@@ -2228,6 +2228,18 @@ abstract class AppLocalizations {
   /// **'{count} tracks'**
   String ostTracksCount(int count);
 
+  /// No description provided for @ostNoSoundtrack.
+  ///
+  /// In en, this message translates to:
+  /// **'No soundtrack for this game'**
+  String get ostNoSoundtrack;
+
+  /// No description provided for @ostNoSoundtrackHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Add a soundtrack/ folder next to the ROM in your library to listen to it here.'**
+  String get ostNoSoundtrackHint;
+
   /// No description provided for @ostQueueShuffle.
   ///
   /// In en, this message translates to:

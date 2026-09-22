@@ -15,6 +15,7 @@ class RommGame {
     this.hasStreaming = false,
     this.firstFile,
     this.lastPlayed,
+    this.firstReleaseDate,
   });
 
   final int id;
@@ -46,6 +47,10 @@ class RommGame {
   /// Última vez jugado (rom_user.last_played) – usado para “Continuar jugando”.
   final DateTime? lastPlayed;
 
+  /// Fecha de lanzamiento (metadatum.first_release_date de ROMM, timestamp
+  /// Unix en segundos). Puede venir null si el juego no tiene metadatos.
+  final DateTime? firstReleaseDate;
+
   RommGame copyWith({
     String? summary,
     String? coverSmallUrl,
@@ -56,6 +61,7 @@ class RommGame {
     bool? hasStreaming,
     String? firstFile,
     DateTime? lastPlayed,
+    DateTime? firstReleaseDate,
   }) {
     return RommGame(
       id: id,
@@ -72,13 +78,15 @@ class RommGame {
       hasStreaming: hasStreaming ?? this.hasStreaming,
       firstFile: firstFile ?? this.firstFile,
       lastPlayed: lastPlayed ?? this.lastPlayed,
+      firstReleaseDate: firstReleaseDate ?? this.firstReleaseDate,
     );
   }
 
   /// True si hay caras suficientes para montar el modelo 3D.
+  /// La API de ROMM no expone lomo: basta frontal + trasera; los cantos
+  /// usan material sólido.
   bool get has3DFaces {
     return (coverLargeUrl ?? coverSmallUrl)?.isNotEmpty == true &&
-        (coverBackUrl?.isNotEmpty == true) &&
-        (coverSpineUrl?.isNotEmpty == true);
+        (coverBackUrl?.isNotEmpty == true);
   }
 }

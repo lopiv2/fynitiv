@@ -1148,6 +1148,13 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String get ostNoSoundtrack => 'Sin banda sonora para este juego';
+
+  @override
+  String get ostNoSoundtrackHint =>
+      'Añade una carpeta soundtrack/ junto a la ROM en tu biblioteca para escucharla aquí.';
+
+  @override
   String ostQueueShuffle(int count) {
     return '$count temas • aleatorio';
   }

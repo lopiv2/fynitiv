@@ -41,6 +41,8 @@ dependencies:
   jellyfin_dart: ^0.1.2
   # Cliente HTTP subyacente (interceptores y config de Dio)
   dio: ^5.9.0
+  # Cliente HTTP con cabeceras (streaming autenticado a ROMM vía SoLoud)
+  http: ^1.6.0
   # Navegación declarativa
   go_router: ^17.5.0
   # Persistencia de preferencias (URL del servidor, etc.)

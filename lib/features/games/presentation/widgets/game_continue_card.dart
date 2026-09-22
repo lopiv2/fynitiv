@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/widgets/app_hover.dart';
+import '../../../../l10n/app_localizations.dart';
 import '../../data/platform_asset_resolver.dart';
 import '../../data/platform_led_color.dart';
 import '../../domain/romm_game.dart';
@@ -28,9 +29,10 @@ class GameContinueCard extends ConsumerWidget {
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final OverlayEntry? Function()? overlayBelowEntry;
 
-  String _formatLastPlayed(DateTime? dt) {
+  String _formatLastPlayed(BuildContext context, DateTime? dt) {
     if (dt == null) return '';
-    return DateFormat('dd/MM HH:mm').format(dt.toLocal());
+    final locale = AppLocalizations.of(context)?.localeName;
+    return DateFormat.yMd(locale).add_Hm().format(dt.toLocal());
   }
 
   @override
@@ -51,7 +53,7 @@ class GameContinueCard extends ConsumerWidget {
       fakePlatform,
       fallback: const Color(0xFF2ED9A3),
     );
-    final lastPlayedStr = _formatLastPlayed(game.lastPlayed);
+    final lastPlayedStr = _formatLastPlayed(context, game.lastPlayed);
     final timeStr = lastPlayedStr.isNotEmpty ? lastPlayedStr : '—';
 
     return AppHover(
