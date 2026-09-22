@@ -89,4 +89,14 @@ class RommGame {
     return (coverLargeUrl ?? coverSmallUrl)?.isNotEmpty == true &&
         (coverBackUrl?.isNotEmpty == true);
   }
+
+  /// True si hay frontal para mostrar la caja 3D aunque no haya trasera:
+  /// la trasera y el lomo ausentes usan material sólido. Es el caso normal
+  /// en servidores RomM que solo guardan la frontal (p.ej. ScummVM).
+  bool get hasFrontCover {
+    return (coverLargeUrl ?? coverSmallUrl)?.isNotEmpty == true;
+  }
+
+  /// Puerta del visor 3D: frontal basta; con trasera real se usa ella.
+  bool get can3D => hasFrontCover;
 }

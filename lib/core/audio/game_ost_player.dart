@@ -41,6 +41,10 @@ class GameOstPlayer {
   bool _muted = false;
   bool _shuffleEnabled = true;
   bool _initialized = false;
+  // Volumen 0..1 de la voz OST. Lo fija el detalle desde el volumen
+  // universal (`appVolumeProvider` 0..100); 0.5 conserva el nivel previo
+  // hasta que la UI lo sincroniza al abrir.
+  double _volume = 0.5;
   // Pausa explícita del usuario (botón play/pausa). `resumeIfNeeded` no debe
   // reanudar en ese caso: solo recupera cortes del sistema (llamada, etc.).
   bool _userPaused = false;
@@ -50,6 +54,10 @@ class GameOstPlayer {
   // Token anti-carreras: si se sale del detalle mientras se carga la
   // pista, el play tardío debe abortarse.
   int _session = 0;
+  // Sesión con carga en curso: una re-entrada con la MISMA sesión (p.ej.
+  // `resumeIfNeeded` por un `resumed` durante la descarga lenta) no debe
+  // lanzar otra voz; la carga vigente manda.
+  int _loadingSession = -1;
   // Carga en curso de una pista (true entre _current asignado y
   // playUrl resuelto con éxito). Sirve para mostrar loader en vez de
   // pausa/play y bloquear toggle hasta que suene.
@@ -83,6 +91,20 @@ class GameOstPlayer {
   bool get sounding =>
       _player.state == SoloudSingleState.playing;
   bool get isLoading => _loading;
+
+  /// Volumen actual 0..1 (para pintar el slider).
+  double get volume => _volume;
+
+  /// Fija el volumen (0..1) y lo aplica en vivo si está sonando.
+  /// Síncrono a propósito: los `ref.listen` lo llaman sin await y no
+  /// reescribe el provider global (evita bucles).
+  void setVolume(double v) {
+    _ensureInit();
+    final next = v.clamp(0.0, 1.0);
+    if ((next - _volume).abs() < 0.0001) return;
+    _volume = next;
+    _player.applyVolume(next);
+  }
 
   void _setLoading(bool value) {
     if (_loading == value) return;
@@ -138,6 +160,8 @@ class GameOstPlayer {
 
   Future<void> _playCurrent(int session) async {
     if (session != _session || _shuffled.isEmpty || _muted) return;
+    if (_loadingSession == session) return;
+    _loadingSession = session;
     final track = _shuffled[_index];
     _current = track;
     _currentTrackController.add(track);
@@ -146,17 +170,20 @@ class GameOstPlayer {
     try {
       await _player.playUrl(
         track.url,
-        volume: 0.5,
+        volume: _volume,
         httpClient: _authClient,
       );
-      if (session != _session) {
-        // Se salió del detalle durante la carga: no debe sonar fuera.
-        await _player.stop();
+      if (session != _session || _loadingSession != session) {
+        // Otra llamada tomó el mando (o se salió del detalle): no tocar
+        // su voz. Salir del detalle pasa por stop(), que ya cancela la
+        // carga pendiente dentro del player.
         return;
       }
+      _loadingSession = -1;
       _setLoading(false);
     } catch (e) {
       debugPrint('[OST] playUrl falló "${track.name}" ${track.url}: $e');
+      if (_loadingSession == session) _loadingSession = -1;
       _setLoading(false);
       if (session != _session) return;
       try {

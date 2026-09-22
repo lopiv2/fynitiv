@@ -38,6 +38,11 @@ class SoloudSinglePlayer {
   Timer? _endTimer;
   SoloudSingleState state = SoloudSingleState.idle;
   bool _disposed = false;
+  // Generación de carga: solo la última llamada a playAsset/playUrl puede
+  // lanzar la voz. Sin esto, dos cargas solapadas (p.ej. resume durante la
+  // descarga lenta de un FLAC) lanzan DOS voces y solo una queda trackeada:
+  // la otra suena huérfana y `stop()` ya no la alcanza.
+  int _loadGen = 0;
 
   bool get _ready =>
       SoloudInitializer.isInitialized && SoLoud.instance.isInitialized;
@@ -57,16 +62,20 @@ class SoloudSinglePlayer {
   /// Reproduce un asset (ruta relativa estilo AssetSource, sin 'assets/').
   Future<void> playAsset(String asset, {double? volume}) async {
     if (_disposed || !_ready || asset.isEmpty) return;
+    final myGen = ++_loadGen;
     try {
       await stopVoice();
       if (_source == null || _sourceId != 'asset:$asset') {
         await _disposeOwned();
+        if (myGen != _loadGen || _disposed) return;
         _source = _assetCache[asset] ??
             await SoLoud.instance.loadAsset('assets/$asset');
+        if (myGen != _loadGen || _disposed) return;
         _assetCache[asset] = _source!;
         _sourceId = 'asset:$asset';
         _ownsSource = false;
       }
+      if (myGen != _loadGen || _disposed) return;
       _launch(volume ?? this.volume);
     } catch (_) {}
   }
@@ -74,23 +83,35 @@ class SoloudSinglePlayer {
   /// Reproduce una URL (streaming). No se cachea: se libera al cambiar
   /// de pista o con [disposeSource]/[dispose].
   /// [httpClient] permite inyectar cabeceras (p. ej. Bearer de ROMM).
+  /// Solo la última llamada concurrente lanza voz: las adelantadas abortan
+  /// y liberan su fuente recién cargada sin tocar la vigente.
   Future<void> playUrl(
     String url, {
     double? volume,
     http.Client? httpClient,
   }) async {
     if (_disposed || !_ready || url.isEmpty) return;
+    final myGen = ++_loadGen;
     try {
       await stopVoice();
       if (_source == null || _sourceId != 'url:$url') {
         await _disposeOwned();
-        _source = await SoLoud.instance.loadUrl(
+        if (myGen != _loadGen || _disposed) return;
+        final fresh = await SoLoud.instance.loadUrl(
           url,
           httpClient: httpClient,
         );
+        if (myGen != _loadGen || _disposed) {
+          try {
+            await SoLoud.instance.disposeSource(fresh);
+          } catch (_) {}
+          return;
+        }
+        _source = fresh;
         _sourceId = 'url:$url';
         _ownsSource = true;
       }
+      if (myGen != _loadGen || _disposed) return;
       _launch(volume ?? this.volume);
     } catch (_) {}
   }
@@ -99,6 +120,18 @@ class SoloudSinglePlayer {
     _handle = SoLoud.instance.play(_source!, volume: vol.clamp(0.0, 1.0));
     state = SoloudSingleState.playing;
     _startEndTimer();
+  }
+
+  /// Fija el volumen base y, si hay voz sonando, lo aplica en vivo.
+  /// No toca el estado ni la fuente: sirve para sliders globales.
+  void applyVolume(double vol) {
+    final next = vol.clamp(0.0, 1.0);
+    volume = next;
+    final h = _handle;
+    if (_disposed || state != SoloudSingleState.playing || h == null) return;
+    try {
+      SoLoud.instance.setVolume(h, next);
+    } catch (_) {}
   }
 
   /// Detiene la voz actual sin cambiar de estado final (uso interno).
@@ -114,8 +147,10 @@ class SoloudSinglePlayer {
     }
   }
 
-  /// Detiene y vuelve a idle (conserva la fuente).
+  /// Detiene y vuelve a idle (conserva la fuente). Cancela además las
+  /// cargas en curso: su lanzamiento tardío quedaría huérfano.
   Future<void> stop() async {
+    _loadGen++;
     await stopVoice();
     if (!_disposed) state = SoloudSingleState.idle;
   }

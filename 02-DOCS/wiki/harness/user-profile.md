@@ -6,4 +6,4 @@ project_kind: software
 
 # User profile
 
-Goal: MPV with many features another similar apps does not have
+Goal: MPV with so many features

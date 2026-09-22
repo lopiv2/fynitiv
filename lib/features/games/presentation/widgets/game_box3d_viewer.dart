@@ -15,7 +15,9 @@ import '../../domain/romm_game.dart';
 
 /// Visor de portada con toggle 2D / 3D (render nativo con `three_js`).
 ///
-/// - 3D solo cuando [RommGame.has3DFaces] (frontal + trasera + lomo).
+/// - 3D cuando hay frontal ([RommGame.can3D]). Con trasera/lomo reales se
+///   usan en sus caras; sin ellas, trasera y cantos usan material sólido.
+///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
 ///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
 ///   los cantos; órbita con ratón/táctil vía `OrbitControls`.
 /// - Sin caras suficientes: fallback 2D plano. Prioridad 2D:
@@ -64,7 +66,7 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   @override
   void initState() {
     super.initState();
-    _show3D = widget.game.has3DFaces;
+    _show3D = widget.game.can3D;
     if (_show3D) {
       _suspendVideo();
       _waitForVideoStop();
@@ -77,7 +79,7 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     if (oldWidget.game.id != widget.game.id) {
       _cancelWait();
       _disposeThree();
-      _show3D = widget.game.has3DFaces;
+      _show3D = widget.game.can3D;
       _ready = false;
       if (_show3D) {
         _suspendVideo();
@@ -100,7 +102,15 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   void _suspendVideo() {
     if (_suspendedByMe) return;
     _suspendedByMe = true;
-    ref.read(gameVideoSuspendedProvider.notifier).set(true);
+    // Riverpod prohíbe mutar providers en initState/didUpdateWidget/dispose
+    // mientras el árbol construye: se difiere a post-frame. La espera del
+    // vídeo ya sondea por polling, así que un frame de más no importa.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      try {
+        ref.read(gameVideoSuspendedProvider.notifier).set(true);
+      } catch (_) {}
+    });
   }
 
   void _resumeVideo() {
@@ -225,19 +235,53 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     return const [1.0, 1.4, 0.18];
   }
 
+  /// Sanea una URL de asset (la `ts` de RomM trae espacios sin codificar).
+  String _sanitizeUrl(String url) {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) return '';
+    try {
+      final uri = Uri.parse(trimmed);
+      if (uri.hasQuery) {
+        return uri.replace(queryParameters: uri.queryParameters).toString();
+      }
+      return trimmed;
+    } catch (_) {
+      return trimmed.replaceAll(' ', '%20');
+    }
+  }
+
   Future<three.Texture?> _loadFace(String url) async {
-    if (url.isEmpty) return null;
+    final clean = _sanitizeUrl(url);
+    if (clean.isEmpty) return null;
     final repo = ref.read(rommRepositoryProvider);
     if (repo == null) return null;
-    final bytes = await repo.downloadAssetBytes(url);
-    if (bytes == null || bytes.isEmpty) return null;
-    final tex =
-        await three.TextureLoader(flipY: true).fromBytes(Uint8List.fromList(bytes));
-    if (tex == null) return null;
-    tex.colorSpace = three.SRGBColorSpace;
-    tex.anisotropy = 4;
-    tex.needsUpdate = true;
-    return tex;
+    try {
+      final bytes = await repo.downloadAssetBytes(clean);
+      if (bytes == null || bytes.isEmpty) {
+        debugPrint('[ROMM-3D-TEX] sin bytes url=$clean');
+        return null;
+      }
+      final tex = await three.TextureLoader(flipY: true)
+          .fromBytes(Uint8List.fromList(bytes));
+      if (tex == null) {
+        debugPrint('[ROMM-3D-TEX] decode null bytes=${bytes.length} url=$clean');
+        return null;
+      }
+      tex.colorSpace = three.SRGBColorSpace;
+      // Las carátulas de RomM son NPOT (p.ej. 517x680): con mipmaps la
+      // textura queda incompleta en ANGLE/D3D11 y la cara sale negra.
+      // three.js hace lo mismo con NPOT en WebGL1.
+      tex.generateMipmaps = false;
+      tex.minFilter = three.LinearFilter;
+      tex.needsUpdate = true;
+      final w = tex.image?.width;
+      final h = tex.image?.height;
+      debugPrint('[ROMM-3D-TEX] ok bytes=${bytes.length} ${w}x$h url=$clean');
+      return tex;
+    } catch (e) {
+      debugPrint('[ROMM-3D-TEX] error url=$clean err=$e');
+      return null;
+    }
   }
 
   three.Material _edgeMaterial() {
@@ -248,11 +292,13 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     });
   }
 
+  /// Caras con carátula: `MeshBasicMaterial` a propósito (sin luces ni
+  /// normales): los colores salen exactos como en el 2D y usa un programa
+  /// distinto al de los cantos Standard. Los cantos siguen con Standard
+  /// para conservar el sombreado del grosor de la caja.
   three.Material _faceMaterial(three.Texture tex) {
-    return three.MeshStandardMaterial({
+    return three.MeshBasicMaterial({
       three.MaterialProperty.map: tex,
-      three.MaterialProperty.roughness: 0.5,
-      three.MaterialProperty.metalness: 0.05,
     });
   }
 
@@ -261,84 +307,100 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     if (t == null) return;
     final g = widget.game;
 
-    t.scene = three.Scene();
-    final aspect = widget.width / widget.height;
-    final camera = three.PerspectiveCamera(32, aspect, 0.1, 100);
-    camera.position.setValues(1.6, 0.35, 4.1);
-    t.camera = camera;
+    try {
+      t.scene = three.Scene();
+      final aspect = widget.width / widget.height;
+      final camera = three.PerspectiveCamera(32, aspect, 0.1, 100);
+      camera.position.setValues(1.6, 0.35, 4.1);
+      t.camera = camera;
 
-    t.scene.add(three.HemisphereLight(0xffffff, 0x223344, 0.95));
-    final key = three.DirectionalLight(0xffffff, 0.85);
-    key.position.setValues(2.5, 3, 4);
-    t.scene.add(key);
-    final fill = three.DirectionalLight(0x88aaff, 0.3);
-    fill.position.setValues(-3, -1, 2);
-    t.scene.add(fill);
+      t.scene.add(three.HemisphereLight(0xffffff, 0x223344, 0.95));
+      final key = three.DirectionalLight(0xffffff, 0.85);
+      key.position.setValues(2.5, 3, 4);
+      t.scene.add(key);
+      final fill = three.DirectionalLight(0x88aaff, 0.3);
+      fill.position.setValues(-3, -1, 2);
+      t.scene.add(fill);
 
-    final size = _boxSizeFor(g.platformSlug);
-    final geometry = three.BoxGeometry(size[0], size[1], size[2]);
-    final edge = _edgeMaterial();
-    final groupMat = three.GroupMaterial([edge, edge, edge, edge, edge, edge]);
-    _box = three.Mesh(geometry, groupMat);
-    _group = three.Group();
-    _group!.add(_box!);
-    t.scene.add(_group!);
+      _controls = three.OrbitControls(camera, t.globalKey);
+      _controls!.enableDamping = true;
+      _controls!.dampingFactor = 0.08;
+      _controls!.enablePan = false;
+      _controls!.enableZoom = true;
+      _controls!.minDistance = 2.4;
+      _controls!.maxDistance = 7;
+      _controls!.minPolarAngle = 0.6;
+      _controls!.maxPolarAngle = 2.5;
+      _controls!.autoRotate = widget.autoRotate;
+      _controls!.autoRotateSpeed = 3.0;
+      _controls!.update();
 
-    _controls = three.OrbitControls(camera, t.globalKey);
-    _controls!.enableDamping = true;
-    _controls!.dampingFactor = 0.08;
-    _controls!.enablePan = false;
-    _controls!.enableZoom = true;
-    _controls!.minDistance = 2.4;
-    _controls!.maxDistance = 7;
-    _controls!.minPolarAngle = 0.6;
-    _controls!.maxPolarAngle = 2.5;
-    _controls!.autoRotate = widget.autoRotate;
-    _controls!.autoRotateSpeed = 3.0;
-    _controls!.update();
+      // Caras primero: la malla se crea UNA vez con los materiales finales.
+      // (Mutar GroupMaterial.children tras el primer render no llega al
+      // puente nativo ANGLE y la carátula nunca aparecía.)
+      final frontUrl = (g.coverLargeUrl?.isNotEmpty == true
+          ? g.coverLargeUrl!
+          : (g.coverSmallUrl ?? ''));
+      final results = await Future.wait([
+        _loadFace(frontUrl),
+        _loadFace(g.coverBackUrl ?? ''),
+        _loadFace(g.coverSpineUrl ?? ''),
+      ]);
+      if (!mounted || _three == null) return;
+      if (results[0] == null) {
+        setState(() {
+          _loading = false;
+          _show3D = false;
+        });
+        final l10n = AppLocalizations.of(context);
+        if (l10n != null) {
+          unawaited(
+            EasyLoading.showToast(
+              l10n.gameBoxNoData,
+              toastPosition: EasyLoadingToastPosition.bottom,
+              maskType: EasyLoadingMaskType.none,
+              dismissOnTap: true,
+            ),
+          );
+        }
+        return;
+      }
+      // Orden BoxGeometry: [+x, -x, +y, -y, +z(frontal), -z(trasera)].
+      final edge = _edgeMaterial();
+      final materials = <three.Material>[
+        edge,
+        edge,
+        edge,
+        edge,
+        _faceMaterial(results[0]!),
+        results[1] != null ? _faceMaterial(results[1]!) : edge,
+      ];
+      if (results[2] != null) {
+        final spine = _faceMaterial(results[2]!);
+        materials[0] = spine;
+        materials[1] = spine;
+      }
+      final size = _boxSizeFor(g.platformSlug);
+      final geometry = three.BoxGeometry(size[0], size[1], size[2]);
+      final groupMat = three.GroupMaterial(materials);
+      _box = three.Mesh(geometry, groupMat);
+      _group = three.Group();
+      _group!.add(_box!);
+      t.scene.add(_group!);
 
-    final frontUrl = (g.coverLargeUrl?.isNotEmpty == true
-        ? g.coverLargeUrl!
-        : (g.coverSmallUrl ?? ''));
-    final results = await Future.wait([
-      _loadFace(frontUrl),
-      _loadFace(g.coverBackUrl ?? ''),
-      _loadFace(g.coverSpineUrl ?? ''),
-    ]);
-    if (!mounted) return;
-    if (results[0] == null) {
+      setState(() {
+        _loading = false;
+        _ready = true;
+      });
+    } catch (e) {
+      debugPrint('[ROMM-3D-TEX] setup failed: $e');
+      if (!mounted) return;
+      _disposeThree();
       setState(() {
         _loading = false;
         _show3D = false;
       });
-      final l10n = AppLocalizations.of(context);
-      if (l10n != null) {
-        unawaited(
-          EasyLoading.showToast(
-            l10n.gameBoxNoData,
-            toastPosition: EasyLoadingToastPosition.bottom,
-            maskType: EasyLoadingMaskType.none,
-            dismissOnTap: true,
-          ),
-        );
-      }
-      return;
     }
-    final children = groupMat.children;
-    children[4] = _faceMaterial(results[0]!);
-    if (results[1] != null) children[5] = _faceMaterial(results[1]!);
-    if (results[2] != null) {
-      final spine = _faceMaterial(results[2]!);
-      children[0] = spine;
-      children[1] = spine;
-    }
-    for (final m in children) {
-      m.needsUpdate = true;
-    }
-    setState(() {
-      _loading = false;
-      _ready = true;
-    });
   }
 
   void _onToggle(bool to3D) {
@@ -373,7 +435,7 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final can3D = widget.game.has3DFaces;
+    final can3D = widget.game.can3D;
 
     Widget viewer;
     if (_show3D && can3D && _nativeAvailable && _three != null) {

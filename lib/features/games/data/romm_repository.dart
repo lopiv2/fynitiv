@@ -16,11 +16,16 @@ class RommGamesPage {
   final int total;
 }
 
-/// Trasera/caja 3D resueltas por sondeo de recursos ('', si no existen).
+/// Trasera/lomo/caja 3D resueltos por sondeo de recursos ('', si no existen).
 class RommResolvedArtwork {
-  const RommResolvedArtwork({required this.backUrl, required this.box3dUrl});
+  const RommResolvedArtwork({
+    required this.backUrl,
+    required this.spineUrl,
+    required this.box3dUrl,
+  });
 
   final String backUrl;
+  final String spineUrl;
   final String box3dUrl;
 }
 
@@ -358,26 +363,39 @@ class RommRepository {
     var game = _mapGame(data);
     // La API no expone trasera/lomo: se resuelven sondeando los recursos
     // (`.../roms/{platform}/{rom}/cover/big.png` → `.../backcover/...`).
-    // Solo existe el hit que el servidor confirma con 200.
+    // Solo existe el hit que el servidor confirma con 200/206.
+    // Autodiagnóstico: se loguea siempre (hit o miss) para no depender
+    // de que el usuario vuelque el JSON a mano.
     if ((game.coverLargeUrl ?? game.coverSmallUrl ?? '').isNotEmpty) {
+      final raw = data is Map<String, dynamic> ? data : null;
       final art = await resolveArtwork(
         romId: game.id,
         platformId: game.platformId,
         coverLarge: game.coverLargeUrl,
         coverSmall: game.coverSmallUrl,
+        raw: raw,
       );
-      if (art.backUrl.isNotEmpty || art.box3dUrl.isNotEmpty) {
-        game = game.copyWith(
-          coverBackUrl: art.backUrl,
-          box3dUrl: art.box3dUrl,
-        );
-        debugPrint('[ROMM-3D] id=$id back=${art.backUrl} box3d=${art.box3dUrl}');
-      }
+      game = game.copyWith(
+        coverBackUrl: art.backUrl.isNotEmpty ? art.backUrl : game.coverBackUrl,
+        coverSpineUrl:
+            art.spineUrl.isNotEmpty ? art.spineUrl : game.coverSpineUrl,
+        box3dUrl: art.box3dUrl.isNotEmpty ? art.box3dUrl : game.box3dUrl,
+      );
+      debugPrint(
+        '[ROMM-3D] id=$id front=${game.coverLargeUrl ?? game.coverSmallUrl} '
+        'back=${game.coverBackUrl ?? ''} spine=${game.coverSpineUrl ?? ''} '
+        'box3d=${game.box3dUrl ?? ''} has3D=${game.can3D}',
+      );
+    } else {
+      debugPrint('[ROMM-3D] id=$id sin frontal: imposible 3D');
     }
     return game;
   }
 
-  /// Trasera y caja 3D resueltas por sondeo (con caché por rom).
+  /// Trasera/lomo y caja 3D resueltos por sondeo (con caché por rom).
+  /// Orden: 1) `files[]` del propio detalle, 2) `GET /api/roms/{id}/files`,
+  /// 3) probe de URLs derivadas de la frontal. Sin JSON manual del usuario:
+  /// todo queda en el log `[ROMM-3D-FILES]`.
   final Map<int, RommResolvedArtwork> _artworkCache = {};
 
   Future<RommResolvedArtwork> resolveArtwork({
@@ -385,27 +403,152 @@ class RommRepository {
     required int platformId,
     String? coverLarge,
     String? coverSmall,
+    Map<String, dynamic>? raw,
   }) async {
     final cached = _artworkCache[romId];
     if (cached != null) return cached;
-    const empty = RommResolvedArtwork(backUrl: '', box3dUrl: '');
+    const empty = RommResolvedArtwork(backUrl: '', spineUrl: '', box3dUrl: '');
     final cover = (coverLarge?.isNotEmpty == true ? coverLarge : coverSmall) ?? '';
     if (cover.isEmpty) {
       _artworkCache[romId] = empty;
       return empty;
     }
-    final back = await _probeFirst([
-      _swapResourceSegment(cover, 'backcover'),
-      _swapResourceSegment(cover, 'backcovers'),
-    ]);
-    final box3d = await _probeFirst([
-      _swapResourceSegment(cover, 'box3d'),
-      _swapResourceSegment(cover, '3dbox'),
-      _swapResourceSegment(cover, '3dboxes'),
-    ]);
-    final resolved = RommResolvedArtwork(backUrl: back, box3dUrl: box3d);
+    // 1) files[] del detalle (con with_files=true suele venir).
+    var back = '';
+    var spine = '';
+    var box3d = '';
+    final files = raw?['files'];
+    if (files is List && files.isNotEmpty) {
+      _logFilesSample(romId, files);
+      final fromFiles = _artworkFromFilesList(files);
+      back = fromFiles.backUrl;
+      spine = fromFiles.spineUrl;
+      box3d = fromFiles.box3dUrl;
+    }
+    // 2) Endpoint de ficheros del rom (vía apuntada por el usuario).
+    if (back.isEmpty && spine.isEmpty && box3d.isEmpty) {
+      final fromEndpoint = await _artworkFromFilesEndpoint(romId);
+      back = fromEndpoint.backUrl;
+      spine = fromEndpoint.spineUrl;
+      box3d = fromEndpoint.box3dUrl;
+    }
+    // 3) Probe de URLs derivadas de la frontal (solo lo que falte).
+    if (back.isEmpty) {
+      back = await _probeFirst([
+        _swapResourceSegment(cover, 'backcover'),
+        _swapResourceSegment(cover, 'backcovers'),
+        _swapResourceSegment(cover, 'back_cover'),
+        _swapResourceSegment(cover, 'back'),
+        _swapFileName(cover, const ['back', 'backcover', 'rear']),
+      ]);
+    }
+    if (spine.isEmpty) {
+      spine = await _probeFirst([
+        _swapResourceSegment(cover, 'spine'),
+        _swapResourceSegment(cover, 'spines'),
+        _swapResourceSegment(cover, 'side'),
+        _swapResourceSegment(cover, 'sides'),
+        _swapFileName(cover, const ['spine', 'side']),
+      ]);
+    }
+    if (box3d.isEmpty) {
+      box3d = await _probeFirst([
+        _swapResourceSegment(cover, 'box3d'),
+        _swapResourceSegment(cover, '3dbox'),
+        _swapResourceSegment(cover, '3dboxes'),
+        _swapResourceSegment(cover, 'box_3d'),
+        _swapFileName(cover, const ['box3d', '3dbox', 'box']),
+      ]);
+    }
+    final resolved =
+        RommResolvedArtwork(backUrl: back, spineUrl: spine, box3dUrl: box3d);
     _artworkCache[romId] = resolved;
     return resolved;
+  }
+
+  /// Busca trasera/lomo/box3d dentro de una lista `files[]` de RomM sin
+  /// asumir su forma exacta: revisa todos los valores string de cada entry
+  /// (file_name, file_path, full_path, download_path, ...) y los que
+  /// parezcan URL/ruta se normalizan a absoluta.
+  RommResolvedArtwork _artworkFromFilesList(List files) {
+    var back = '';
+    var spine = '';
+    var box3d = '';
+    bool looksArt(String s) {
+      final l = s.toLowerCase();
+      return l.endsWith('.png') ||
+          l.endsWith('.jpg') ||
+          l.endsWith('.jpeg') ||
+          l.endsWith('.webp');
+    }
+
+    String? pickUrl(Object? entry, List<String> hints) {
+      if (entry is! Map) return null;
+      for (final v in entry.values) {
+        if (v is! String || v.trim().isEmpty) continue;
+        final l = v.toLowerCase();
+        if (!looksArt(v) && !l.contains('/assets/')) continue;
+        if (hints.any((h) => l.contains(h))) return assetUrl(v.trim());
+      }
+      return null;
+    }
+
+    for (final f in files) {
+      back = pickUrl(f, const ['backcover', 'back_cover', 'back']) ?? back;
+      spine = pickUrl(f, const ['spine', 'side']) ?? spine;
+      box3d = pickUrl(f, const ['box3d', '3dbox', 'box_3d']) ?? box3d;
+      if (back.isNotEmpty && spine.isNotEmpty && box3d.isNotEmpty) break;
+    }
+    return RommResolvedArtwork(
+      backUrl: back,
+      spineUrl: spine,
+      box3dUrl: box3d,
+    );
+  }
+
+  /// `GET /api/roms/{id}/files` (y un fallback con `/api/roms/{id}?with_files=true`
+  /// por si el endpoint directo no existe en ese servidor). Nunca lanza.
+  Future<RommResolvedArtwork> _artworkFromFilesEndpoint(int romId) async {
+    const empty = RommResolvedArtwork(backUrl: '', spineUrl: '', box3dUrl: '');
+    List? asList(Object? data) {
+      if (data is List) return data;
+      if (data is Map<String, dynamic>) {
+        for (final k in const ['files', 'items', 'results', 'data']) {
+          if (data[k] is List) return data[k] as List;
+        }
+      }
+      return null;
+    }
+
+    for (final path in <String>[
+      '/api/roms/$romId/files',
+      '/api/roms/$romId?with_files=true',
+    ]) {
+      try {
+        final res = await _dio.get(path, options: _authOptions);
+        final list = asList(res.data);
+        if (list == null || list.isEmpty) continue;
+        final found = _artworkFromFilesList(list);
+        if (found.backUrl.isNotEmpty ||
+            found.spineUrl.isNotEmpty ||
+            found.box3dUrl.isNotEmpty) {
+          return found;
+        }
+      } catch (_) {}
+    }
+    return empty;
+  }
+
+  void _logFilesSample(int romId, List files) {
+    try {
+      final first = files.first;
+      final keys = first is Map ? first.keys.toList() : <Object?>[];
+      debugPrint(
+        '[ROMM-3D-FILES] id=$romId files=${files.length} keys=$keys first=$first',
+      );
+    } catch (e) {
+      debugPrint('[ROMM-3D-FILES] id=$romId files=${files.length} logErr=$e');
+    }
   }
 
   /// `/assets/romm/resources/roms/15/28901/cover/big.png?ts=…` →
@@ -422,6 +565,8 @@ class RommRepository {
   }
 
   /// Primera URL que el servidor confirma (2xx/3xx). '' si ninguna existe.
+  /// HEAD primero; si el servidor lo rechaza (405/501/…), reintento con
+  /// GET `Range: bytes=0-0` para no descargar la imagen entera.
   Future<String> _probeFirst(List<String> urls) async {
     for (final u in urls) {
       if (u.isEmpty) continue;
@@ -429,14 +574,48 @@ class RommRepository {
         final res = await _dio.head(u, options: _authOptions);
         final code = res.statusCode ?? 0;
         if (code >= 200 && code < 400) return u.split('?').first;
-      } catch (_) {}
+      } catch (_) {
+        try {
+          final res = await _dio.get(
+            u,
+            options: Options(
+              headers: {
+                if (_token != null && _token!.isNotEmpty)
+                  'Authorization': 'Bearer $_token',
+                'Range': 'bytes=0-0',
+              },
+            ),
+          );
+          final code = res.statusCode ?? 0;
+          if (code >= 200 && code < 400) return u.split('?').first;
+        } catch (_) {}
+      }
+    }
+    return '';
+  }
+
+  /// `.../cover/big.png` → `.../cover/back.png` (mismo segmento, otro
+  /// nombre de fichero). Devuelve la primera variante no vacía.
+  String _swapFileName(String coverUrl, List<String> names) {
+    final q = coverUrl.indexOf('?');
+    final path = q >= 0 ? coverUrl.substring(0, q) : coverUrl;
+    final slash = path.lastIndexOf('/');
+    final dot = path.lastIndexOf('.');
+    if (slash < 0) return '';
+    final ext = dot > slash ? path.substring(dot) : '.png';
+    for (final n in names) {
+      final candidate = '${path.substring(0, slash + 1)}$n$ext';
+      if (candidate != path) return candidate;
     }
     return '';
   }
 
   RommGame _mapGame(Map<String, dynamic>? g) {
     final files = g?['files'] as List? ?? const [];
-    final firstFile = files.isNotEmpty ? (files.first['file_name'] as String?) : null;
+    String? firstFile;
+    if (files.isNotEmpty && files.first is Map) {
+      firstFile = (files.first as Map)['file_name'] as String?;
+    }
     DateTime? lastPlayed;
     final ru = g?['rom_user'] as Map<String, dynamic>?;
     final rawLast = ru?['last_played'] as String?;

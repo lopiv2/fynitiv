@@ -9,12 +9,14 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/audio/game_bg_player.dart';
 import '../../../core/audio/game_ost_player.dart';
+import '../../../core/audio/app_volume_provider.dart';
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/app_hover_button.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/volume_slider.dart';
 import '../../../core/widgets/marquee_text.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/ost_providers.dart';
@@ -87,6 +89,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     final repo = ref.read(rommRepositoryProvider);
     GameOstPlayer.instance.setAuthToken(repo?.token);
     GameOstPlayer.instance.setMuted(muted);
+    GameOstPlayer.instance.setVolume(
+      ref.read(appVolumeProvider).clamp(0, 100).toDouble() / 100,
+    );
     GameOstPlayer.instance.playQueue(tracks);
   }
 
@@ -867,7 +872,7 @@ class _OstEmptyBox extends StatelessWidget {
   }
 }
 
-class _OstNowPlayingCard extends StatefulWidget {
+class _OstNowPlayingCard extends ConsumerStatefulWidget {
   const _OstNowPlayingCard({
     required this.ostAsync,
     required this.currentTrack,
@@ -882,17 +887,24 @@ class _OstNowPlayingCard extends StatefulWidget {
   final bool compact;
 
   @override
-  State<_OstNowPlayingCard> createState() => _OstNowPlayingCardState();
+  ConsumerState<_OstNowPlayingCard> createState() =>
+      _OstNowPlayingCardState();
 }
 
-class _OstNowPlayingCardState extends State<_OstNowPlayingCard> {
+class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
   Timer? _ticker;
   bool _shuffle = true;
+  bool _showVolume = false;
 
   @override
   void initState() {
     super.initState();
     _shuffle = GameOstPlayer.instance.shuffleEnabled;
+    // El OST hereda el volumen universal desde el arranque.
+    try {
+      final global = ref.read(appVolumeProvider).clamp(0, 100).toDouble();
+      GameOstPlayer.instance.setVolume(global / 100);
+    } catch (_) {}
     _ticker = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (mounted) setState(() {});
     });
@@ -907,6 +919,11 @@ class _OstNowPlayingCardState extends State<_OstNowPlayingCard> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // Volumen universal: lo aplica al OST en vivo sin reescribirlo.
+    ref.listen<double>(appVolumeProvider, (_, v) {
+      GameOstPlayer.instance.setVolume(v.clamp(0, 100).toDouble() / 100);
+    });
+    final globalVol = ref.watch(appVolumeProvider).clamp(0, 100).toDouble();
     return widget.ostAsync.when(
       loading: () => const _OstLoadingBox(),
       error: (_, _) => const SizedBox.shrink(),
@@ -1043,18 +1060,35 @@ class _OstNowPlayingCardState extends State<_OstNowPlayingCard> {
                     ),
                   ),
                   IconButton(
-                    tooltip: muted ? l10n.ostUnmute : l10n.ostMute,
-                    onPressed: () => unawaited(player.setMuted(!muted)),
+                    tooltip: l10n.volume,
+                    onPressed: () =>
+                        setState(() => _showVolume = !_showVolume),
                     icon: Icon(
                       muted
                           ? Icons.volume_off_rounded
-                          : Icons.volume_up_rounded,
-                      color: Colors.white70,
+                          : volumeIconFor(globalVol),
+                      color: _showVolume ? _ostAccent : Colors.white70,
                       size: compact ? 18 : 20,
                     ),
                   ),
                 ],
               ),
+              if (_showVolume) ...[
+                const SizedBox(height: 4),
+                VolumeSliderRow(
+                  volume: globalVol,
+                  onChanged: (v) => ref
+                      .read(appVolumeProvider.notifier)
+                      .setVolume(v),
+                  muted: muted,
+                  onToggleMute: () => unawaited(player.setMuted(!muted)),
+                  volumeTooltip: l10n.volume,
+                  muteTooltip: l10n.ostMute,
+                  unmuteTooltip: l10n.ostUnmute,
+                  accent: _ostAccent,
+                  compact: compact,
+                ),
+              ],
               const SizedBox(height: 4),
               Row(
                 children: [
