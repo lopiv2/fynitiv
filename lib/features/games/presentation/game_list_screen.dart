@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/settings/game_video_controller.dart';
+import '../../../core/utils/format_bytes.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -584,7 +585,7 @@ class _PlatformHeader extends ConsumerWidget {
                     label: l10n.platformInLibrary,
                   ),
                   _InfoStat(
-                    value: _formatBytes(p.fsSizeBytes),
+                    value: formatBytes(p.fsSizeBytes),
                     label: l10n.platformOnDisk,
                   ),
                   _InfoStat(
@@ -599,19 +600,6 @@ class _PlatformHeader extends ConsumerWidget {
       ],
     );
   }
-}
-
-String _formatBytes(int bytes) {
-  if (bytes <= 0) return '—';
-  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-  var size = bytes.toDouble();
-  var i = 0;
-  while (size >= 1024 && i < units.length - 1) {
-    size /= 1024;
-    i++;
-  }
-  final decimals = size >= 100 ? 0 : size >= 10 ? 1 : 2;
-  return '${size.toStringAsFixed(decimals)} ${units[i]}';
 }
 
 class _InfoChip extends StatelessWidget {

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
@@ -16,12 +17,15 @@ import '../../domain/romm_game.dart';
 /// Visor de portada con toggle 2D / 3D (render nativo con `three_js`).
 ///
 /// - 3D cuando hay frontal ([RommGame.can3D]). Con trasera/lomo reales se
-///   usan en sus caras; sin ellas, trasera y cantos usan material sólido.
+///   usan en sus caras (el lomo texturiza el lateral; superior e inferior
+///   quedan tintados); sin ellas, trasera y cantos usan material sólido
+///   teñido del predominante del lomo.
 ///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
 ///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
 ///   los cantos; órbita con ratón/táctil vía `OrbitControls`.
-/// - Sin caras suficientes: fallback 2D plano. Prioridad 2D:
-///   `box3dUrl` pre-render de RomM > `coverLargeUrl` > `coverSmallUrl`.
+/// - Sin caras suficientes: fallback 2D plano. Prioridad 2D: frontal
+///   plana (`coverLargeUrl` > `coverSmallUrl`); el pre-render `box3dUrl`
+///   de RomM queda como último recurso. La 3D vive solo en el modo 3D.
 /// - Texturas con auth Bearer descargadas en nativo con Dio: nunca salen
 ///   del proceso y no hay CORS ni cabeceras que inyectar.
 class GameCoverViewer extends ConsumerStatefulWidget {
@@ -210,13 +214,17 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     if (mounted) setState(() {});
   }
 
+  /// 2D = frontal plana por defecto; el pre-render 3D de RomM solo se
+  /// usa si no hay frontal. La caja 3D vive en el modo 3D.
   String get _fallback2D {
     final g = widget.game;
-    if (g.box3dUrl != null && g.box3dUrl!.isNotEmpty) return g.box3dUrl!;
     if (g.coverLargeUrl != null && g.coverLargeUrl!.isNotEmpty) {
       return g.coverLargeUrl!;
     }
-    return g.coverSmallUrl ?? '';
+    if (g.coverSmallUrl != null && g.coverSmallUrl!.isNotEmpty) {
+      return g.coverSmallUrl!;
+    }
+    return g.box3dUrl ?? '';
   }
 
   /// Grosor de caja por familia de plataforma (SNES/cartucho grueso vs CD fino).
@@ -250,23 +258,24 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     }
   }
 
-  Future<three.Texture?> _loadFace(String url) async {
+  /// Carga una cara y, si se pide (`sampleColor`), su color predominante
+  /// (para teñir las caras que queden sin textura). Solo se muestrea el
+  /// lomo: es barato y evita trabajo inútil en frontal/trasera.
+  Future<({three.Texture? texture, int? dominant})> _loadFace(
+    String url, {
+    bool sampleColor = false,
+  }) async {
+    const empty = (texture: null, dominant: null);
     final clean = _sanitizeUrl(url);
-    if (clean.isEmpty) return null;
+    if (clean.isEmpty) return empty;
     final repo = ref.read(rommRepositoryProvider);
-    if (repo == null) return null;
+    if (repo == null) return empty;
     try {
       final bytes = await repo.downloadAssetBytes(clean);
-      if (bytes == null || bytes.isEmpty) {
-        debugPrint('[ROMM-3D-TEX] sin bytes url=$clean');
-        return null;
-      }
+      if (bytes == null || bytes.isEmpty) return empty;
       final tex = await three.TextureLoader(flipY: true)
           .fromBytes(Uint8List.fromList(bytes));
-      if (tex == null) {
-        debugPrint('[ROMM-3D-TEX] decode null bytes=${bytes.length} url=$clean');
-        return null;
-      }
+      if (tex == null) return empty;
       tex.colorSpace = three.SRGBColorSpace;
       // Las carátulas de RomM son NPOT (p.ej. 517x680): con mipmaps la
       // textura queda incompleta en ANGLE/D3D11 y la cara sale negra.
@@ -274,19 +283,56 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       tex.generateMipmaps = false;
       tex.minFilter = three.LinearFilter;
       tex.needsUpdate = true;
-      final w = tex.image?.width;
-      final h = tex.image?.height;
-      debugPrint('[ROMM-3D-TEX] ok bytes=${bytes.length} ${w}x$h url=$clean');
-      return tex;
-    } catch (e) {
-      debugPrint('[ROMM-3D-TEX] error url=$clean err=$e');
+      final dominant =
+          sampleColor ? await _predominantColor(bytes) : null;
+      return (texture: tex, dominant: dominant);
+    } catch (_) {
+      return empty;
+    }
+  }
+
+  /// Color predominante de una carátula como `0xFFRRGGBB` (histograma con
+  /// 4 bits por canal sobre miniatura, transparentes ignorados). Para teñir
+  /// las caras del modelo que no tengan textura del color del lomo.
+  Future<int?> _predominantColor(List<int> bytes) async {
+    try {
+      final codec = await ui.instantiateImageCodec(
+        Uint8List.fromList(bytes),
+        targetWidth: 48,
+      );
+      final frame = await codec.getNextFrame();
+      final image = frame.image;
+      final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      image.dispose();
+      if (data == null) return null;
+      final pixels = data.buffer.asUint8List();
+      final counts = <int, int>{};
+      for (var i = 0; i + 4 <= pixels.length; i += 4) {
+        if (pixels[i + 3] < 128) continue;
+        final key = ((pixels[i] >> 4) << 8) |
+            ((pixels[i + 1] >> 4) << 4) |
+            (pixels[i + 2] >> 4);
+        counts[key] = (counts[key] ?? 0) + 1;
+      }
+      if (counts.isEmpty) return null;
+      var best = counts.entries.first;
+      for (final e in counts.entries) {
+        if (e.value > best.value) best = e;
+      }
+      final r = ((best.key >> 8) & 0xF) * 16 + 8;
+      final g = ((best.key >> 4) & 0xF) * 16 + 8;
+      final b = (best.key & 0xF) * 16 + 8;
+      return (0xFF << 24) | (r << 16) | (g << 8) | b;
+    } catch (_) {
       return null;
     }
   }
 
-  three.Material _edgeMaterial() {
+  /// Cantos/caras sin textura. Con `tint` (predominante del lomo) se tiñen
+  /// de ese color; sin él, marrón sólido corporativo.
+  three.Material _edgeMaterial({int? tint}) {
     return three.MeshStandardMaterial({
-      three.MaterialProperty.color: 0x2b1d12,
+      three.MaterialProperty.color: tint ?? 0x2b1d12,
       three.MaterialProperty.roughness: 0.7,
       three.MaterialProperty.metalness: 0.05,
     });
@@ -310,8 +356,12 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     try {
       t.scene = three.Scene();
       final aspect = widget.width / widget.height;
-      final camera = three.PerspectiveCamera(32, aspect, 0.1, 100);
-      camera.position.setValues(1.6, 0.35, 4.1);
+      // Encuadre inicial con presencia: cámara más cerca y FOV estrecho
+      // para que la caja se vea grande nada más cargar. Se conserva el
+      // ángulo 3/4 (proporción x/y/z) y el `minDistance` (2.4) para no
+      // tocar el zoom manual.
+      final camera = three.PerspectiveCamera(27, aspect, 0.1, 100);
+      camera.position.setValues(1.25, 0.3, 3.2);
       t.camera = camera;
 
       t.scene.add(three.HemisphereLight(0xffffff, 0x223344, 0.95));
@@ -344,10 +394,10 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       final results = await Future.wait([
         _loadFace(frontUrl),
         _loadFace(g.coverBackUrl ?? ''),
-        _loadFace(g.coverSpineUrl ?? ''),
+        _loadFace(g.coverSpineUrl ?? '', sampleColor: true),
       ]);
       if (!mounted || _three == null) return;
-      if (results[0] == null) {
+      if (results[0].texture == null) {
         setState(() {
           _loading = false;
           _show3D = false;
@@ -366,17 +416,21 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
         return;
       }
       // Orden BoxGeometry: [+x, -x, +y, -y, +z(frontal), -z(trasera)].
-      final edge = _edgeMaterial();
+      // Las caras sin textura se tiñen del predominante del lomo; sin
+      // lomo, marrón sólido.
+      final edge = _edgeMaterial(tint: results[2].dominant);
       final materials = <three.Material>[
         edge,
         edge,
         edge,
         edge,
-        _faceMaterial(results[0]!),
-        results[1] != null ? _faceMaterial(results[1]!) : edge,
+        _faceMaterial(results[0].texture!),
+        results[1].texture != null ? _faceMaterial(results[1].texture!) : edge,
       ];
-      if (results[2] != null) {
-        final spine = _faceMaterial(results[2]!);
+      if (results[2].texture != null) {
+        // Solo el lateral lleva el lomo texturizado (+x/-x). Superior e
+        // inferior (+y/-y) quedan tintados con el predominante del lomo.
+        final spine = _faceMaterial(results[2].texture!);
         materials[0] = spine;
         materials[1] = spine;
       }
@@ -392,8 +446,7 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
         _loading = false;
         _ready = true;
       });
-    } catch (e) {
-      debugPrint('[ROMM-3D-TEX] setup failed: $e');
+    } catch (_) {
       if (!mounted) return;
       _disposeThree();
       setState(() {
@@ -463,23 +516,9 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   }
 
   Widget _frame({required Widget child}) {
-    return Container(
+    return SizedBox(
       width: widget.width,
       height: widget.height,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(
-          color: Colors.white.withValues(alpha: 0.18),
-          width: 1,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black54,
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(3),
         child: child,

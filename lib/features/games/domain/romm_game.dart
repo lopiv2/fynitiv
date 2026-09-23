@@ -12,10 +12,12 @@ class RommGame {
     this.coverBackUrl,
     this.coverSpineUrl,
     this.box3dUrl,
+    this.logoUrl,
     this.hasStreaming = false,
     this.firstFile,
     this.lastPlayed,
     this.firstReleaseDate,
+    this.fsSizeBytes = 0,
   });
 
   final int id;
@@ -37,6 +39,10 @@ class RommGame {
   /// premium cuando no hay trasera+lomo para montar el modelo.
   final String? box3dUrl;
 
+  /// Logo/wheel del juego (`ss_metadata.logo_path`/`logo_url`). Si viene
+  /// vacío, el detalle usa el título en texto como hasta ahora.
+  final String? logoUrl;
+
   /// Si ROMM tiene un contenedor de streaming configurado para la plataforma
   /// de este juego (permite jugar en el navegador/emulador web).
   final bool hasStreaming;
@@ -51,6 +57,9 @@ class RommGame {
   /// Unix en segundos). Puede venir null si el juego no tiene metadatos.
   final DateTime? firstReleaseDate;
 
+  /// Tamaño en disco del juego (`fs_size_bytes` de ROMM, en bytes).
+  final int fsSizeBytes;
+
   RommGame copyWith({
     String? summary,
     String? coverSmallUrl,
@@ -58,10 +67,12 @@ class RommGame {
     String? coverBackUrl,
     String? coverSpineUrl,
     String? box3dUrl,
+    String? logoUrl,
     bool? hasStreaming,
     String? firstFile,
     DateTime? lastPlayed,
     DateTime? firstReleaseDate,
+    int? fsSizeBytes,
   }) {
     return RommGame(
       id: id,
@@ -75,10 +86,12 @@ class RommGame {
       coverBackUrl: coverBackUrl ?? this.coverBackUrl,
       coverSpineUrl: coverSpineUrl ?? this.coverSpineUrl,
       box3dUrl: box3dUrl ?? this.box3dUrl,
+      logoUrl: logoUrl ?? this.logoUrl,
       hasStreaming: hasStreaming ?? this.hasStreaming,
       firstFile: firstFile ?? this.firstFile,
       lastPlayed: lastPlayed ?? this.lastPlayed,
       firstReleaseDate: firstReleaseDate ?? this.firstReleaseDate,
+      fsSizeBytes: fsSizeBytes ?? this.fsSizeBytes,
     );
   }
 

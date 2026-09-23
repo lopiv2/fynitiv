@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../features/games/domain/game_ost_track.dart';
@@ -143,7 +142,6 @@ class GameOstPlayer {
     } else {
       _index = 0;
     }
-    debugPrint('[OST] shuffle ${enabled ? "on" : "off"} idx=$_index/${_shuffled.length}');
   }
 
   void _ensureInit() {
@@ -166,7 +164,6 @@ class GameOstPlayer {
     _current = track;
     _currentTrackController.add(track);
     _setLoading(true);
-    debugPrint('[OST] play idx=$_index/${_shuffled.length} "${track.name}"');
     try {
       await _player.playUrl(
         track.url,
@@ -181,8 +178,7 @@ class GameOstPlayer {
       }
       _loadingSession = -1;
       _setLoading(false);
-    } catch (e) {
-      debugPrint('[OST] playUrl falló "${track.name}" ${track.url}: $e');
+    } catch (_) {
       if (_loadingSession == session) _loadingSession = -1;
       _setLoading(false);
       if (session != _session) return;
@@ -207,7 +203,6 @@ class GameOstPlayer {
     _queue = List<GameOstTrack>.from(tracks);
     _shuffled = List<GameOstTrack>.from(tracks)..shuffle(Random());
     _index = 0;
-    debugPrint('[OST] playQueue ${tracks.length} pistas → idx=0 "${_shuffled.first.name}"');
     if (_muted) {
       _current = _shuffled.first;
       _currentTrackController.add(_current);
@@ -221,13 +216,11 @@ class GameOstPlayer {
   Future<void> next() async {
     _ensureInit();
     if (_shuffled.isEmpty) {
-      debugPrint('[OST] next: queue vacía');
       return;
     }
     _session++;
     _userPaused = false;
     _index = (_index + 1) % _shuffled.length;
-    debugPrint('[OST] next → idx=$_index/${_shuffled.length} "${_shuffled[_index].name}"');
     if (_muted) {
       _current = _shuffled[_index];
       _currentTrackController.add(_current);
@@ -258,7 +251,6 @@ class GameOstPlayer {
     if (_shuffled.isEmpty) return;
     final i = _indexOfUrl(_shuffled, track);
     if (i < 0) {
-      debugPrint('[OST] playTrack no encontrado "${track.name}"');
       return;
     }
     _session++;

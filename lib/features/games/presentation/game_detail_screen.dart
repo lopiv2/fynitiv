@@ -12,6 +12,7 @@ import '../../../core/audio/game_ost_player.dart';
 import '../../../core/audio/app_volume_provider.dart';
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/skin/skin_controller.dart';
+import '../../../core/utils/format_bytes.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/app_hover_button.dart';
@@ -346,6 +347,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                       const SizedBox(height: 20),
                                       _GameHeroInfo(
                                         game: g,
+                                        headers: headers,
                                         launching: _launching,
                                         downloading: _downloading,
                                         onPlay: () => _play(g),
@@ -394,6 +396,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                               children: [
                                                 _GameHeroInfo(
                                                   game: g,
+                                                  headers: headers,
                                                   launching: _launching,
                                                   downloading: _downloading,
                                                   onPlay: () => _play(g),
@@ -465,9 +468,64 @@ String _formatDate(BuildContext context, DateTime? d) {
 // ---------------------------------------------------------------------------
 // Hero info: title + stats + buttons (Origin layout)
 
+/// Cabecera del hero: logo (wheel) del juego si RomM lo envía, con fallback
+/// al título en texto cuando no hay logo, sigue cargando o falla la carga.
+class _GameTitle extends StatelessWidget {
+  const _GameTitle({
+    required this.game,
+    required this.headers,
+    required this.compact,
+  });
+
+  final RommGame game;
+  final Map<String, String>? headers;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final logo = game.logoUrl ?? '';
+    if (logo.isEmpty) return _titleText();
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: compact ? 300 : 460,
+        maxHeight: compact ? 72 : 140,
+      ),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Image.network(
+          logo,
+          fit: BoxFit.contain,
+          alignment: Alignment.centerLeft,
+          headers: headers,
+          semanticLabel: game.name,
+          loadingBuilder: (context, child, progress) =>
+              progress == null ? child : _titleText(),
+          errorBuilder: (_, _, _) => _titleText(),
+        ),
+      ),
+    );
+  }
+
+  Widget _titleText() {
+    return Text(
+      game.name,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: compact ? 22 : 28,
+        fontWeight: FontWeight.w700,
+        height: 1.15,
+        shadows: const [Shadow(color: Colors.black87, blurRadius: 8)],
+      ),
+    );
+  }
+}
+
 class _GameHeroInfo extends StatelessWidget {
   const _GameHeroInfo({
     required this.game,
+    required this.headers,
     required this.launching,
     required this.downloading,
     required this.onPlay,
@@ -476,6 +534,7 @@ class _GameHeroInfo extends StatelessWidget {
   });
 
   final RommGame game;
+  final Map<String, String>? headers;
   final bool launching;
   final bool downloading;
   final VoidCallback onPlay;
@@ -494,18 +553,7 @@ class _GameHeroInfo extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          game.name,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: compact ? 22 : 28,
-            fontWeight: FontWeight.w700,
-            height: 1.15,
-            shadows: const [Shadow(color: Colors.black87, blurRadius: 8)],
-          ),
-        ),
+        _GameTitle(game: game, headers: headers, compact: compact),
         const SizedBox(height: 14),
         // Stats row like Origin: 4 cols
         Wrap(
@@ -525,6 +573,10 @@ class _GameHeroInfo extends StatelessWidget {
               value: game.platformDisplayName.isEmpty
                   ? '—'
                   : game.platformDisplayName,
+            ),
+            _Stat(
+              label: l10n.platformOnDisk,
+              value: formatBytes(game.fsSizeBytes),
             ),
           ],
         ),

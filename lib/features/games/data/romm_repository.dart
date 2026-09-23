@@ -54,11 +54,12 @@ class RommRepository {
   );
 
   /// Normaliza una ruta de asset de ROMM (relativa) a una URL absoluta.
+  /// Sin doble `//` aunque `serverUrl` traiga barra final.
   String assetUrl(String? path) {
     if (path == null || path.isEmpty) return '';
-    return path.startsWith('http')
-        ? path
-        : '$serverUrl${path.startsWith('/') ? '' : '/'}$path';
+    if (path.startsWith('http')) return path;
+    final base = serverUrl.replaceAll(RegExp(r'/$'), '');
+    return '$base${path.startsWith('/') ? '' : '/'}$path';
   }
 
   /// Resuelve el logo de plataforma a URL absoluta o null si no hay logo.
@@ -232,24 +233,6 @@ class RommRepository {
             ),
       ];
       final filtered = mapped.where((p) => p.romCount > 0).toList();
-      // DEBUG: plataformas recibidas de ROMM (para identificar las no mapeadas)
-      debugPrint('[ROMM] GET /api/platforms -> raw=${list.length} mapped=${mapped.length} filtered(romCount>0)=${filtered.length} server=$serverUrl');
-      for (final p in filtered) {
-        debugPrint('[ROMM] platform id=${p.id} slug="${p.slug}" name="${p.name}" customName="${p.customName}" romCount=${p.romCount} logoUrl="${p.logoUrl}" category="${p.category}" generation=${p.generation} family="${p.familyName}" size=${p.fsSizeBytes} firmware=${p.firmwareCount}');
-      }
-      // También loguea las descartadas por romCount 0 (útil para ver si faltan identificadas)
-      final zero = mapped.where((p) => p.romCount == 0).toList();
-      if (zero.isNotEmpty) {
-        debugPrint('[ROMM] zero-count platforms (${zero.length}):');
-        for (final p in zero) {
-          debugPrint('[ROMM]   zero id=${p.id} slug="${p.slug}" name="${p.name}" customName="${p.customName}"');
-        }
-      }
-      // Log crudo de claves para detectar campos nuevos (slug/fs_slug, name/fs_name, logo_path/url_logo)
-      if (list.isNotEmpty && list.first is Map) {
-        final sample = list.first as Map;
-        debugPrint('[ROMM] sample raw keys: ${sample.keys.toList()} values: id=${sample['id']} slug=${sample['slug']}/${sample['fs_slug']} name=${sample['name']}/${sample['fs_name']} logo_path=${sample['logo_path']} url_logo=${sample['url_logo']} custom_name=${sample['custom_name']} category=${sample['category']} generation=${sample['generation']} family=${sample['family_name']} size=${sample['fs_size_bytes']} firmware=${sample['firmware_count'] ?? (sample['firmware'] is List ? (sample['firmware'] as List).length : null)}');
-      }
       return filtered;
     } on DioException catch (e) {
       final code = e.response?.statusCode;
@@ -277,10 +260,6 @@ class RommRepository {
                     firmwareCount: (p['firmware_count'] as num?)?.toInt() ?? (p['firmware'] is List ? (p['firmware'] as List).length : 0),
                   ),
             ];
-            debugPrint('[ROMM] fallback noAuth platforms count=${res.length}');
-            for (final p in res) {
-              debugPrint('[ROMM][fallback-noAuth] id=${p.id} slug="${p.slug}" name="${p.name}"');
-            }
             return res;
           }
         } catch (_) {}
@@ -308,7 +287,6 @@ class RommRepository {
                     firmwareCount: (p['firmware_count'] as num?)?.toInt() ?? (p['firmware'] is List ? (p['firmware'] as List).length : 0),
                   ),
             ];
-            debugPrint('[ROMM] fallback /platforms count=${res.length}');
             return res;
           }
         } catch (_) {}
@@ -361,11 +339,9 @@ class RommRepository {
     final res = await _dio.get('/api/roms/$id', options: _authOptions);
     final data = res.data;
     var game = _mapGame(data);
-    // La API no expone trasera/lomo: se resuelven sondeando los recursos
-    // (`.../roms/{platform}/{rom}/cover/big.png` → `.../backcover/...`).
-    // Solo existe el hit que el servidor confirma con 200/206.
-    // Autodiagnóstico: se loguea siempre (hit o miss) para no depender
-    // de que el usuario vuelque el JSON a mano.
+    // La trasera/lomo llegan vía `ss_metadata`/`gamelist_metadata` en
+    // `_mapGame`; si faltan, se resuelven sondeando los recursos derivados
+    // de la frontal. Solo existe el hit que el servidor confirma.
     if ((game.coverLargeUrl ?? game.coverSmallUrl ?? '').isNotEmpty) {
       final raw = data is Map<String, dynamic> ? data : null;
       final art = await resolveArtwork(
@@ -381,21 +357,13 @@ class RommRepository {
             art.spineUrl.isNotEmpty ? art.spineUrl : game.coverSpineUrl,
         box3dUrl: art.box3dUrl.isNotEmpty ? art.box3dUrl : game.box3dUrl,
       );
-      debugPrint(
-        '[ROMM-3D] id=$id front=${game.coverLargeUrl ?? game.coverSmallUrl} '
-        'back=${game.coverBackUrl ?? ''} spine=${game.coverSpineUrl ?? ''} '
-        'box3d=${game.box3dUrl ?? ''} has3D=${game.can3D}',
-      );
-    } else {
-      debugPrint('[ROMM-3D] id=$id sin frontal: imposible 3D');
     }
     return game;
   }
 
   /// Trasera/lomo y caja 3D resueltos por sondeo (con caché por rom).
   /// Orden: 1) `files[]` del propio detalle, 2) `GET /api/roms/{id}/files`,
-  /// 3) probe de URLs derivadas de la frontal. Sin JSON manual del usuario:
-  /// todo queda en el log `[ROMM-3D-FILES]`.
+  /// 3) probe de URLs derivadas de la frontal.
   final Map<int, RommResolvedArtwork> _artworkCache = {};
 
   Future<RommResolvedArtwork> resolveArtwork({
@@ -419,7 +387,6 @@ class RommRepository {
     var box3d = '';
     final files = raw?['files'];
     if (files is List && files.isNotEmpty) {
-      _logFilesSample(romId, files);
       final fromFiles = _artworkFromFilesList(files);
       back = fromFiles.backUrl;
       spine = fromFiles.spineUrl;
@@ -539,18 +506,6 @@ class RommRepository {
     return empty;
   }
 
-  void _logFilesSample(int romId, List files) {
-    try {
-      final first = files.first;
-      final keys = first is Map ? first.keys.toList() : <Object?>[];
-      debugPrint(
-        '[ROMM-3D-FILES] id=$romId files=${files.length} keys=$keys first=$first',
-      );
-    } catch (e) {
-      debugPrint('[ROMM-3D-FILES] id=$romId files=${files.length} logErr=$e');
-    }
-  }
-
   /// `/assets/romm/resources/roms/15/28901/cover/big.png?ts=…` →
   /// `/assets/romm/resources/roms/15/28901/backcover/big.png?ts=…`.
   String _swapResourceSegment(String coverUrl, String segment) {
@@ -663,14 +618,70 @@ class RommRepository {
       'url_box3d',
       'box3d_url',
     ]);
+    // RomM no expone trasera/lomo/box3d a top-level: viajan en los blobs
+    // `ss_metadata` (ScreenScraper) y `gamelist_metadata` (ES-DE). Si el
+    // top-level viene vacío, se rellenan desde ahí (ver `_metaArtworkUrl`).
+    final metaBack = backRaw.isEmpty
+        ? _metaArtworkUrl(
+            g,
+            const ['box2d_back_path'],
+            const ['box2d_back_url'],
+          )
+        : '';
+    final metaSpine = spineRaw.isEmpty
+        ? _metaArtworkUrl(
+            g,
+            const ['box2d_side_path'],
+            const ['box2d_side_url'],
+          )
+        : '';
+    final metaBox3d = box3dRaw.isEmpty
+        ? _metaArtworkUrl(
+            g,
+            const ['box3d_path'],
+            const ['box3d_url'],
+          )
+        : '';
+    // Refuerzo de frontal solo si el top-level no trae nada (hoy funciona
+    // vía `path_cover_*`; no se cambia su prioridad).
+    var frontLargeEff = frontLarge;
+    var frontSmallEff = frontSmall;
+    var frontFallbackEff = frontFallback;
+    if (frontLargeEff.isEmpty &&
+        frontSmallEff.isEmpty &&
+        frontFallbackEff.isEmpty) {
+      final metaFront = _metaArtworkUrl(
+        g,
+        const ['box2d_path'],
+        const ['box2d_url'],
+      );
+      if (metaFront.isNotEmpty) frontFallbackEff = metaFront;
+    }
     String norm(String raw) {
       if (raw.isEmpty) return '';
-      return assetUrl(raw);
+      final t = raw.trim();
+      // gamelist `_url` llega en formato `file://` (ruta del NAS): no es
+      // cargable desde Flutter; solo valen `_path` (resources) o http(s).
+      if (t.startsWith('file://')) return '';
+      return assetUrl(t);
     }
 
-    final coverSmall = norm(frontSmall.isNotEmpty ? frontSmall : frontFallback);
+    final coverSmall =
+        norm(frontSmallEff.isNotEmpty ? frontSmallEff : frontFallbackEff);
     final coverLarge = norm(
-      frontLarge.isNotEmpty ? frontLarge : (frontSmall.isNotEmpty ? frontSmall : frontFallback),
+      frontLargeEff.isNotEmpty
+          ? frontLargeEff
+          : (frontSmallEff.isNotEmpty ? frontSmallEff : frontFallbackEff),
+    );
+    final backEff = backRaw.isNotEmpty ? backRaw : metaBack;
+    final spineEff = spineRaw.isNotEmpty ? spineRaw : metaSpine;
+    final box3dEff = box3dRaw.isNotEmpty ? box3dRaw : metaBox3d;
+    // Logo/wheel (ScreenScraper): `logo_path` (copia local) con fallback a
+    // `logo_url` remota. Sin logo, el detalle usa el título en texto.
+    final logoRaw = _metaArtworkUrl(
+      g,
+      const ['logo_path'],
+      const ['logo_url'],
     );
     return RommGame(
       id: (g?['id'] as num?)?.toInt() ?? 0,
@@ -681,13 +692,56 @@ class RommRepository {
       summary: g?['summary'] as String?,
       coverSmallUrl: coverSmall,
       coverLargeUrl: coverLarge,
-      coverBackUrl: norm(backRaw),
-      coverSpineUrl: norm(spineRaw),
-      box3dUrl: norm(box3dRaw),
+      coverBackUrl: norm(backEff),
+      coverSpineUrl: norm(spineEff),
+      box3dUrl: norm(box3dEff),
+      logoUrl: norm(logoRaw),
       firstFile: firstFile,
       lastPlayed: lastPlayed,
       firstReleaseDate: firstReleaseDate,
+      fsSizeBytes: (g?['fs_size_bytes'] as num?)?.toInt() ?? 0,
     );
+  }
+
+  /// Arte (trasera/lomo/box3d/frontal) desde los blobs `ss_metadata`
+  /// (ScreenScraper) y `gamelist_metadata` (ES-DE) de RomM.
+  ///
+  /// Orden: SS primero (más rico), gamelist después. Dentro de cada blob:
+  /// primero claves `*_path` (ruta cruda en resources, p. ej.
+  /// `roms/{plat}/{rom}/box2d_back/box2d_back.png`: se prefija con
+  /// `/assets/romm/resources`, igual que `Rom.path_cover_*` ya hace en el
+  /// backend con `FRONTEND_RESOURCES_PATH`), luego `*_url` salvo `file://`
+  /// (ruta del NAS en gamelist, no cargable desde Flutter). Devuelve '' si
+  /// no hay nada útil.
+  String _metaArtworkUrl(
+    Map<String, dynamic>? g,
+    List<String> pathKeys,
+    List<String> urlKeys,
+  ) {
+    if (g == null) return '';
+    for (final metaKey in const ['ss_metadata', 'gamelist_metadata']) {
+      final meta = g[metaKey];
+      if (meta is! Map) continue;
+      for (final k in pathKeys) {
+        final v = meta[k];
+        if (v is! String || v.trim().isEmpty) continue;
+        final t = v.trim();
+        if (t.startsWith('http')) return t;
+        if (t.startsWith('/assets/') || t.startsWith('assets/')) {
+          return t.startsWith('/') ? t : '/$t';
+        }
+        final rel = t.startsWith('/') ? t.substring(1) : t;
+        return '/assets/romm/resources/$rel';
+      }
+      for (final k in urlKeys) {
+        final v = meta[k];
+        if (v is! String || v.trim().isEmpty) continue;
+        final t = v.trim();
+        if (t.startsWith('file://')) continue;
+        return t;
+      }
+    }
+    return '';
   }
 
   /// Parsea la fecha de lanzamiento de ROMM.
