@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:three_js/three_js.dart' as three;
 
+import '../../../../core/navigation/platform_mode.dart';
 import '../../../../core/settings/game_video_controller.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/app_loader.dart';
@@ -489,6 +490,9 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final can3D = widget.game.can3D;
+    final isTv =
+        (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
+        PlatformMode.tv;
 
     Widget viewer;
     if (_show3D && can3D && _nativeAvailable && _three != null) {
@@ -503,12 +507,13 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       children: [
         viewer,
         if (can3D) ...[
-          const SizedBox(height: 10),
+          SizedBox(height: isTv ? 12 : 10),
           _ViewToggle(
             show3D: _show3D,
             label2D: l10n.gameView2D,
             label3D: l10n.gameView3D,
             onChanged: _onToggle,
+            isTv: isTv,
           ),
         ],
       ],
@@ -598,38 +603,46 @@ class _ViewToggle extends StatelessWidget {
     required this.label2D,
     required this.label3D,
     required this.onChanged,
+    this.isTv = false,
   });
 
   final bool show3D;
   final String label2D;
   final String label3D;
   final ValueChanged<bool> onChanged;
+  final bool isTv;
 
   @override
   Widget build(BuildContext context) {
+    // Factor TV: segmentos más grandes y legibles a distancia. En
+    // desktop/móvil se mantiene el tamaño actual.
+    final segRadius = BorderRadius.circular(isTv ? 10 : 8);
+    final hPad = isTv ? 20.0 : 14.0;
+    final vPad = isTv ? 12.0 : 7.0;
+    final fontSize = isTv ? 15.0 : 12.0;
     Widget seg(String label, bool active, VoidCallback onTap) {
       return AppHover(
         effect: AppHoverEffect.highlightWithScale,
         config: AppHoverConfig(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: segRadius,
           highlightNormal: active ? Colors.white : Colors.transparent,
           highlightHovered: active ? const Color(0xFFE6E6E6) : Colors.white10,
-          scale: 1.04,
+          scale: isTv ? 1.08 : 1.04,
         ),
         onTap: onTap,
-        playSoundOnHover: true,
+        playSoundOnHover: false,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+          padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
           decoration: BoxDecoration(
             color: active ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: segRadius,
             border: Border.all(color: Colors.white24),
           ),
           child: Text(
             label,
             style: TextStyle(
               color: active ? Colors.black : Colors.white,
-              fontSize: 12,
+              fontSize: fontSize,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -640,15 +653,15 @@ class _ViewToggle extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: Colors.black38,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(isTv ? 12 : 10),
         border: Border.all(color: Colors.white12),
       ),
-      padding: const EdgeInsets.all(3),
+      padding: EdgeInsets.all(isTv ? 5 : 3),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           seg(label2D, !show3D, () => onChanged(false)),
-          const SizedBox(width: 4),
+          SizedBox(width: isTv ? 6 : 4),
           seg(label3D, show3D, () => onChanged(true)),
         ],
       ),

@@ -683,6 +683,10 @@ class RommRepository {
       const ['logo_path'],
       const ['logo_url'],
     );
+    // Primera captura para el fondo del detalle: lista top-level
+    // `screenshots[0]` si existe, si no `screenshot_path` (copia local)
+    // con fallback a `screenshot_url` remota de ScreenScraper.
+    final screenshotRaw = _firstScreenshotUrl(g);
     return RommGame(
       id: (g?['id'] as num?)?.toInt() ?? 0,
       name: g?['name'] as String? ?? g?['fs_name'] as String? ?? '',
@@ -696,10 +700,54 @@ class RommRepository {
       coverSpineUrl: norm(spineEff),
       box3dUrl: norm(box3dEff),
       logoUrl: norm(logoRaw),
+      screenshotUrl: norm(screenshotRaw),
       firstFile: firstFile,
       lastPlayed: lastPlayed,
       firstReleaseDate: firstReleaseDate,
       fsSizeBytes: (g?['fs_size_bytes'] as num?)?.toInt() ?? 0,
+    );
+  }
+
+  /// Primera captura del rom para el fondo del detalle.
+  ///
+  /// Orden: lista top-level `screenshots[0]` (string o mapa con alguna
+  /// clave de ruta/url conocida); si no hay, `screenshot_path`/`screenshot_url`
+  /// de los blobs de metadatos (ver `_metaArtworkUrl`). Devuelve '' si no hay
+  /// nada útil; el caller lo normaliza con `assetUrl` (descarta `file://`).
+  String _firstScreenshotUrl(Map<String, dynamic>? g) {
+    if (g == null) return '';
+    String fromMap(Map m) {
+      for (final k in const [
+        'path',
+        'url',
+        'download_path',
+        'full_path',
+        'file_path',
+      ]) {
+        final v = m[k];
+        if (v is String && v.trim().isNotEmpty) return v.trim();
+      }
+      return '';
+    }
+
+    final top = g['screenshots'];
+    if (top is List && top.isNotEmpty) {
+      final first = top.first;
+      if (first is String && first.trim().isNotEmpty) return first.trim();
+      if (first is Map) {
+        final hit = fromMap(first);
+        if (hit.isNotEmpty) return hit;
+      }
+    } else if (top is String && top.trim().isNotEmpty) {
+      return top.trim();
+    } else if (top is Map) {
+      final hit = fromMap(top);
+      if (hit.isNotEmpty) return hit;
+    }
+    return _metaArtworkUrl(
+      g,
+      const ['screenshot_path'],
+      const ['screenshot_url'],
     );
   }
 

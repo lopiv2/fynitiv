@@ -66,11 +66,34 @@ class RommSoundtrackTrack {
     );
   }
 
-  /// Nombre visible: etiqueta o `Track {nº}` como fallback.
+  /// Nombre visible: etiqueta, nombre del fichero o `Track {nº}`.
+  /// Algunos rips (p. ej. Loom FM-Towns) no traen etiquetas en la Music API:
+  /// en ese caso se usa el stem del fichero de `stream_url`.
   String get displayName {
     if (title != null && title!.isNotEmpty) return title!;
+    final file = _fileStem(streamUrl);
+    if (file.isNotEmpty) return file;
     if (trackNo != null) return 'Track $trackNo';
     return 'Track';
+  }
+
+  /// Stem legible del fichero de [url]: URL-decodificado, sin extensión,
+  /// `_` → espacio y sin prefijo de número (`01 - `, `03_`) porque la lista
+  /// ya numera los items. '' si no se puede deducir.
+  String _fileStem(String url) {
+    try {
+      final segs = Uri.parse(url.trim()).pathSegments;
+      var name = segs.isEmpty
+          ? ''
+          : Uri.decodeComponent(segs.last).trim();
+      final dot = name.lastIndexOf('.');
+      if (dot > 0) name = name.substring(0, dot).trim();
+      name = name.replaceAll('_', ' ').trim();
+      name = name.replaceFirst(RegExp(r'^\d{1,3}\s*[-_.]\s*'), '').trim();
+      return name;
+    } catch (_) {
+      return '';
+    }
   }
 
   /// Duración `m:ss` o null si ROMM no la da.

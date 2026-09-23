@@ -22,8 +22,10 @@ import '../../../core/widgets/marquee_text.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/ost_providers.dart';
 import '../application/romm_providers.dart';
+import '../data/platform_machine_asset_resolver.dart';
 import '../domain/game_ost_track.dart';
 import '../domain/romm_game.dart';
+import '../domain/romm_platform.dart';
 import 'widgets/game_box3d_viewer.dart';
 
 /// Detalle de un juego de ROMM con estilo Origin/EA (Mirror's Edge Catalyst).
@@ -239,12 +241,15 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
           // Ancho fijo de la columna izquierda en wide (carátula y player).
           // Para ajustar anchos a futuro basta tocar este valor.
           const detailLeftW = 400.0;
-          final coverUrl = g.coverLargeUrl;
+          // Fondo: primera captura de ROMM; fallback a la carátula como antes.
+          final coverUrl = (g.screenshotUrl?.isNotEmpty == true)
+              ? g.screenshotUrl
+              : g.coverLargeUrl;
 
           return Stack(
             fit: StackFit.expand,
             children: [
-              // Backdrop: usa la portada escalada como hero art (igual que Mirror's Edge)
+              // Backdrop: captura del juego como hero art (igual que Mirror's Edge)
               if (coverUrl != null && coverUrl.isNotEmpty)
                 Image.network(
                   coverUrl,
@@ -400,7 +405,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                                   launching: _launching,
                                                   downloading: _downloading,
                                                   onPlay: () => _play(g),
-                                                  onDownload: () => _download(g),
+                                                  onDownload: () =>
+                                                      _download(g),
                                                   compact: false,
                                                 ),
                                                 const SizedBox(height: 18),
@@ -549,11 +555,49 @@ class _GameHeroInfo extends StatelessWidget {
         : l10n.gameNever;
     // Time Played no disponible en RomM -> mimic Origin: Not Played / Played
     final timePlayedValue = game.lastPlayed != null ? '—' : l10n.gameNotPlayed;
+    // Logo de máquina para la fila de plataforma (mismo resolver que las cards).
+    final machineAsset = PlatformMachineAssetResolver.resolve(
+      RommPlatform(
+        id: game.platformId,
+        slug: game.platformSlug,
+        name: game.platformDisplayName,
+      ),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _GameTitle(game: game, headers: headers, compact: compact),
+        const SizedBox(height: 10),
+        // Fila plataforma: logo de máquina + nombre (breadcrumb bajo el título).
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (machineAsset != null)
+              Image.asset(
+                machineAsset,
+                width: 40,
+                height: 26,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              ),
+            if (machineAsset != null) const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                game.platformDisplayName.isEmpty
+                    ? '—'
+                    : game.platformDisplayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
         const SizedBox(height: 14),
         // Stats row like Origin: 4 cols
         Wrap(
@@ -567,12 +611,6 @@ class _GameHeroInfo extends StatelessWidget {
               value: game.firstReleaseDate != null
                   ? _formatDate(context, game.firstReleaseDate)
                   : '—',
-            ),
-            _Stat(
-              label: l10n.gamePlatform,
-              value: game.platformDisplayName.isEmpty
-                  ? '—'
-                  : game.platformDisplayName,
             ),
             _Stat(
               label: l10n.platformOnDisk,
@@ -889,11 +927,7 @@ class _OstEmptyBox extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(
-            Icons.music_note_rounded,
-            color: Colors.white38,
-            size: 20,
-          ),
+          const Icon(Icons.music_note_rounded, color: Colors.white38, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -910,10 +944,7 @@ class _OstEmptyBox extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   l10n.ostNoSoundtrackHint,
-                  style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 12,
-                  ),
+                  style: const TextStyle(color: Colors.white38, fontSize: 12),
                 ),
               ],
             ),
@@ -939,8 +970,7 @@ class _OstNowPlayingCard extends ConsumerStatefulWidget {
   final bool compact;
 
   @override
-  ConsumerState<_OstNowPlayingCard> createState() =>
-      _OstNowPlayingCardState();
+  ConsumerState<_OstNowPlayingCard> createState() => _OstNowPlayingCardState();
 }
 
 class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
@@ -1059,48 +1089,48 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                       size: compact ? 22 : 26,
                     ),
                   ),
-                    const SizedBox(width: 4),
-                      if (player.isLoading)
-                        Container(
-                          width: compact ? 46 : 54,
-                          height: compact ? 46 : 54,
-                          decoration: BoxDecoration(
-                            color: _ostAccent.withValues(alpha: 0.85),
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          alignment: Alignment.center,
-                          child: AppLoader(
-                            size: compact ? 22 : 26,
-                            color: Colors.white,
-                          ),
-                        )
-                      else
-                        AppHover(
-                          effect: AppHoverEffect.highlightWithScale,
-                          config: AppHoverConfig(
-                            borderRadius: BorderRadius.circular(14),
-                            highlightNormal: _ostAccent,
-                            highlightHovered: const Color(0xFF9D8FF7),
-                            scale: 1.06,
-                          ),
-                          onTap: () => unawaited(player.toggle()),
-                          playSoundOnHover: true,
-                          child: Container(
-                            width: compact ? 46 : 54,
-                            height: compact ? 46 : 54,
-                            decoration: BoxDecoration(
-                              color: _ostAccent,
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: Icon(
-                              sounding
-                                  ? Icons.pause_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: compact ? 26 : 30,
-                            ),
-                          ),
+                  const SizedBox(width: 4),
+                  if (player.isLoading)
+                    Container(
+                      width: compact ? 46 : 54,
+                      height: compact ? 46 : 54,
+                      decoration: BoxDecoration(
+                        color: _ostAccent.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      alignment: Alignment.center,
+                      child: AppLoader(
+                        size: compact ? 22 : 26,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    AppHover(
+                      effect: AppHoverEffect.highlightWithScale,
+                      config: AppHoverConfig(
+                        borderRadius: BorderRadius.circular(14),
+                        highlightNormal: _ostAccent,
+                        highlightHovered: const Color(0xFF9D8FF7),
+                        scale: 1.06,
+                      ),
+                      onTap: () => unawaited(player.toggle()),
+                      playSoundOnHover: true,
+                      child: Container(
+                        width: compact ? 46 : 54,
+                        height: compact ? 46 : 54,
+                        decoration: BoxDecoration(
+                          color: _ostAccent,
+                          borderRadius: BorderRadius.circular(14),
                         ),
+                        child: Icon(
+                          sounding
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: compact ? 26 : 30,
+                        ),
+                      ),
+                    ),
                   const SizedBox(width: 4),
                   IconButton(
                     tooltip: l10n.ostNext,
@@ -1113,8 +1143,7 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                   ),
                   IconButton(
                     tooltip: l10n.volume,
-                    onPressed: () =>
-                        setState(() => _showVolume = !_showVolume),
+                    onPressed: () => setState(() => _showVolume = !_showVolume),
                     icon: Icon(
                       muted
                           ? Icons.volume_off_rounded
@@ -1129,9 +1158,8 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                 const SizedBox(height: 4),
                 VolumeSliderRow(
                   volume: globalVol,
-                  onChanged: (v) => ref
-                      .read(appVolumeProvider.notifier)
-                      .setVolume(v),
+                  onChanged: (v) =>
+                      ref.read(appVolumeProvider.notifier).setVolume(v),
                   muted: muted,
                   onToggleMute: () => unawaited(player.setMuted(!muted)),
                   volumeTooltip: l10n.volume,
@@ -1252,10 +1280,7 @@ class _OstTrackListState extends State<_OstTrackList> {
       if (attempts++ < 6) {
         try {
           _scrollController.animateTo(
-            (idx * 64.0).clamp(
-              0.0,
-              _scrollController.position.maxScrollExtent,
-            ),
+            (idx * 64.0).clamp(0.0, _scrollController.position.maxScrollExtent),
             duration: const Duration(milliseconds: 250),
             curve: Curves.easeInOut,
           );

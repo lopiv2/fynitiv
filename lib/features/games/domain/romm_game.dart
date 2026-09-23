@@ -13,6 +13,7 @@ class RommGame {
     this.coverSpineUrl,
     this.box3dUrl,
     this.logoUrl,
+    this.screenshotUrl,
     this.hasStreaming = false,
     this.firstFile,
     this.lastPlayed,
@@ -43,6 +44,11 @@ class RommGame {
   /// vacío, el detalle usa el título en texto como hasta ahora.
   final String? logoUrl;
 
+  /// Primera captura del juego para el fondo del detalle
+  /// (top-level `screenshots[0]` o `ss_metadata.screenshot_path/url`).
+  /// Vacía si ROMM no devuelve ninguna: el detalle usa la carátula.
+  final String? screenshotUrl;
+
   /// Si ROMM tiene un contenedor de streaming configurado para la plataforma
   /// de este juego (permite jugar en el navegador/emulador web).
   final bool hasStreaming;
@@ -68,6 +74,7 @@ class RommGame {
     String? coverSpineUrl,
     String? box3dUrl,
     String? logoUrl,
+    String? screenshotUrl,
     bool? hasStreaming,
     String? firstFile,
     DateTime? lastPlayed,
@@ -87,6 +94,7 @@ class RommGame {
       coverSpineUrl: coverSpineUrl ?? this.coverSpineUrl,
       box3dUrl: box3dUrl ?? this.box3dUrl,
       logoUrl: logoUrl ?? this.logoUrl,
+      screenshotUrl: screenshotUrl ?? this.screenshotUrl,
       hasStreaming: hasStreaming ?? this.hasStreaming,
       firstFile: firstFile ?? this.firstFile,
       lastPlayed: lastPlayed ?? this.lastPlayed,
