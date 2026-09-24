@@ -44,12 +44,16 @@ class _QueuedTrack {
     required this.item,
     this.authToken,
     this.isFavorite = false,
+    this.coverUrl,
   });
 
   final PlaybackSession session;
   final BaseItemDto? item;
   final String? authToken;
   final bool isFavorite;
+
+  /// Portada del juego dueño (OST ROMM sin cover propio).
+  final String? coverUrl;
 }
 
 /// Motor activo para playback de música.
@@ -69,6 +73,7 @@ class SoloudMusicState {
     this.completed = false,
     this.engine = PlaybackEngine.none,
     this.isFavorite = false,
+    this.ostCoverUrl,
   });
 
   final BaseItemDto? item;
@@ -85,6 +90,9 @@ class SoloudMusicState {
   /// Favorita ROMM de la pista en curso (solo Jukebox/OST; Jellyfin no usa).
   final bool isFavorite;
 
+  /// Portada del juego dueño para pistas ROMM (las OST no traen cover).
+  final String? ostCoverUrl;
+
   bool get hasItem => item != null && session != null;
   bool get isSoloud => engine == PlaybackEngine.soloud;
   bool get isMediaKit => engine == PlaybackEngine.mediaKit;
@@ -93,7 +101,8 @@ class SoloudMusicState {
   bool get isRomm => session?.itemId.startsWith('romm-') == true;
 
   String get coverUrl {
-    if (item == null || session == null || isRomm) return '';
+    if (item == null || session == null) return '';
+    if (isRomm) return ostCoverUrl ?? '';
     return itemImageUrl(session!.serverUrl, item!, maxWidth: 400);
   }
 
@@ -113,6 +122,8 @@ class SoloudMusicState {
     bool? completed,
     PlaybackEngine? engine,
     bool? isFavorite,
+    String? ostCoverUrl,
+    bool clearOstCover = false,
   }) {
     return SoloudMusicState(
       item: item ?? this.item,
@@ -126,6 +137,7 @@ class SoloudMusicState {
       completed: completed ?? this.completed,
       engine: engine ?? this.engine,
       isFavorite: isFavorite ?? this.isFavorite,
+      ostCoverUrl: clearOstCover ? null : (ostCoverUrl ?? this.ostCoverUrl),
     );
   }
 }
@@ -360,7 +372,7 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     try {
       await GameBgPlayer.instance.suspendForDetail();
     } catch (_) {}
-    state = state.copyWith(item: item, session: session, error: null, clearError: true, completed: false, buffering: true, volume: volume ?? state.volume);
+    state = state.copyWith(item: item, session: session, error: null, clearError: true, completed: false, buffering: true, volume: volume ?? state.volume, clearOstCover: true);
     final isHls = session.streamUrl.contains('master.m3u8') || session.streamUrl.contains('.m3u8');
 
     // Intento SoLoud si no es HLS y está inicializado
@@ -497,6 +509,7 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
           ),
           authToken: authToken,
           isFavorite: t.isFavorite,
+          coverUrl: t.coverUrl?.isNotEmpty == true ? t.coverUrl : null,
         ),
     ];
     _order = List<int>.generate(_queue.length, (i) => i);
@@ -515,6 +528,8 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
       item: entry.item,
       session: entry.session,
       isFavorite: entry.isFavorite,
+      ostCoverUrl: entry.coverUrl,
+      clearOstCover: entry.coverUrl == null,
       error: null,
       clearError: true,
       completed: false,

@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../core/audio/game_bg_player.dart';
 import '../core/audio/game_ost_player.dart';
+import '../core/constants/ui_constants.dart';
 import '../core/navigation/platform_mode.dart';
 import '../core/navigation/sidebar_controller.dart';
 import '../core/settings/game_bg_music_controller.dart';
@@ -12,6 +13,7 @@ import '../core/skin/skin.dart';
 import '../core/skin/skin_controller.dart';
 import '../core/theme/dashboard_background.dart';
 import '../features/library/presentation/widgets/sidebar.dart';
+import '../features/music/application/music_player_provider.dart';
 import '../features/music/application/soloud_music_provider.dart';
 import '../features/music/presentation/widgets/mini_player_bar.dart';
 
@@ -53,7 +55,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final isBackground = state == AppLifecycleState.paused ||
+    final isBackground =
+        state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.hidden;
     if (isBackground) {
@@ -247,6 +250,24 @@ class _HomeShellState extends ConsumerState<HomeShell>
       }
     });
 
+    // Hide mini solo dentro de jukebox mientras haya barra (lateral ya es el player).
+    // GoRouterState.matchedLocation en el shell puede quedarse en '/games'
+    // aunque el inner navigator esté en '/games/jukebox', por eso chequeamos
+    // también la uri completa y el branch. hasAnyBar viene de los providers.
+    bool isJukebox = loc.contains('jukebox');
+    try {
+      final uri = GoRouter.of(context).routeInformationProvider.value.uri.toString();
+      if (uri.contains('jukebox')) isJukebox = true;
+    } catch (_) {}
+    try {
+      final stateLoc = GoRouterState.of(context).uri.toString();
+      if (stateLoc.contains('jukebox')) isJukebox = true;
+    } catch (_) {}
+    final soloudForMini = ref.watch(soloudMusicProvider);
+    final useSoloudForMini = soloudForMini.hasItem && !soloudForMini.completed;
+    // Para jukebox basta con que haya soloud; legacy (Jellyfin) no debe ocultar.
+    final hideMini = isJukebox && useSoloudForMini;
+
     return FocusScope(
       autofocus: true,
       onKeyEvent: (node, event) {
@@ -262,26 +283,47 @@ class _HomeShellState extends ConsumerState<HomeShell>
         body: Column(
           children: [
             Expanded(child: DashboardBackground(child: traversedBody)),
-            const MiniPlayerBar(),
+            if (!hideMini) const MiniPlayerBar(),
           ],
         ),
-        floatingActionButton: switch (mode) {
-          PlatformMode.desktop => FloatingActionButton.small(
-            heroTag: 'sidebar_toggle',
-            onPressed: () =>
-                ref.read(sidebarControllerProvider.notifier).toggle(),
-            child: Icon(
-              sidebar.expanded ? Icons.chevron_left : Icons.chevron_right,
+        floatingActionButton: () {
+          final rawFab = switch (mode) {
+            PlatformMode.desktop => FloatingActionButton.small(
+              heroTag: 'sidebar_toggle',
+              onPressed: () =>
+                  ref.read(sidebarControllerProvider.notifier).toggle(),
+              child: Icon(
+                sidebar.expanded ? Icons.chevron_left : Icons.chevron_right,
+              ),
             ),
-          ),
-          PlatformMode.mobile => FloatingActionButton.small(
-            heroTag: 'sidebar_mobile_toggle',
-            onPressed: () =>
-                ref.read(sidebarControllerProvider.notifier).toggle(),
-            child: Icon(sidebar.visible ? Icons.close : Icons.menu),
-          ),
-          PlatformMode.tv => null,
-        },
+            PlatformMode.mobile => FloatingActionButton.small(
+              heroTag: 'sidebar_mobile_toggle',
+              onPressed: () =>
+                  ref.read(sidebarControllerProvider.notifier).toggle(),
+              child: Icon(sidebar.visible ? Icons.close : Icons.menu),
+            ),
+            PlatformMode.tv => null,
+          };
+          if (rawFab == null) return null;
+          final s = ref.watch(miniPlayerScaleProvider);
+          final barH = (64 * s).clamp(64, 120).toDouble();
+          final soloudState = ref.watch(soloudMusicProvider);
+          final legacyState = ref.watch(musicPlayerProvider);
+          final useSoloud = soloudState.hasItem && !soloudState.completed;
+          final legacy = legacyState.hasItem && !legacyState.completed
+              ? legacyState
+              : null;
+          var hasBar = useSoloud || legacy != null;
+          // Si estamos en jukebox y hay soloud, el mini está oculto → no elevar FAB.
+          if (isJukebox && useSoloud) {
+            hasBar = false;
+          }
+          final bottomPad = hasBar ? barH + 8 : 0.0;
+          return Padding(
+            padding: EdgeInsets.only(bottom: bottomPad),
+            child: rawFab,
+          );
+        }(),
       ),
     );
   }

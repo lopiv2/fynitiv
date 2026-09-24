@@ -10,6 +10,8 @@ class GameOstTrack {
     this.romFileId = 0,
     this.isFavorite = false,
     this.gameName,
+    this.gameId = 0,
+    this.coverUrl,
   });
 
   final String name;
@@ -46,6 +48,15 @@ class GameOstTrack {
   /// Juego dueño (listados globales del Jukebox): subtítulo cuando no hay
   /// artista. Null en el detalle de juego (ahí manda el juego abierto).
   final String? gameName;
+
+  /// `rom_id` del juego dueño (0 si se desconoce). Sirve para resolver la
+  /// portada cuando la pista no trae cover propio.
+  final int gameId;
+
+  /// Portada del juego dueño (frontal `coverLargeUrl` > `coverSmallUrl` en
+  /// el detalle, `cover_url` de `GET /api/music/games` en el Jukebox).
+  /// Null/vacía = sin cover (la UI cae al icono musical).
+  final String? coverUrl;
 
   /// Subtítulo visible: artista, juego dueño o [fallback].
   String subtitle(String fallback) {

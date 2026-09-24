@@ -68,7 +68,7 @@ class JukeboxTracksQuery {
   );
 }
 
-GameOstTrack _toOstTrack(RommSoundtrackTrack t) => GameOstTrack(
+GameOstTrack _toOstTrack(RommSoundtrackTrack t, [String? coverUrl]) => GameOstTrack(
   name: t.displayName,
   url: t.streamUrl,
   duration: t.displayDuration,
@@ -77,6 +77,8 @@ GameOstTrack _toOstTrack(RommSoundtrackTrack t) => GameOstTrack(
   romFileId: t.romFileId,
   isFavorite: t.isFavorite,
   gameName: t.gameName,
+  gameId: t.romId,
+  coverUrl: coverUrl,
 );
 
 /// Totales globales del Jukebox (`GET /api/music/stats`).
@@ -129,5 +131,15 @@ final jukeboxTracksProvider =
                   : 'title',
               limit: 300,
             );
-      return [for (final t in items) _toOstTrack(t)];
+      // Las pistas no traen cover: se mapea la portada del juego dueño
+      // (`cover_url` de GET /api/music/games) por `rom_id`.
+      Map<int, String> covers = const {};
+      try {
+        final games = await repo.getMusicGames();
+        covers = {
+          for (final g in games)
+            if (g.coverUrl?.isNotEmpty == true) g.romId: g.coverUrl!,
+        };
+      } catch (_) {}
+      return [for (final t in items) _toOstTrack(t, covers[t.romId])];
     });

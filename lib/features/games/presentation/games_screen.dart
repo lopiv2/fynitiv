@@ -13,6 +13,7 @@ import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/scroll_title.dart';
+import 'widgets/jukebox_entry_card.dart';
 import 'widgets/game_content_row.dart';
 import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
@@ -324,24 +325,15 @@ class _HeroHeader extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Jukebox + silenciar música / video arriba a la derecha
-              Row(
+              // Jukebox compacto + silenciar música / video arriba a la derecha
+              const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  IconButton(
-                    tooltip: l10n.jukeboxOpen,
-                    focusColor: Colors.white.withValues(alpha: 0.08),
-                    onPressed: () => context.push('/games/jukebox'),
-                    icon: Icon(
-                      Icons.library_music_rounded,
-                      color: skin?.accent ?? const Color(0xFF2B7FFF),
-                      size: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  const _BgMusicSwitchCompact(),
-                  const SizedBox(width: 6),
-                  const _BgVideoSwitchCompact(),
+                  JukeboxHeaderButton(size: 48, dotSize: 10),
+                  SizedBox(width: 6),
+                  _BgMusicSwitchCompact(),
+                  SizedBox(width: 6),
+                  _BgVideoSwitchCompact(),
                 ],
               ),
             ],

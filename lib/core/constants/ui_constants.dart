@@ -6,6 +6,40 @@
 /// ([ScrollTitle]); el resto de cabeceras de sección usan [kSectionTitleFontSize].
 library;
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../navigation/platform_mode.dart';
+
+/// Factor de escala del mini-player por plataforma.
+/// Un solo mapa para ajustar la densidad del mini sin tocar PC/móvil.
+/// TV 1.4 → ~90px alto (64*1.4), cover ~67, iconos ~30; 1.35=86px, 1.5=96px.
+double miniPlayerScaleFor(PlatformMode mode) => switch (mode) {
+  PlatformMode.mobile => 1.0,
+  PlatformMode.desktop => 1.3,
+  PlatformMode.tv => 1.4,
+};
+
+/// Provider reactivo del factor: observa `platformModeProvider` y
+/// cae a 1.0 mientras carga (evita parpadeo). Testeable con
+/// `debugDeviceProvider = DebugDevice.tv`.
+final miniPlayerScaleProvider = Provider<double>((ref) {
+  final mode = ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
+  return miniPlayerScaleFor(mode);
+});
+
+/// Factor de escala de las tarjetas del Jukebox por plataforma.
+/// TV necesita tarjetas más grandes para D-Pad/10-foot.
+double jukeboxCardScaleFor(PlatformMode mode) => switch (mode) {
+  PlatformMode.mobile => 1.0,
+  PlatformMode.desktop => 1.2,
+  PlatformMode.tv => 1.25,
+};
+
+final jukeboxCardScaleProvider = Provider<double>((ref) {
+  final mode = ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
+  return jukeboxCardScaleFor(mode);
+});
+
 /// Tamaño único de los títulos de sección de música (Discografía,
 /// Populares, Artistas relacionados...).
 const double kSectionTitleFontSize = 24;

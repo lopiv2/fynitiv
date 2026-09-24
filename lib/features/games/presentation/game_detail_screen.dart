@@ -66,9 +66,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     Future.microtask(() {
       GameBgPlayer.instance.suspendForDetail();
       try {
-        ref
-            .read(soloudMusicProvider.notifier)
-            .stop(resumeBackground: false);
+        ref.read(soloudMusicProvider.notifier).stop(resumeBackground: false);
       } catch (_) {}
     });
     _ostSub = GameOstPlayer.instance.currentTrackStream.listen((track) {
@@ -330,9 +328,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                             ),
                           ),
 
-                          SizedBox(
+                          /*SizedBox(
                             height: compact ? 12 : constraints.maxHeight * 0.18,
-                          ),
+                          ),*/
 
                           // Hero block: poster + info (or stacked in compact)
                           // Wide: izq = carátula + Now Playing (mismo ancho), der = info + lista
@@ -1033,6 +1031,22 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
         final sounding = player.sounding;
         final muted = player.isMuted;
         final compact = widget.compact;
+        // Las pistas OST no traen cover: se usa la portada del juego dueño.
+        final gameCover = (widget.game.coverLargeUrl?.isNotEmpty == true)
+            ? widget.game.coverLargeUrl!
+            : (widget.game.coverSmallUrl ?? '');
+        final coverFromTrack = current?.coverUrl?.trim().isNotEmpty == true
+            ? current!.coverUrl!.trim()
+            : null;
+        final ostCover = coverFromTrack?.isNotEmpty == true
+            ? coverFromTrack!
+            : gameCover;
+        final repoToken =
+            ref.watch(rommRepositoryProvider)?.token?.trim() ?? '';
+        final ostHeaders = repoToken.isNotEmpty
+            ? <String, String>{'Authorization': 'Bearer $repoToken'}
+            : null;
+        final coverSize = compact ? 52.0 : 64.0;
         return Container(
           padding: EdgeInsets.fromLTRB(16, 14, 16, compact ? 12 : 12),
           decoration: BoxDecoration(
@@ -1054,28 +1068,73 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                 ),
               ),
               const SizedBox(height: 6),
-              MarqueeText(
-                key: ValueKey(current?.name ?? tracks.first.name),
-                text: current?.name ?? tracks.first.name,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: compact ? 16 : 22,
-                  fontWeight: FontWeight.w800,
-                ),
-                isHovered: true,
-                enabled: true,
-                velocity: 28,
-                gap: 36,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                current?.artist ?? widget.game.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Colors.white54,
-                  fontSize: compact ? 12 : 14,
-                ),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: ostCover.isNotEmpty
+                        ? Image.network(
+                            ostCover,
+                            width: coverSize,
+                            height: coverSize,
+                            fit: BoxFit.cover,
+                            headers: ostHeaders,
+                            errorBuilder: (_, _, _) => Container(
+                              width: coverSize,
+                              height: coverSize,
+                              color: const Color(0xFF1A1A1A),
+                              child: const Icon(
+                                Icons.music_note,
+                                color: Colors.white54,
+                                size: 20,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            width: coverSize,
+                            height: coverSize,
+                            color: const Color(0xFF1A1A1A),
+                            child: const Icon(
+                              Icons.music_note,
+                              color: Colors.white54,
+                              size: 20,
+                            ),
+                          ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MarqueeText(
+                          key: ValueKey(current?.name ?? tracks.first.name),
+                          text: current?.name ?? tracks.first.name,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: compact ? 16 : 22,
+                            fontWeight: FontWeight.w800,
+                          ),
+                          isHovered: true,
+                          enabled: true,
+                          velocity: 28,
+                          gap: 36,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          current?.artist ?? widget.game.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: Colors.white54,
+                            fontSize: compact ? 12 : 14,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
               Row(

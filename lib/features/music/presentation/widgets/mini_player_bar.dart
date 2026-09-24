@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../games/application/romm_providers.dart';
+import '../../../../core/constants/ui_constants.dart';
 import '../../application/music_player_provider.dart';
 import '../../application/soloud_music_provider.dart';
 
@@ -51,9 +52,24 @@ class MiniPlayerBar extends ConsumerWidget {
     final soloudState = ref.watch(soloudMusicProvider);
     final legacyState = ref.watch(musicPlayerProvider);
     final useSoloud = soloudState.hasItem && !soloudState.completed;
-    final legacy = legacyState.hasItem && !legacyState.completed ? legacyState : null;
+    final legacy = legacyState.hasItem && !legacyState.completed
+        ? legacyState
+        : null;
     final effectiveHasItem = useSoloud || legacy != null;
     if (!effectiveHasItem) return const SizedBox.shrink();
+    // En /games/jukebox el player vive en el lateral derecho (ver captura);
+    // ocultamos el mini global cuando hay barra y estamos en jukebox (fallback robusto).
+    String jukeboxLoc = '';
+    try {
+      jukeboxLoc = GoRouterState.of(context).matchedLocation;
+    } catch (_) {
+      try {
+        jukeboxLoc = GoRouter.of(context).routeInformationProvider.value.uri.toString();
+      } catch (_) {}
+    }
+    if (jukeboxLoc.contains('jukebox') && effectiveHasItem) {
+      return const SizedBox.shrink();
+    }
 
     // Mapear a valores comunes
     final duration = useSoloud ? soloudState.duration : legacy!.duration;
@@ -64,18 +80,42 @@ class MiniPlayerBar extends ConsumerWidget {
     final coverUrl = useSoloud ? soloudState.coverUrl : legacy!.coverUrl;
     final title = useSoloud ? soloudState.title : legacy!.title;
     final artist = useSoloud ? soloudState.artist : legacy!.artist;
-    final itemId = useSoloud ? (soloudState.item?.id ?? soloudState.session?.itemId) : (legacy!.item?.id ?? legacy.session?.itemId);
+    final itemId = useSoloud
+        ? (soloudState.item?.id ?? soloudState.session?.itemId)
+        : (legacy!.item?.id ?? legacy.session?.itemId);
     final item = useSoloud ? soloudState.item : legacy!.item;
     // Solo las pantallas Jellyfin con id navegan al fullscreen: las pistas
     // ROMM (`romm-<id>`, sintéticas sin id) y la radio no salen de la barra.
     final canOpenFullscreen =
         (item?.id?.isNotEmpty == true) && !(useSoloud && soloudState.isRomm);
+    // Las OST no traen cover propio: se usa la portada del juego dueño
+    // (`ostCoverUrl`); las covers de ROMM exigen Bearer.
+    final rommToken = ref.watch(rommRepositoryProvider)?.token?.trim() ?? '';
+    final rommHeaders = rommToken.isNotEmpty
+        ? <String, String>{'Authorization': 'Bearer $rommToken'}
+        : null;
+    // Factor por plataforma: mobile 1.0 / desktop 1.0 / tv 1.4 (ver ui_constants).
+    final s = ref.watch(miniPlayerScaleProvider);
+    final barHeight = (64 * s).clamp(64, 120).toDouble();
+    final coverSize = 48 * s;
+    final iconMain = 32 * s;
+    final iconSmall = 22 * s;
+    final iconStop = 20 * s;
+    final padH = 8 * s;
+    final gapSmall = 6 * s;
+    final gapMed = 10 * s;
+    final gapLarge = 12 * s;
+    final volWidth = (90 * s).clamp(90, 160).toDouble();
+    final progressH = (3 * s).clamp(3, 6).toDouble();
+    final titleFs = 13 * s;
+    final artistFs = 11 * s;
+    final timeFs = 11 * s;
 
     return Material(
       color: const Color(0xFF0F0F0F),
       elevation: 8,
       child: Container(
-        height: 64,
+        height: barHeight,
         decoration: const BoxDecoration(
           color: Color(0xFF0F0F0F),
           border: Border(top: BorderSide(color: Color(0xFF2A2A2A))),
@@ -84,11 +124,13 @@ class MiniPlayerBar extends ConsumerWidget {
           children: [
             // Progreso superior fino (como la foto oficial)
             SizedBox(
-              height: 3,
+              height: progressH,
               child: SliderTheme(
                 data: SliderThemeData(
-                  trackHeight: 3,
-                  thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                  trackHeight: progressH.clamp(3, 6).toDouble(),
+                  thumbShape: RoundSliderThumbShape(
+                    enabledThumbRadius: 6 * s.clamp(1, 1.4),
+                  ),
                   overlayShape: SliderComponentShape.noOverlay,
                   activeTrackColor: const Color(0xFF00A8E1),
                   inactiveTrackColor: Colors.white12,
@@ -96,19 +138,28 @@ class MiniPlayerBar extends ConsumerWidget {
                 ),
                 child: Slider(
                   min: 0,
-                  max: duration.inMilliseconds > 0 ? duration.inMilliseconds / 1000 : 1,
+                  max: duration.inMilliseconds > 0
+                      ? duration.inMilliseconds / 1000
+                      : 1,
                   value: position.inMilliseconds > 0
-                      ? (position.inMilliseconds / 1000).clamp(0, duration.inMilliseconds / 1000)
+                      ? (position.inMilliseconds / 1000).clamp(
+                          0,
+                          duration.inMilliseconds / 1000,
+                        )
                       : 0,
                   onChanged: (v) => useSoloud
-                      ? ref.read(soloudMusicProvider.notifier).seek(Duration(milliseconds: (v * 1000).round()))
-                      : ref.read(musicPlayerProvider.notifier).seek(Duration(milliseconds: (v * 1000).round())),
+                      ? ref
+                            .read(soloudMusicProvider.notifier)
+                            .seek(Duration(milliseconds: (v * 1000).round()))
+                      : ref
+                            .read(musicPlayerProvider.notifier)
+                            .seek(Duration(milliseconds: (v * 1000).round())),
                 ),
               ),
             ),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: EdgeInsets.symmetric(horizontal: padH),
                 child: Row(
                   children: [
                     // Carátula - también abre fullscreen (maximizar).
@@ -119,19 +170,42 @@ class MiniPlayerBar extends ConsumerWidget {
                         context.push('/player/$itemId', extra: item);
                       },
                       child: ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: coverUrl.isNotEmpty
-                              ? Image.network(
-                                  coverUrl,
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, _, _) => Container(width: 48, height: 48, color: const Color(0xFF1A1A1A), child: const Icon(Icons.music_note, color: Colors.white54, size: 20)),
-                                )
-                              : Container(width: 48, height: 48, color: const Color(0xFF1A1A1A), child: const Icon(Icons.music_note, color: Colors.white54, size: 20)),
+                        borderRadius: BorderRadius.circular(
+                          4 * s.clamp(1, 1.4),
+                        ),
+                        child: coverUrl.isNotEmpty
+                            ? Image.network(
+                                coverUrl,
+                                width: coverSize,
+                                height: coverSize,
+                                fit: BoxFit.cover,
+                                headers: useSoloud && soloudState.isRomm
+                                    ? rommHeaders
+                                    : null,
+                                errorBuilder: (_, _, _) => Container(
+                                  width: coverSize,
+                                  height: coverSize,
+                                  color: const Color(0xFF1A1A1A),
+                                  child: Icon(
+                                    Icons.music_note,
+                                    color: Colors.white54,
+                                    size: 20 * s.clamp(1, 1.4),
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                width: coverSize,
+                                height: coverSize,
+                                color: const Color(0xFF1A1A1A),
+                                child: Icon(
+                                  Icons.music_note,
+                                  color: Colors.white54,
+                                  size: 20 * s.clamp(1, 1.4),
+                                ),
+                              ),
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    SizedBox(width: gapMed),
                     // Título / artista
                     Expanded(
                       child: InkWell(
@@ -148,13 +222,20 @@ class MiniPlayerBar extends ConsumerWidget {
                               title,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: titleFs.clamp(13, 18),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             Text(
                               artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white70, fontSize: 11),
+                              style: TextStyle(
+                                color: Colors.white70,
+                                fontSize: artistFs.clamp(11, 15),
+                              ),
                             ),
                           ],
                         ),
@@ -163,56 +244,135 @@ class MiniPlayerBar extends ConsumerWidget {
                     // Controles centrales
                     IconButton(
                       tooltip: 'Anterior',
-                      icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 22),
-                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).previous() : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: -10)),
+                      icon: Icon(
+                        Icons.skip_previous_rounded,
+                        color: Colors.white,
+                        size: iconMain,
+                      ),
+                      onPressed: () => useSoloud
+                          ? ref.read(soloudMusicProvider.notifier).previous()
+                          : ref
+                                .read(musicPlayerProvider.notifier)
+                                .seekBy(const Duration(seconds: -10)),
                     ),
                     Container(
-                      decoration: BoxDecoration(color: const Color(0xFF00A8E1).withValues(alpha: 0.15), shape: BoxShape.circle),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00A8E1).withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
                       child: IconButton(
                         tooltip: playing ? 'Pausa' : 'Reproducir',
-                        icon: Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded, color: const Color(0xFF00A8E1), size: 22),
-                        onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).toggle() : ref.read(musicPlayerProvider.notifier).toggle(),
+                        icon: Icon(
+                          playing
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: const Color(0xFF00A8E1),
+                          size: iconMain,
+                        ),
+                        onPressed: () => useSoloud
+                            ? ref.read(soloudMusicProvider.notifier).toggle()
+                            : ref.read(musicPlayerProvider.notifier).toggle(),
                       ),
                     ),
                     IconButton(
                       tooltip: 'Parar',
-                      icon: const Icon(Icons.stop_rounded, color: Colors.white70, size: 20),
-                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).stop() : ref.read(musicPlayerProvider.notifier).stop(),
+                      icon: Icon(
+                        Icons.stop_rounded,
+                        color: Colors.white70,
+                        size: iconStop,
+                      ),
+                      onPressed: () => useSoloud
+                          ? ref.read(soloudMusicProvider.notifier).stop()
+                          : ref.read(musicPlayerProvider.notifier).stop(),
                     ),
                     IconButton(
                       tooltip: 'Siguiente',
-                      icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 22),
-                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).next() : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: 10)),
+                      icon: Icon(
+                        Icons.skip_next_rounded,
+                        color: Colors.white,
+                        size: iconMain,
+                      ),
+                      onPressed: () => useSoloud
+                          ? ref.read(soloudMusicProvider.notifier).next()
+                          : ref
+                                .read(musicPlayerProvider.notifier)
+                                .seekBy(const Duration(seconds: 10)),
                     ),
-                    const SizedBox(width: 6),
-                    Text('${_fmt(position)} / ${_fmt(duration)}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                    const SizedBox(width: 12),
+                    SizedBox(width: gapSmall),
+                    Text(
+                      '${_fmt(position)} / ${_fmt(duration)}',
+                      style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: timeFs.clamp(11, 15),
+                      ),
+                    ),
+                    SizedBox(width: gapLarge),
                     // Volumen
-                    const Icon(Icons.volume_up_rounded, color: Colors.white70, size: 18),
+                    Icon(
+                      Icons.volume_up_rounded,
+                      color: Colors.white70,
+                      size: iconSmall,
+                    ),
                     SizedBox(
-                      width: 90,
+                      width: volWidth,
                       child: SliderTheme(
-                        data: SliderThemeData(trackHeight: 3, thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5), overlayShape: SliderComponentShape.noOverlay, activeTrackColor: const Color(0xFF00A8E1), inactiveTrackColor: Colors.white24, thumbColor: const Color(0xFF00A8E1)),
+                        data: SliderThemeData(
+                          trackHeight: (3 * s).clamp(3, 5).toDouble(),
+                          thumbShape: RoundSliderThumbShape(
+                            enabledThumbRadius: (5 * s).clamp(5, 7),
+                          ),
+                          overlayShape: SliderComponentShape.noOverlay,
+                          activeTrackColor: const Color(0xFF00A8E1),
+                          inactiveTrackColor: Colors.white24,
+                          thumbColor: const Color(0xFF00A8E1),
+                        ),
                         child: Slider(
                           min: 0,
                           max: 100,
                           value: volume.clamp(0, 100),
-                          onChanged: (v) => useSoloud ? ref.read(soloudMusicProvider.notifier).setVolume(v) : ref.read(musicPlayerProvider.notifier).setVolume(v),
+                          onChanged: (v) => useSoloud
+                              ? ref
+                                    .read(soloudMusicProvider.notifier)
+                                    .setVolume(v)
+                              : ref
+                                    .read(musicPlayerProvider.notifier)
+                                    .setVolume(v),
                         ),
                       ),
                     ),
-                    IconButton(tooltip: 'Repetir', icon: const Icon(Icons.repeat_rounded, color: Colors.white54, size: 18), onPressed: () {}),
-                    IconButton(tooltip: 'Aleatorio', icon: const Icon(Icons.shuffle_rounded, color: Colors.white54, size: 18), onPressed: () {}),
+                    IconButton(
+                      tooltip: 'Repetir',
+                      icon: Icon(
+                        Icons.repeat_rounded,
+                        color: Colors.white54,
+                        size: iconSmall,
+                      ),
+                      onPressed: () {},
+                    ),
+                    IconButton(
+                      tooltip: 'Aleatorio',
+                      icon: Icon(
+                        Icons.shuffle_rounded,
+                        color: Colors.white54,
+                        size: iconSmall,
+                      ),
+                      onPressed: () {},
+                    ),
                     IconButton(
                       tooltip: 'Favorito',
                       icon: Icon(
-                        useSoloud && soloudState.isRomm && soloudState.isFavorite
+                        useSoloud &&
+                                soloudState.isRomm &&
+                                soloudState.isFavorite
                             ? Icons.favorite_rounded
                             : Icons.favorite_border_rounded,
-                        color: useSoloud && soloudState.isRomm && soloudState.isFavorite
+                        color:
+                            useSoloud &&
+                                soloudState.isRomm &&
+                                soloudState.isFavorite
                             ? Colors.white
                             : Colors.white54,
-                        size: 18,
+                        size: iconSmall,
                       ),
                       onPressed: useSoloud && soloudState.isRomm
                           ? () => _toggleRommFav(ref, soloudState)
@@ -220,10 +380,27 @@ class MiniPlayerBar extends ConsumerWidget {
                     ),
                     IconButton(
                       tooltip: 'Cerrar mini',
-                      icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),
-                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).stop() : ref.read(musicPlayerProvider.notifier).stop(),
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: Colors.white54,
+                        size: iconSmall,
+                      ),
+                      onPressed: () => useSoloud
+                          ? ref.read(soloudMusicProvider.notifier).stop()
+                          : ref.read(musicPlayerProvider.notifier).stop(),
                     ),
-                    if (buffering) const Padding(padding: EdgeInsets.only(left: 4), child: SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.8, color: Colors.white54))),
+                    if (buffering)
+                      Padding(
+                        padding: EdgeInsets.only(left: 4 * s),
+                        child: SizedBox(
+                          width: 14 * s,
+                          height: 14 * s,
+                          child: CircularProgressIndicator(
+                            strokeWidth: (1.8 * s).clamp(1.8, 2.4),
+                            color: Colors.white54,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),

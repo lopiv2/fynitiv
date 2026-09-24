@@ -12,6 +12,14 @@ final ostTracksProvider = FutureProvider.family<List<GameOstTrack>, int>((
   final repo = ref.watch(rommRepositoryProvider);
   if (repo == null) return [];
   final items = await repo.getSoundtrackTracks(gameId);
+  // La Music API no trae cover por pista: se usa la portada del juego.
+  String? gameCover;
+  try {
+    final game = await repo.getGame(gameId);
+    final large = game.coverLargeUrl?.trim() ?? '';
+    final small = game.coverSmallUrl?.trim() ?? '';
+    gameCover = large.isNotEmpty ? large : (small.isNotEmpty ? small : null);
+  } catch (_) {}
   return [
     for (final t in items)
       GameOstTrack(
@@ -23,6 +31,8 @@ final ostTracksProvider = FutureProvider.family<List<GameOstTrack>, int>((
         romFileId: t.romFileId,
         isFavorite: t.isFavorite,
         gameName: t.gameName,
+        gameId: t.romId != 0 ? t.romId : gameId,
+        coverUrl: gameCover,
       ),
   ];
 });
