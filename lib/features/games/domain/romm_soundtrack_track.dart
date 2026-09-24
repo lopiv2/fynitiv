@@ -12,6 +12,8 @@ class RommSoundtrackTrack {
     this.durationSeconds,
     this.trackNo,
     required this.streamUrl,
+    this.isFavorite = false,
+    this.gameName,
   });
 
   final int romFileId;
@@ -22,6 +24,14 @@ class RommSoundtrackTrack {
   final double? durationSeconds;
   final int? trackNo;
   final String streamUrl;
+
+  /// `is_favorite` de `MusicTrackSchema` (GET /api/music/tracks la incluye
+  /// para el usuario que pide). False si el servidor no la envía.
+  final bool isFavorite;
+
+  /// Juego dueño de la pista (`game_name`): útil en listados globales
+  /// (Jukebox) donde no hay contexto de juego. Null en respuestas antiguas.
+  final String? gameName;
 
   factory RommSoundtrackTrack.fromJson(
     Map<String, dynamic> json,
@@ -63,6 +73,8 @@ class RommSoundtrackTrack {
       durationSeconds: optDouble('duration_seconds'),
       trackNo: optInt('track'),
       streamUrl: absolute,
+      isFavorite: json['is_favorite'] == true,
+      gameName: optString('game_name'),
     );
   }
 
@@ -90,6 +102,46 @@ class RommSoundtrackTrack {
       if (dot > 0) name = name.substring(0, dot).trim();
       name = name.replaceAll('_', ' ').trim();
       name = name.replaceFirst(RegExp(r'^\d{1,3}\s*[-_.]\s*'), '').trim();
+      return name;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Número efectivo para ordenar la lista: manda el número líder del
+  /// título (`01. The Adventure Continues`) o del nombre de fichero en
+  /// `stream_url` (`01. The Adventure Continues.mp3`), aunque los metadatos
+  /// no traigan `track`. Fallback al tag `track`, null si no hay número.
+  int? get sortNumber {
+    final fromTitle = _leadingNumber(title);
+    if (fromTitle != null) return fromTitle;
+    final fromFile = _leadingNumber(_rawFileName(streamUrl));
+    if (fromFile != null) return fromFile;
+    return trackNo;
+  }
+
+  /// Número líder de [text] (`01. X`, `03 - X`, `04_X`, `(05) X`, `[06] X`).
+  /// null si no empieza por número.
+  static int? _leadingNumber(String? text) {
+    final s = text?.trim() ?? '';
+    if (s.isEmpty) return null;
+    final m = RegExp(r'^[\(\[]?\s*(\d{1,4})(?:\s*[\).\]\-_\s]|$)').firstMatch(s);
+    if (m == null) return null;
+    final n = int.tryParse(m.group(1)!);
+    if (n == null || n <= 0) return null;
+    return n;
+  }
+
+  /// Nombre crudo del fichero de [url]: URL-decodificado y sin extensión,
+  /// conservando el prefijo numérico (al contrario que [_fileStem]).
+  /// '' si no se puede deducir.
+  static String _rawFileName(String url) {
+    try {
+      final segs = Uri.parse(url.trim()).pathSegments;
+      if (segs.isEmpty) return '';
+      var name = Uri.decodeComponent(segs.last).trim();
+      final dot = name.lastIndexOf('.');
+      if (dot > 0) name = name.substring(0, dot).trim();
       return name;
     } catch (_) {
       return '';

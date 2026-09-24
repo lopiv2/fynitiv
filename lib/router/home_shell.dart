@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../core/audio/game_bg_player.dart';
+import '../core/audio/game_ost_player.dart';
 import '../core/navigation/platform_mode.dart';
 import '../core/navigation/sidebar_controller.dart';
 import '../core/settings/game_bg_music_controller.dart';
@@ -11,6 +12,7 @@ import '../core/skin/skin.dart';
 import '../core/skin/skin_controller.dart';
 import '../core/theme/dashboard_background.dart';
 import '../features/library/presentation/widgets/sidebar.dart';
+import '../features/music/application/soloud_music_provider.dart';
 import '../features/music/presentation/widgets/mini_player_bar.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -31,6 +33,16 @@ class _HomeShellState extends ConsumerState<HomeShell>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Anti-solape estructural: el OST del detalle y la música compartida
+    // usan la misma voz global de SoLoud. Al arrancar el OST se frena el
+    // provider sin devolver el fondo (el detalle lo gestiona al salir).
+    GameOstPlayer.onBeforeStart = () async {
+      try {
+        if (ref.read(soloudMusicProvider).hasItem) {
+          ref.read(soloudMusicProvider.notifier).stop(resumeBackground: false);
+        }
+      } catch (_) {}
+    };
   }
 
   @override

@@ -19,6 +19,8 @@ class RommGame {
     this.lastPlayed,
     this.firstReleaseDate,
     this.fsSizeBytes = 0,
+    this.averageRating,
+    this.userRating = 0,
   });
 
   final int id;
@@ -66,6 +68,13 @@ class RommGame {
   /// Tamaño en disco del juego (`fs_size_bytes` de ROMM, en bytes).
   final int fsSizeBytes;
 
+  /// Nota media agregada de metadatos (`metadatum.average_rating`),
+  /// normalizada a 0–10. Null si ROMM no la trae.
+  final double? averageRating;
+
+  /// Nota personal del usuario (`rom_user.rating`, 0–10). 0 = sin votar.
+  final int userRating;
+
   RommGame copyWith({
     String? summary,
     String? coverSmallUrl,
@@ -80,6 +89,8 @@ class RommGame {
     DateTime? lastPlayed,
     DateTime? firstReleaseDate,
     int? fsSizeBytes,
+    double? averageRating,
+    int? userRating,
   }) {
     return RommGame(
       id: id,
@@ -100,6 +111,8 @@ class RommGame {
       lastPlayed: lastPlayed ?? this.lastPlayed,
       firstReleaseDate: firstReleaseDate ?? this.firstReleaseDate,
       fsSizeBytes: fsSizeBytes ?? this.fsSizeBytes,
+      averageRating: averageRating ?? this.averageRating,
+      userRating: userRating ?? this.userRating,
     );
   }
 

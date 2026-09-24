@@ -324,13 +324,24 @@ class _HeroHeader extends ConsumerWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // Botones silenciar música / video arriba a la derecha
+              // Jukebox + silenciar música / video arriba a la derecha
               Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  _BgMusicSwitchCompact(),
-                  SizedBox(width: 6),
-                  _BgVideoSwitchCompact(),
+                children: [
+                  IconButton(
+                    tooltip: l10n.jukeboxOpen,
+                    focusColor: Colors.white.withValues(alpha: 0.08),
+                    onPressed: () => context.push('/games/jukebox'),
+                    icon: Icon(
+                      Icons.library_music_rounded,
+                      color: skin?.accent ?? const Color(0xFF2B7FFF),
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  const _BgMusicSwitchCompact(),
+                  const SizedBox(width: 6),
+                  const _BgVideoSwitchCompact(),
                 ],
               ),
             ],

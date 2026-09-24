@@ -974,6 +974,24 @@ abstract class AppLocalizations {
   /// **'Remove from favorites'**
   String get removeFromFavorites;
 
+  /// No description provided for @ostFavoriteAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Added to music favorites'**
+  String get ostFavoriteAdded;
+
+  /// No description provided for @ostFavoriteRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Removed from music favorites'**
+  String get ostFavoriteRemoved;
+
+  /// No description provided for @ostFavoriteError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t update music favorite.'**
+  String get ostFavoriteError;
+
   /// No description provided for @download.
   ///
   /// In en, this message translates to:
@@ -2311,6 +2329,270 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Never'**
   String get gameNever;
+
+  /// No description provided for @gameRatingCommunity.
+  ///
+  /// In en, this message translates to:
+  /// **'Community rating'**
+  String get gameRatingCommunity;
+
+  /// No description provided for @gameRatingYours.
+  ///
+  /// In en, this message translates to:
+  /// **'Your rating'**
+  String get gameRatingYours;
+
+  /// No description provided for @gameRatingUnrated.
+  ///
+  /// In en, this message translates to:
+  /// **'Not rated yet'**
+  String get gameRatingUnrated;
+
+  /// No description provided for @gameRatingError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t save your rating.'**
+  String get gameRatingError;
+
+  /// No description provided for @jukeboxTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Jukebox'**
+  String get jukeboxTitle;
+
+  /// No description provided for @jukeboxOpen.
+  ///
+  /// In en, this message translates to:
+  /// **'Open jukebox'**
+  String get jukeboxOpen;
+
+  /// No description provided for @jukeboxStats.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks • {duration}'**
+  String jukeboxStats(int count, String duration);
+
+  /// No description provided for @jukeboxGames.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get jukeboxGames;
+
+  /// No description provided for @jukeboxArtists.
+  ///
+  /// In en, this message translates to:
+  /// **'Artists'**
+  String get jukeboxArtists;
+
+  /// No description provided for @jukeboxAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'Albums'**
+  String get jukeboxAlbums;
+
+  /// No description provided for @jukeboxGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get jukeboxGenres;
+
+  /// No description provided for @jukeboxYears.
+  ///
+  /// In en, this message translates to:
+  /// **'Years'**
+  String get jukeboxYears;
+
+  /// No description provided for @jukeboxPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Platforms'**
+  String get jukeboxPlatforms;
+
+  /// No description provided for @jukeboxFavorites.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorites'**
+  String get jukeboxFavorites;
+
+  /// No description provided for @jukeboxSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Search games, artists, tracks…'**
+  String get jukeboxSearchHint;
+
+  /// No description provided for @jukeboxShuffleAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle all'**
+  String get jukeboxShuffleAll;
+
+  /// No description provided for @jukeboxNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No results in the jukebox.'**
+  String get jukeboxNoResults;
+
+  /// No description provided for @jukeboxError.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t load the jukebox.'**
+  String get jukeboxError;
+
+  /// No description provided for @jukeboxPickHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a game or a tag to browse its tracks.'**
+  String get jukeboxPickHint;
+
+  /// No description provided for @jukeboxNowPlayingFallback.
+  ///
+  /// In en, this message translates to:
+  /// **'Jukebox'**
+  String get jukeboxNowPlayingFallback;
+
+  /// No description provided for @jukeboxDecade.
+  ///
+  /// In en, this message translates to:
+  /// **'Decade'**
+  String get jukeboxDecade;
+
+  /// No description provided for @jukeboxMixes.
+  ///
+  /// In en, this message translates to:
+  /// **'Playlists'**
+  String get jukeboxMixes;
+
+  /// No description provided for @jukeboxLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Library'**
+  String get jukeboxLibrary;
+
+  /// No description provided for @jukeboxFreeRadio.
+  ///
+  /// In en, this message translates to:
+  /// **'Free Radio'**
+  String get jukeboxFreeRadio;
+
+  /// No description provided for @jukeboxFreeRadioHint.
+  ///
+  /// In en, this message translates to:
+  /// **'60 min'**
+  String get jukeboxFreeRadioHint;
+
+  /// No description provided for @jukeboxDecadeMix.
+  ///
+  /// In en, this message translates to:
+  /// **'Decade Mix'**
+  String get jukeboxDecadeMix;
+
+  /// No description provided for @jukeboxDecadeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'1 decade'**
+  String get jukeboxDecadeHint;
+
+  /// No description provided for @jukeboxDecadesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} decades'**
+  String jukeboxDecadesHint(int count);
+
+  /// No description provided for @jukeboxRecentlyAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get jukeboxRecentlyAdded;
+
+  /// No description provided for @jukeboxRecentlyAddedSub.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks'**
+  String jukeboxRecentlyAddedSub(int count);
+
+  /// No description provided for @jukeboxFavoriteTracks.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite tracks'**
+  String get jukeboxFavoriteTracks;
+
+  /// No description provided for @jukeboxFavoriteSub.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks'**
+  String jukeboxFavoriteSub(int count);
+
+  /// No description provided for @jukeboxPlayAll.
+  ///
+  /// In en, this message translates to:
+  /// **'Play all'**
+  String get jukeboxPlayAll;
+
+  /// No description provided for @jukeboxPlayAllSub.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tracks'**
+  String jukeboxPlayAllSub(int count);
+
+  /// No description provided for @jukeboxOstByAlbum.
+  ///
+  /// In en, this message translates to:
+  /// **'By album'**
+  String get jukeboxOstByAlbum;
+
+  /// No description provided for @jukeboxOstByPlatform.
+  ///
+  /// In en, this message translates to:
+  /// **'By platform'**
+  String get jukeboxOstByPlatform;
+
+  /// No description provided for @jukeboxOstByArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'By artist'**
+  String get jukeboxOstByArtist;
+
+  /// No description provided for @jukeboxOstByGenre.
+  ///
+  /// In en, this message translates to:
+  /// **'By genre'**
+  String get jukeboxOstByGenre;
+
+  /// No description provided for @jukeboxFacetCountAlbums.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} albums'**
+  String jukeboxFacetCountAlbums(int count);
+
+  /// No description provided for @jukeboxFacetCountPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} platform'**
+  String jukeboxFacetCountPlatforms(int count);
+
+  /// No description provided for @jukeboxFacetCountPlatformsPlural.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} platforms'**
+  String jukeboxFacetCountPlatformsPlural(int count);
+
+  /// No description provided for @jukeboxFacetCountArtists.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} artists'**
+  String jukeboxFacetCountArtists(int count);
+
+  /// No description provided for @jukeboxFacetCountGenres.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} genres'**
+  String jukeboxFacetCountGenres(int count);
+
+  /// No description provided for @jukeboxDecadeRange.
+  ///
+  /// In en, this message translates to:
+  /// **'{from}–{to}'**
+  String jukeboxDecadeRange(Object from, Object to);
 
   /// No description provided for @gameInstallLabel.
   ///

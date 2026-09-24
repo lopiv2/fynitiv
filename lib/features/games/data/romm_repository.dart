@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
 import '../domain/romm_game.dart';
+import '../domain/romm_music_facet.dart';
 import '../domain/romm_platform.dart';
 import '../domain/romm_soundtrack_track.dart';
 
@@ -577,6 +578,22 @@ class RommRepository {
     if (rawLast != null && rawLast.isNotEmpty) {
       lastPlayed = DateTime.tryParse(rawLast);
     }
+    // Nota personal del usuario (`rom_user.rating`, 0–10). 0 = sin votar.
+    var userRating = 0;
+    final rawUserRating = ru?['rating'];
+    if (rawUserRating is num) {
+      userRating = rawUserRating.toInt().clamp(0, 10);
+    }
+    // Nota media agregada (`metadatum.average_rating`). El backend no
+    // documenta la escala (IGDB usa 0–100): si viene >10 se asume 0–100.
+    double? averageRating;
+    final meta = g?['metadatum'] as Map<String, dynamic>?;
+    final rawAvg = meta?['average_rating'];
+    if (rawAvg is num) {
+      var v = rawAvg.toDouble();
+      if (v > 10) v = v / 10;
+      if (v > 0) averageRating = v.clamp(0, 10);
+    }
     final firstReleaseDate = _parseReleaseDate(g);
     String pickFirst(List<String> keys) {
       for (final k in keys) {
@@ -705,6 +722,8 @@ class RommRepository {
       lastPlayed: lastPlayed,
       firstReleaseDate: firstReleaseDate,
       fsSizeBytes: (g?['fs_size_bytes'] as num?)?.toInt() ?? 0,
+      averageRating: averageRating,
+      userRating: userRating,
     );
   }
 
@@ -854,38 +873,254 @@ class RommRepository {
   /// Banda sonora de un juego desde la Music API de ROMM (jukebox).
   ///
   /// El NAS guarda `soundtrack/` junto a la ROM y ROMM lo indexa:
-  /// `GET /api/music/tracks?rom_id={id}&order_by=track&order_dir=asc`.
+  /// `GET /api/music/tracks?rom_id={id}` (+paginación).
   /// Cada item trae `stream_url` servida por el propio ROMM.
+  ///
+  /// El orden final es cliente y lo manda el número del nombre
+  /// (`01. The Adventure Continues.mp3` es la pista 1, aunque los
+  /// metadatos no traigan `track`): numeradas primero por número (desempate
+  /// alfabético) y sin número después por `displayName` (a-z).
   Future<List<RommSoundtrackTrack>> getSoundtrackTracks(int romId) async {
-    const limit = 500;
-    var offset = 0;
+    final items = await _fetchMusicTracks('/api/music/tracks', {
+      'rom_id': romId,
+      'order_by': 'track',
+      'order_dir': 'asc',
+    }, limit: 10000, label: 'rom_id=$romId');
+    items.sort((a, b) {
+      final an = a.sortNumber;
+      final bn = b.sortNumber;
+      if (an != null && bn != null) {
+        final byNum = an.compareTo(bn);
+        if (byNum != 0) return byNum;
+      } else if (an != null) {
+        return -1;
+      } else if (bn != null) {
+        return 1;
+      }
+      return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+    });
+    return items;
+  }
+
+  /// Pista suelta global del Jukebox (`GET /api/music/tracks` sin `rom_id`):
+  /// misma forma que el OST pero con filtros de búsqueda, tags y paginación.
+  /// Sin orden cliente: respeta `orderBy`/`orderDir` del servidor.
+  Future<List<RommSoundtrackTrack>> getMusicTracks({
+    String? search,
+    String? artist,
+    String? album,
+    String? genre,
+    int? year,
+    int? minYear,
+    int? maxYear,
+    List<int>? platformIds,
+    String orderBy = 'title',
+    String orderDir = 'asc',
+    int limit = 200,
+    int offset = 0,
+  }) async {
+    final query = <String, dynamic>{
+      'order_by': orderBy,
+      'order_dir': orderDir,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      if (artist != null && artist.isNotEmpty) 'artist': artist,
+      if (album != null && album.isNotEmpty) 'album': album,
+      if (genre != null && genre.isNotEmpty) 'genre': genre,
+      if (year != null) 'year': year,
+      if (minYear != null) 'min_year': minYear,
+      if (maxYear != null) 'max_year': maxYear,
+      if (platformIds != null && platformIds.isNotEmpty)
+        'platform_ids': platformIds,
+    };
+    return _fetchMusicTracks(
+      '/api/music/tracks',
+      query,
+      limit: limit,
+      offset: offset,
+      label: 'global',
+    );
+  }
+
+  /// Favoritas del usuario (`GET /api/music/favorites`): misma forma y
+  /// filtros que `/tracks`. Paginado simple (una página de [limit]).
+  Future<List<RommSoundtrackTrack>> getMusicFavorites({
+    String? search,
+    int limit = 500,
+    int offset = 0,
+  }) async {
+    return _fetchMusicTracks(
+      '/api/music/favorites',
+      {
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+      limit: limit,
+      offset: offset,
+      label: 'favorites',
+    );
+  }
+
+  /// Juegos con banda sonora: la "album list" del Jukebox
+  /// (`GET /api/music/games` con `cover_url` y `count` por juego).
+  Future<List<MusicGameEntry>> getMusicGames({
+    String? search,
+    int limit = 500,
+    int offset = 0,
+  }) async {
+    final query = <String, dynamic>{
+      'limit': limit,
+      'offset': offset,
+      if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+    };
+    final res = await _dio.get(
+      '/api/music/games',
+      queryParameters: query,
+      options: _authOptions,
+    );
+    final data = res.data as Map<String, dynamic>? ?? const {};
+    final raw = data['items'] as List? ?? const [];
+    final items = <MusicGameEntry>[];
+    for (final e in raw) {
+      if (e is Map<String, dynamic>) items.add(MusicGameEntry.fromJson(e, serverUrl));
+    }
+    debugPrint('[ROMM] GET /api/music/games → ${items.length} juegos');
+    return items;
+  }
+
+  /// Facet de platforms del Jukebox (`GET /api/music/platforms`, con id
+  /// además de texto): mismo patrón que los tags pero con `id`/`slug`/`name`.
+  Future<List<MusicFacetValue>> getMusicPlatforms({
+    String? search,
+    int limit = 500,
+    int offset = 0,
+  }) async {
+    final res = await _dio.get(
+      '/api/music/platforms',
+      queryParameters: <String, dynamic>{
+        'limit': limit,
+        'offset': offset,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+      options: _authOptions,
+    );
+    final data = res.data as Map<String, dynamic>? ?? const {};
+    final raw = data['items'] as List? ?? const [];
+    final items = <MusicFacetValue>[];
+    for (final e in raw) {
+      if (e is Map<String, dynamic>) {
+        final name = e['name']?.toString() ?? e['value']?.toString() ?? '';
+        items.add(
+          MusicFacetValue(
+            value: name,
+            count: (e['count'] as num?)?.toInt() ?? 0,
+            platformId: (e['id'] as num?)?.toInt(),
+          ),
+        );
+      }
+    }
+    debugPrint('[ROMM] GET /api/music/platforms → ${items.length} valores');
+    return items;
+  }
+
+  /// Facet de tags del Jukebox (`GET /api/music/artists|albums|genres|years`),
+  /// cada valor con su nº de pistas. [field] es el segmento de la ruta.
+  Future<List<MusicFacetValue>> getMusicFacet(
+    String field, {
+    String? search,
+    int limit = 500,
+    int offset = 0,
+  }) async {
+    final res = await _dio.get(
+      '/api/music/$field',
+      queryParameters: <String, dynamic>{
+        'limit': limit,
+        'offset': offset,
+        if (search != null && search.trim().isNotEmpty) 'search': search.trim(),
+      },
+      options: _authOptions,
+    );
+    final data = res.data as Map<String, dynamic>? ?? const {};
+    final raw = data['items'] as List? ?? const [];
+    final items = <MusicFacetValue>[];
+    for (final e in raw) {
+      if (e is Map<String, dynamic>) items.add(MusicFacetValue.fromJson(e));
+    }
+    debugPrint('[ROMM] GET /api/music/$field → ${items.length} valores');
+    return items;
+  }
+
+  /// Totales globales del Jukebox (`GET /api/music/stats`).
+  Future<MusicStats> getMusicStats() async {
+    final res = await _dio.get('/api/music/stats', options: _authOptions);
+    final data = res.data as Map<String, dynamic>? ?? const {};
+    return MusicStats.fromJson(data);
+  }
+
+  /// Bucle de paginación común de `MusicPage[MusicTrackSchema]`
+  /// (`/music/tracks` y `/music/favorites`). Solo acumula hasta [limit]
+  /// pistas desde [offset]; el orden lo decide cada llamador.
+  Future<List<RommSoundtrackTrack>> _fetchMusicTracks(
+    String path,
+    Map<String, dynamic> baseQuery, {
+    int limit = 500,
+    int offset = 0,
+    String label = '',
+  }) async {
+    const pageSize = 500;
+    var pageOffset = offset;
+    var remaining = limit;
     final items = <RommSoundtrackTrack>[];
-    while (true) {
+    while (remaining > 0) {
       final res = await _dio.get(
-        '/api/music/tracks',
+        path,
         queryParameters: {
-          'rom_id': romId,
-          'order_by': 'track',
-          'order_dir': 'asc',
-          'limit': limit,
-          'offset': offset,
+          ...baseQuery,
+          'limit': remaining < pageSize ? remaining : pageSize,
+          'offset': pageOffset,
         },
         options: _authOptions,
       );
       final data = res.data as Map<String, dynamic>? ?? const {};
       final raw = data['items'] as List? ?? const [];
-      final total = (data['total'] as num?)?.toInt() ?? raw.length;
       for (final t in raw) {
         if (t is Map<String, dynamic>) {
           final track = RommSoundtrackTrack.fromJson(t, serverUrl);
           if (track.streamUrl.isNotEmpty) items.add(track);
         }
       }
-      offset += raw.length;
-      if (raw.isEmpty || items.length >= total || raw.length < limit) break;
+      pageOffset += raw.length;
+      remaining -= raw.length;
+      if (raw.isEmpty || raw.length < pageSize) break;
     }
-    debugPrint('[ROMM] GET /api/music/tracks?rom_id=$romId → ${items.length} pistas');
+    debugPrint('[ROMM] GET $path${label.isEmpty ? '' : ' ($label)'} → ${items.length} pistas');
     return items;
+  }
+
+  /// Marca pistas como favoritas: `POST /api/music/favorites`
+  /// con `{"rom_file_ids": [...]}`. Devuelve cuántas se añadieron.
+  Future<int> addMusicFavorites(List<int> romFileIds) async {
+    final ids = romFileIds.where((id) => id > 0).toList();
+    if (ids.isEmpty) return 0;
+    final res = await _dio.post(
+      '/api/music/favorites',
+      data: {'rom_file_ids': ids},
+      options: _authOptions,
+    );
+    final data = res.data as Map<String, dynamic>? ?? const {};
+    return (data['added'] as num?)?.toInt() ?? ids.length;
+  }
+
+  /// Desmarca pistas como favoritas: `DELETE /api/music/favorites`
+  /// con `{"rom_file_ids": [...]}`. Devuelve cuántas se quitaron.
+  Future<int> removeMusicFavorites(List<int> romFileIds) async {
+    final ids = romFileIds.where((id) => id > 0).toList();
+    if (ids.isEmpty) return 0;
+    final res = await _dio.delete(
+      '/api/music/favorites',
+      data: {'rom_file_ids': ids},
+      options: _authOptions,
+    );
+    final data = res.data as Map<String, dynamic>? ?? const {};
+    return (data['removed'] as num?)?.toInt() ?? ids.length;
   }
 
   /// Resuelve una `stream_url` de la Music API a absoluta (puede venir relativa).
@@ -922,6 +1157,17 @@ class RommRepository {
     try {
       await _dio.put('/api/roms/$romId/props', queryParameters: {'update_last_played': true}, data: {}, options: _authOptions);
     } catch (_) {}
+  }
+
+  /// Guarda la nota personal del usuario: PUT /api/roms/{id}/props con
+  /// body `{"rating": N}` (0–10, scope `ROMS_USER_WRITE`). Propaga errores
+  /// para que la UI revierta el optimistic update y avise con EasyLoading.
+  Future<void> setUserRating(int romId, int rating) async {
+    await _dio.put(
+      '/api/roms/$romId/props',
+      data: {'rating': rating.clamp(0, 10)},
+      options: _authOptions,
+    );
   }
 
   /// Config de streaming: devuelve si hay un contenedor para una plataforma.

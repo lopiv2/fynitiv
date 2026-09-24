@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:media_kit/media_kit.dart';
 
@@ -9,9 +10,47 @@ import 'dart:developer' as developer;
 
 import '../../library/application/image_url.dart';
 import '../../player/application/playback_provider.dart';
+import '../../../core/audio/game_bg_player.dart';
+import '../../../core/audio/game_ost_player.dart';
 import '../../../core/audio/soloud_initializer.dart';
 import '../../../core/audio/app_volume_provider.dart';
+import '../../games/domain/game_ost_track.dart';
 import 'audio_eq_provider.dart';
+
+/// Cliente HTTP que inyecta el Bearer de ROMM (las `stream_url` de su
+/// Music API lo exigen y `SoLoud.loadUrl` no pone cabeceras solo).
+class _RommAuthHttpClient extends http.BaseClient {
+  _RommAuthHttpClient(this._token);
+
+  final String _token;
+  final http.Client _inner = http.Client();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (_token.isNotEmpty) {
+      request.headers['Authorization'] = 'Bearer $_token';
+    }
+    return _inner.send(request);
+  }
+
+  @override
+  void close() => _inner.close();
+}
+
+/// Pista encolada del provider compartido: sesión + item visible + auth.
+class _QueuedTrack {
+  const _QueuedTrack({
+    required this.session,
+    required this.item,
+    this.authToken,
+    this.isFavorite = false,
+  });
+
+  final PlaybackSession session;
+  final BaseItemDto? item;
+  final String? authToken;
+  final bool isFavorite;
+}
 
 /// Motor activo para playback de música.
 enum PlaybackEngine { soloud, mediaKit, none }
@@ -29,6 +68,7 @@ class SoloudMusicState {
     this.error,
     this.completed = false,
     this.engine = PlaybackEngine.none,
+    this.isFavorite = false,
   });
 
   final BaseItemDto? item;
@@ -42,12 +82,18 @@ class SoloudMusicState {
   final bool completed;
   final PlaybackEngine engine;
 
+  /// Favorita ROMM de la pista en curso (solo Jukebox/OST; Jellyfin no usa).
+  final bool isFavorite;
+
   bool get hasItem => item != null && session != null;
   bool get isSoloud => engine == PlaybackEngine.soloud;
   bool get isMediaKit => engine == PlaybackEngine.mediaKit;
 
+  /// Pista servida por ROMM (`romm-<romFileId>`): sin carátula Jellyfin.
+  bool get isRomm => session?.itemId.startsWith('romm-') == true;
+
   String get coverUrl {
-    if (item == null || session == null) return '';
+    if (item == null || session == null || isRomm) return '';
     return itemImageUrl(session!.serverUrl, item!, maxWidth: 400);
   }
 
@@ -66,6 +112,7 @@ class SoloudMusicState {
     bool clearError = false,
     bool? completed,
     PlaybackEngine? engine,
+    bool? isFavorite,
   }) {
     return SoloudMusicState(
       item: item ?? this.item,
@@ -78,6 +125,7 @@ class SoloudMusicState {
       error: clearError ? null : (error ?? this.error),
       completed: completed ?? this.completed,
       engine: engine ?? this.engine,
+      isFavorite: isFavorite ?? this.isFavorite,
     );
   }
 }
@@ -90,6 +138,17 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
   Timer? _posTimer;
   Timer? _completionTimer;
   bool _disposed = false;
+
+  // Cola del provider compartido (Jukebox/OST): orden de reproducción y
+  // posición en él. Vacía = single Jellyfin/radio (comportamiento previo).
+  List<_QueuedTrack> _queue = [];
+  List<int> _order = [];
+  int _orderPos = -1;
+  // Generación de carga: solo la última petición lanza voz (evita huérfanas
+  // al pulsar siguiente rápido con FLACs lentos).
+  int _playGen = 0;
+
+  bool get _queueActive => _queue.isNotEmpty && _order.isNotEmpty;
 
   bool get _soloudReady => SoloudInitializer.isInitialized && SoLoud.instance.isInitialized;
 
@@ -120,7 +179,7 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     }));
     _fallbackSubs.add(p.stream.completed.listen((c) {
       if (_disposed || !c || state.engine != PlaybackEngine.mediaKit) return;
-      state = state.copyWith(completed: true, playing: false);
+      _onTrackEnded(state.duration);
     }));
     _fallbackSubs.add(p.stream.error.listen((e) {
       if (_disposed || state.engine != PlaybackEngine.mediaKit) return;
@@ -153,10 +212,10 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
         } catch (_) {
           isValid = false;
         }
-        // Si el handle ya no es válido y estábamos playing => completado
+        // Si el handle ya no es válido y estábamos playing => fin de pista:
+        // avanza la cola o marca completado (y devuelve el fondo).
         if (!isValid && state.playing) {
-          state = state.copyWith(position: len, completed: true, playing: false, buffering: false);
-          _stopPosTimer();
+          _onTrackEnded(len);
           return;
         }
         // También detectar por posición cerca del final
@@ -293,6 +352,14 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
   }
 
   Future<void> playFromSession(PlaybackSession session, BaseItemDto? item, {Duration? start, double? volume}) async {
+    _clearQueue();
+    // Anti-solape: el OST del detalle y el fondo usan la misma voz SoLoud.
+    try {
+      await GameOstPlayer.instance.stop();
+    } catch (_) {}
+    try {
+      await GameBgPlayer.instance.suspendForDetail();
+    } catch (_) {}
     state = state.copyWith(item: item, session: session, error: null, clearError: true, completed: false, buffering: true, volume: volume ?? state.volume);
     final isHls = session.streamUrl.contains('master.m3u8') || session.streamUrl.contains('.m3u8');
 
@@ -395,6 +462,202 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     }
   }
 
+  /// Cola OST del Jukebox en el provider compartido (misma barra global).
+  /// Cada pista abre su `stream_url` de ROMM con Bearer ([authToken]).
+  /// Para el OST del detalle y el fondo antes de sonar (una sola voz).
+  Future<void> playOstQueue({
+    required List<GameOstTrack> tracks,
+    int startIndex = 0,
+    required String serverUrl,
+    String? authToken,
+    bool shuffle = false,
+  }) async {
+    if (tracks.isEmpty) return;
+    try {
+      await GameOstPlayer.instance.stop();
+    } catch (_) {}
+    try {
+      await GameBgPlayer.instance.suspendForDetail();
+    } catch (_) {}
+    try {
+      await _fallbackPlayer?.stop();
+    } catch (_) {}
+    _queue = [
+      for (final t in tracks)
+        _QueuedTrack(
+          session: PlaybackSession(
+            itemId: 'romm-${t.romFileId}',
+            itemName: t.name,
+            serverUrl: serverUrl,
+            streamUrl: t.url,
+          ),
+          item: BaseItemDto(
+            name: t.name,
+            artists: t.artist?.isNotEmpty == true ? [t.artist!] : null,
+          ),
+          authToken: authToken,
+          isFavorite: t.isFavorite,
+        ),
+    ];
+    _order = List<int>.generate(_queue.length, (i) => i);
+    if (shuffle) _order.shuffle();
+    await _playQueuePos(
+      shuffle ? 0 : startIndex.clamp(0, _queue.length - 1),
+    );
+  }
+
+  /// Reproduce la posición [pos] del orden de cola.
+  Future<void> _playQueuePos(int pos) async {
+    if (_disposed || pos < 0 || pos >= _order.length) return;
+    final myGen = ++_playGen;
+    final entry = _queue[_order[pos]];
+    state = state.copyWith(
+      item: entry.item,
+      session: entry.session,
+      isFavorite: entry.isFavorite,
+      error: null,
+      clearError: true,
+      completed: false,
+      buffering: true,
+    );
+    try {
+      await _fallbackPlayer?.stop();
+    } catch (_) {}
+    if (_handle != null) {
+      try {
+        SoLoud.instance.stop(_handle!);
+      } catch (_) {}
+      _handle = null;
+    }
+    if (_source != null) {
+      try {
+        SoLoud.instance.disposeSource(_source!);
+      } catch (_) {}
+      _source = null;
+    }
+    _stopPosTimer();
+    if (!_soloudReady) {
+      state = state.copyWith(
+        error: 'Audio no disponible',
+        buffering: false,
+        engine: PlaybackEngine.none,
+      );
+      return;
+    }
+    try {
+      try {
+        SoLoud.instance.setVisualizationEnabled(true);
+      } catch (_) {}
+      final token = entry.authToken?.trim() ?? '';
+      final client = token.isNotEmpty ? _RommAuthHttpClient(token) : null;
+      try {
+        _source = await SoLoud.instance.loadUrl(
+          entry.session.streamUrl,
+          httpClient: client,
+        );
+      } finally {
+        try {
+          client?.close();
+        } catch (_) {}
+      }
+      if (_disposed || myGen != _playGen) {
+        final fresh = _source;
+        _source = null;
+        if (fresh != null) {
+          try {
+            SoLoud.instance.disposeSource(fresh);
+          } catch (_) {}
+        }
+        return;
+      }
+      final vol = state.volume.clamp(0, 100) / 100.0;
+      _handle = SoLoud.instance.play(_source!, volume: vol);
+      Duration dur = Duration.zero;
+      try {
+        dur = SoLoud.instance.getLength(_source!);
+      } catch (_) {}
+      _orderPos = pos;
+      state = state.copyWith(
+        playing: true,
+        buffering: false,
+        completed: false,
+        duration: dur,
+        engine: PlaybackEngine.soloud,
+      );
+      _startSoloudPosTimer();
+      try {
+        _applyEq(ref.read(audioEqProvider));
+      } catch (_) {}
+    } catch (e) {
+      if (myGen != _playGen || _disposed) return;
+      // Pista rota: salta a la siguiente como el player del detalle.
+      if (pos + 1 < _order.length) {
+        unawaited(_playQueuePos(pos + 1));
+        return;
+      }
+      _clearQueue();
+      state = state.copyWith(
+        error: '$e',
+        buffering: false,
+        playing: false,
+        engine: PlaybackEngine.none,
+      );
+    }
+  }
+
+  void _clearQueue() {
+    _queue = [];
+    _order = [];
+    _orderPos = -1;
+  }
+
+  /// Fin de pista: avanza la cola o completa (y devuelve el fondo).
+  void _onTrackEnded(Duration len) {
+    if (_disposed) return;
+    if (_queueActive && _orderPos + 1 < _order.length) {
+      unawaited(_playQueuePos(_orderPos + 1));
+      return;
+    }
+    _clearQueue();
+    _stopPosTimer();
+    state = state.copyWith(
+      position: len,
+      completed: true,
+      playing: false,
+      buffering: false,
+    );
+    try {
+      unawaited(GameBgPlayer.instance.returnFromDetail());
+    } catch (_) {}
+  }
+
+  /// Siguiente: avanza la cola si hay; si no, +10s (singles Jellyfin).
+  void next() {
+    if (!_queueActive) {
+      seekBy(const Duration(seconds: 10));
+      return;
+    }
+    if (_orderPos + 1 < _order.length) {
+      unawaited(_playQueuePos(_orderPos + 1));
+    } else {
+      _onTrackEnded(state.duration);
+    }
+  }
+
+  /// Anterior: retrocede la cola si hay; si no, −10s (singles Jellyfin).
+  void previous() {
+    if (!_queueActive) {
+      seekBy(const Duration(seconds: -10));
+      return;
+    }
+    unawaited(_playQueuePos((_orderPos - 1).clamp(0, _order.length - 1)));
+  }
+
+  /// Actualiza solo el estado de favorita (la escritura en ROMM la hace la UI).
+  void updateFavorite(bool value) {
+    state = state.copyWith(isFavorite: value);
+  }
+
   void pause() {
     if (state.engine == PlaybackEngine.soloud && _handle != null) {
       try {
@@ -495,7 +758,9 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     }
   }
 
-  void stop() {
+  void stop({bool resumeBackground = true}) {
+    _clearQueue();
+    _playGen++;
     _stopPosTimer();
     final keptVolume = state.volume;
     if (_handle != null) {
@@ -515,6 +780,11 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
     } catch (_) {}
     // Parar no resetea el volumen universal: la siguiente canción lo hereda.
     state = SoloudMusicState(volume: keptVolume);
+    if (resumeBackground) {
+      try {
+        unawaited(GameBgPlayer.instance.returnFromDetail());
+      } catch (_) {}
+    }
   }
 
   void seek(Duration pos) {
@@ -573,6 +843,13 @@ class SoloudMusicController extends Notifier<SoloudMusicState> {
   }
 
   Future<void> playRadioUrl({required String url, required String title, String artist = '', String coverUrl = '', double? volume}) async {
+    _clearQueue();
+    try {
+      await GameOstPlayer.instance.stop();
+    } catch (_) {}
+    try {
+      await GameBgPlayer.instance.suspendForDetail();
+    } catch (_) {}
     final session = PlaybackSession(serverUrl: '', streamUrl: url, itemId: 'radio', itemName: title);
     // La radio siempre va directa por MediaKit: SoLoud no maneja estos
     // streams (los efectos visuales usan la señal sintética).

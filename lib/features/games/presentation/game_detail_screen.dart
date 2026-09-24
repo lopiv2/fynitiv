@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../core/audio/game_bg_player.dart';
 import '../../../core/audio/game_ost_player.dart';
 import '../../../core/audio/app_volume_provider.dart';
+import '../../music/application/soloud_music_provider.dart';
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/utils/format_bytes.dart';
@@ -27,6 +28,8 @@ import '../domain/game_ost_track.dart';
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
 import 'widgets/game_box3d_viewer.dart';
+import 'widgets/game_rating_row.dart';
+import 'widgets/ost_favorite_button.dart';
 
 /// Detalle de un juego de ROMM con estilo Origin/EA (Mirror's Edge Catalyst).
 /// Mantiene toda la funcionalidad previa: Play (streaming), Descargar,
@@ -58,8 +61,16 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
             ref.invalidate(rommContinuePlayingProvider);
           }),
     );
-    // Corta el fondo del hub para que no se solape con el OST del juego.
-    Future.microtask(() => GameBgPlayer.instance.suspendForDetail());
+    // Corta el fondo del hub y el player global para que la voz SoLoud
+    // quede solo para el OST del juego (singleton compartido).
+    Future.microtask(() {
+      GameBgPlayer.instance.suspendForDetail();
+      try {
+        ref
+            .read(soloudMusicProvider.notifier)
+            .stop(resumeBackground: false);
+      } catch (_) {}
+    });
     _ostSub = GameOstPlayer.instance.currentTrackStream.listen((track) {
       if (mounted) setState(() => _currentTrack = track);
     });
@@ -616,6 +627,8 @@ class _GameHeroInfo extends StatelessWidget {
               label: l10n.platformOnDisk,
               value: formatBytes(game.fsSizeBytes),
             ),
+            GameCommunityRating(average: game.averageRating),
+            GameUserRating(game: game),
           ],
         ),
         const SizedBox(height: 18),
@@ -1229,7 +1242,7 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
   }
 }
 
-class _OstTrackList extends StatefulWidget {
+class _OstTrackList extends ConsumerStatefulWidget {
   const _OstTrackList({
     required this.ostAsync,
     required this.currentTrack,
@@ -1240,10 +1253,10 @@ class _OstTrackList extends StatefulWidget {
   final RommGame game;
 
   @override
-  State<_OstTrackList> createState() => _OstTrackListState();
+  ConsumerState<_OstTrackList> createState() => _OstTrackListState();
 }
 
-class _OstTrackListState extends State<_OstTrackList> {
+class _OstTrackListState extends ConsumerState<_OstTrackList> {
   final ScrollController _scrollController = ScrollController();
   List<GlobalKey> _itemKeys = [];
   String? _lastJumpUrl;
@@ -1435,6 +1448,7 @@ class _OstTrackListState extends State<_OstTrackList> {
                                     fontSize: 12,
                                   ),
                                 ),
+                              OstFavoriteButton(track: t),
                               PopupMenuButton<String>(
                                 tooltip: l10n.more,
                                 icon: const Icon(

@@ -148,6 +148,9 @@
   "watchNow": "Ver ahora",
   "addToFavorites": "Agregar a favoritos",
   "removeFromFavorites": "Quitar de favoritos",
+  "ostFavoriteAdded": "Añadida a favoritas de música",
+  "ostFavoriteRemoved": "Quitada de favoritas de música",
+  "ostFavoriteError": "No se pudo actualizar la favorita.",
   "download": "Descargar",
   "details": "Detalles",
   "watchTrailer": "Ver trailer",
@@ -470,6 +473,101 @@
   "gameKeyFeatures": "Características principales:",
   "gameNotPlayed": "No jugado",
   "gameNever": "Nunca",
+  "gameRatingCommunity": "Nota de la comunidad",
+  "gameRatingYours": "Tu nota",
+  "gameRatingUnrated": "Sin votar",
+  "gameRatingError": "No se pudo guardar tu nota.",
+  "jukeboxTitle": "Jukebox",
+  "jukeboxOpen": "Abrir jukebox",
+  "jukeboxStats": "{count} canciones • {duration}",
+  "@jukeboxStats": {
+    "placeholders": {
+      "count": { "type": "int" },
+      "duration": { "type": "String" }
+    }
+  },
+  "jukeboxGames": "Juegos",
+  "jukeboxArtists": "Artistas",
+  "jukeboxAlbums": "Álbumes",
+  "jukeboxGenres": "Géneros",
+  "jukeboxYears": "Años",
+  "jukeboxPlatforms": "Plataformas",
+  "jukeboxFavorites": "Favoritas",
+  "jukeboxSearchHint": "Busca juegos, artistas, canciones…",
+  "jukeboxShuffleAll": "Aleatorio total",
+  "jukeboxNoResults": "Sin resultados en el jukebox.",
+  "jukeboxError": "No se pudo cargar el jukebox.",
+  "jukeboxPickHint": "Elige un juego o una etiqueta para ver sus temas.",
+  "jukeboxNowPlayingFallback": "Jukebox",
+  "jukeboxDecade": "Década",
+  "jukeboxMixes": "Listas de reproducción",
+  "jukeboxLibrary": "Biblioteca",
+  "jukeboxFreeRadio": "Radio libre",
+  "jukeboxFreeRadioHint": "60 min",
+  "jukeboxDecadeMix": "Mezcla por décadas",
+  "jukeboxDecadeHint": "1 década",
+  "jukeboxDecadesHint": "{count} décadas",
+  "@jukeboxDecadesHint": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxRecentlyAdded": "Bandas sonoras añadidas recientemente",
+  "jukeboxRecentlyAddedSub": "{count} pistas",
+  "@jukeboxRecentlyAddedSub": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxFavoriteTracks": "Bandas sonoras favoritas",
+  "jukeboxFavoriteSub": "{count} pistas",
+  "@jukeboxFavoriteSub": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxPlayAll": "Reproducir todo",
+  "jukeboxPlayAllSub": "{count} pistas",
+  "@jukeboxPlayAllSub": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxOstByAlbum": "Bandas sonoras por álbum",
+  "jukeboxOstByPlatform": "Bandas sonoras por plataforma",
+  "jukeboxOstByArtist": "Bandas sonoras por artista",
+  "jukeboxOstByGenre": "Bandas sonoras por género",
+  "jukeboxFacetCountAlbums": "{count} álbumes",
+  "@jukeboxFacetCountAlbums": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxFacetCountPlatforms": "{count} plataforma",
+  "@jukeboxFacetCountPlatforms": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxFacetCountPlatformsPlural": "{count} plataformas",
+  "@jukeboxFacetCountPlatformsPlural": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxFacetCountArtists": "{count} artistas",
+  "@jukeboxFacetCountArtists": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxFacetCountGenres": "{count} géneros",
+  "@jukeboxFacetCountGenres": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "jukeboxDecadeRange": "{from}–{to}",
   "gameInstallLabel": "Instalar",
   "gameOptionsLabel": "Opciones",
   "mediaLibraries": "Bibliotecas de Medios",

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../games/application/romm_providers.dart';
 import '../../application/music_player_provider.dart';
 import '../../application/soloud_music_provider.dart';
 
@@ -11,6 +12,28 @@ String _fmt(Duration d) {
   final m = d.inMinutes.remainder(60);
   final s = d.inSeconds.remainder(60);
   return h > 0 ? '${two(h)}:${two(m)}:${two(s)}' : '${two(m)}:${two(s)}';
+}
+
+/// Corazón de la barra para pistas ROMM (`romm-<romFileId>`): optimistic
+/// update contra `POST`/`DELETE /api/music/favorites`, reversión silenciosa.
+Future<void> _toggleRommFav(WidgetRef ref, SoloudMusicState state) async {
+  final session = state.session;
+  if (session == null) return;
+  final id = int.tryParse(session.itemId.replaceFirst('romm-', ''));
+  if (id == null || id <= 0) return;
+  final repo = ref.read(rommRepositoryProvider);
+  if (repo == null) return;
+  final target = !state.isFavorite;
+  ref.read(soloudMusicProvider.notifier).updateFavorite(target);
+  try {
+    if (target) {
+      await repo.addMusicFavorites([id]);
+    } else {
+      await repo.removeMusicFavorites([id]);
+    }
+  } catch (_) {
+    ref.read(soloudMusicProvider.notifier).updateFavorite(!target);
+  }
 }
 
 /// Barra inferior tipo Jellyfin oficial para música en segundo plano.
@@ -43,6 +66,10 @@ class MiniPlayerBar extends ConsumerWidget {
     final artist = useSoloud ? soloudState.artist : legacy!.artist;
     final itemId = useSoloud ? (soloudState.item?.id ?? soloudState.session?.itemId) : (legacy!.item?.id ?? legacy.session?.itemId);
     final item = useSoloud ? soloudState.item : legacy!.item;
+    // Solo las pantallas Jellyfin con id navegan al fullscreen: las pistas
+    // ROMM (`romm-<id>`, sintéticas sin id) y la radio no salen de la barra.
+    final canOpenFullscreen =
+        (item?.id?.isNotEmpty == true) && !(useSoloud && soloudState.isRomm);
 
     return Material(
       color: const Color(0xFF0F0F0F),
@@ -87,7 +114,7 @@ class MiniPlayerBar extends ConsumerWidget {
                     // Carátula - también abre fullscreen (maximizar).
                     InkWell(
                       onTap: () {
-                        if (itemId == null || itemId.isEmpty) return;
+                        if (!canOpenFullscreen) return;
                         if (!context.mounted) return;
                         context.push('/player/$itemId', extra: item);
                       },
@@ -109,7 +136,7 @@ class MiniPlayerBar extends ConsumerWidget {
                     Expanded(
                       child: InkWell(
                         onTap: () {
-                          if (itemId == null || itemId.isEmpty) return;
+                          if (!canOpenFullscreen) return;
                           if (!context.mounted) return;
                           context.push('/player/$itemId', extra: item);
                         },
@@ -137,7 +164,7 @@ class MiniPlayerBar extends ConsumerWidget {
                     IconButton(
                       tooltip: 'Anterior',
                       icon: const Icon(Icons.skip_previous_rounded, color: Colors.white, size: 22),
-                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).seekBy(const Duration(seconds: -10)) : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: -10)),
+                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).previous() : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: -10)),
                     ),
                     Container(
                       decoration: BoxDecoration(color: const Color(0xFF00A8E1).withValues(alpha: 0.15), shape: BoxShape.circle),
@@ -155,7 +182,7 @@ class MiniPlayerBar extends ConsumerWidget {
                     IconButton(
                       tooltip: 'Siguiente',
                       icon: const Icon(Icons.skip_next_rounded, color: Colors.white, size: 22),
-                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).seekBy(const Duration(seconds: 10)) : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: 10)),
+                      onPressed: () => useSoloud ? ref.read(soloudMusicProvider.notifier).next() : ref.read(musicPlayerProvider.notifier).seekBy(const Duration(seconds: 10)),
                     ),
                     const SizedBox(width: 6),
                     Text('${_fmt(position)} / ${_fmt(duration)}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
@@ -176,7 +203,21 @@ class MiniPlayerBar extends ConsumerWidget {
                     ),
                     IconButton(tooltip: 'Repetir', icon: const Icon(Icons.repeat_rounded, color: Colors.white54, size: 18), onPressed: () {}),
                     IconButton(tooltip: 'Aleatorio', icon: const Icon(Icons.shuffle_rounded, color: Colors.white54, size: 18), onPressed: () {}),
-                    IconButton(tooltip: 'Favorito', icon: const Icon(Icons.favorite_border_rounded, color: Colors.white54, size: 18), onPressed: () {}),
+                    IconButton(
+                      tooltip: 'Favorito',
+                      icon: Icon(
+                        useSoloud && soloudState.isRomm && soloudState.isFavorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: useSoloud && soloudState.isRomm && soloudState.isFavorite
+                            ? Colors.white
+                            : Colors.white54,
+                        size: 18,
+                      ),
+                      onPressed: useSoloud && soloudState.isRomm
+                          ? () => _toggleRommFav(ref, soloudState)
+                          : () {},
+                    ),
                     IconButton(
                       tooltip: 'Cerrar mini',
                       icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 18),

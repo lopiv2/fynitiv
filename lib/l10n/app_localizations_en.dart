@@ -459,6 +459,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get removeFromFavorites => 'Remove from favorites';
 
   @override
+  String get ostFavoriteAdded => 'Added to music favorites';
+
+  @override
+  String get ostFavoriteRemoved => 'Removed from music favorites';
+
+  @override
+  String get ostFavoriteError => 'Couldn\'t update music favorite.';
+
+  @override
   String get download => 'Download';
 
   @override
@@ -1193,6 +1202,160 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get gameNever => 'Never';
+
+  @override
+  String get gameRatingCommunity => 'Community rating';
+
+  @override
+  String get gameRatingYours => 'Your rating';
+
+  @override
+  String get gameRatingUnrated => 'Not rated yet';
+
+  @override
+  String get gameRatingError => 'Couldn\'t save your rating.';
+
+  @override
+  String get jukeboxTitle => 'Jukebox';
+
+  @override
+  String get jukeboxOpen => 'Open jukebox';
+
+  @override
+  String jukeboxStats(int count, String duration) {
+    return '$count tracks • $duration';
+  }
+
+  @override
+  String get jukeboxGames => 'Games';
+
+  @override
+  String get jukeboxArtists => 'Artists';
+
+  @override
+  String get jukeboxAlbums => 'Albums';
+
+  @override
+  String get jukeboxGenres => 'Genres';
+
+  @override
+  String get jukeboxYears => 'Years';
+
+  @override
+  String get jukeboxPlatforms => 'Platforms';
+
+  @override
+  String get jukeboxFavorites => 'Favorites';
+
+  @override
+  String get jukeboxSearchHint => 'Search games, artists, tracks…';
+
+  @override
+  String get jukeboxShuffleAll => 'Shuffle all';
+
+  @override
+  String get jukeboxNoResults => 'No results in the jukebox.';
+
+  @override
+  String get jukeboxError => 'Couldn\'t load the jukebox.';
+
+  @override
+  String get jukeboxPickHint => 'Pick a game or a tag to browse its tracks.';
+
+  @override
+  String get jukeboxNowPlayingFallback => 'Jukebox';
+
+  @override
+  String get jukeboxDecade => 'Decade';
+
+  @override
+  String get jukeboxMixes => 'Playlists';
+
+  @override
+  String get jukeboxLibrary => 'Library';
+
+  @override
+  String get jukeboxFreeRadio => 'Free Radio';
+
+  @override
+  String get jukeboxFreeRadioHint => '60 min';
+
+  @override
+  String get jukeboxDecadeMix => 'Decade Mix';
+
+  @override
+  String get jukeboxDecadeHint => '1 decade';
+
+  @override
+  String jukeboxDecadesHint(int count) {
+    return '$count decades';
+  }
+
+  @override
+  String get jukeboxRecentlyAdded => 'Recently added';
+
+  @override
+  String jukeboxRecentlyAddedSub(int count) {
+    return '$count tracks';
+  }
+
+  @override
+  String get jukeboxFavoriteTracks => 'Favorite tracks';
+
+  @override
+  String jukeboxFavoriteSub(int count) {
+    return '$count tracks';
+  }
+
+  @override
+  String get jukeboxPlayAll => 'Play all';
+
+  @override
+  String jukeboxPlayAllSub(int count) {
+    return '$count tracks';
+  }
+
+  @override
+  String get jukeboxOstByAlbum => 'By album';
+
+  @override
+  String get jukeboxOstByPlatform => 'By platform';
+
+  @override
+  String get jukeboxOstByArtist => 'By artist';
+
+  @override
+  String get jukeboxOstByGenre => 'By genre';
+
+  @override
+  String jukeboxFacetCountAlbums(int count) {
+    return '$count albums';
+  }
+
+  @override
+  String jukeboxFacetCountPlatforms(int count) {
+    return '$count platform';
+  }
+
+  @override
+  String jukeboxFacetCountPlatformsPlural(int count) {
+    return '$count platforms';
+  }
+
+  @override
+  String jukeboxFacetCountArtists(int count) {
+    return '$count artists';
+  }
+
+  @override
+  String jukeboxFacetCountGenres(int count) {
+    return '$count genres';
+  }
+
+  @override
+  String jukeboxDecadeRange(Object from, Object to) {
+    return '$from–$to';
+  }
 
   @override
   String get gameInstallLabel => 'Install';

@@ -20,6 +20,9 @@ final ostTracksProvider = FutureProvider.family<List<GameOstTrack>, int>((
         duration: t.displayDuration,
         artist: t.artist,
         album: t.album,
+        romFileId: t.romFileId,
+        isFavorite: t.isFavorite,
+        gameName: t.gameName,
       ),
   ];
 });

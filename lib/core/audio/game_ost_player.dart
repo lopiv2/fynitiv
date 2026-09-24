@@ -33,6 +33,17 @@ class GameOstPlayer {
   GameOstPlayer._();
   static final GameOstPlayer instance = GameOstPlayer._();
 
+  /// Hook anti-solape: se invoca antes de arrancar/pasar de pista.
+  /// Lo cablea el shell (`home_shell`) para frenar el provider de música
+  /// compartido, que usa la misma voz global de SoLoud.
+  static Future<void> Function()? onBeforeStart;
+
+  Future<void> _notifyStart() async {
+    try {
+      await onBeforeStart?.call();
+    } catch (_) {}
+  }
+
   final SoloudSinglePlayer _player = SoloudSinglePlayer(volume: 0.5);
   List<GameOstTrack> _queue = [];
   List<GameOstTrack> _shuffled = [];
@@ -197,6 +208,7 @@ class GameOstPlayer {
   Future<void> playQueue(List<GameOstTrack> tracks) async {
     _ensureInit();
     if (tracks.isEmpty) return;
+    await _notifyStart();
     _session++;
     _userPaused = false;
     _shuffleEnabled = true;
@@ -211,6 +223,26 @@ class GameOstPlayer {
     await _playCurrent(_session);
   }
 
+  /// Reproduce una lista empezando por [startIndex] en orden, sin mezclar.
+  /// Para el Jukebox ("tocar este tema y seguir"). Corta lo previo.
+  Future<void> playQueueOrdered(List<GameOstTrack> tracks, [int startIndex = 0]) async {
+    _ensureInit();
+    if (tracks.isEmpty) return;
+    await _notifyStart();
+    _session++;
+    _userPaused = false;
+    _shuffleEnabled = false;
+    _queue = List<GameOstTrack>.from(tracks);
+    _shuffled = List<GameOstTrack>.from(tracks);
+    _index = startIndex.clamp(0, _shuffled.length - 1);
+    if (_muted) {
+      _current = _shuffled[_index];
+      _currentTrackController.add(_current);
+      return;
+    }
+    await _playCurrent(_session);
+  }
+
   /// Salta a la siguiente pista de la queue (respeta el orden actual:
   /// aleatorio o secuencial). Corta la pista en curso.
   Future<void> next() async {
@@ -218,6 +250,7 @@ class GameOstPlayer {
     if (_shuffled.isEmpty) {
       return;
     }
+    await _notifyStart();
     _session++;
     _userPaused = false;
     _index = (_index + 1) % _shuffled.length;
@@ -233,6 +266,7 @@ class GameOstPlayer {
   Future<void> previous() async {
     _ensureInit();
     if (_shuffled.isEmpty) return;
+    await _notifyStart();
     _session++;
     _userPaused = false;
     _index = (_index - 1) % _shuffled.length;
@@ -249,6 +283,7 @@ class GameOstPlayer {
   Future<void> playTrack(GameOstTrack track) async {
     _ensureInit();
     if (_shuffled.isEmpty) return;
+    await _notifyStart();
     final i = _indexOfUrl(_shuffled, track);
     if (i < 0) {
       return;
@@ -268,6 +303,7 @@ class GameOstPlayer {
   Future<void> toggle() async {
     _ensureInit();
     if (_shuffled.isEmpty || _loading) return;
+    await _notifyStart();
     if (_player.state == SoloudSingleState.playing) {
       try {
         await _player.pause();

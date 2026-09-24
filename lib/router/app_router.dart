@@ -25,6 +25,7 @@ import '../features/ereader/presentation/ereader_screen.dart';
 import '../features/games/presentation/game_detail_screen.dart';
 import '../features/games/presentation/game_list_screen.dart';
 import '../features/games/presentation/games_screen.dart';
+import '../features/games/presentation/jukebox_screen.dart';
 import '../features/player/presentation/player_screen.dart';
 import '../features/search/presentation/search_screen.dart';
 import '../features/vod/presentation/vod_screen.dart';
@@ -261,6 +262,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => GameDetailScreen(
                       gameId: int.tryParse(state.pathParameters['romId']!) ?? 0,
                     ),
+                  ),
+                  GoRoute(
+                    path: 'jukebox',
+                    builder: (_, _) => const JukeboxScreen(),
                   ),
                 ],
               ),
