@@ -32,7 +32,7 @@ final miniPlayerScaleProvider = Provider<double>((ref) {
 double jukeboxCardScaleFor(PlatformMode mode) => switch (mode) {
   PlatformMode.mobile => 1.0,
   PlatformMode.desktop => 1.2,
-  PlatformMode.tv => 1.25,
+  PlatformMode.tv => 1,
 };
 
 final jukeboxCardScaleProvider = Provider<double>((ref) {

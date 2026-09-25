@@ -10,6 +10,7 @@ class JukeboxUiState {
     this.selGameId,
     this.selGameName,
     this.facetValue,
+    this.shuffleEnabled = false,
   });
 
   final String tab;
@@ -17,6 +18,7 @@ class JukeboxUiState {
   final int? selGameId;
   final String? selGameName;
   final String? facetValue;
+  final bool shuffleEnabled;
 
   JukeboxUiState copyWith({
     String? tab,
@@ -24,6 +26,7 @@ class JukeboxUiState {
     int? selGameId,
     String? selGameName,
     String? facetValue,
+    bool? shuffleEnabled,
     bool clearGame = false,
     bool clearFacet = false,
   }) {
@@ -33,8 +36,11 @@ class JukeboxUiState {
       selGameId: clearGame ? null : (selGameId ?? this.selGameId),
       selGameName: clearGame ? null : (selGameName ?? this.selGameName),
       facetValue: clearFacet ? null : (facetValue ?? this.facetValue),
+      shuffleEnabled: shuffleEnabled ?? this.shuffleEnabled,
     );
   }
+
+  bool get isSearching => search.isNotEmpty;
 }
 
 class JukeboxUiController extends Notifier<JukeboxUiState> {
@@ -45,19 +51,30 @@ class JukeboxUiController extends Notifier<JukeboxUiState> {
   }
 
   void setTab(String tab) {
-    // Cambiar tab limpia selección de juego/facet (como _pickTab)
-    state = JukeboxUiState(tab: tab, search: state.search);
+    // Cambiar tab limpia selección de juego/facet y borra búsqueda
+    // (prima Biblioteca sobre búsqueda, como se acordó).
+    state = JukeboxUiState(tab: tab, search: '');
   }
 
   void setSearch(String search) => state = state.copyWith(search: search);
 
-  void selectGame(int id, String name) => state = state.copyWith(selGameId: id, selGameName: name, clearFacet: true);
+  void selectGame(int id, String name) =>
+      state = state.copyWith(
+        tab: 'games',
+        selGameId: id,
+        selGameName: name,
+        clearFacet: true,
+        search: '',
+      );
 
-  void selectFacet(String value) => state = state.copyWith(facetValue: value, clearGame: true);
+  void selectFacet(String value) =>
+      state = state.copyWith(facetValue: value, clearGame: true, search: '');
 
   void clearGame() => state = state.copyWith(clearGame: true);
 
   void clearFacet() => state = state.copyWith(clearFacet: true);
+
+  void toggleShuffle() => state = state.copyWith(shuffleEnabled: !state.shuffleEnabled);
 }
 
 final jukeboxUiProvider = NotifierProvider<JukeboxUiController, JukeboxUiState>(JukeboxUiController.new);

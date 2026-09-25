@@ -96,6 +96,18 @@ final jukeboxGamesProvider =
       return repo.getMusicGames(search: search.isEmpty ? null : search);
     });
 
+/// Juegos recientes para la card `Recientes` dentro de Biblioteca: sin
+/// filtro de búsqueda, para no contaminar con el texto del buscador.
+final jukeboxRecentGamesProvider = FutureProvider<List<MusicGameEntry>>((
+  ref,
+) async {
+  final repo = ref.watch(rommRepositoryProvider);
+  if (repo == null) return [];
+  // Sin `search`: lista estable para la card Recientes en Biblioteca.
+  // Si el BE expone orden por fecha, se puede pasar orderBy aquí.
+  return repo.getMusicGames(limit: 12);
+});
+
 /// Facet de tags (`GET /api/music/artists|albums|genres|years`).
 /// [field] es el segmento de la ruta.
 final jukeboxFacetProvider =
@@ -131,6 +143,26 @@ final jukeboxTracksProvider =
                   : 'title',
               limit: 300,
             );
+      // Orden por número de fichero/título para álbum/juego, como en
+      // `RommRepository.getSoundtrackTracks` y `ost-sort-filename-number.md`:
+      // numeradas primero por `sortNumber` (desempate alfabético), no numeradas
+      // después por `displayName`. Solo para vistas por álbum (y por juego si
+      // viniera vía `album`/`artist`); búsqueda/favoritas mantienen orden servidor.
+      if (query.album != null && query.album!.isNotEmpty) {
+        items.sort((a, b) {
+          final an = a.sortNumber;
+          final bn = b.sortNumber;
+          if (an != null && bn != null) {
+            final byNum = an.compareTo(bn);
+            if (byNum != 0) return byNum;
+          } else if (an != null) {
+            return -1;
+          } else if (bn != null) {
+            return 1;
+          }
+          return a.displayName.toLowerCase().compareTo(b.displayName.toLowerCase());
+        });
+      }
       // Las pistas no traen cover: se mapea la portada del juego dueño
       // (`cover_url` de GET /api/music/games) por `rom_id`.
       Map<int, String> covers = const {};

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fynitiv/core/widgets/marquee_text.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -8,8 +9,11 @@ import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/constants/ui_constants.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/horizontal_scroll_behavior.dart';
 import '../../../core/widgets/library_page_header.dart';
+import '../../music/application/audio_eq_provider.dart';
 import '../../music/application/soloud_music_provider.dart';
+import '../../music/presentation/widgets/audio_eq_drawer.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/jukebox_providers.dart';
 import '../application/jukebox_ui_state.dart';
@@ -33,16 +37,6 @@ class JukeboxScreen extends ConsumerStatefulWidget {
 }
 
 class _JukeboxScreenState extends ConsumerState<JukeboxScreen> {
-  static const _tabs = [
-    'games',
-    'artists',
-    'albums',
-    'genres',
-    'years',
-    'platforms',
-    'favorites',
-  ];
-
   final TextEditingController _searchController = TextEditingController();
   Timer? _debounce;
 
@@ -74,6 +68,8 @@ class _JukeboxScreenState extends ConsumerState<JukeboxScreen> {
     final cur = ref.read(jukeboxUiProvider).tab;
     if (cur == tab) return;
     ref.read(jukeboxUiProvider.notifier).setTab(tab);
+    // Prima Biblioteca: borra texto del buscador si lo había.
+    if (_searchController.text.isNotEmpty) _searchController.clear();
   }
 
   Future<void> _playTracks(List<GameOstTrack> tracks, int index) async {
@@ -260,6 +256,79 @@ class _JukeboxScreenState extends ConsumerState<JukeboxScreen> {
         );
   }
 
+  void _handlePickTab(String tab) {
+    _pickTab(tab);
+    // Ya borra texto en _pickTab, pero asegura estado limpio
+  }
+
+  void _handleSelectGame(MusicGameEntry g) {
+    ref.read(jukeboxUiProvider.notifier).selectGame(g.romId, g.name);
+    if (_searchController.text.isNotEmpty) _searchController.clear();
+    unawaited(_autoPlayGame(g));
+  }
+
+  void _handleSelectFacet(String v) {
+    final tab = ref.read(jukeboxUiProvider).tab;
+    ref.read(jukeboxUiProvider.notifier).selectFacet(v);
+    if (_searchController.text.isNotEmpty) _searchController.clear();
+    unawaited(_autoPlayFacet(tab, v));
+  }
+
+  Future<void> _autoPlayGame(MusicGameEntry g) async {
+    final shuffle = ref.read(jukeboxUiProvider).shuffleEnabled;
+    final repo = ref.read(rommRepositoryProvider);
+    if (repo == null) return;
+    try {
+      final tracks = await ref.read(ostTracksProvider(g.romId).future);
+      if (tracks.isEmpty || !mounted) return;
+      await ref
+          .read(soloudMusicProvider.notifier)
+          .playOstQueue(
+            tracks: tracks,
+            serverUrl: repo.serverUrl,
+            authToken: repo.token,
+            shuffle: shuffle,
+          );
+    } catch (_) {}
+  }
+
+  Future<void> _autoPlayFacet(String tab, String v) async {
+    final shuffle = ref.read(jukeboxUiProvider).shuffleEnabled;
+    final repo = ref.read(rommRepositoryProvider);
+    if (repo == null) return;
+    JukeboxTracksQuery? q;
+    if (tab == 'platforms') {
+      try {
+        final facet = await ref.read(jukeboxFacetProvider('platforms').future);
+        final entry = facet.where((e) => e.value == v).firstOrNull;
+        if (entry?.platformId != null) {
+          q = JukeboxTracksQuery(platformIds: [entry!.platformId!]);
+        }
+      } catch (_) {}
+    } else {
+      q = switch (tab) {
+        'artists' => JukeboxTracksQuery(artist: v),
+        'albums' => JukeboxTracksQuery(album: v),
+        'genres' => JukeboxTracksQuery(genre: v),
+        'years' => JukeboxTracksQuery(year: int.tryParse(v)),
+        _ => null,
+      };
+    }
+    if (q == null) return;
+    try {
+      final tracks = await ref.read(jukeboxTracksProvider(q).future);
+      if (tracks.isEmpty || !mounted) return;
+      await ref
+          .read(soloudMusicProvider.notifier)
+          .playOstQueue(
+            tracks: tracks,
+            serverUrl: repo.serverUrl,
+            authToken: repo.token,
+            shuffle: shuffle,
+          );
+    } catch (_) {}
+  }
+
   JukeboxTracksQuery? get _tracksQuery {
     final ui = ref.read(jukeboxUiProvider);
     final tab = ui.tab;
@@ -293,140 +362,151 @@ class _JukeboxScreenState extends ConsumerState<JukeboxScreen> {
     final ui = ref.watch(jukeboxUiProvider);
     final skin = ref.watch(skinControllerProvider).value;
     final topPadding = libraryPageTopPadding(context, skin);
+    // Sincroniza el campo de búsqueda si el provider borró el texto (prima Biblioteca).
+    ref.listen(jukeboxUiProvider, (prev, next) {
+      if (prev?.search != next.search &&
+          next.search.isEmpty &&
+          _searchController.text.isNotEmpty) {
+        _searchController.clear();
+      } else if (next.search.isNotEmpty &&
+          _searchController.text != next.search) {
+        _searchController.text = next.search;
+        _searchController.selection = TextSelection.fromPosition(
+          TextPosition(offset: _searchController.text.length),
+        );
+      }
+    });
 
+    final eqOpen = ref.watch(eqDrawerOpenProvider);
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 900;
         return Scaffold(
           backgroundColor: Colors.transparent,
-          body: GameVideoBackground(
-            child: SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16, topPadding + 8, 16, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _JukeboxTopHeader(
-                      searchController: _searchController,
-                      onSearchChanged: _onSearchChanged,
-                      onBack: () => context.pop(),
-                    ),
-                    const SizedBox(height: 12),
-                    _TabChips(tab: ui.tab, onPick: _pickTab),
-                    const SizedBox(height: 12),
-                    Expanded(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Izquierda: 3 secciones apiladas como en foto
-                          Expanded(
-                            child: wide
-                                ? SingleChildScrollView(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        _Section(
-                                          icon: Icons.gamepad_rounded,
-                                          title: AppLocalizations.of(
-                                            context,
-                                          )!.jukeboxMixes,
-                                          actionLabel: 'Ver todo',
-                                          onAction: () {},
-                                          child: _MixesRow(
-                                            onFreeRadio: () =>
-                                                unawaited(_playFreeRadio()),
-                                            onDecades: () =>
-                                                unawaited(_openDecades()),
-                                            onRecent: () =>
-                                                unawaited(_playRecentlyAdded()),
-                                            onFavorites: () =>
-                                                unawaited(_playFavorites()),
-                                          ),
+          body: Stack(
+            children: [
+              GameVideoBackground(
+                child: SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, topPadding + 8, 16, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _JukeboxTopHeader(
+                          searchController: _searchController,
+                          onSearchChanged: _onSearchChanged,
+                          onBack: () => context.pop(),
+                        ),
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Izquierda: Listas + Biblioteca + Resultados
+                              Expanded(
+                                child: wide
+                                    ? SingleChildScrollView(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.stretch,
+                                          children: [
+                                            _Section(
+                                              icon: Icons.gamepad_rounded,
+                                              title: AppLocalizations.of(
+                                                context,
+                                              )!.jukeboxMixes,
+                                              child: _MixesRow(
+                                                onFreeRadio: () =>
+                                                    unawaited(_playFreeRadio()),
+                                                onDecades: () =>
+                                                    unawaited(_openDecades()),
+                                                onRecent: () => unawaited(
+                                                  _playRecentlyAdded(),
+                                                ),
+                                                onFavorites: () =>
+                                                    unawaited(_playFavorites()),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            _Section(
+                                              icon: Icons.library_music_rounded,
+                                              title: AppLocalizations.of(
+                                                context,
+                                              )!.jukeboxLibrary,
+                                              child: _LibraryRow(
+                                                onPlayAll: () =>
+                                                    unawaited(_shuffleAll()),
+                                                onPick: _handlePickTab,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 12),
+                                            _ResultadosSection(
+                                              search: ui.search,
+                                              tab: ui.tab,
+                                              facetValue: ui.facetValue,
+                                              onPickGame: _handleSelectGame,
+                                              onPickFacet: _handleSelectFacet,
+                                            ),
+                                          ],
                                         ),
-                                        const SizedBox(height: 12),
-                                        _Section(
-                                          icon: Icons.library_music_rounded,
-                                          title: AppLocalizations.of(
-                                            context,
-                                          )!.jukeboxLibrary,
-                                          actionLabel: 'Ver todo',
-                                          onAction: () {},
-                                          child: _LibraryRow(
-                                            onPlayAll: () =>
-                                                unawaited(_shuffleAll()),
-                                            onPick: _pickTab,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        _RecientesSection(
-                                          search: ui.search,
-                                          onPlayGame: (g) {
-                                            ref
-                                                .read(
-                                                  jukeboxUiProvider.notifier,
-                                                )
-                                                .selectGame(g.romId, g.name);
-                                            ref
-                                                .read(
-                                                  jukeboxUiProvider.notifier,
-                                                )
-                                                .setTab('games');
-                                          },
-                                        ),
-                                        const SizedBox(height: 12),
-                                        // Cuando hay selección (juego/facet) mostramos el listado debajo en wide también
-                                        _InlineTrackPane(
-                                          tab: ui.tab,
-                                          selGameId: ui.selGameId,
-                                          facetValue: ui.facetValue,
-                                          search: ui.search,
-                                          selGameName: ui.selGameName,
-                                          onPickGame: (g) => ref
-                                              .read(jukeboxUiProvider.notifier)
-                                              .selectGame(g.romId, g.name),
-                                          onPickFacet: (v) => ref
-                                              .read(jukeboxUiProvider.notifier)
-                                              .selectFacet(v),
-                                          onPlay: _playTracks,
-                                          onClearGame: () => ref
-                                              .read(jukeboxUiProvider.notifier)
-                                              .clearGame(),
-                                          onClearFacet: () => ref
-                                              .read(jukeboxUiProvider.notifier)
-                                              .clearFacet(),
-                                        ),
-                                      ],
-                                    ),
-                                  )
-                                : _narrowPaneContent(),
-                          ),
-                          if (wide) const SizedBox(width: 12),
-                          if (wide)
-                            SizedBox(
-                              width: 340,
-                              child: _RightLateralPanel(
-                                tab: ui.tab,
-                                selGameId: ui.selGameId,
-                                selGameName: ui.selGameName,
-                                facetValue: ui.facetValue,
-                                search: ui.search,
-                                onPlay: _playTracks,
-                                onClearGame: () => ref
-                                    .read(jukeboxUiProvider.notifier)
-                                    .clearGame(),
-                                onClearFacet: () => ref
-                                    .read(jukeboxUiProvider.notifier)
-                                    .clearFacet(),
+                                      )
+                                    : _narrowPaneContent(),
                               ),
-                            ),
-                        ],
-                      ),
+                              if (wide)
+                                SizedBox(
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.02,
+                                ),
+                              if (wide)
+                                SizedBox(
+                                  width:
+                                      MediaQuery.of(context).size.width * 0.3,
+                                  child: _RightLateralPanel(
+                                    tab: ui.tab,
+                                    selGameId: ui.selGameId,
+                                    selGameName: ui.selGameName,
+                                    facetValue: ui.facetValue,
+                                    search: ui.search,
+                                    onPlay: _playTracks,
+                                    onClearGame: () => ref
+                                        .read(jukeboxUiProvider.notifier)
+                                        .clearGame(),
+                                    onClearFacet: () => ref
+                                        .read(jukeboxUiProvider.notifier)
+                                        .clearFacet(),
+                                  ),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
-            ),
+              if (eqOpen)
+                Positioned.fill(
+                  child: Stack(
+                    children: [
+                      GestureDetector(
+                        onTap: () =>
+                            ref.read(eqDrawerOpenProvider.notifier).close(),
+                        child: Container(color: Colors.black54),
+                      ),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: SizedBox(
+                          width: 360,
+                          child: AudioEqDrawer(
+                            onClose: () =>
+                                ref.read(eqDrawerOpenProvider.notifier).close(),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ),
         );
       },
@@ -452,11 +532,8 @@ class _JukeboxScreenState extends ConsumerState<JukeboxScreen> {
               facetValue: ui.facetValue,
               search: ui.search,
               selGameName: ui.selGameName,
-              onPickGame: (g) => ref
-                  .read(jukeboxUiProvider.notifier)
-                  .selectGame(g.romId, g.name),
-              onPickFacet: (v) =>
-                  ref.read(jukeboxUiProvider.notifier).selectFacet(v),
+              onPickGame: (g) => _handleSelectGame(g),
+              onPickFacet: (v) => _handleSelectFacet(v),
               onPlay: _playTracks,
               onClearGame: () =>
                   ref.read(jukeboxUiProvider.notifier).clearGame(),
@@ -474,8 +551,6 @@ class _JukeboxScreenState extends ConsumerState<JukeboxScreen> {
           _Section(
             icon: Icons.gamepad_rounded,
             title: AppLocalizations.of(context)!.jukeboxMixes,
-            actionLabel: 'Ver todo',
-            onAction: () {},
             child: _MixesRow(
               onFreeRadio: () => unawaited(_playFreeRadio()),
               onDecades: () => unawaited(_openDecades()),
@@ -487,20 +562,18 @@ class _JukeboxScreenState extends ConsumerState<JukeboxScreen> {
           _Section(
             icon: Icons.library_music_rounded,
             title: AppLocalizations.of(context)!.jukeboxLibrary,
-            actionLabel: 'Ver todo',
-            onAction: () {},
             child: _LibraryRow(
               onPlayAll: () => unawaited(_shuffleAll()),
-              onPick: _pickTab,
+              onPick: _handlePickTab,
             ),
           ),
           const SizedBox(height: 12),
-          _RecientesSection(
+          _ResultadosSection(
             search: ref.read(jukeboxUiProvider).search,
-            onPlayGame: (g) {
-              ref.read(jukeboxUiProvider.notifier).selectGame(g.romId, g.name);
-              ref.read(jukeboxUiProvider.notifier).setTab('games');
-            },
+            tab: ref.read(jukeboxUiProvider).tab,
+            facetValue: ref.read(jukeboxUiProvider).facetValue,
+            onPickGame: _handleSelectGame,
+            onPickFacet: _handleSelectFacet,
           ),
         ],
       ),
@@ -636,41 +709,46 @@ class _MixesRow extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _JukeboxShortcutCard(
-                icon: Icons.radar_rounded,
-                title: l10n.jukeboxFreeRadio,
-                subtitle: l10n.jukeboxFreeRadioHint,
-                onTap: onFreeRadio,
-                featured: true,
-              ),
-              _JukeboxShortcutCard(
-                icon: Icons.calendar_month_rounded,
-                title: l10n.jukeboxDecadeMix,
-                subtitle: decadesCount == 1
-                    ? l10n.jukeboxDecadeHint
-                    : l10n.jukeboxDecadesHint(decadesCount),
-                onTap: onDecades,
-                featured: true,
-              ),
-              _JukeboxShortcutCard(
-                icon: Icons.schedule_rounded,
-                title: l10n.jukeboxRecentlyAdded,
-                subtitle: l10n.jukeboxRecentlyAddedSub(recentCount),
-                onTap: onRecent,
-                featured: true,
-              ),
-              _JukeboxShortcutCard(
-                icon: Icons.favorite_rounded,
-                title: l10n.jukeboxFavoriteTracks,
-                subtitle: l10n.jukeboxFavoriteSub(favCount),
-                onTap: onFavorites,
-                featured: true,
-              ),
-            ],
+        ScrollConfiguration(
+          behavior: const HorizontalScrollBehavior(),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            clipBehavior: Clip.hardEdge,
+            child: Row(
+              children: [
+                _JukeboxShortcutCard(
+                  icon: Icons.radar_rounded,
+                  title: l10n.jukeboxFreeRadio,
+                  subtitle: l10n.jukeboxFreeRadioHint,
+                  onTap: onFreeRadio,
+                  featured: true,
+                ),
+                _JukeboxShortcutCard(
+                  icon: Icons.calendar_month_rounded,
+                  title: l10n.jukeboxDecadeMix,
+                  subtitle: decadesCount == 1
+                      ? l10n.jukeboxDecadeHint
+                      : l10n.jukeboxDecadesHint(decadesCount),
+                  onTap: onDecades,
+                  featured: true,
+                ),
+                _JukeboxShortcutCard(
+                  icon: Icons.schedule_rounded,
+                  title: l10n.jukeboxRecentlyAdded,
+                  subtitle: l10n.jukeboxRecentlyAddedSub(recentCount),
+                  onTap: onRecent,
+                  featured: true,
+                ),
+                _JukeboxShortcutCard(
+                  icon: Icons.favorite_rounded,
+                  title: l10n.jukeboxFavoriteTracks,
+                  subtitle: l10n.jukeboxFavoriteSub(favCount),
+                  onTap: onFavorites,
+                  featured: true,
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -693,47 +771,79 @@ class _LibraryRow extends ConsumerWidget {
     final artists =
         ref.watch(jukeboxFacetProvider('artists')).value?.length ?? 0;
     final genres = ref.watch(jukeboxFacetProvider('genres')).value?.length ?? 0;
+    final years = ref.watch(jukeboxFacetProvider('years')).value?.length ?? 0;
+    final games =
+        ref.watch(jukeboxRecentGamesProvider).value?.length ??
+        ref.watch(jukeboxGamesProvider('')).value?.length ??
+        0;
+    final recentCount =
+        ref.watch(jukeboxRecentGamesProvider).value?.length ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _JukeboxShortcutCard(
-                icon: Icons.queue_music_rounded,
-                title: l10n.jukeboxPlayAll,
-                subtitle: l10n.jukeboxPlayAllSub(stats?.totalTracks ?? 0),
-                onTap: onPlayAll,
+        FocusTraversalGroup(
+          child: ScrollConfiguration(
+            behavior: const HorizontalScrollBehavior(),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const BouncingScrollPhysics(),
+              clipBehavior: Clip.hardEdge,
+              child: Row(
+                children: [
+                  _JukeboxShortcutCard(
+                    icon: Icons.queue_music_rounded,
+                    title: l10n.jukeboxPlayAll,
+                    subtitle: l10n.jukeboxPlayAllSub(stats?.totalTracks ?? 0),
+                    onTap: onPlayAll,
+                  ),
+                  _JukeboxShortcutCard(
+                    icon: Icons.videogame_asset_rounded,
+                    title: l10n.jukeboxGames,
+                    subtitle: '$games',
+                    onTap: () => onPick('games'),
+                  ),
+                  _JukeboxShortcutCard(
+                    icon: Icons.album_rounded,
+                    title: l10n.jukeboxOstByAlbum,
+                    subtitle: l10n.jukeboxFacetCountAlbums(albums),
+                    onTap: () => onPick('albums'),
+                  ),
+                  _JukeboxShortcutCard(
+                    icon: Icons.sports_esports_rounded,
+                    title: l10n.jukeboxOstByPlatform,
+                    subtitle: platforms == 1
+                        ? l10n.jukeboxFacetCountPlatforms(platforms)
+                        : l10n.jukeboxFacetCountPlatformsPlural(platforms),
+                    onTap: () => onPick('platforms'),
+                  ),
+                  _JukeboxShortcutCard(
+                    icon: Icons.person_rounded,
+                    title: l10n.jukeboxOstByArtist,
+                    subtitle: l10n.jukeboxFacetCountArtists(artists),
+                    onTap: () => onPick('artists'),
+                  ),
+                  _JukeboxShortcutCard(
+                    icon: Icons.category_rounded,
+                    title: l10n.jukeboxOstByGenre,
+                    subtitle: l10n.jukeboxFacetCountGenres(genres),
+                    onTap: () => onPick('genres'),
+                  ),
+                  _JukeboxShortcutCard(
+                    icon: Icons.calendar_today_rounded,
+                    title: l10n.jukeboxYears,
+                    subtitle: '$years',
+                    onTap: () => onPick('years'),
+                  ),
+                  _JukeboxShortcutCard(
+                    icon: Icons.access_time_rounded,
+                    title: l10n.jukeboxRecentlyAdded,
+                    subtitle: recentCount == 0 ? '$games' : '$recentCount',
+                    onTap: () => onPick('games'),
+                  ),
+                ],
               ),
-              _JukeboxShortcutCard(
-                icon: Icons.album_rounded,
-                title: l10n.jukeboxOstByAlbum,
-                subtitle: l10n.jukeboxFacetCountAlbums(albums),
-                onTap: () => onPick('albums'),
-              ),
-              _JukeboxShortcutCard(
-                icon: Icons.sports_esports_rounded,
-                title: l10n.jukeboxOstByPlatform,
-                subtitle: platforms == 1
-                    ? l10n.jukeboxFacetCountPlatforms(platforms)
-                    : l10n.jukeboxFacetCountPlatformsPlural(platforms),
-                onTap: () => onPick('platforms'),
-              ),
-              _JukeboxShortcutCard(
-                icon: Icons.person_rounded,
-                title: l10n.jukeboxOstByArtist,
-                subtitle: l10n.jukeboxFacetCountArtists(artists),
-                onTap: () => onPick('artists'),
-              ),
-              _JukeboxShortcutCard(
-                icon: Icons.category_rounded,
-                title: l10n.jukeboxOstByGenre,
-                subtitle: l10n.jukeboxFacetCountGenres(genres),
-                onTap: () => onPick('genres'),
-              ),
-            ],
+            ),
           ),
         ),
       ],
@@ -972,48 +1082,8 @@ class _SearchField extends StatelessWidget {
   }
 }
 
-class _TabChips extends StatelessWidget {
-  const _TabChips({required this.tab, required this.onPick});
-  final String tab;
-  final ValueChanged<String> onPick;
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final labels = <String, String>{
-      'games': l10n.jukeboxGames,
-      'artists': l10n.jukeboxArtists,
-      'albums': l10n.jukeboxAlbums,
-      'genres': l10n.jukeboxGenres,
-      'years': l10n.jukeboxYears,
-      'platforms': l10n.jukeboxPlatforms,
-      'favorites': l10n.jukeboxFavorites,
-    };
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: [
-          for (final t in _JukeboxScreenState._tabs)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(labels[t]!),
-                selected: tab == t,
-                onSelected: (_) => onPick(t),
-                selectedColor: Colors.white.withValues(alpha: 0.16),
-                backgroundColor: Colors.white.withValues(alpha: 0.06),
-                labelStyle: TextStyle(
-                  color: tab == t ? Colors.white : Colors.white60,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-                side: const BorderSide(color: Colors.white12),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
+// Chips eliminados: navegación ahora vía Biblioteca (_LibraryRow).
+// Se mantiene placeholder por si se reintroduce filtrado rápido.
 
 // ignore: unused_element
 class _LeftPane extends ConsumerWidget {
@@ -1576,18 +1646,19 @@ class _Section extends StatelessWidget {
   const _Section({
     required this.icon,
     required this.title,
-    required this.actionLabel,
-    required this.onAction,
+    this.actionLabel,
+    this.onAction,
     required this.child,
   });
   final IconData icon;
   final String title;
-  final String actionLabel;
-  final VoidCallback onAction;
+  final String? actionLabel;
+  final VoidCallback? onAction;
   final Widget child;
   @override
   Widget build(BuildContext context) {
     return Container(
+      clipBehavior: Clip.antiAlias,
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 12),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.22),
@@ -1609,128 +1680,352 @@ class _Section extends StatelessWidget {
                   fontWeight: FontWeight.w700,
                 ),
               ),
-              const Spacer(),
-              GestureDetector(
-                onTap: onAction,
-                child: Row(
-                  children: [
-                    Text(
-                      actionLabel,
-                      style: const TextStyle(
-                        color: Colors.white54,
-                        fontSize: 11,
+              if (actionLabel != null &&
+                  actionLabel!.isNotEmpty &&
+                  onAction != null) ...[
+                const Spacer(),
+                GestureDetector(
+                  onTap: onAction,
+                  child: Row(
+                    children: [
+                      Text(
+                        actionLabel!,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 11,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.arrow_forward_rounded,
-                      color: Colors.white54,
-                      size: 14,
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.arrow_forward_rounded,
+                        color: Colors.white54,
+                        size: 14,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
           const SizedBox(height: 10),
-          child,
+          ClipRRect(borderRadius: BorderRadius.circular(10), child: child),
         ],
       ),
     );
   }
 }
 
-class _RecientesSection extends ConsumerWidget {
-  const _RecientesSection({required this.search, required this.onPlayGame});
+class _ResultadosSection extends ConsumerWidget {
+  const _ResultadosSection({
+    required this.search,
+    required this.tab,
+    required this.facetValue,
+    required this.onPickGame,
+    required this.onPickFacet,
+  });
   final String search;
-  final ValueChanged<MusicGameEntry> onPlayGame;
+  final String tab;
+  final String? facetValue;
+  final ValueChanged<MusicGameEntry> onPickGame;
+  final ValueChanged<String> onPickFacet;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = ref.watch(jukeboxCardScaleProvider);
-    final gamesAsync = ref.watch(jukeboxGamesProvider(search));
+    final l10n = AppLocalizations.of(context)!;
+
+    // Favoritas solo lateral derecho, nunca en Resultados (aunque haya búsqueda)
+    if (tab == 'favorites') return const SizedBox.shrink();
+
+    // Prioridad Biblioteca: si hay búsqueda activa, muestra resultados de búsqueda
+    // filtrados por search (grid juegos). Si no hay búsqueda, muestra el
+    // facet sin filtrar correspondiente al tab seleccionado en Biblioteca.
+    final isSearching = search.isNotEmpty;
+
+    // Caso búsqueda: resultados filtrados (sin facetValue aún)
+    if (isSearching) {
+      final gamesAsync = ref.watch(jukeboxGamesProvider(search));
+      return _Section(
+        icon: Icons.search_rounded,
+        title: l10n.jukeboxSearchHint,
+        actionLabel: '',
+        onAction: () {},
+        child: gamesAsync.when(
+          loading: () => SizedBox(
+            height: 110 * s,
+            child: Center(child: AppLoader()),
+          ),
+          error: (_, _) => Text(
+            l10n.jukeboxError,
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          data: (list) {
+            if (list.isEmpty) {
+              return Padding(
+                padding: EdgeInsets.symmetric(vertical: 16 * s),
+                child: Text(
+                  l10n.jukeboxNoResults,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+              );
+            }
+            final items = list.take(12).toList();
+            return SizedBox(
+              height: 210 * s,
+              child: ScrollConfiguration(
+                behavior: const HorizontalScrollBehavior(),
+                child: FocusTraversalGroup(
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    clipBehavior: Clip.hardEdge,
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => SizedBox(width: 10 * s),
+                    itemBuilder: (context, i) {
+                      final g = items[i];
+                      return _GameTileWithMarquee(
+                        key: ValueKey(g.name),
+                        game: g,
+                        s: s,
+                        onTap: () => onPickGame(g),
+                        fontWeight: FontWeight.w800,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // Sin búsqueda: muestra facet sin filtrar según tab de Biblioteca
+    // Tab games → grid de juegos sin filtrar; otros tabs → lista de facets
+    if (tab == 'games') {
+      final gamesAsync = ref.watch(jukeboxGamesProvider(''));
+      return _Section(
+        icon: Icons.videogame_asset_rounded,
+        title: l10n.jukeboxGames,
+        actionLabel: '',
+        onAction: () {},
+        child: gamesAsync.when(
+          loading: () => SizedBox(
+            height: 110 * s,
+            child: Center(child: AppLoader()),
+          ),
+          error: (_, _) => Text(
+            l10n.jukeboxError,
+            style: const TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          data: (list) {
+            if (list.isEmpty) {
+              return Padding(
+                padding: EdgeInsets.symmetric(vertical: 16 * s),
+                child: Text(
+                  l10n.jukeboxNoResults,
+                  style: const TextStyle(color: Colors.white54, fontSize: 13),
+                ),
+              );
+            }
+            final items = list.take(12).toList();
+            return SizedBox(
+              height: 210 * s,
+              child: ScrollConfiguration(
+                behavior: const HorizontalScrollBehavior(),
+                child: FocusTraversalGroup(
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    clipBehavior: Clip.hardEdge,
+                    itemCount: items.length,
+                    separatorBuilder: (_, _) => SizedBox(width: 10 * s),
+                    itemBuilder: (context, i) {
+                      final g = items[i];
+                      return _GameTileWithMarquee(
+                        key: ValueKey(g.name),
+                        game: g,
+                        s: s,
+                        onTap: () => onPickGame(g),
+                        fontWeight: FontWeight.w600,
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    }
+
+    // Facet sin filtrar (artists/albums/genres/years/platforms)
+    final facetAsync = ref.watch(jukeboxFacetProvider(tab));
+    final title = switch (tab) {
+      'artists' => l10n.jukeboxArtists,
+      'albums' => l10n.jukeboxAlbums,
+      'genres' => l10n.jukeboxGenres,
+      'years' => l10n.jukeboxYears,
+      'platforms' => l10n.jukeboxPlatforms,
+      _ => tab,
+    };
     return _Section(
-      icon: Icons.access_time_rounded,
-      title: 'Recientes',
-      actionLabel: 'Ver todo',
+      icon: Icons.list_rounded,
+      title: title,
+      actionLabel: '',
       onAction: () {},
-      child: gamesAsync.when(
+      child: facetAsync.when(
         loading: () => SizedBox(
           height: 110 * s,
           child: Center(child: AppLoader()),
         ),
-        error: (_, _) => const SizedBox.shrink(),
+        error: (_, _) => Text(
+          l10n.jukeboxError,
+          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        ),
         data: (list) {
-          if (list.isEmpty) return const SizedBox.shrink();
-          final items = list.take(6).toList();
+          if (list.isEmpty) {
+            return Padding(
+              padding: EdgeInsets.symmetric(vertical: 16 * s),
+              child: Text(
+                l10n.jukeboxNoResults,
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            );
+          }
           return SizedBox(
-            height: 116 * s,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              itemCount: items.length,
-              separatorBuilder: (_, _) => SizedBox(width: 10 * s),
-              itemBuilder: (context, i) {
-                final g = items[i];
-                return AppHover(
-                  effect: AppHoverEffect.highlightWithScale,
-                  config: AppHoverConfig(
-                    scale: 1.04,
-                    borderRadius: BorderRadius.circular(10 * s),
-                  ),
-                  onTap: () => onPlayGame(g),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10 * s),
-                    child: Container(
-                      width: 160 * s,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white12),
+            height: 140 * s,
+            child: ScrollConfiguration(
+              behavior: const HorizontalScrollBehavior(),
+              child: FocusTraversalGroup(
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  clipBehavior: Clip.hardEdge,
+                  itemCount: list.length,
+                  separatorBuilder: (_, _) => SizedBox(width: 10 * s),
+                  itemBuilder: (context, i) {
+                    final v = list[i];
+                    final selected = v.value == facetValue;
+                    return AppHover(
+                      effect: AppHoverEffect.highlightWithScale,
+                      config: AppHoverConfig(
+                        scale: 1.04,
+                        borderRadius: BorderRadius.circular(10 * s),
                       ),
-                      child: Stack(
-                        fit: StackFit.expand,
-                        children: [
-                          if (g.coverUrl != null && g.coverUrl!.isNotEmpty)
-                            Image.network(
-                              g.coverUrl!,
-                              fit: BoxFit.cover,
-                              errorBuilder: (_, _, _) =>
-                                  Container(color: Colors.white10),
-                            )
-                          else
-                            Container(
-                              color: Colors.white10,
-                              child: const Icon(
-                                Icons.videogame_asset_rounded,
-                                color: Colors.white24,
+                      onTap: () => onPickFacet(v.value),
+                      child: Container(
+                        width: 160 * s,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? Colors.white.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(10 * s),
+                          border: Border.all(
+                            color: selected ? Colors.white38 : Colors.white12,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              v.value.isEmpty ? '—' : v.value,
+                              maxLines: 2,
+                              textAlign: TextAlign.center,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                          if (i == items.length - 1)
-                            Positioned(
-                              right: 6,
-                              top: 0,
-                              bottom: 0,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.all(4),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  child: const Icon(
-                                    Icons.chevron_right_rounded,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                ),
+                            const SizedBox(height: 6),
+                            Text(
+                              '${v.count}',
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 12,
                               ),
                             ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _GameTileWithMarquee extends StatefulWidget {
+  const _GameTileWithMarquee({
+    super.key,
+    required this.game,
+    required this.s,
+    required this.onTap,
+    this.fontWeight = FontWeight.w800,
+  });
+  final MusicGameEntry game;
+  final double s;
+  final VoidCallback onTap;
+  final FontWeight fontWeight;
+  @override
+  State<_GameTileWithMarquee> createState() => _GameTileWithMarqueeState();
+}
+
+class _GameTileWithMarqueeState extends State<_GameTileWithMarquee> {
+  bool _hovered = false;
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: AppHover(
+        effect: AppHoverEffect.highlightWithScale,
+        config: AppHoverConfig(scale: 1.04, borderRadius: BorderRadius.circular(10 * widget.s)),
+        onTap: widget.onTap,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10 * widget.s),
+          child: Container(
+            width: 160 * widget.s,
+            decoration: BoxDecoration(border: Border.all(color: Colors.white12)),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                if (widget.game.coverUrl != null && widget.game.coverUrl!.isNotEmpty)
+                  Image.network(widget.game.coverUrl!, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(color: Colors.white10))
+                else
+                  Container(color: Colors.white10, child: const Icon(Icons.videogame_asset_rounded, color: Colors.white24)),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    color: Colors.black54,
+                    child: MarqueeText(
+                      text: widget.game.name,
+                      style: TextStyle(color: Colors.white, fontSize: 11 * widget.s, fontWeight: widget.fontWeight),
+                      isHovered: _hovered,
+                      enabled: true,
+                      velocity: 28,
+                      gap: 36,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

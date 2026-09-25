@@ -100,7 +100,7 @@ class MiniPlayerBar extends ConsumerWidget {
     final coverSize = 48 * s;
     final iconMain = 32 * s;
     final iconSmall = 22 * s;
-    final iconStop = 20 * s;
+    final iconStop = 32 * s;
     final padH = 8 * s;
     final gapSmall = 6 * s;
     final gapMed = 10 * s;

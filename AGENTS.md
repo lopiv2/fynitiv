@@ -35,6 +35,10 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 
 - Debes utilizar metodos de la api del paquete jellyfin_dart con funciones para obtener datos de la api de Jellyfin cuando se pueda, para agilizar las llamadas a la api, y la obtencion de datos
 
+## Nunca hagas checkout de una version anterior sin preguntarme
+
+- No quiero que vuelvas a una version anterior de codigo de Github haciendo checkout sin preguntarme antes. Podriamos romper algo que ya funciona
+
 ## Corrige los problemas siempre que puedas antes de tu respuesta final
 
 - Debes corregir los problemas de consola siempre que puedas antes de dar tu respuesta final
