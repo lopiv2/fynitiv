@@ -119,9 +119,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   bool _audioRestored = false;
 
   /// Pistas de audio de mpv (sin auto/no).
-  List<AudioTrack> get _mpvAudioTracks => _tracks.audio
-      .where((t) => t.id != 'auto' && t.id != 'no')
-      .toList();
+  List<AudioTrack> get _mpvAudioTracks =>
+      _tracks.audio.where((t) => t.id != 'auto' && t.id != 'no').toList();
 
   /// Audios de Jellyfin en el mismo orden (para etiquetas y persistencia).
   List<MediaStream> get _jellyAudio =>
@@ -132,6 +131,33 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   static String _audioPrefKey(String itemId) => 'audio_track_index_$itemId';
   bool _dragging = false;
   bool _fullscreen = false;
+
+  /// Trick-play estilo Amazon: `>>` avanza a velocidad real 2x→4x→…→64x
+  /// (`setRate`); `<<` emula la reversa (mpv no acepta rate ≤ 0) pausando y
+  /// haciendo seek atrás periódico. Audio silenciado durante el modo.
+  static const List<double> _trickSpeeds = [2, 4, 8, 16, 32, 64];
+  static const Duration _trickTick = Duration(milliseconds: 250);
+
+  /// 0 = normal, -1 = rebobinando, +1 = avanzando.
+  int _trickDir = 0;
+  int _trickLevel = 0;
+  Timer? _trickTimer;
+
+  /// Volumen a restaurar al salir del modo (se mutea durante el trick-play).
+  double _savedVolume = 100;
+
+  /// Si estaba reproduciendo al entrar (para reanudar al salir con play).
+  bool _trickResumePlaying = false;
+
+  bool get _inTrickPlay => _trickDir != 0;
+
+  double get _trickSpeed =>
+      _trickSpeeds[_trickLevel.clamp(0, _trickSpeeds.length - 1)];
+
+  /// Insignia persistente del modo (`2x`…`64x` / `-2x`…`-64x`).
+  String? get _trickBadge => !_inTrickPlay
+      ? null
+      : '${_trickDir < 0 ? '-' : ''}${_trickSpeed.toInt()}x';
 
   PlaybackSession get _session => widget.session;
 
@@ -249,6 +275,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     _subs.add(
       _player.stream.completed.listen((c) {
         if (!mounted) return;
+        // Llegar al final a toda velocidad sale del trick-play (el replay
+        // posterior debe ir a 1x y con volumen).
+        if (c) _exitTrickPlay();
         setState(() {
           _completed = c;
           if (c) {
@@ -328,6 +357,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
+    _exitTrickPlay();
     for (final sub in _subs) {
       sub.cancel();
     }
@@ -545,6 +575,17 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   void _togglePlay() {
     if (_error) return;
+    // En trick-play, el botón central sale del modo y reanuda a 1x
+    // (no alterna a pausa).
+    if (_inTrickPlay) {
+      final resume = _trickResumePlaying;
+      if (!_isAudio && _completed) _completed = false;
+      _exitTrickPlay();
+      if (resume && !_isAudio) _player.play();
+      _showControls();
+      if (mounted) setState(() {});
+      return;
+    }
     if (_isAudio) {
       final s = ref.read(soloudMusicProvider);
       if (s.completed) {
@@ -574,12 +615,93 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       _showControls();
       return;
     }
+    // Las flechas del teclado salen del trick-play antes del salto.
+    _exitTrickPlay();
     var ms = (_position + delta).inMilliseconds;
     if (ms < 0) ms = 0;
     if (_duration.inMilliseconds > 0 && ms > _duration.inMilliseconds) {
       ms = _duration.inMilliseconds;
     }
     _player.seek(Duration(milliseconds: ms));
+    // Refresca la insignia al salir del modo (en reversa no hay ticks).
+    if (mounted) setState(() {});
+  }
+
+  /// Toque en `<<` / `>>` del transporte (solo vídeo): entra o sube de nivel
+  /// en el trick-play (2x→4x→…→64x, tope fijo). `dir` es -1 (atrás) o +1.
+  void _ffPress(int dir) {
+    if (_isAudio) {
+      _seekBy(const Duration(seconds: 10) * dir);
+      _showControls();
+      return;
+    }
+    // Desde la pantalla de fin, el modo reanuda donde cae (no desde cero).
+    if (_completed) _completed = false;
+    if (_trickDir == dir) {
+      // Subir de nivel hasta el tope (64x se queda).
+      if (_trickLevel < _trickSpeeds.length - 1) _trickLevel++;
+    } else {
+      _exitTrickPlay();
+      _trickDir = dir;
+      _trickLevel = 0;
+      _enterTrickPlay();
+    }
+    _applyTrickLevel();
+    _showControls();
+    if (mounted) setState(() {});
+  }
+
+  void _enterTrickPlay() {
+    _savedVolume = _volume;
+    _trickResumePlaying = _playing;
+    try {
+      _player.setVolume(0);
+    } catch (_) {}
+    if (_trickDir > 0) {
+      _player.play();
+    } else {
+      _player.pause();
+      _trickTimer?.cancel();
+      _trickTimer = Timer.periodic(_trickTick, (_) => _trickRewindTick());
+    }
+  }
+
+  void _applyTrickLevel() {
+    if (_trickDir > 0) {
+      try {
+        unawaited(_player.setRate(_trickSpeed));
+      } catch (_) {}
+    }
+  }
+
+  /// Un tick de la reversa emulada: seek atrás de velocidad × intervalo.
+  void _trickRewindTick() {
+    if (_playerDisposed || !mounted || !_inTrickPlay || _trickDir >= 0) return;
+    final backMs = (_trickSpeed * _trickTick.inMilliseconds).round();
+    final ms = _position.inMilliseconds - backMs;
+    if (ms <= 0) {
+      _player.seek(Duration.zero);
+      _exitTrickPlay();
+      if (mounted) setState(() {});
+      return;
+    }
+    _player.seek(Duration(milliseconds: ms));
+  }
+
+  /// Sale del trick-play restaurando velocidad 1x y volumen. Sin setState:
+  /// lo hace quien llama.
+  void _exitTrickPlay() {
+    if (!_inTrickPlay) return;
+    _trickTimer?.cancel();
+    _trickTimer = null;
+    _trickDir = 0;
+    _trickLevel = 0;
+    try {
+      _player.setRate(1.0);
+    } catch (_) {}
+    try {
+      _player.setVolume(_savedVolume);
+    } catch (_) {}
   }
 
   void _onSliderChanged(double seconds) {
@@ -591,6 +713,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       });
       return;
     }
+    // El seek manual sale del trick-play antes de moverse.
+    _exitTrickPlay();
     setState(() {
       _dragging = true;
       _position = Duration(milliseconds: (seconds * 1000).round());
@@ -604,6 +728,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       if (mounted) setState(() => _dragging = false);
       return;
     }
+    _exitTrickPlay();
     _player.seek(target);
     if (mounted) setState(() => _dragging = false);
   }
@@ -953,8 +1078,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         (_session.mediaSource?.mediaStreams ?? const <MediaStream>[])
             .where((s) => s.type == MediaStreamType.subtitle)
             .toList();
-    final embeddedSubMeta =
-        jellySubs.where((s) => s.isExternal != true).toList();
+    final embeddedSubMeta = jellySubs
+        .where((s) => s.isExternal != true)
+        .toList();
     final externalSubMeta = jellySubs.where((s) {
       final d = s.deliveryUrl;
       return d != null && d.isNotEmpty;
@@ -974,6 +1100,32 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     final displayPos = (_isAudio && hasSoloud && _dragging)
         ? _position
         : effPosition;
+
+    // Logo del material (película o serie del episodio vía parentLogoItemId),
+    // con respaldo al detalle completo porque el item de navegación puede
+    // venir sin etiquetas de imagen.
+    final detailItem =
+        ref.watch(itemDetailProvider(_session.itemId)).value ?? widget.item;
+    final logoUrl = detailItem != null
+        ? itemLogoUrl(_session.serverUrl, detailItem)
+        : null;
+
+    // Hora estimada de fin (ahora + restante), junto al transporte.
+    // Sin valor durante el trick-play (el cálculo no vale a velocidad ≠ 1x).
+    String? endsAtLabel;
+    final remaining = effDuration - displayPos;
+    if (!_inTrickPlay &&
+        effDuration.inMilliseconds > 0 &&
+        remaining.inMilliseconds > 0) {
+      final endsAt = DateTime.now().add(remaining);
+      final formatted = MaterialLocalizations.of(
+        context,
+      ).formatTimeOfDay(TimeOfDay.fromDateTime(endsAt));
+      endsAtLabel = l10n.endsAtHour(formatted);
+    }
+
+    // Insignia persistente del trick-play (`2x`…`64x` / `-2x`…`-64x`).
+    final ffBadge = _trickBadge;
 
     return Stack(
       fit: StackFit.expand,
@@ -1004,16 +1156,19 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: logoUrl != null
+                          ? Align(
+                              alignment: Alignment.centerLeft,
+                              child: Image.network(
+                                logoUrl,
+                                height: 86,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.centerLeft,
+                                errorBuilder: (_, _, _) =>
+                                    _PlayerTitleText(title: title),
+                              ),
+                            )
+                          : _PlayerTitleText(title: title),
                     ),
                   ],
                 ),
@@ -1093,19 +1248,82 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                     Row(
                       children: [
                         IconButton(
-                          tooltip: effPlaying ? l10n.pause : l10n.play,
-                          icon: Icon(
-                            effPlaying
-                                ? Icons.pause_rounded
-                                : Icons.play_arrow_rounded,
+                          tooltip: l10n.rewind,
+                          icon: const Icon(
+                            Icons.fast_rewind_rounded,
                             color: Colors.white,
-                            size: 32,
+                            size: 28,
                           ),
-                          onPressed: _togglePlay,
+                          onPressed: () => _ffPress(-1),
                         ),
-                        _VolumeButton(
+                        Stack(
+                          alignment: Alignment.topRight,
+                          children: [
+                            IconButton(
+                              tooltip: effPlaying ? l10n.pause : l10n.play,
+                              icon: Icon(
+                                effPlaying
+                                    ? Icons.pause_rounded
+                                    : Icons.play_arrow_rounded,
+                                color: Colors.white,
+                                size: 32,
+                              ),
+                              onPressed: _togglePlay,
+                            ),
+                            if (ffBadge != null)
+                              Positioned(
+                                top: 2,
+                                right: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 5,
+                                    vertical: 1,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    ffBadge,
+                                    style: const TextStyle(
+                                      color: Colors.black,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        IconButton(
+                          tooltip: l10n.fastForward,
+                          icon: const Icon(
+                            Icons.fast_forward_rounded,
+                            color: Colors.white,
+                            size: 28,
+                          ),
+                          onPressed: () => _ffPress(1),
+                        ),
+                        if (endsAtLabel != null) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            endsAtLabel,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        _InlineVolume(
                           volume: effVolume,
+                          width: 140,
                           onChanged: (v) {
+                            // Tocar el volumen sale del trick-play (el modo
+                            // lo tenía muteado; el gesto devuelve audio real).
+                            _exitTrickPlay();
                             if (_isAudio && hasSoloud) {
                               ref
                                   .read(soloudMusicProvider.notifier)
@@ -1121,7 +1339,6 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                             }
                           },
                         ),
-                        const Spacer(),
                         if (hasSubtitles) ...[
                           _SubtitleButton(
                             tracks: _tracks,
@@ -1233,6 +1450,27 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     final m = d.inMinutes.remainder(60);
     final s = d.inSeconds.remainder(60);
     return h > 0 ? '${two(h)}:${two(m)}:${two(s)}' : '${two(m)}:${two(s)}';
+  }
+}
+
+/// Título del material en la barra superior (fallback cuando no hay logo).
+class _PlayerTitleText extends StatelessWidget {
+  const _PlayerTitleText({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
+    );
   }
 }
 
@@ -1966,11 +2204,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       onTap: widget.onSkipForward,
                     ),
                     const SizedBox(width: 10),
-                    _CoverDarkButton(
-                      customChild: _VolumeButton(
-                        volume: widget.volume,
-                        onChanged: widget.onVolumeChanged ?? (_) {},
-                      ),
+                    _CoverVolumeSlider(
+                      volume: widget.volume,
+                      onChanged: widget.onVolumeChanged ?? (_) {},
                     ),
                     const Spacer(),
                     AutoEqToggleButton(genres: widget.genres),
@@ -2214,11 +2450,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       onTap: widget.onSkipForward,
                     ),
                     const SizedBox(width: 10),
-                    _CoverDarkButton(
-                      customChild: _VolumeButton(
-                        volume: widget.volume,
-                        onChanged: widget.onVolumeChanged ?? (_) {},
-                      ),
+                    _CoverVolumeSlider(
+                      volume: widget.volume,
+                      onChanged: widget.onVolumeChanged ?? (_) {},
                     ),
                     const Spacer(),
                     AutoEqToggleButton(genres: widget.genres),
@@ -2581,11 +2815,9 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                       onTap: widget.onSkipForward,
                     ),
                     const SizedBox(width: 10),
-                    _CoverDarkButton(
-                      customChild: _VolumeButton(
-                        volume: widget.volume,
-                        onChanged: widget.onVolumeChanged ?? (_) {},
-                      ),
+                    _CoverVolumeSlider(
+                      volume: widget.volume,
+                      onChanged: widget.onVolumeChanged ?? (_) {},
                     ),
                     const Spacer(),
                     AutoEqToggleButton(genres: widget.genres),
@@ -2611,22 +2843,19 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
   }
 }
 
-/// Botón cuadrado oscuro del modo portada (atrás, prev/next, volumen).
+/// Botón cuadrado oscuro del modo portada (atrás, prev/next, ecualizador).
 class _CoverDarkButton extends StatelessWidget {
-  const _CoverDarkButton({this.icon, this.customChild, this.onTap});
+  const _CoverDarkButton({this.icon, this.onTap});
 
   final IconData? icon;
-  final Widget? customChild;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final content =
-        customChild ??
-        IconButton(
-          icon: Icon(icon, color: Colors.white, size: 26),
-          onPressed: onTap,
-        );
+    final content = IconButton(
+      icon: Icon(icon, color: Colors.white, size: 26),
+      onPressed: onTap,
+    );
     return Container(
       width: 50,
       height: 50,
@@ -4541,89 +4770,95 @@ class _BigButton extends StatelessWidget {
   }
 }
 
-/// Botón de volumen con deslizador desplegable.
-/// Usa [StatefulBuilder] dentro del [PopupMenuItem] para que el arrastre del
-/// [Slider] se refleje en el propio overlay (el menú es una ruta aparte y no
-/// se reconstruye con el padre). Sin esto el thumb parece "no reaccionar".
-class _VolumeButton extends StatefulWidget {
-  const _VolumeButton({required this.volume, required this.onChanged});
+/// Icono de volumen según el nivel (compartido por el slider en línea).
+IconData _volumeIconFor(double v) {
+  if (v <= 0) return Icons.volume_off_rounded;
+  if (v < 50) return Icons.volume_down_rounded;
+  return Icons.volume_up_rounded;
+}
+
+/// Control de volumen en línea: icono + deslizador directo en la barra,
+/// sin diálogo popup (más fácil y visual). El [Slider] es enfocable para
+/// el modo TV: con el foco en él, ←/→ ajustan el volumen.
+class _InlineVolume extends StatelessWidget {
+  const _InlineVolume({
+    required this.volume,
+    required this.onChanged,
+    this.width = 140,
+  });
+
+  final double volume;
+  final ValueChanged<double> onChanged;
+
+  /// Ancho total del control (icono + slider).
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final current = volume.clamp(0, 100).toDouble();
+    return SizedBox(
+      width: width,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            tooltip: l10n.volume,
+            icon: Icon(_volumeIconFor(current), color: Colors.white, size: 24),
+            onPressed: () => onChanged(current <= 0 ? 100 : 0),
+          ),
+          Expanded(
+            child: Slider(
+              value: current,
+              min: 0,
+              max: 100,
+              activeColor: Colors.white,
+              inactiveColor: Colors.white24,
+              thumbColor: Colors.white,
+              onChanged: onChanged,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Volumen en línea para las filas del modo portada: pastilla oscura ancha
+/// con icono + slider (no cabe en el botón cuadrado de 50px).
+class _CoverVolumeSlider extends StatelessWidget {
+  const _CoverVolumeSlider({required this.volume, required this.onChanged});
 
   final double volume;
   final ValueChanged<double> onChanged;
 
   @override
-  State<_VolumeButton> createState() => _VolumeButtonState();
-}
-
-class _VolumeButtonState extends State<_VolumeButton> {
-  IconData _iconFor(double v) {
-    if (v <= 0) return Icons.volume_off_rounded;
-    if (v < 50) return Icons.volume_down_rounded;
-    return Icons.volume_up_rounded;
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return PopupMenuButton<double>(
-      tooltip: l10n.volume,
-      offset: const Offset(0, -140),
-      color: const Color(0xEE1A1A1A),
-      onSelected: (_) {},
-      // Evita que el menú se cierre al interactuar con el Slider.
-      onCanceled: () {},
-      itemBuilder: (context) {
-        // Valor local mutable para el overlay; se sincroniza con widget.volume.
-        double current = widget.volume.clamp(0, 100);
-        return [
-          PopupMenuItem<double>(
-            enabled: false,
-            // Evita que el InkWell del item intercepte el drag horizontal.
-            child: StatefulBuilder(
-              builder: (context, setMenu) {
-                return SizedBox(
-                  width: 230,
-                  child: Row(
-                    children: [
-                      Icon(_iconFor(current), color: Colors.white, size: 20),
-                      Expanded(
-                        child: Slider(
-                          value: current,
-                          min: 0,
-                          max: 100,
-                          activeColor: Colors.white,
-                          inactiveColor: Colors.white24,
-                          thumbColor: Colors.white,
-                          onChanged: (v) {
-                            setMenu(() => current = v);
-                            widget.onChanged(v);
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      SizedBox(
-                        width: 42,
-                        child: Text(
-                          '${current.round()}%',
-                          textAlign: TextAlign.right,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+    final current = volume.clamp(0, 100).toDouble();
+    return Container(
+      height: 50,
+      width: 170,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+      ),
+      clipBehavior: Clip.antiAlias,
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Row(
+        children: [
+          Icon(_volumeIconFor(current), color: Colors.white, size: 22),
+          Expanded(
+            child: Slider(
+              value: current,
+              min: 0,
+              max: 100,
+              activeColor: Colors.white,
+              inactiveColor: Colors.white24,
+              thumbColor: Colors.white,
+              onChanged: onChanged,
             ),
           ),
-        ];
-      },
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Icon(_iconFor(widget.volume), color: Colors.white),
+        ],
       ),
     );
   }

@@ -157,6 +157,15 @@
   "playbackFailed": "No se pudo iniciar la reproducción.",
   "play": "Reproducir",
   "pause": "Pausar",
+  "rewind": "Rebobinar (x2, x4, hasta x64)",
+  "fastForward": "Adelantar (x2, x4, hasta x64)",
+  "endsAtHour": "Termina a las {time}",
+  "@endsAtHour": {
+    "description": "Hora estimada de fin junto a los controles del reproductor (p. ej. Termina a las 16:58).",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
   "volume": "Volumen",
   "fullscreen": "Pantalla completa",
   "exitFullscreen": "Salir de pantalla completa",

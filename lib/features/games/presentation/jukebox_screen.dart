@@ -1991,30 +1991,53 @@ class _GameTileWithMarqueeState extends State<_GameTileWithMarquee> {
       onExit: (_) => setState(() => _hovered = false),
       child: AppHover(
         effect: AppHoverEffect.highlightWithScale,
-        config: AppHoverConfig(scale: 1.04, borderRadius: BorderRadius.circular(10 * widget.s)),
+        config: AppHoverConfig(
+          scale: 1.04,
+          borderRadius: BorderRadius.circular(10 * widget.s),
+        ),
         onTap: widget.onTap,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(10 * widget.s),
           child: Container(
             width: 160 * widget.s,
-            decoration: BoxDecoration(border: Border.all(color: Colors.white12)),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white12),
+            ),
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (widget.game.coverUrl != null && widget.game.coverUrl!.isNotEmpty)
-                  Image.network(widget.game.coverUrl!, fit: BoxFit.cover, errorBuilder: (_, _, _) => Container(color: Colors.white10))
+                if (widget.game.coverUrl != null &&
+                    widget.game.coverUrl!.isNotEmpty)
+                  Image.network(
+                    widget.game.coverUrl!,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => Container(color: Colors.white10),
+                  )
                 else
-                  Container(color: Colors.white10, child: const Icon(Icons.videogame_asset_rounded, color: Colors.white24)),
+                  Container(
+                    color: Colors.white10,
+                    child: const Icon(
+                      Icons.videogame_asset_rounded,
+                      color: Colors.white24,
+                    ),
+                  ),
                 Positioned(
                   left: 0,
                   right: 0,
                   bottom: 0,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 4,
+                    ),
                     color: Colors.black54,
                     child: MarqueeText(
                       text: widget.game.name,
-                      style: TextStyle(color: Colors.white, fontSize: 11 * widget.s, fontWeight: widget.fontWeight),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 11 * widget.s,
+                        fontWeight: widget.fontWeight,
+                      ),
                       isHovered: _hovered,
                       enabled: true,
                       velocity: 28,

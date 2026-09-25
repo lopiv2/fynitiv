@@ -1040,6 +1040,24 @@ abstract class AppLocalizations {
   /// **'Pause'**
   String get pause;
 
+  /// No description provided for @rewind.
+  ///
+  /// In en, this message translates to:
+  /// **'Rewind (x2, x4, up to x64)'**
+  String get rewind;
+
+  /// No description provided for @fastForward.
+  ///
+  /// In en, this message translates to:
+  /// **'Fast forward (x2, x4, up to x64)'**
+  String get fastForward;
+
+  /// Estimated end time label next to the player transport controls (e.g. Ends at 4:58 PM).
+  ///
+  /// In en, this message translates to:
+  /// **'Ends at {time}'**
+  String endsAtHour(String time);
+
   /// No description provided for @volume.
   ///
   /// In en, this message translates to:

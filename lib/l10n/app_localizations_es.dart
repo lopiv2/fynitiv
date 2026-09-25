@@ -493,6 +493,17 @@ class AppLocalizationsEs extends AppLocalizations {
   String get pause => 'Pausar';
 
   @override
+  String get rewind => 'Rebobinar (x2, x4, hasta x64)';
+
+  @override
+  String get fastForward => 'Adelantar (x2, x4, hasta x64)';
+
+  @override
+  String endsAtHour(String time) {
+    return 'Termina a las $time';
+  }
+
+  @override
   String get volume => 'Volumen';
 
   @override

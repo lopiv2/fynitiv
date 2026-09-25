@@ -160,6 +160,15 @@
   "back": "Back",
   "play": "Play",
   "pause": "Pause",
+  "rewind": "Rewind (x2, x4, up to x64)",
+  "fastForward": "Fast forward (x2, x4, up to x64)",
+  "endsAtHour": "Ends at {time}",
+  "@endsAtHour": {
+    "description": "Estimated end time label next to the player transport controls (e.g. Ends at 4:58 PM).",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
   "volume": "Volume",
   "fullscreen": "Fullscreen",
   "exitFullscreen": "Exit fullscreen",

@@ -189,21 +189,6 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                           },
                         ),
                       ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                        child: Text(
-                          l10n.platformsAndGamesCount(
-                            filtered.length,
-                            filtered.fold<int>(0, (s, p) => s + p.romCount),
-                          ),
-                          style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               );
