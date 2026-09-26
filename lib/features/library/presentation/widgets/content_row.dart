@@ -292,9 +292,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     }
     if (value) {
       _showArrowOverlay();
-      // La hovercard se inserta inmediatamente despues de esta notificacion.
-      // Volver a elevar las flechas al final del frame evita carreras durante
-      // la transicion entre dos tarjetas con hover.
+      // La hovercard se inserta inmediatamente despues de esta notificacion
+      // (con `below:` la entrada de flechas, que ya está por encima).
+      // Refrescar al final del frame evita carreras durante la transicion
+      // entre dos tarjetas con hover.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && _hoveredIndex == index) _showArrowOverlay();
       });
@@ -303,7 +304,18 @@ class _ContentRowState extends ConsumerState<ContentRow> {
 
   void _showArrowOverlay() {
     _arrowHideTimer?.cancel();
-    _arrowOverlay?.remove();
+    // Reutilizar la entrada existente: destruir y recrear el overlay en cada
+    // hover genera churn en el árbol de semántica y el bridge de
+    // accesibilidad de Windows rechaza los updates en cada pasada del ratón
+    // (`Failed to update ui::AXTree ... will not be in the tree`, bug
+    // upstream flutter/flutter#182444). El z-order sobre las hovercards se
+    // mantiene porque esta entrada siempre se inserta antes que cualquier
+    // hovercard (que se inserta con `below:` esta entrada).
+    final existing = _arrowOverlay;
+    if (existing != null) {
+      existing.markNeedsBuild();
+      return;
+    }
     final entry = OverlayEntry(
       builder: (_) {
         final rowBox = _rowKey.currentContext?.findRenderObject() as RenderBox?;
@@ -357,8 +369,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     Overlay.of(context).insert(entry);
   }
 
-  /// Reubica las flechas en la cima antes de que una hovercard se inserte.
-  /// Devuelve la misma entrada que se usara como referencia `below`.
+  /// Devuelve la entrada de flechas para que la hovercard se inserte como
+  /// referencia `below` (las flechas quedan por encima sin recrear nada).
   OverlayEntry? _prepareArrowOverlayForHover() {
     _showArrowOverlay();
     return _arrowOverlay;

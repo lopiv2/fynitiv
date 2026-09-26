@@ -422,6 +422,17 @@ class _AppHoverState extends ConsumerState<AppHover> {
       );
     }
 
-    return wrapped;
+    // Nodo semántico propio por tarjeta: sin él, la config de `Focus` +
+    // `GestureDetector` se fusiona con las tarjetas vecinas dentro de los
+    // scrollables (`IndexedSemantics`/two-pane) y el bridge de accesibilidad
+    // de Windows rechaza el update en cada hover
+    // (`Failed to update ui::AXTree ... will not be in the tree`).
+    // Es la mitigación documentada para el bug upstream flutter/flutter#182444
+    // (abierto, sin fix en ningún release): no cambia roles ni oculta nada,
+    // solo agrupa cada tarjeta bajo su propio nodo.
+    return Semantics(
+      container: true,
+      child: wrapped,
+    );
   }
 }

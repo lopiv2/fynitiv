@@ -23,25 +23,33 @@ class RoundIconButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = scale;
-    return Tooltip(
-      message: tooltip,
-      verticalOffset: 24 * s,
-      child: HoverInvert(
-        builder: (context, hovered) => GestureDetector(
-          onTap: onTap,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            curve: Curves.easeOut,
-            width: 34 * s,
-            height: 34 * s,
-            decoration: BoxDecoration(
-              color: hovered ? Colors.white : Colors.grey.shade600,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: hovered ? Colors.grey.shade800 : Colors.white,
-              size: 20 * s,
+    // Nodo propio para el ancla del Tooltip: los botones del slider van
+    // adyacentes en zona scrolleable y sin nodo propio su config se fusiona
+    // con vecinas → el bridge de accesibilidad de Windows rechaza el update
+    // en cada hover (`Failed to update ui::AXTree ... will not be in the
+    // tree`, bug upstream flutter/flutter#182444). Solo agrupa.
+    return Semantics(
+      container: true,
+      child: Tooltip(
+        message: tooltip,
+        verticalOffset: 24 * s,
+        child: HoverInvert(
+          builder: (context, hovered) => GestureDetector(
+            onTap: onTap,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 150),
+              curve: Curves.easeOut,
+              width: 34 * s,
+              height: 34 * s,
+              decoration: BoxDecoration(
+                color: hovered ? Colors.white : Colors.grey.shade600,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: hovered ? Colors.grey.shade800 : Colors.white,
+                size: 20 * s,
+              ),
             ),
           ),
         ),

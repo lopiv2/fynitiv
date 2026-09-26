@@ -145,7 +145,18 @@ class _GameContentRowState extends ConsumerState<GameContentRow> {
 
   void _showArrowOverlay() {
     _arrowHideTimer?.cancel();
-    _arrowOverlay?.remove();
+    // Reutilizar la entrada existente: destruir y recrear el overlay en cada
+    // hover genera churn en el árbol de semántica y el bridge de
+    // accesibilidad de Windows rechaza los updates en cada pasada del ratón
+    // (`Failed to update ui::AXTree ... will not be in the tree`, bug
+    // upstream flutter/flutter#182444). El z-order sobre las hovercards se
+    // mantiene porque esta entrada siempre se inserta antes que cualquier
+    // hovercard (que se inserta con `below:` esta entrada).
+    final existing = _arrowOverlay;
+    if (existing != null) {
+      existing.markNeedsBuild();
+      return;
+    }
     final entry = OverlayEntry(
       builder: (_) {
         final rowBox = _rowKey.currentContext?.findRenderObject() as RenderBox?;

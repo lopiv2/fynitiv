@@ -281,9 +281,16 @@ class JukeboxHeaderButton extends ConsumerWidget {
       ),
     );
 
-    return Tooltip(
-      message: l10n.jukeboxOpen,
-      child: Stack(
+    // Nodo propio para el ancla del Tooltip: sin él, la config del ancla se
+    // fusiona con las tarjetas vecinas en el scrollable y el bridge de
+    // accesibilidad de Windows rechaza el update en cada hover
+    // (`Failed to update ui::AXTree ... will not be in the tree`, bug
+    // upstream flutter/flutter#182444). Solo agrupa, no cambia nada visual.
+    return Semantics(
+      container: true,
+      child: Tooltip(
+        message: l10n.jukeboxOpen,
+        child: Stack(
         clipBehavior: Clip.none,
         children: [
           AppHover(
@@ -328,9 +335,10 @@ class JukeboxHeaderButton extends ConsumerWidget {
                     ),
                   ],
                 ),
+                ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

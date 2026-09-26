@@ -132,11 +132,17 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   bool _dragging = false;
   bool _fullscreen = false;
 
-  /// Trick-play estilo Amazon: `>>` avanza a velocidad real 2x→4x→…→64x
-  /// (`setRate`); `<<` emula la reversa (mpv no acepta rate ≤ 0) pausando y
-  /// haciendo seek atrás periódico. Audio silenciado durante el modo.
+  /// Trick-play estilo Amazon: etiquetas 2x→4x→…→64x con seeks
+  /// periódicos en ambas direcciones (mpv no acepta rate ≤ 0 y el `setRate`
+  /// real se atasca a 16-64x en HLS/transcode). Audio silenciado en el modo.
   static const List<double> _trickSpeeds = [2, 4, 8, 16, 32, 64];
   static const Duration _trickTick = Duration(milliseconds: 250);
+
+  /// Multiplicador del salto efectivo para igualar la sensación de
+  /// Amazon/Movistar: las etiquetas siguen siendo 2x…64x por convención,
+  /// pero cada tick salta `velocidad × intervalo × boost` (a 64x con
+  /// boost 4: 64 s por tick → ~256 s/s; una peli de 2 h se cruza en ~28 s).
+  static const double _trickSeekBoost = 4.0;
 
   /// 0 = normal, -1 = rebobinando, +1 = avanzando.
   int _trickDir = 0;
@@ -657,35 +663,46 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     try {
       _player.setVolume(0);
     } catch (_) {}
-    if (_trickDir > 0) {
-      _player.play();
-    } else {
-      _player.pause();
-      _trickTimer?.cancel();
-      _trickTimer = Timer.periodic(_trickTick, (_) => _trickRewindTick());
-    }
+    // Ambas direcciones con seeks periódicos (el `setRate` real no rinde
+    // a 16-64x en HLS/transcode y decodificar 64x en local tampoco).
+    _player.pause();
+    _trickTimer?.cancel();
+    _trickTimer = Timer.periodic(_trickTick, (_) => _trickSeekTick());
   }
 
   void _applyTrickLevel() {
-    if (_trickDir > 0) {
-      try {
-        unawaited(_player.setRate(_trickSpeed));
-      } catch (_) {}
-    }
+    // Sin acción: el tick lee `_trickSpeed` en vivo, así que subir de nivel
+    // (2x→4x→…→64x) aplica en el siguiente tick sin reiniciar el timer.
   }
 
-  /// Un tick de la reversa emulada: seek atrás de velocidad × intervalo.
-  void _trickRewindTick() {
-    if (_playerDisposed || !mounted || !_inTrickPlay || _trickDir >= 0) return;
-    final backMs = (_trickSpeed * _trickTick.inMilliseconds).round();
-    final ms = _position.inMilliseconds - backMs;
+  /// Un tick del trick-play por seeks: salto de velocidad × intervalo × boost
+  /// en la dirección activa, con posición optimista para feedback inmediato
+  /// (el listener de posición está throttled a 1 Hz) y clamps a cero/fin.
+  void _trickSeekTick() {
+    if (_playerDisposed || !mounted || !_inTrickPlay) return;
+    final jumpMs = (_trickSpeed * _trickTick.inMilliseconds * _trickSeekBoost)
+        .round();
+    final ms = _position.inMilliseconds + (_trickDir >= 0 ? jumpMs : -jumpMs);
     if (ms <= 0) {
       _player.seek(Duration.zero);
+      if (mounted) setState(() => _position = Duration.zero);
       _exitTrickPlay();
       if (mounted) setState(() {});
       return;
     }
-    _player.seek(Duration(milliseconds: ms));
+    final durMs = _duration.inMilliseconds;
+    if (durMs > 0 && ms >= durMs) {
+      final end = Duration(milliseconds: durMs);
+      _player.seek(end);
+      if (mounted) setState(() => _position = end);
+      _exitTrickPlay();
+      if (mounted) setState(() {});
+      return;
+    }
+    final target = Duration(milliseconds: ms);
+    _player.seek(target);
+    // Refresco optimista: no esperar al stream para mover slider/tiempo.
+    if (mounted) setState(() => _position = target);
   }
 
   /// Sale del trick-play restaurando velocidad 1x y volumen. Sin setState:
@@ -1287,7 +1304,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                                     ffBadge,
                                     style: const TextStyle(
                                       color: Colors.black,
-                                      fontSize: 10,
+                                      fontSize: 14,
                                       fontWeight: FontWeight.w800,
                                     ),
                                   ),
