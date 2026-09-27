@@ -2,6 +2,7 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
+import '../constants/ui_constants.dart';
 import '../skin/skin.dart';
 
 /// Cabecera genérica para páginas de grilla/biblioteca.
@@ -66,7 +67,7 @@ class LibraryPageHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 24,
+                    fontSize: kSectionTitleFontSize,
                     fontWeight: FontWeight.bold,
                   ),
                 ),

@@ -206,6 +206,9 @@ class AppHover extends ConsumerStatefulWidget {
     this.trackFocus = true,
     this.cursor = SystemMouseCursors.click,
     this.playSoundOnHover = false,
+    this.focusNode,
+    this.autofocus = false,
+    this.onFocusChange,
   });
 
   final Widget child;
@@ -216,6 +219,17 @@ class AppHover extends ConsumerStatefulWidget {
   final MouseCursor cursor;
   final bool playSoundOnHover;
 
+  /// Nodo de foco externo (ej. modal TV que pide foco inicial a una tarjeta).
+  /// Si es nulo se crea uno interno. El dueño lo dispone el creador.
+  final FocusNode? focusNode;
+
+  /// Pide foco automáticamente al montarse (solo tiene efecto con foco externo
+  /// gestionado por el padre o dentro de un FocusScope).
+  final bool autofocus;
+
+  /// Notifica cambios de foco (además del highlight interno).
+  final ValueChanged<bool>? onFocusChange;
+
   @override
   ConsumerState<AppHover> createState() => _AppHoverState();
 }
@@ -223,13 +237,15 @@ class AppHover extends ConsumerStatefulWidget {
 class _AppHoverState extends ConsumerState<AppHover> {
   bool _hovered = false;
   bool _focused = false;
-  final FocusNode _focusNode = FocusNode();
+  late final FocusNode _focusNode;
+  bool get _ownsFocusNode => widget.focusNode == null;
   bool _suppressInitialSound = true;
   static DateTime? _globalMuteUntil;
 
   @override
   void initState() {
     super.initState();
+    _focusNode = widget.focusNode ?? FocusNode();
     // Supresión global para el primer foco automático al aparecer una
     // pantalla (ej. selección de perfiles al iniciar la app). El loader
     // async de users hace que los AppHover se creen con retardo y el
@@ -254,7 +270,7 @@ class _AppHoverState extends ConsumerState<AppHover> {
 
   @override
   void dispose() {
-    _focusNode.dispose();
+    if (_ownsFocusNode) _focusNode.dispose();
     super.dispose();
   }
 
@@ -390,6 +406,7 @@ class _AppHoverState extends ConsumerState<AppHover> {
     void setFocused(bool v) {
       final wasActive = _active;
       setState(() => _focused = v);
+      widget.onFocusChange?.call(v);
       if (v && !wasActive) {
         playHoverSound();
         // Al enfocar con D-pad/teclado la tarjeta puede estar fuera del viewport
@@ -416,6 +433,7 @@ class _AppHoverState extends ConsumerState<AppHover> {
     if (widget.trackFocus) {
       wrapped = Focus(
         focusNode: _focusNode,
+        autofocus: widget.autofocus,
         onFocusChange: setFocused,
         onKeyEvent: _onKeyEvent,
         child: wrapped,

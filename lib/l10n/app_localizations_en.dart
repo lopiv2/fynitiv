@@ -145,6 +145,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get library => 'Library';
 
   @override
+  String get seerr => 'Seerr';
+
+  @override
+  String get seerrComingSoon =>
+      'Request movies and series on demand with Seerr. Integration coming soon.';
+
+  @override
+  String get librariesEmpty => 'No libraries available.';
+
+  @override
   String get search => 'Search';
 
   @override

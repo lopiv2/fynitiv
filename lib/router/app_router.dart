@@ -11,6 +11,7 @@ import '../features/household/presentation/household_wizard_screen.dart';
 import '../core/skin/home_scroll.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/item_detail_screen.dart';
+import '../features/library/presentation/libraries_screen.dart';
 import '../features/library/presentation/person_detail_screen.dart';
 import '../features/library/presentation/library_view_screen.dart';
 import '../features/live_tv/presentation/live_fullscreen_player.dart';
@@ -28,6 +29,7 @@ import '../features/games/presentation/games_screen.dart';
 import '../features/games/presentation/jukebox_screen.dart';
 import '../features/player/presentation/player_screen.dart';
 import '../features/search/presentation/search_screen.dart';
+import '../features/seerr/presentation/seerr_screen.dart';
 import '../features/vod/presentation/vod_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/users/presentation/user_selection_screen.dart';
@@ -117,6 +119,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   ),
                 ],
               ),
+              GoRoute(
+                path: '/library',
+                builder: (_, _) => const LibrariesScreen(),
+              ),
+              GoRoute(path: '/seerr', builder: (_, _) => const SeerrScreen()),
               GoRoute(
                 path: '/library/:viewId',
                 builder: (context, state) {

@@ -60,6 +60,12 @@ class Sidebar extends ConsumerWidget {
     final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
     // Bibliotecta activa según la ruta actual (/library/:viewId).
     final activeViewId = GoRouterState.of(context).pathParameters['viewId'];
+    final loc = GoRouterState.of(context).matchedLocation;
+    // En Disney la sidebar no lista cada biblioteca: un único item
+    // Biblioteca (/library) y el item Seerr entre Juegos y Biblioteca.
+    final isDisney = skin?.id == 'disney_plus';
+    final onLibraries = loc == '/library' || activeViewId != null;
+    final onSeerr = loc == '/seerr';
     final horizontal =
         position == SidebarPosition.top || position == SidebarPosition.bottom;
 
@@ -180,6 +186,40 @@ class Sidebar extends ConsumerWidget {
       autofocus: isTv && currentIndex == 7,
       onTap: () => _goBranch(context, ref, 7),
     );
+    // Disney: Biblioteca tras Buscar (posición 3) y Seerr tras Juegos.
+    final libraryItem = _NavItem(
+      icon: Icons.video_library_outlined,
+      selectedIcon: Icons.video_library,
+      label: l10n.library,
+      selected: onLibraries,
+      textPrimary: textPrimary,
+      textSecondary: textSecondary,
+      accent: accent,
+      iconSpacing: iconSpacing,
+      selectedColor: selectedColor,
+      autofocus: isTv && onLibraries && !onSeerr,
+      onTap: () => context.go('/library'),
+    );
+    final seerrItem = _NavItem(
+      faIcon: FontAwesomeIcons.cloudArrowDown,
+      label: l10n.seerr,
+      selected: onSeerr,
+      textPrimary: textPrimary,
+      textSecondary: textSecondary,
+      accent: accent,
+      iconSpacing: iconSpacing,
+      selectedColor: selectedColor,
+      autofocus: isTv && onSeerr,
+      onTap: () => context.go('/seerr'),
+    );
+    final verticalItems = isDisney
+        ? <Widget>[
+            ...mainItems.sublist(0, 2),
+            libraryItem,
+            ...mainItems.sublist(2),
+            seerrItem,
+          ]
+        : <Widget>[...mainItems];
 
     final logo = _logo(sidebarLogo, textPrimary);
     final avatar = _UserAvatar(auth: auth);
@@ -285,22 +325,24 @@ class Sidebar extends ConsumerWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                ...mainItems,
-                const SizedBox(height: 16),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    l10n.library.toUpperCase(),
-                    style: TextStyle(
-                      color: textSecondary.withValues(alpha: 0.5),
-                      fontSize: 12,
-                      letterSpacing: 1.5,
-                      fontWeight: FontWeight.w600,
+                ...verticalItems,
+                if (!isDisney) ...[
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Text(
+                      l10n.library.toUpperCase(),
+                      style: TextStyle(
+                        color: textSecondary.withValues(alpha: 0.5),
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                ...viewItems,
+                  const SizedBox(height: 8),
+                  ...viewItems,
+                ],
               ],
             ),
           ),

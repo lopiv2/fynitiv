@@ -356,6 +356,24 @@ abstract class AppLocalizations {
   /// **'Library'**
   String get library;
 
+  /// No description provided for @seerr.
+  ///
+  /// In en, this message translates to:
+  /// **'Seerr'**
+  String get seerr;
+
+  /// No description provided for @seerrComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Request movies and series on demand with Seerr. Integration coming soon.'**
+  String get seerrComingSoon;
+
+  /// No description provided for @librariesEmpty.
+  ///
+  /// In en, this message translates to:
+  /// **'No libraries available.'**
+  String get librariesEmpty;
+
   /// No description provided for @search.
   ///
   /// In en, this message translates to:

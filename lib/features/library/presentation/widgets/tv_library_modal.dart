@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../application/library_providers.dart';
+import 'library_grid_card.dart';
 
 /// Config visual para cada tipo de biblioteca – estilo claro como [Image 1].
 /// Color de icono se ignora en tema claro (usa gris neutro), se mantiene por compat.
@@ -313,7 +314,6 @@ class _TvLibraryModalState extends ConsumerState<TvLibraryModal> {
                                   itemCount: views.length,
                                   itemBuilder: (context, index) {
                                     final v = views[index];
-                                    final isFocused = _focusedIndex == index;
                                     final visual = _visualFor(v);
                                     final countAsync = ref.watch(
                                       libraryItemCountProvider(v.id ?? ''),
@@ -337,17 +337,17 @@ class _TvLibraryModalState extends ConsumerState<TvLibraryModal> {
                                             l10n,
                                           );
                                     final displaySubtitle = subtitle;
-                                    return _TvLibraryCard(
-                                      focusNode: _cardNodes[index],
-                                      title: v.name ?? '',
+                                    return LibraryGridCard(
+                                      view: v,
                                       subtitle: displaySubtitle,
                                       icon: visual.icon,
-                                      color: visual.color,
-                                      isFocused: isFocused,
+                                      focusNode: _cardNodes[index],
                                       autofocus: index == _focusedIndex,
                                       onFocusChange: (focused) {
                                         if (focused && _focusedIndex != index) {
-                                          setState(() => _focusedIndex = index);
+                                          setState(
+                                            () => _focusedIndex = index,
+                                          );
                                         }
                                       },
                                       onTap: () => _openLibrary(v.id ?? ''),
@@ -420,171 +420,6 @@ class _CloseButtonState extends State<_CloseButton> {
             Icons.close,
             size: 14,
             color: _focused ? Colors.white : const Color(0xFF6B7280),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _TvLibraryCard extends StatefulWidget {
-  const _TvLibraryCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.isFocused,
-    required this.autofocus,
-    required this.onFocusChange,
-    required this.onTap,
-    this.focusNode,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final bool isFocused;
-  final bool autofocus;
-  final ValueChanged<bool> onFocusChange;
-  final VoidCallback onTap;
-  final FocusNode? focusNode;
-
-  @override
-  State<_TvLibraryCard> createState() => _TvLibraryCardState();
-}
-
-class _TvLibraryCardState extends State<_TvLibraryCard> {
-  bool _focused = false;
-
-  KeyEventResult _onKey(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    if (event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.select ||
-        event.logicalKey == LogicalKeyboardKey.gameButtonA) {
-      widget.onTap();
-      return KeyEventResult.handled;
-    }
-    return KeyEventResult.ignored;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // Estilo con LED único (como Juego online pero un solo color) para TV y escritorio.
-    final active = _focused || widget.isFocused;
-    const ledColor = Color(0xFF3B82F6);
-
-    return Focus(
-      focusNode: widget.focusNode,
-      autofocus: widget.autofocus,
-      onFocusChange: (v) {
-        setState(() => _focused = v);
-        widget.onFocusChange(v);
-      },
-      onKeyEvent: _onKey,
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedScale(
-          scale: active ? 1.04 : 1.0,
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            decoration: BoxDecoration(
-              color: active
-                  ? const Color(0xFF1E2633)
-                  : const Color(0xFF2A2E3A).withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: active ? ledColor : Colors.white.withValues(alpha: 0.06),
-                width: active ? 1.8 : 1,
-              ),
-              boxShadow: active
-                  ? [
-                      BoxShadow(
-                        color: ledColor.withValues(alpha: 0.58),
-                        blurRadius: 22,
-                        spreadRadius: 2,
-                        offset: const Offset(0, 12),
-                      ),
-                      BoxShadow(
-                        color: ledColor.withValues(alpha: 0.20),
-                        blurRadius: 44,
-                        spreadRadius: 5,
-                        offset: const Offset(0, 18),
-                      ),
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.35),
-                        blurRadius: 16,
-                        offset: const Offset(0, 8),
-                      ),
-                    ]
-                  : [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.25),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF3E4352),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.06),
-                          ),
-                        ),
-                        child: Icon(
-                          widget.icon,
-                          color: Colors.white70,
-                          size: 18,
-                        ),
-                      ),
-                      const Spacer(),
-                      if (!active)
-                        const Icon(
-                          Icons.chevron_right,
-                          color: Color(0xFF9CA3AF),
-                          size: 16,
-                        ),
-                    ],
-                  ),
-                  const Spacer(),
-                  Text(
-                    widget.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.subtitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
           ),
         ),
       ),
