@@ -141,12 +141,13 @@ class JukeboxNowPlayingPanel extends ConsumerWidget {
                     ),
                     SizedBox(height: 4 * s),
                     _HoverArtistMarquee(
-                      key: ValueKey(artist.isNotEmpty ? artist : '—'),
-                      text: artist.isNotEmpty ? artist : '—',
+                      key: ValueKey(artist.isNotEmpty ? artist : '�?"'),
+                      text: artist.isNotEmpty ? artist : '�?"',
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 11 * s,
                       ),
+                      enabled: skin?.titleMarqueeOnHover ?? false,
                     ),
                     SizedBox(height: 6 * s),
                     Text(
@@ -329,9 +330,11 @@ class _HoverArtistMarquee extends StatefulWidget {
     super.key,
     required this.text,
     required this.style,
+    this.enabled = true,
   });
   final String text;
   final TextStyle style;
+  final bool enabled;
   @override
   State<_HoverArtistMarquee> createState() => _HoverArtistMarqueeState();
 }
@@ -347,7 +350,7 @@ class _HoverArtistMarqueeState extends State<_HoverArtistMarquee> {
         text: widget.text,
         style: widget.style,
         isHovered: _hovered,
-        enabled: true,
+        enabled: widget.enabled,
         velocity: 28,
         gap: 36,
       ),

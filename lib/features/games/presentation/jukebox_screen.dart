@@ -1966,7 +1966,7 @@ class _ResultadosSection extends ConsumerWidget {
   }
 }
 
-class _GameTileWithMarquee extends StatefulWidget {
+class _GameTileWithMarquee extends ConsumerStatefulWidget {
   const _GameTileWithMarquee({
     super.key,
     required this.game,
@@ -1979,10 +1979,11 @@ class _GameTileWithMarquee extends StatefulWidget {
   final VoidCallback onTap;
   final FontWeight fontWeight;
   @override
-  State<_GameTileWithMarquee> createState() => _GameTileWithMarqueeState();
+  ConsumerState<_GameTileWithMarquee> createState() =>
+      _GameTileWithMarqueeState();
 }
 
-class _GameTileWithMarqueeState extends State<_GameTileWithMarquee> {
+class _GameTileWithMarqueeState extends ConsumerState<_GameTileWithMarquee> {
   bool _hovered = false;
   @override
   Widget build(BuildContext context) {
@@ -2039,7 +2040,12 @@ class _GameTileWithMarqueeState extends State<_GameTileWithMarquee> {
                         fontWeight: widget.fontWeight,
                       ),
                       isHovered: _hovered,
-                      enabled: true,
+                      enabled:
+                          ref
+                                  .watch(skinControllerProvider)
+                                  .value
+                                  ?.titleMarqueeOnHover ??
+                              false,
                       velocity: 28,
                       gap: 36,
                     ),

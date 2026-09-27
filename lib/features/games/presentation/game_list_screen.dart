@@ -424,13 +424,12 @@ class _GameCard extends ConsumerWidget {
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 );
-                // Marquee siempre activo en tarjetas de juegos cuando hay overflow,
-                // independientemente del ajuste global titleMarqueeOnHover.
+                // Marquee según el ajuste titleMarqueeOnHover del skin.
                 return MarqueeText(
                   text: game.name,
                   style: style,
                   isHovered: hovered,
-                  enabled: true,
+                  enabled: skin?.titleMarqueeOnHover ?? false,
                   textAlign: TextAlign.center,
                 );
               },

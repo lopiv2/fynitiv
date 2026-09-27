@@ -699,22 +699,35 @@ class _OriginButton extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Coherencia con el resto de la app: usa AppHover / AppHoverButton.
-    // Primario = filled blanco como WatchNowButton (_WideDetailButton primary),
-    // Secundario = outlined translúcido como los botones secundarios de ItemDetail.
-    // Respeta el skin para el radius y el acento.
+    // Primario (Jugar) con el acento del skin, secundario (Descargar) oscuro
+    // con borde de acento. Respeta el skin para radius y acento.
     final skin = ref.watch(skinControllerProvider).value;
     final radius = skin?.cardBorderRadius ?? 10;
+    final accent = skin?.accent ?? const Color(0xFF2B7FFF);
+    // Texto legible sobre el acento (negro solo en acentos muy claros).
+    final onAccent = accent.computeLuminance() > 0.5
+        ? Colors.black
+        : Colors.white;
+    final primaryHover =
+        Color.lerp(accent, Colors.black, 0.15) ?? accent;
+    final effect = primary
+        ? AppHoverEffect.highlightWithScale
+        : AppHoverEffect.scaleHighlightOutline;
     final config = primary
         ? AppHoverConfig(
             borderRadius: BorderRadius.circular(radius.clamp(8, 12).toDouble()),
-            highlightNormal: Colors.white,
-            highlightHovered: const Color(0xFFE6E6E6),
+            highlightNormal: accent,
+            highlightHovered: primaryHover,
             scale: 1.04,
           )
-        : AppHoverConfig(
-            borderRadius: BorderRadius.circular(radius.clamp(8, 12).toDouble()),
+        : AppHoverConfig.scaleHighlightOutline(
+            radius: BorderRadius.circular(radius.clamp(8, 12).toDouble()),
             highlightNormal: const Color(0xFF363B43),
             highlightHovered: const Color(0xFF404752),
+            outlineColor: accent.withValues(alpha: 0.45),
+            outlineHoveredColor: accent,
+            outlineWidth: 1,
+            outlineHoveredWidth: 1.5,
             scale: 1.04,
           );
 
@@ -728,16 +741,18 @@ class _OriginButton extends ConsumerWidget {
           padding: const EdgeInsets.symmetric(horizontal: 22),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: primary ? Colors.white : const Color(0xFF363B43),
+            color: primary ? accent : const Color(0xFF363B43),
             borderRadius: config.borderRadius,
-            border: primary ? null : Border.all(color: Colors.white12),
+            border: primary
+                ? null
+                : Border.all(color: accent.withValues(alpha: 0.45)),
           ),
           child: SizedBox(
             width: 16,
             height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: primary ? Colors.black : Colors.white,
+              color: primary ? onAccent : Colors.white,
             ),
           ),
         ),
@@ -749,13 +764,14 @@ class _OriginButton extends ConsumerWidget {
         label: label,
         icon: Icons.play_arrow_rounded,
         onPressed: onTap,
-        backgroundColor: Colors.white,
-        textColor: Colors.black,
+        effect: effect,
+        backgroundColor: accent,
+        textColor: onAccent,
         iconSize: 20,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         config: config,
-        textStyle: const TextStyle(
-          color: Colors.black,
+        textStyle: TextStyle(
+          color: onAccent,
           fontSize: 14,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.1,
@@ -767,6 +783,7 @@ class _OriginButton extends ConsumerWidget {
       label: label,
       icon: Icons.download_rounded,
       onPressed: onTap,
+      effect: effect,
       backgroundColor: const Color(0xFF363B43),
       textColor: Colors.white,
       iconSize: 18,
@@ -1117,7 +1134,12 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                             fontWeight: FontWeight.w800,
                           ),
                           isHovered: true,
-                          enabled: true,
+                          enabled:
+                              ref
+                                  .watch(skinControllerProvider)
+                                  .value
+                                  ?.titleMarqueeOnHover ??
+                              false,
                           velocity: 28,
                           gap: 36,
                         ),

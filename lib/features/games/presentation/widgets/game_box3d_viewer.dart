@@ -139,7 +139,8 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     _cancelWait();
     if (!mounted) return;
     setState(() => _loading = true);
-    if (ref.read(gameVideoActiveCountProvider) == 0) {
+    final startCount = ref.read(gameVideoActiveCountProvider);
+    if (startCount == 0) {
       _createThree();
       return;
     }
@@ -280,9 +281,13 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       tex.colorSpace = three.SRGBColorSpace;
       // Las carátulas de RomM son NPOT (p.ej. 517x680): con mipmaps la
       // textura queda incompleta en ANGLE/D3D11 y la cara sale negra.
-      // three.js hace lo mismo con NPOT en WebGL1.
-      tex.generateMipmaps = false;
+      // three.js hace lo mismo con NPOT en WebGL1. Wrap/filtros explícitos
+      // (aunque sean los defaults) para no depender del constructor.
+      tex.wrapS = three.ClampToEdgeWrapping;
+      tex.wrapT = three.ClampToEdgeWrapping;
+      tex.magFilter = three.LinearFilter;
       tex.minFilter = three.LinearFilter;
+      tex.generateMipmaps = false;
       tex.needsUpdate = true;
       final dominant =
           sampleColor ? await _predominantColor(bytes) : null;
