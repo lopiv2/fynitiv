@@ -16,6 +16,8 @@ import '../features/library/presentation/widgets/sidebar.dart';
 import '../features/music/application/music_player_provider.dart';
 import '../features/music/application/soloud_music_provider.dart';
 import '../features/music/presentation/widgets/mini_player_bar.dart';
+import '../features/downloads/application/download_manager_provider.dart';
+import '../features/downloads/presentation/download_manager_bar.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key, required this.navigationShell});
@@ -284,6 +286,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
           children: [
             Expanded(child: DashboardBackground(child: traversedBody)),
             if (!hideMini) const MiniPlayerBar(),
+            // Gestor de descargas estilo Steam: siempre debajo del mini.
+            const DownloadManagerBar(),
           ],
         ),
         floatingActionButton: () {
@@ -318,7 +322,12 @@ class _HomeShellState extends ConsumerState<HomeShell>
           if (isJukebox && useSoloud) {
             hasBar = false;
           }
-          final bottomPad = hasBar ? barH + 8 : 0.0;
+          // Elevar también sobre el gestor de descargas (una fila por task).
+          final dlCount =
+              ref.watch(downloadManagerProvider).values.length;
+          final dlH = downloadRowHeight(s);
+          final bottomPad = (hasBar ? barH + 8 : 0.0) +
+              (dlCount > 0 ? dlCount * dlH + 8 : 0.0);
           return Padding(
             padding: EdgeInsets.only(bottom: bottomPad),
             child: rawFab,

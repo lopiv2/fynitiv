@@ -481,6 +481,34 @@ class AppLocalizationsEn extends AppLocalizations {
   String get download => 'Download';
 
   @override
+  String get downloadResume => 'Resume';
+
+  @override
+  String get downloadCancel => 'Cancel';
+
+  @override
+  String get downloadDismiss => 'Dismiss';
+
+  @override
+  String get downloadPaused => 'Paused';
+
+  @override
+  String get downloadQueued => 'Queued';
+
+  @override
+  String get downloadFailed => 'Download failed';
+
+  @override
+  String downloadOf(String done, String total) {
+    return '$done of $total';
+  }
+
+  @override
+  String downloadTimeLeft(String time) {
+    return '$time left';
+  }
+
+  @override
   String get details => 'Details';
 
   @override

@@ -156,6 +156,27 @@
   "ostFavoriteRemoved": "Removed from music favorites",
   "ostFavoriteError": "Couldn't update music favorite.",
   "download": "Download",
+  "downloadResume": "Resume",
+  "downloadCancel": "Cancel",
+  "downloadDismiss": "Dismiss",
+  "downloadPaused": "Paused",
+  "downloadQueued": "Queued",
+  "downloadFailed": "Download failed",
+  "downloadOf": "{done} of {total}",
+  "@downloadOf": {
+    "description": "Download progress amount, e.g. 120 MB of 450 MB.",
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "downloadTimeLeft": "{time} left",
+  "@downloadTimeLeft": {
+    "description": "Estimated remaining download time, e.g. 01:23 left.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
   "details": "Details",
   "watchTrailer": "Watch trailer",
   "playbackFailed": "Couldn't start playback.",

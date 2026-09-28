@@ -1,13 +1,12 @@
-import 'dart:io';
+import 'dart:async';
 
-import 'package:dio/dio.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
-import 'package:path_provider/path_provider.dart';
 
 import '../../../core/audio/item_theme_player.dart';
 import '../../../core/skin/skin_controller.dart';
@@ -17,6 +16,7 @@ import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/included_badge.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../player/application/playback_provider.dart';
+import '../../downloads/application/download_manager_provider.dart';
 import '../application/image_url.dart';
 import '../application/library_providers.dart';
 import 'widgets/content_row.dart';
@@ -38,7 +38,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
   BaseItemDto? _resolvedItem;
   bool _detailsSelected = false;
   bool? _isFavorite;
-  bool _downloading = false;
   bool _trailerLoading = false;
   Player? _trailerPlayer;
   VideoController? _trailerVideoController;
@@ -199,30 +198,23 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
 
   Future<void> _downloadItem() async {
     final itemId = item.id;
-    if (_downloading || itemId == null || itemId.isEmpty) return;
+    if (itemId == null || itemId.isEmpty) return;
     final l10n = AppLocalizations.of(context)!;
-    setState(() => _downloading = true);
     try {
       final session = await ref.read(playbackSessionProvider(itemId).future);
       if (session == null) throw StateError('No playback session');
-      final directory = await getDownloadsDirectory();
-      if (directory == null) throw StateError('No downloads directory');
-      final filename = _downloadFilename(item.name ?? 'video');
-      final path = '${directory.path}${Platform.pathSeparator}$filename';
-      await Dio().download(session.streamUrl, path);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${l10n.gamesDownloaded}: $path')),
-        );
-      }
+      // El progreso/pausa/cancel vive en el gestor global (barra inferior).
+      await ref.read(downloadManagerProvider.notifier).enqueue(
+            url: session.streamUrl,
+            fileName: _downloadFilename(item.name ?? 'video'),
+            sourceLabel: item.name ?? 'video',
+            doneMessage: l10n.gamesDownloaded,
+            failMessage: l10n.downloadFailed,
+          );
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.gamesNoFile)));
+        unawaited(EasyLoading.showError(l10n.gamesNoFile));
       }
-    } finally {
-      if (mounted) setState(() => _downloading = false);
     }
   }
 
@@ -437,7 +429,18 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                   genres: genres,
                                   l10n: l10n,
                                   isFavorite: isFavorite,
-                                  downloading: _downloading,
+                                  downloading: ref.watch(
+                                    downloadManagerProvider.select(
+                                      (m) => m.values.any(
+                                        (t) =>
+                                            t.fileName ==
+                                                _downloadFilename(
+                                                  item.name ?? 'video',
+                                                ) &&
+                                            t.isActive,
+                                      ),
+                                    ),
+                                  ),
                                   onTrailer: _openTrailer,
                                   onFavorite: _toggleFavorite,
                                   onDownload: _downloadItem,
@@ -451,7 +454,19 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                         item: item,
                                         l10n: l10n,
                                         isFavorite: isFavorite,
-                                        downloading: _downloading,
+                                        downloading: ref.watch(
+                                          downloadManagerProvider.select(
+                                            (m) => m.values.any(
+                                              (t) =>
+                                                  t.fileName ==
+                                                      _downloadFilename(
+                                                        item.name ??
+                                                            'video',
+                                                      ) &&
+                                                  t.isActive,
+                                            ),
+                                          ),
+                                        ),
                                         onTrailer: _openTrailer,
                                         onFavorite: _toggleFavorite,
                                         onDownload: _downloadItem,

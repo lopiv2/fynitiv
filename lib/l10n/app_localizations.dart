@@ -1016,6 +1016,54 @@ abstract class AppLocalizations {
   /// **'Download'**
   String get download;
 
+  /// No description provided for @downloadResume.
+  ///
+  /// In en, this message translates to:
+  /// **'Resume'**
+  String get downloadResume;
+
+  /// No description provided for @downloadCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get downloadCancel;
+
+  /// No description provided for @downloadDismiss.
+  ///
+  /// In en, this message translates to:
+  /// **'Dismiss'**
+  String get downloadDismiss;
+
+  /// No description provided for @downloadPaused.
+  ///
+  /// In en, this message translates to:
+  /// **'Paused'**
+  String get downloadPaused;
+
+  /// No description provided for @downloadQueued.
+  ///
+  /// In en, this message translates to:
+  /// **'Queued'**
+  String get downloadQueued;
+
+  /// No description provided for @downloadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Download failed'**
+  String get downloadFailed;
+
+  /// Download progress amount, e.g. 120 MB of 450 MB.
+  ///
+  /// In en, this message translates to:
+  /// **'{done} of {total}'**
+  String downloadOf(String done, String total);
+
+  /// Estimated remaining download time, e.g. 01:23 left.
+  ///
+  /// In en, this message translates to:
+  /// **'{time} left'**
+  String downloadTimeLeft(String time);
+
   /// No description provided for @details.
   ///
   /// In en, this message translates to:

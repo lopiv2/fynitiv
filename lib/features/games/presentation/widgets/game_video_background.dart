@@ -36,6 +36,8 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
         ref.read(gameVideoSuspendedProvider);
   }
 
+  /// Reserva el slot ANGLE al crear el Player (cubre open+play+dispose).
+  /// Idempotente: las llamadas extra son no-op.
   void _incActive() {
     if (_counted) return;
     _counted = true;
@@ -64,22 +66,20 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
     final controller = VideoController(player);
     _player = player;
     _videoController = controller;
+    // Reservar el slot ANTES de open/play: el visor 3D espera a que el
+    // contador sea 0, y durante el open el contador también debe cubrir
+    // (si no, el 3D crea su superficie mientras mpv negocia la suya).
+    _incActive();
     try {
       await player.setVolume(0);
       await player.setPlaylistMode(PlaylistMode.loop);
       await player.open(Media(uri));
       await player.play();
       if (_disposed || !mounted) {
-        // El widget se desmontó durante los awaits: liberar huérfano sin ref.
-        try {
-          await player.stop();
-        } catch (_) {}
-        try {
-          await player.dispose();
-        } catch (_) {}
+        // El widget se desmontó durante los awaits: liberar huérfano.
+        await _dispose();
         return;
       }
-      _incActive();
       setState(() => _ready = true);
       debugPrint('[GameVideoBackground] playing $pick -> $uri');
     } catch (e) {
@@ -97,21 +97,16 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
         final retryCtrl = VideoController(retryPlayer);
         _player = retryPlayer;
         _videoController = retryCtrl;
+        _incActive();
         try {
           await retryPlayer.setVolume(0);
           await retryPlayer.setPlaylistMode(PlaylistMode.loop);
           await retryPlayer.open(Media(retryUri));
           await retryPlayer.play();
           if (_disposed || !mounted) {
-            try {
-              await retryPlayer.stop();
-            } catch (_) {}
-            try {
-              await retryPlayer.dispose();
-            } catch (_) {}
+            await _dispose();
             return;
           }
-          _incActive();
           setState(() => _ready = true);
           debugPrint('[GameVideoBackground] retry playing $retryPick');
           return;

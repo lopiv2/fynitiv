@@ -13,7 +13,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:flutter_soloud/flutter_soloud.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:palette_generator/palette_generator.dart';
+import 'package:palette_generator_master/palette_generator_master.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/audio/soloud_initializer.dart';
@@ -1791,10 +1791,11 @@ class _AnimatedPaletteBackgroundState
       return;
     }
     try {
-      final palette = await PaletteGenerator.fromImageProvider(
+      final palette = await PaletteGeneratorMaster.fromImageProvider(
         NetworkImage(url),
         size: const Size(200, 200),
         maximumColorCount: 20,
+        generateHarmony: false,
       );
       // Tomar los 5 colores más poblados
       final colors = palette.paletteColors.map((c) => c.color).toList();

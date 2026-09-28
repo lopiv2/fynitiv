@@ -1199,9 +1199,13 @@ class RommRepository {
   }
 
   /// URL para descargar un archivo de un juego (requiere el token en headers).
+  /// El `file_name` puede traer subcarpetas: se codifica por segmentos
+  /// para no escapar las `/` (un `encodeComponent` entero daría 404).
   String downloadUrl(int romId, String fileName) {
     final base = serverUrl.replaceAll(RegExp(r'/$'), '');
-    return '$base/api/roms/$romId/content/${Uri.encodeComponent(fileName)}';
+    final encoded =
+        fileName.split('/').map(Uri.encodeComponent).join('/');
+    return '$base/api/roms/$romId/content/$encoded';
   }
 
   /// Descarga un archivo de un juego a un destino local.

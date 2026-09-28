@@ -1,16 +1,17 @@
 import 'dart:async';
 
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/audio/game_bg_player.dart';
 import '../../../core/audio/game_ost_player.dart';
 import '../../../core/audio/app_volume_provider.dart';
 import '../../music/application/soloud_music_provider.dart';
+import '../../downloads/application/download_manager_provider.dart';
 import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/utils/format_bytes.dart';
@@ -46,7 +47,6 @@ class GameDetailScreen extends ConsumerStatefulWidget {
 class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     with WidgetsBindingObserver {
   bool _launching = false;
-  bool _downloading = false;
   StreamSubscription<GameOstTrack?>? _ostSub;
   GameOstTrack? _currentTrack;
   bool _ostStarted = false;
@@ -156,45 +156,22 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     final fileName = game.firstFile;
     if (repo == null || fileName == null || fileName.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.gamesNoFile)));
+        unawaited(EasyLoading.showError(l10n.gamesNoFile));
       }
       return;
     }
-    setState(() => _downloading = true);
-    try {
-      final savePath = await _downloadPath(fileName);
-      if (savePath == null) return;
-      await repo.downloadGameFile(
-        romId: game.id,
-        fileName: fileName,
-        savePath: savePath,
-      );
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('${l10n.gamesDownloaded}\n$savePath')),
+    // El progreso/pausa/cancel vive en el gestor global (barra inferior).
+    await ref.read(downloadManagerProvider.notifier).enqueue(
+          url: repo.downloadUrl(game.id, fileName),
+          fileName: fileName,
+          sourceLabel: game.name,
+          headers: {
+            if (repo.token?.trim().isNotEmpty == true)
+              'Authorization': 'Bearer ${repo.token!.trim()}',
+          },
+          doneMessage: l10n.gamesDownloaded,
+          failMessage: l10n.downloadFailed,
         );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
-      }
-    } finally {
-      if (mounted) setState(() => _downloading = false);
-    }
-  }
-
-  Future<String?> _downloadPath(String fileName) async {
-    try {
-      final dir = await getDownloadsDirectory();
-      if (dir == null) return null;
-      return '${dir.path}\\$fileName';
-    } catch (_) {
-      return null;
-    }
   }
 
   @override
@@ -363,7 +340,16 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                         game: g,
                                         headers: headers,
                                         launching: _launching,
-                                        downloading: _downloading,
+                                        downloading: ref.watch(
+                                          downloadManagerProvider.select(
+                                            (m) => m.values.any(
+                                              (t) =>
+                                                  t.fileName ==
+                                                      g.firstFile &&
+                                                  t.isActive,
+                                            ),
+                                          ),
+                                        ),
                                         onPlay: () => _play(g),
                                         onDownload: () => _download(g),
                                         compact: true,
@@ -412,7 +398,17 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                                   game: g,
                                                   headers: headers,
                                                   launching: _launching,
-                                                  downloading: _downloading,
+                                                  downloading: ref.watch(
+                                                    downloadManagerProvider
+                                                        .select(
+                                                      (m) => m.values.any(
+                                                        (t) =>
+                                                            t.fileName ==
+                                                                g.firstFile &&
+                                                            t.isActive,
+                                                      ),
+                                                    ),
+                                                  ),
                                                   onPlay: () => _play(g),
                                                   onDownload: () =>
                                                       _download(g),

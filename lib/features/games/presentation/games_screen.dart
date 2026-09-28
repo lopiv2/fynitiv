@@ -3,6 +3,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:fynitiv/core/constants/ui_constants.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -109,7 +110,13 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                     // Fila horizontal “Continuar jugando” reutilizando ContentRow/HoverPlayCard
                     SliverToBoxAdapter(
                       child: continueAsync.when(
-                        loading: () => const SizedBox.shrink(),
+                        // Loader universal mientras se resuelve “Continuar
+                        // jugando”: misma altura que la fila (280) para no
+                        // saltar el layout del scroll al llegar los datos.
+                        loading: () => const SizedBox(
+                          height: 280,
+                          child: Center(child: AppLoader()),
+                        ),
                         error: (_, _) => const SizedBox.shrink(),
                         data: (games) {
                           if (games.isEmpty) return const SizedBox.shrink();
@@ -129,7 +136,7 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+                        padding: const EdgeInsets.fromLTRB(24, kBetweenSectionsGap, 24, 8),
                         child: ScrollTitle(title: l10n.platforms),
                       ),
                     ),

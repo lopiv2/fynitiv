@@ -155,6 +155,27 @@
   "ostFavoriteRemoved": "Quitada de favoritas de música",
   "ostFavoriteError": "No se pudo actualizar la favorita.",
   "download": "Descargar",
+  "downloadResume": "Reanudar",
+  "downloadCancel": "Cancelar",
+  "downloadDismiss": "Descartar",
+  "downloadPaused": "En pausa",
+  "downloadQueued": "En cola",
+  "downloadFailed": "La descarga ha fallado",
+  "downloadOf": "{done} de {total}",
+  "@downloadOf": {
+    "description": "Progreso de descarga, p. ej. 120 MB de 450 MB.",
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "downloadTimeLeft": "quedan {time}",
+  "@downloadTimeLeft": {
+    "description": "Tiempo restante estimado de descarga, p. ej. quedan 01:23.",
+    "placeholders": {
+      "time": { "type": "String" }
+    }
+  },
   "details": "Detalles",
   "watchTrailer": "Ver trailer",
   "playbackFailed": "No se pudo iniciar la reproducción.",

@@ -37,6 +37,7 @@ class GameContinueCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final cover = game.coverLargeUrl?.isNotEmpty == true
         ? game.coverLargeUrl!
         : (game.coverSmallUrl ?? '');
@@ -54,12 +55,11 @@ class GameContinueCard extends ConsumerWidget {
       fallback: const Color(0xFF2ED9A3),
     );
     final lastPlayedStr = _formatLastPlayed(context, game.lastPlayed);
-    final timeStr = lastPlayedStr.isNotEmpty ? lastPlayedStr : '—';
 
     return AppHover(
       effect: AppHoverEffect.scaleHighlightOutlineLed,
       config: AppHoverConfig.scaleHighlightOutlineLed(
-        scale: 1.13,
+        scale: 1.08,
         radius: BorderRadius.circular(16),
         duration: const Duration(milliseconds: 180),
         outlineHoveredWidth: 1.6,
@@ -88,14 +88,14 @@ class GameContinueCard extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   AspectRatio(
-                    aspectRatio: 1,
+                    aspectRatio: 0.85,
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
                         if (cover.isNotEmpty)
                           Image.network(
                             cover,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.fill,
                             headers: headers ?? const {},
                             errorBuilder: (_, _, _) =>
                                 Container(color: const Color(0xFF0F1A2B)),
@@ -195,7 +195,7 @@ class GameContinueCard extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(
                           lastPlayedStr.isNotEmpty
-                              ? 'Jugado: $lastPlayedStr'
+                              ? '${l10n.gameLastPlayed}: $lastPlayedStr'
                               : 'Slot 1: ${game.platformDisplayName}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -204,33 +204,6 @@ class GameContinueCard extends ConsumerWidget {
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          children: [
-                            const Icon(
-                              Icons.schedule_rounded,
-                              color: Colors.white38,
-                              size: 14,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              timeStr,
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 11,
-                              ),
-                            ),
-                            const Spacer(),
-                            if (game.lastPlayed != null)
-                              const Text(
-                                '—',
-                                style: TextStyle(
-                                  color: Colors.white38,
-                                  fontSize: 11,
-                                ),
-                              ),
-                          ],
                         ),
                       ],
                     ),

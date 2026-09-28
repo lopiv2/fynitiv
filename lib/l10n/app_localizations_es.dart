@@ -482,6 +482,34 @@ class AppLocalizationsEs extends AppLocalizations {
   String get download => 'Descargar';
 
   @override
+  String get downloadResume => 'Reanudar';
+
+  @override
+  String get downloadCancel => 'Cancelar';
+
+  @override
+  String get downloadDismiss => 'Descartar';
+
+  @override
+  String get downloadPaused => 'En pausa';
+
+  @override
+  String get downloadQueued => 'En cola';
+
+  @override
+  String get downloadFailed => 'La descarga ha fallado';
+
+  @override
+  String downloadOf(String done, String total) {
+    return '$done de $total';
+  }
+
+  @override
+  String downloadTimeLeft(String time) {
+    return 'quedan $time';
+  }
+
+  @override
   String get details => 'Detalles';
 
   @override

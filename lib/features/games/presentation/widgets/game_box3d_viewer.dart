@@ -66,6 +66,12 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   /// en morir, se cae a 2D antes que arriesgar el abort de ANGLE.
   static const _waitStep = Duration(milliseconds: 150);
   static const _waitMax = Duration(seconds: 4);
+
+  /// Gracia tras contador 0 antes de crear la superficie GL: el teardown
+  /// ANGLE de mpv puede seguir en vuelo aunque el contador ya bajó
+  /// (espejo de `_resumeGrace` en la salida).
+  static const _settleGrace = Duration(milliseconds: 400);
+  Timer? _settleTimer;
   static const _resumeGrace = Duration(milliseconds: 300);
 
   @override
@@ -133,6 +139,26 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   void _cancelWait() {
     _waitTimer?.cancel();
     _waitTimer = null;
+    _settleTimer?.cancel();
+    _settleTimer = null;
+  }
+
+  /// Crea la superficie GL tras la gracia de asentamiento (cancelable
+  /// al desmontar o cambiar de juego vía [_cancelWait]).
+  void _createThreeAfterSettle() {
+    _settleTimer?.cancel();
+    _settleTimer = Timer(_settleGrace, () {
+      _settleTimer = null;
+      if (!mounted) return;
+      // El vídeo pudo reactivarse durante la gracia: re-esperar.
+      try {
+        if (ref.read(gameVideoActiveCountProvider) != 0) {
+          _waitForVideoStop();
+          return;
+        }
+      } catch (_) {}
+      _createThree();
+    });
   }
 
   void _waitForVideoStop() {
@@ -141,7 +167,7 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     setState(() => _loading = true);
     final startCount = ref.read(gameVideoActiveCountProvider);
     if (startCount == 0) {
-      _createThree();
+      _createThreeAfterSettle();
       return;
     }
     var elapsed = Duration.zero;
@@ -154,7 +180,7 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       if (ref.read(gameVideoActiveCountProvider) == 0) {
         t.cancel();
         _waitTimer = null;
-        _createThree();
+        _createThreeAfterSettle();
       } else if (elapsed >= _waitMax) {
         t.cancel();
         _waitTimer = null;

@@ -10,6 +10,10 @@
 analyzer:
   exclude:
     - build/**
+    # Dart generado por gen-l10n (plantilla aún emite GlobalMaterial/
+    # CupertinoLocalizations deprecados de flutter_localizations).
+    # Ver 02-DOCS/wiki/ftd/analyze-l10n-deprecated-infos.md
+    - lib/l10n/app_localizations*.dart
     - android/**
     - ios/**
     - web/**
