@@ -98,6 +98,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     if (_ostStarted || tracks.isEmpty) return;
     _ostStarted = true;
     final muted = ref.read(gameBgMutedProvider);
+    debugPrint('[Ost] _maybeStartOst tracks=${tracks.length} muted=$muted');
     final repo = ref.read(rommRepositoryProvider);
     GameOstPlayer.instance.setAuthToken(repo?.token);
     GameOstPlayer.instance.setMuted(muted);

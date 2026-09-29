@@ -280,6 +280,7 @@
   },
   "gamesDownload": "Download",
   "gamesNoStreaming": "Streaming is not available for this game. Use Download.",
+  "gamesPlayInBrowser": "Play in browser",
   "gamesNoFile": "This game has no downloadable file.",
   "gamesDownloaded": "Download complete",
   "gamesLaunchError": "Could not open the web player.",

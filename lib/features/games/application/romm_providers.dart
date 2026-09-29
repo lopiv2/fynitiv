@@ -221,14 +221,21 @@ final rommGameProvider = FutureProvider.family<RommGame, int>((ref, id) async {
   return _withRommRecovery(ref, () => repo.getGame(id));
 });
 
+/// Slugs con streaming en navegador (una sola petición compartida por
+/// todas las tarjetas de plataforma).
+final rommStreamingSlugsProvider = FutureProvider<Set<String>>((ref) async {
+  final repo = ref.watch(rommRepositoryProvider);
+  if (repo == null) return const {};
+  return _withRommRecovery(ref, () => repo.streamingPlatformSlugs());
+});
+
 /// Indica si una plataforma tiene streaming disponible.
 final rommStreamingProvider = FutureProvider.family<bool, String>((
   ref,
   platformSlug,
 ) async {
-  final repo = ref.watch(rommRepositoryProvider);
-  if (repo == null) return false;
-  return _withRommRecovery(ref, () => repo.hasStreamingFor(platformSlug));
+  final slugs = await ref.watch(rommStreamingSlugsProvider.future);
+  return slugs.contains(platformSlug.toLowerCase());
 });
 
 /// “Continuar jugando” – últimos ROMs con last_played, ordenados por fecha descendente.

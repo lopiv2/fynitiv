@@ -1170,20 +1170,30 @@ class RommRepository {
     );
   }
 
-  /// Config de streaming: devuelve si hay un contenedor para una plataforma.
-  Future<bool> hasStreamingFor(String platformSlug) async {
+  /// Slugs con contenedor de streaming (una sola petición a
+  /// `/api/streaming/config`). Vacío si está deshabilitado o si falla.
+  Future<Set<String>> streamingPlatformSlugs() async {
     try {
       final res = await _dio.get('/api/streaming/config', options: _authOptions);
       final data = res.data as Map<String, dynamic>? ?? const {};
-      final enabled = data['enabled'] == true;
-      if (!enabled) return false;
+      if (data['enabled'] != true) return const {};
       final containers = data['containers'] as List? ?? const [];
-      return containers.any(
-        (c) => (c as Map<String, dynamic>?)?['platform']?.toString().toLowerCase() == platformSlug.toLowerCase(),
-      );
+      final slugs = <String>{};
+      for (final c in containers) {
+        final map = c as Map<String, dynamic>?;
+        final slug = map?['platform']?.toString().toLowerCase() ?? '';
+        if (slug.isNotEmpty) slugs.add(slug);
+      }
+      return slugs;
     } catch (_) {
-      return false;
+      return const {};
     }
+  }
+
+  /// Config de streaming: devuelve si hay un contenedor para una plataforma.
+  Future<bool> hasStreamingFor(String platformSlug) async {
+    final slugs = await streamingPlatformSlugs();
+    return slugs.contains(platformSlug.toLowerCase());
   }
 
   /// Reclama una sesión de streaming y devuelve la URL del emulador web.

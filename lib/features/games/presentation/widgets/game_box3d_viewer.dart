@@ -19,8 +19,8 @@ import '../../domain/romm_game.dart';
 ///
 /// - 3D cuando hay frontal ([RommGame.can3D]). Con trasera/lomo reales se
 ///   usan en sus caras (el lomo texturiza el lateral; superior e inferior
-///   quedan tintados); sin ellas, trasera y cantos usan material sólido
-///   teñido del predominante del lomo.
+///   quedan tintados); sin lomo, cantos en marrón sólido, y sin trasera,
+///   esta en gris neutro.
 ///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
 ///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
 ///   los cantos; órbita con ratón/táctil vía `OrbitControls`.
@@ -448,16 +448,19 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
         return;
       }
       // Orden BoxGeometry: [+x, -x, +y, -y, +z(frontal), -z(trasera)].
-      // Las caras sin textura se tiñen del predominante del lomo; sin
-      // lomo, marrón sólido.
+      // Los cantos sin textura se tiñen del predominante del lomo (sin
+      // lomo, marrón sólido); la trasera sin carátula va en gris neutro.
       final edge = _edgeMaterial(tint: results[2].dominant);
+      final backFallback = _edgeMaterial(tint: 0x808080);
       final materials = <three.Material>[
         edge,
         edge,
         edge,
         edge,
         _faceMaterial(results[0].texture!),
-        results[1].texture != null ? _faceMaterial(results[1].texture!) : edge,
+        results[1].texture != null
+            ? _faceMaterial(results[1].texture!)
+            : backFallback,
       ];
       if (results[2].texture != null) {
         // Solo el lateral lleva el lomo texturizado (+x/-x). Superior e

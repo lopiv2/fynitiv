@@ -33,6 +33,7 @@ import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/skin/music_player_skin_presets.dart';
 import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
+import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/led_spectrum.dart';
 import '../../../core/widgets/logo_image.dart';
@@ -396,11 +397,10 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   Future<void> _stopPlayer() async {
     if (_playerDisposed) return;
     _playerDisposed = true;
-    try {
-      await _player.dispose();
-    } catch (_) {
-      // El dispose nativo puede fallar si el engine se está cerrando.
-    }
+    // Drenaje con gracia (ver `disposeMpvPlayer`): en Windows liberar
+    // mpv pintando aborta el proceso. El dispose nativo puede fallar si
+    // el engine se está cerrando (tolerado dentro del helper).
+    await disposeMpvPlayer(_player);
   }
 
   Duration? _durationFromTicks(int? ticks) {

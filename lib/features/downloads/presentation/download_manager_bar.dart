@@ -149,6 +149,7 @@ class _DownloadRow extends ConsumerWidget {
                     value: task.totalBytes > 0 ? task.progress : null,
                     minHeight: (4 * s).clamp(3, 6).toDouble(),
                     backgroundColor: const Color(0xFF2A2A2A),
+                    color: const Color(0xFF6BB8FF),
                   )
                 else
                   SizedBox(height: (4 * s).clamp(3, 6).toDouble()),

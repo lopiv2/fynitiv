@@ -795,6 +795,9 @@ class AppLocalizationsEs extends AppLocalizations {
       'El streaming no está disponible para este juego. Usa Descargar.';
 
   @override
+  String get gamesPlayInBrowser => 'Jugar en el navegador';
+
+  @override
   String get gamesNoFile => 'Este juego no tiene un archivo descargable.';
 
   @override

@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 import '../../../../core/constants/game_videos.dart';
 import '../../../../core/settings/game_video_controller.dart';
 import '../../../../core/theme/dashboard_background.dart';
+import '../../../../core/video/mpv_teardown.dart';
 
 /// Fondo de video aleatorio en loop para la rama de juego online.
 /// Uno aleatorio por entrada; si está deshabilitado hace fallback a DashboardBackground.
@@ -29,6 +30,12 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
   bool _counted = false;
   bool _disposed = false;
   GameVideoActiveCountController? _counter;
+
+  /// Puerta global mpv: serializa los teardowns nativos de TODOS los
+  /// fondos. No se crea un Player nuevo hasta que el dispose anterior
+  /// termina (evita dos superficies ANGLE en transición, que aborta el
+  /// proceso con `unlock of unowned mutex`).
+  static Future<void> _mpvGate = Future.value();
 
   bool _isOff() {
     // Solo llamar cuando mounted (initState síncrono o callbacks con guard).
@@ -58,6 +65,11 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
     if (_disposed || !mounted) return;
     if (_isOff()) return;
     if (_player != null) return;
+    // Esperar el teardown anterior: nunca dos nativos en transición.
+    await _mpvGate;
+    if (_disposed || !mounted) return;
+    if (_isOff()) return;
+    if (_player != null) return;
     final pick = kGameVideos[Random().nextInt(kGameVideos.length)];
     // asset:/// + ruta con espacios codificados como %20
     final encoded = pick.split('/').map(Uri.encodeComponent).join('/');
@@ -71,11 +83,20 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
     // (si no, el 3D crea su superficie mientras mpv negocia la suya).
     _incActive();
     try {
+      if (_disposed || !mounted || _player != player) return;
       await player.setVolume(0);
       await player.setPlaylistMode(PlaylistMode.loop);
+      if (_disposed || !mounted || _player != player) {
+        await _dispose();
+        return;
+      }
       await player.open(Media(uri));
+      if (_disposed || !mounted || _player != player) {
+        await _dispose();
+        return;
+      }
       await player.play();
-      if (_disposed || !mounted) {
+      if (_disposed || !mounted || _player != player) {
         // El widget se desmontó durante los awaits: liberar huérfano.
         await _dispose();
         return;
@@ -99,11 +120,20 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
         _videoController = retryCtrl;
         _incActive();
         try {
+          if (_disposed || !mounted || _player != retryPlayer) return;
           await retryPlayer.setVolume(0);
           await retryPlayer.setPlaylistMode(PlaylistMode.loop);
+          if (_disposed || !mounted || _player != retryPlayer) {
+            await _dispose();
+            return;
+          }
           await retryPlayer.open(Media(retryUri));
+          if (_disposed || !mounted || _player != retryPlayer) {
+            await _dispose();
+            return;
+          }
           await retryPlayer.play();
-          if (_disposed || !mounted) {
+          if (_disposed || !mounted || _player != retryPlayer) {
             await _dispose();
             return;
           }
@@ -118,34 +148,37 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
     }
   }
 
-  Future<void> _dispose() async {
-    // Se reclama en síncrono (idempotencia ante llamadas concurrentes) pero
-    // el decremento real va DESPUÉS de stop()+dispose(): el visor 3D crea su
-    // superficie GL cuando el contador llega a 0, y si el 0 llega con el
-    // vídeo aún liberándose, las dos superficies ANGLE conviven y las
-    // texturas three.js salen negras. El notifier guardado (_counter, sin
-    // ref) es seguro de tocar tras los awaits y tras el unmount.
+  Future<void> _dispose() {
+    // Se reclama en síncrono (idempotencia ante llamadas concurrentes).
+    // El teardown nativo se encadena tras la puerta global: el siguiente
+    // Player no se crea hasta que este dispose termina. El decremento va
+    // DESPUÉS de stop()+dispose(): el visor 3D crea su superficie GL
+    // cuando el contador llega a 0, y si el 0 llega con el vídeo aún
+    // liberándose, las dos superficies ANGLE conviven. El notifier
+    // guardado (_counter, sin ref) es seguro tras awaits y tras unmount.
     final shouldDec = _counted;
     _counted = false;
     _ready = false;
     final player = _player;
     _player = null;
-    _videoController = null;
-    if (player != null) {
-      // stop() antes de dispose(): deja de soltar texturas ANGLE en Windows
-      // y reduce el FATAL releaseTexImage al convivir con otras superficies.
-      try {
-        await player.stop();
-      } catch (_) {}
-      try {
-        await player.dispose();
-      } catch (_) {}
-    }
-    if (shouldDec) {
-      try {
-        _counter?.decrement();
-      } catch (_) {}
-    }
+    // El controller se mantiene vivo hasta el fin del teardown para que
+    // el `Video` siga montado (toda creación espera a la puerta global,
+    // así que nadie lo pisa en medio).
+    _mpvGate = _mpvGate.then((_) async {
+      // Drenaje con gracia: deja que mpv suelte su GL en su hilo antes
+      // de destruir la salida (ver `disposeMpvPlayer`).
+      await disposeMpvPlayer(player);
+      _videoController = null;
+      if (shouldDec) {
+        try {
+          _counter?.decrement();
+        } catch (_) {}
+      }
+      if (!_disposed && mounted) {
+        setState(() {});
+      }
+    });
+    return _mpvGate;
   }
 
   @override
@@ -181,6 +214,10 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
           if (!_disposed && mounted) setState(() {});
         });
       }
+      // Mientras el teardown nativo corre, el `Video` sigue montado: si
+      // se vuelve a `DashboardBackground` antes, mpv libera la textura
+      // contra un contexto muerto (`releaseTexImage` FATAL).
+      if (_videoController != null) return _videoStack();
       return DashboardBackground(child: widget.child);
     }
 
@@ -188,6 +225,11 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
       return DashboardBackground(child: widget.child);
     }
 
+    return _videoStack();
+  }
+
+  /// Pila de vídeo a pantalla completa + overlay + contenido.
+  Widget _videoStack() {
     return Stack(
       fit: StackFit.expand,
       children: [

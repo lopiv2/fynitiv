@@ -1610,6 +1610,12 @@ abstract class AppLocalizations {
   /// **'Streaming is not available for this game. Use Download.'**
   String get gamesNoStreaming;
 
+  /// No description provided for @gamesPlayInBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Play in browser'**
+  String get gamesPlayInBrowser;
+
   /// No description provided for @gamesNoFile.
   ///
   /// In en, this message translates to:

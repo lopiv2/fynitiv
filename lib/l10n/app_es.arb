@@ -277,6 +277,7 @@
   },
   "gamesDownload": "Descargar",
   "gamesNoStreaming": "El streaming no está disponible para este juego. Usa Descargar.",
+  "gamesPlayInBrowser": "Jugar en el navegador",
   "gamesNoFile": "Este juego no tiene un archivo descargable.",
   "gamesDownloaded": "Descarga completada",
   "gamesLaunchError": "No se pudo abrir el reproductor web.",

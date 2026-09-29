@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/debug/live_tv_log.dart';
 import '../../../core/di/providers.dart';
+import '../../../core/video/mpv_teardown.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../library/application/library_providers.dart'
     hide jellyfinClientProvider;
@@ -336,9 +337,9 @@ class LiveTvPlayerController extends Notifier<LiveTvPlayerState> {
     _player = null;
     _videoController = null;
     if (p != null) {
-      try {
-        await p.dispose();
-      } catch (_) {}
+      // Drenaje con gracia (ver `disposeMpvPlayer`): en Windows liberar
+      // mpv pintando aborta el proceso (`unlock of unowned mutex`).
+      await disposeMpvPlayer(p);
     }
   }
 

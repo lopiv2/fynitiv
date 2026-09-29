@@ -785,6 +785,13 @@ class _PlatformCard extends ConsumerWidget {
     final ledColor = platformLedColor(platform, fallback: accent);
     // Transparente en reposo (glass), sólida al hacer hover para que el glow resalte
     final solidHover = const Color(0xFF1E2633);
+    // Streaming en navegador: badge verde arriba-derecha (como ROMM).
+    // Solo cuando está confirmado (cargando → sin badge, sin parpadeo).
+    final canStream = ref.watch(
+      rommStreamingSlugsProvider.select(
+        (v) => v.value?.contains(platform.slug.toLowerCase()) ?? false,
+      ),
+    );
     return AppHover(
       effect: AppHoverEffect.scaleHighlightOutlineLed,
       config: AppHoverConfig.scaleHighlightOutlineLed(
@@ -802,7 +809,39 @@ class _PlatformCard extends ConsumerWidget {
       onTap: () =>
           context.push('/games/platform/${platform.id}', extra: platform),
       playSoundOnHover: true,
-      child: glassCard,
+      child: Stack(
+        children: [
+          glassCard,
+          if (canStream)
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Tooltip(
+                message: l10n.gamesPlayInBrowser,
+                child: Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2ED9A3),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.play_arrow_rounded,
+                    color: Colors.black,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

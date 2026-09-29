@@ -75,8 +75,10 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
   /// Última emisión de progreso por task (throttle 200 ms).
   final Map<String, DateTime> _lastEmit = {};
 
-  /// Muestras para velocidad suavizada: id → (instante, bytes reales).
-  final Map<String, (DateTime, int)> _lastSample = {};
+  /// Muestras (instante, bytes reales) por task para la velocidad en
+  /// ventana deslizante de 3 s. Sin el umbral mínimo anterior (`dt > 0.05`),
+  /// que congelaba la velocidad en redes rápidas (eventos < 50 ms).
+  final Map<String, List<(DateTime, int)>> _samples = {};
 
   @override
   Map<String, DownloadTask> build() {
@@ -92,7 +94,7 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
       }
       _pruneTimers.clear();
       _lastEmit.clear();
-      _lastSample.clear();
+      _samples.clear();
     });
     return const {};
   }
@@ -191,7 +193,7 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
       transfer.dio.close();
     }
     _lastEmit.remove(id);
-    _lastSample.remove(id);
+    _samples.remove(id);
     final next = Map<String, DownloadTask>.of(state)..remove(id);
     state = next;
     if (transfer == null) {
@@ -262,7 +264,7 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
           ...state,
           id: current.copyWith(receivedBytes: 0, totalBytes: 0, speedBps: 0),
         };
-        _lastSample.remove(id);
+        _samples.remove(id);
         await _start(id, resumeFrom: 0, freshAttempt: true);
         return;
       }
@@ -281,7 +283,7 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
                 speedBps: 0,
               ),
             };
-            _lastSample.remove(id);
+            _samples.remove(id);
             await _start(id, resumeFrom: 0, freshAttempt: true);
             return;
           }
@@ -298,12 +300,14 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
         throw StateError('Cannot move file to ${task.savePath}');
       }
       _lastEmit.remove(id);
-      _lastSample.remove(id);
+      _samples.remove(id);
       state = {
         ...state,
         id: current.copyWith(status: DownloadStatus.completed),
       };
-      unawaited(EasyLoading.showSuccess(current.doneMessage));
+      unawaited(
+        EasyLoading.showSuccess('${current.doneMessage}\n${current.savePath}'),
+      );
       // Auto-retirar de la barra tras unos segundos.
       _pruneTimers.remove(id)?.cancel();
       _pruneTimers[id] = Timer(const Duration(seconds: 8), () {
@@ -330,7 +334,7 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
       }
       // Error real de red/servidor: se conserva el `.part` para resume.
       _lastEmit.remove(id);
-      _lastSample.remove(id);
+      _samples.remove(id);
       final reason = _reason(e);
       final respData = e.response?.data?.toString() ?? '';
       debugPrint(
@@ -351,7 +355,7 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
       final current = state[id];
       if (current == null) return;
       _lastEmit.remove(id);
-      _lastSample.remove(id);
+      _samples.remove(id);
       final reason = _reason(e);
       debugPrint(
         '[DownloadManager] FAILED(id=$id url=${task.url}): $e',
@@ -377,19 +381,23 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
     final total = totalResp > 0
         ? baseOffset + totalResp
         : (task.totalBytes > 0 ? task.totalBytes : 0);
-    // Velocidad suavizada (EMA α=0.3 sobre la instantánea).
+    // Velocidad en ventana deslizante (últimos 3 s): estable y correcta
+    // tanto en redes lentas como rápidas.
     var speed = task.speedBps;
-    final prev = _lastSample[id];
-    if (prev != null) {
-      final dt = now.difference(prev.$1).inMilliseconds / 1000.0;
-      if (dt > 0.05) {
-        final instant = (received - prev.$2) / dt;
-        if (instant >= 0) {
-          speed = speed <= 0 ? instant : speed * 0.7 + instant * 0.3;
-        }
+    final samples = _samples.putIfAbsent(id, () => []);
+    samples.add((now, received));
+    final cutoff = now.subtract(const Duration(seconds: 3));
+    while (samples.length > 2 && samples.first.$1.isBefore(cutoff)) {
+      samples.removeAt(0);
+    }
+    if (samples.length >= 2) {
+      final first = samples.first;
+      final dt = now.difference(first.$1).inMilliseconds / 1000.0;
+      if (dt >= 0.3) {
+        final windowed = (received - first.$2) / dt;
+        if (windowed >= 0) speed = windowed;
       }
     }
-    _lastSample[id] = (now, received);
     // Throttle: emitir como mucho cada 200 ms (o al completar).
     final last = _lastEmit[id];
     final done = total > 0 && received >= total;

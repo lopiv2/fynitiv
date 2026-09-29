@@ -16,17 +16,22 @@ class SoloudInitializer {
     _initAttempted = true;
     try {
       await SoLoud.instance.init();
-      // Habilita visualización para audio_flux waveform
-      try {
-        SoLoud.instance.setVisualizationEnabled(true);
-      } catch (_) {}
-      _initialized = true;
-      return true;
     } catch (e) {
-      _error = '$e';
-      _initialized = false;
-      return false;
+      // Tras un hot restart el motor nativo sigue vivo y el segundo
+      // `init()` falla ("already initialized"): reutilizarlo en vez de
+      // dejar el audio muerto en silencio (`_ready` falso en players).
+      if (!SoLoud.instance.isInitialized) {
+        _error = '$e';
+        _initialized = false;
+        return false;
+      }
     }
+    // Habilita visualización para audio_flux waveform
+    try {
+      SoLoud.instance.setVisualizationEnabled(true);
+    } catch (_) {}
+    _initialized = true;
+    return true;
   }
 
   static Future<void> dispose() async {

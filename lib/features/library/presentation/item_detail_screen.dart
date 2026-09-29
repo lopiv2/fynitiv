@@ -10,6 +10,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/audio/item_theme_player.dart';
 import '../../../core/skin/skin_controller.dart';
+import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -56,7 +57,14 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _trailerPlayer?.dispose();
+    // Reclamo síncrono como en _closeTrailer: si el cierre iba en vuelo,
+    // ya nuló y aquí no se re-libera (evita doble dispose nativo → mutex).
+    final trailer = _trailerPlayer;
+    _trailerPlayer = null;
+    _trailerVideoController = null;
+    if (trailer != null) {
+      unawaited(disposeMpvPlayer(trailer));
+    }
     // El theme del detalle no debe sonar fuera de la ficha.
     ItemThemePlayer.instance.leaveDetail();
     super.dispose();
@@ -160,13 +168,19 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
   }
 
   Future<void> _closeTrailer() async {
+    // Reclamo síncrono: si el dispose() del widget iba en vuelo, ya nuló
+    // y aquí no se re-libera (evita doble dispose nativo → mutex).
     final player = _trailerPlayer;
     _trailerPlayer = null;
     _trailerVideoController = null;
     _trailerLoading = false;
     _trailerError = null;
     if (mounted) setState(() {});
-    await player?.dispose();
+    if (player != null) {
+      // Drenaje con gracia (ver `disposeMpvPlayer`): en Windows liberar
+      // mpv pintando aborta el proceso (`unlock of unowned mutex`).
+      await disposeMpvPlayer(player);
+    }
     ItemThemePlayer.instance.resumeIfNeeded();
   }
 

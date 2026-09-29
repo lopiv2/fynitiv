@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../features/games/domain/game_ost_track.dart';
@@ -168,7 +169,13 @@ class GameOstPlayer {
   }
 
   Future<void> _playCurrent(int session) async {
-    if (session != _session || _shuffled.isEmpty || _muted) return;
+    if (session != _session || _shuffled.isEmpty || _muted) {
+      debugPrint(
+        '[Ost] _playCurrent ABORT session=$session current=$_session '
+        'empty=${_shuffled.isEmpty} muted=$_muted',
+      );
+      return;
+    }
     if (_loadingSession == session) return;
     _loadingSession = session;
     final track = _shuffled[_index];
@@ -181,15 +188,18 @@ class GameOstPlayer {
         volume: _volume,
         httpClient: _authClient,
       );
+      debugPrint('[Ost] playUrl OK session=$session url=${track.url}');
       if (session != _session || _loadingSession != session) {
         // Otra llamada tomó el mando (o se salió del detalle): no tocar
         // su voz. Salir del detalle pasa por stop(), que ya cancela la
         // carga pendiente dentro del player.
+        debugPrint('[Ost] playUrl tardío descartado session=$session');
         return;
       }
       _loadingSession = -1;
       _setLoading(false);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[Ost] playUrl FAILED session=$session error=$e');
       if (_loadingSession == session) _loadingSession = -1;
       _setLoading(false);
       if (session != _session) return;
@@ -215,6 +225,10 @@ class GameOstPlayer {
     _queue = List<GameOstTrack>.from(tracks);
     _shuffled = List<GameOstTrack>.from(tracks)..shuffle(Random());
     _index = 0;
+    debugPrint(
+      '[Ost] playQueue session=$_session muted=$_muted '
+      'first=${_shuffled.first.url}',
+    );
     if (_muted) {
       _current = _shuffled.first;
       _currentTrackController.add(_current);

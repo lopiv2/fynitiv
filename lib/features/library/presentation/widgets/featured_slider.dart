@@ -13,6 +13,7 @@ import '../../../../core/navigation/platform_mode.dart';
 import '../../../../core/navigation/tv_focus_nodes.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/video/mpv_teardown.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/age_rating_badge.dart';
 import '../../../../core/widgets/included_badge.dart';
@@ -946,7 +947,14 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     _trailerCompletionSub?.cancel();
     _trailerBufferingSub?.cancel();
     _trailerCropSub?.cancel();
-    _trailerPlayer?.dispose();
+    // Reclamo síncrono como en _closeTrailer: si el cierre iba en vuelo,
+    // ya nuló y aquí no se re-libera (evita doble dispose nativo → mutex).
+    final player = _trailerPlayer;
+    _trailerPlayer = null;
+    _trailerVideoController = null;
+    if (player != null) {
+      unawaited(disposeMpvPlayer(player));
+    }
     widget.onTrailerPlaybackChanged?.call(false);
     super.dispose();
   }
@@ -1099,13 +1107,11 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     widget.onTrailerPlaybackChanged?.call(false);
     if (mounted) setState(() {});
     if (player != null) {
-      try {
-        // Se espera el dispose para que libmpv libere de verdad el stream
-        // antes de volver a crear otro reproductor (o de un hot reload).
-        await player.dispose();
-      } catch (_) {
-        // El dispose nativo puede fallar si el engine se está cerrando.
-      }
+      // Drenaje con gracia (ver `disposeMpvPlayer`): en Windows liberar
+      // mpv pintando aborta el proceso. Se espera el dispose para que
+      // libmpv libere de verdad el stream antes de volver a crear otro
+      // reproductor (o de un hot reload).
+      await disposeMpvPlayer(player);
     }
     _closingTrailer = false;
   }
