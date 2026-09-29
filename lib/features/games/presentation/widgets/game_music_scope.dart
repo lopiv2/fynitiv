@@ -66,8 +66,10 @@ class _GameMusicScopeState extends ConsumerState<GameMusicScope> with WidgetsBin
   }
 
   bool _isInsideGames(String loc) {
+    // Principal y listas (detalle con su OST, jukebox con su propia
+    // música). Debe coincidir con HomeShell._isInsideGames para que no
+    // se peleen enter/leave si este scope vuelve a usarse.
     if (loc == '/games') return true;
-    if (loc.startsWith('/games/platform/')) return true;
     if (loc.startsWith('/games/platform')) return true;
     return false;
   }

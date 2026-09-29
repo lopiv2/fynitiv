@@ -19,6 +19,11 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
 
   flutter::DartProject project(L"data");
 
+  // flutter_scene renderiza sobre Flutter GPU, que no está activo por
+  // defecto en Windows. Requiere Flutter 3.47.1+ (usado en dev con
+  // --enable-flutter-gpu y en release con esta bandera).
+  project.set_enable_flutter_gpu(true);
+
   std::vector<std::string> command_line_arguments =
       GetCommandLineArguments();
 

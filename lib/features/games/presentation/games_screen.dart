@@ -19,6 +19,7 @@ import 'widgets/game_content_row.dart';
 import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
+import '../data/emulatorjs_playable.dart';
 import '../data/platform_asset_resolver.dart';
 import '../data/platform_category.dart';
 import '../data/platform_led_color.dart';
@@ -136,7 +137,12 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                     ),
                     SliverToBoxAdapter(
                       child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, kBetweenSectionsGap, 24, 8),
+                        padding: const EdgeInsets.fromLTRB(
+                          24,
+                          kBetweenSectionsGap,
+                          24,
+                          8,
+                        ),
                         child: ScrollTitle(title: l10n.platforms),
                       ),
                     ),
@@ -591,7 +597,6 @@ class _PlatformCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final skin = ref.watch(skinControllerProvider).value;
     final textPrimary = skin?.textPrimary ?? Colors.white;
-    final textSecondary = skin?.textSecondary ?? Colors.white70;
     final accent = skin?.accent ?? const Color(0xFF2B7FFF);
     final token = ref.watch(rommRepositoryProvider)?.token;
     final headers = token != null && token.isNotEmpty
@@ -757,12 +762,6 @@ class _PlatformCard extends ConsumerWidget {
                     ),
                   ),
                 ),
-                const Spacer(),
-                Icon(
-                  Icons.chevron_right_rounded,
-                  color: textSecondary.withValues(alpha: 0.6),
-                  size: 16,
-                ),
               ],
             ),
           ),
@@ -785,13 +784,9 @@ class _PlatformCard extends ConsumerWidget {
     final ledColor = platformLedColor(platform, fallback: accent);
     // Transparente en reposo (glass), sólida al hacer hover para que el glow resalte
     final solidHover = const Color(0xFF1E2633);
-    // Streaming en navegador: badge verde arriba-derecha (como ROMM).
-    // Solo cuando está confirmado (cargando → sin badge, sin parpadeo).
-    final canStream = ref.watch(
-      rommStreamingSlugsProvider.select(
-        (v) => v.value?.contains(platform.slug.toLowerCase()) ?? false,
-      ),
-    );
+    // Jugable en navegador via EmulatorJS: badge verde arriba-derecha.
+    // Funcion pura local (no depende de streaming.enabled del servidor).
+    final canStream = isEmulatorJsPlayable(platform.slug);
     return AppHover(
       effect: AppHoverEffect.scaleHighlightOutlineLed,
       config: AppHoverConfig.scaleHighlightOutlineLed(
@@ -814,7 +809,7 @@ class _PlatformCard extends ConsumerWidget {
           glassCard,
           if (canStream)
             Positioned(
-              top: 8,
+              bottom: 8,
               right: 8,
               child: Tooltip(
                 message: l10n.gamesPlayInBrowser,

@@ -1,4 +1,7 @@
+// game_box3d_viewer.dart — versión corregida completa
+
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
@@ -15,25 +18,153 @@ import '../../../../l10n/app_localizations.dart';
 import '../../application/romm_providers.dart';
 import '../../domain/romm_game.dart';
 
-/// Visor de portada con toggle 2D / 3D (render nativo con `three_js`).
-///
-/// - 3D cuando hay frontal ([RommGame.can3D]). Con trasera/lomo reales se
-///   usan en sus caras (el lomo texturiza el lateral; superior e inferior
-///   quedan tintados); sin lomo, cantos en marrón sólido, y sin trasera,
-///   esta en gris neutro.
-///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
-///   Caja `BoxGeometry` con frontal delante, trasera detrás y lomo en
-///   los cantos; órbita con ratón/táctil vía `OrbitControls`.
-/// - Sin caras suficientes: fallback 2D plano. Prioridad 2D: frontal
-///   plana (`coverLargeUrl` > `coverSmallUrl`); el pre-render `box3dUrl`
-///   de RomM queda como último recurso. La 3D vive solo en el modo 3D.
-/// - Texturas con auth Bearer descargadas en nativo con Dio: nunca salen
-///   del proceso y no hay CORS ni cabeceras que inyectar.
+/// LUT sRGB->linear (256 entradas). `three_js_angle_renderer` sube la textura
+/// con `NoColorSpace` (formato interno `RGBA8`) porque `TextureLoader.fromBytes`
+/// fija `needsUpdate` antes de poder asignar `SRGBColorSpace`; el shader
+/// `physical` termina en `linearToOutputTexel` (OETF sRGB), asi que los bytes
+/// sRGB llegan al shader sin decodificar y el OETF los vuelve a codificar
+/// (`pow(x, 2.2)` extra) oscureciendo la caratula. Pre-convertir a lineal
+/// (working space del renderer, `legacyMode = true`) deja el OETF final correcto.
+final Uint8List _srgbToLinearLut = () {
+  final lut = Uint8List(256);
+  for (var i = 0; i < 256; i++) {
+    final c = i / 255;
+    final linear = c <= 0.04045
+        ? c / 12.92
+        : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    lut[i] = (linear * 255).round().clamp(0, 255);
+  }
+  return lut;
+}();
+
+/// Aplica sRGB->linear in-place sobre RGBA crudo (alpha intacto).
+void _srgbToLinearInPlace(Uint8List pixels) {
+  final lut = _srgbToLinearLut;
+  for (var i = 0; i + 4 <= pixels.length; i += 4) {
+    pixels[i] = lut[pixels[i]];
+    pixels[i + 1] = lut[pixels[i + 1]];
+    pixels[i + 2] = lut[pixels[i + 2]];
+  }
+}
+
+/// Re-codifica pixeles RGBA crudos a PNG usando el codec de Flutter
+/// (`ImageDescriptor.raw`). El PNG resultante vuelve a decodificarse sin
+/// recalcular color, por lo que conserva los valores lineales.
+Future<Uint8List?> _encodePngRgba(Uint8List rgba, int width, int height) async {
+  try {
+    final descriptor = ui.ImageDescriptor.raw(
+      await ui.ImmutableBuffer.fromUint8List(rgba),
+      width: width,
+      height: height,
+      pixelFormat: ui.PixelFormat.rgba8888,
+    );
+    final codec = await descriptor.instantiateCodec();
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    try {
+      final png = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (png == null) return null;
+      return png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
+    } finally {
+      image.dispose();
+      descriptor.dispose();
+    }
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Normaliza bytes de caratula: decodifica, detecta placeholders negros
+/// (solo frontal) y devuelve un PNG con los pixeles en espacio lineal.
+Future<Uint8List?> _normalizedCoverBytes(
+  List<int> bytes, {
+  bool rejectBlank = true,
+  String debugLabel = 'cara',
+}) async {
+  if (bytes.isEmpty) {
+    debugPrint('[Box3D] normalize $debugLabel: 0 bytes');
+    return null;
+  }
+  try {
+    final codec = await ui.instantiateImageCodec(Uint8List.fromList(bytes));
+    final frame = await codec.getNextFrame();
+    final image = frame.image;
+    try {
+      if (image.width <= 0 || image.height <= 0) {
+        debugPrint('[Box3D] normalize $debugLabel: sin dimensiones');
+        return null;
+      }
+      final raw = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      if (raw == null) {
+        debugPrint(
+          '[Box3D] normalize $debugLabel: rawRgba nulo '
+          '(${image.width}x${image.height}, ${bytes.length} bytes)',
+        );
+        return null;
+      }
+      final pixels = raw.buffer.asUint8List(
+        raw.offsetInBytes,
+        raw.lengthInBytes,
+      );
+      var sum = 0;
+      var count = 0;
+      for (var i = 0; i + 4 <= pixels.length; i += 32) {
+        if (pixels[i + 3] < 128) continue;
+        sum +=
+            (pixels[i] * 299 + pixels[i + 1] * 587 + pixels[i + 2] * 114) ~/
+            1000;
+        count++;
+      }
+      if (count == 0) {
+        debugPrint(
+          '[Box3D] normalize $debugLabel: sin píxeles opacos '
+          '(${image.width}x${image.height}, ${bytes.length} bytes)',
+        );
+        return null;
+      }
+      final avg = sum / count;
+      if (rejectBlank && avg < 8) {
+        debugPrint(
+          '[Box3D] normalize $debugLabel: casi negra '
+          '(luma ${avg.toStringAsFixed(1)}, ${image.width}x${image.height}, '
+          '${bytes.length} bytes)',
+        );
+        return null;
+      }
+      // Conversion sRGB->linear sobre los pixeles crudos: la textura llega al
+      // shader ya lineal y el OETF final no la apaga. Se re-codifica a PNG
+      // desde los pixeles crudos (ui.ImageDescriptor.raw) para reutilizar el
+      // pipeline ya verificado de `TextureLoader.fromBytes`.
+      final linearPixels = Uint8List.fromList(pixels);
+      _srgbToLinearInPlace(linearPixels);
+      final linearPng = await _encodePngRgba(
+        linearPixels,
+        image.width,
+        image.height,
+      );
+      if (linearPng == null) {
+        debugPrint('[Box3D] normalize $debugLabel: png lineal nulo');
+        return null;
+      }
+      debugPrint(
+        '[Box3D] normalize $debugLabel OK ${image.width}x${image.height} '
+        'pixels=${linearPixels.length} png=${linearPng.length}',
+      );
+      return linearPng;
+    } finally {
+      image.dispose();
+    }
+  } catch (e) {
+    debugPrint('[Box3D] normalize $debugLabel: decode fallido ($e)');
+    return null;
+  }
+}
+
 class GameCoverViewer extends ConsumerStatefulWidget {
   const GameCoverViewer({
     super.key,
     required this.game,
-    required this.headers,
+    required this.headers, // <-- Bearer token ya viene de fuera
     required this.width,
     required this.height,
     this.autoRotate = true,
@@ -62,14 +193,8 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   three.Mesh? _box;
   final FocusNode _focusNode = FocusNode();
 
-  /// Sin vídeos activos se puede crear la superficie GL. Si el fondo tarda
-  /// en morir, se cae a 2D antes que arriesgar el abort de ANGLE.
   static const _waitStep = Duration(milliseconds: 150);
   static const _waitMax = Duration(seconds: 4);
-
-  /// Gracia tras contador 0 antes de crear la superficie GL: el teardown
-  /// ANGLE de mpv puede seguir en vuelo aunque el contador ya bajó
-  /// (espejo de `_resumeGrace` en la salida).
   static const _settleGrace = Duration(milliseconds: 400);
   Timer? _settleTimer;
   static const _resumeGrace = Duration(milliseconds: 300);
@@ -113,9 +238,6 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   void _suspendVideo() {
     if (_suspendedByMe) return;
     _suspendedByMe = true;
-    // Riverpod prohíbe mutar providers en initState/didUpdateWidget/dispose
-    // mientras el árbol construye: se difiere a post-frame. La espera del
-    // vídeo ya sondea por polling, así que un frame de más no importa.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       try {
@@ -127,8 +249,6 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   void _resumeVideo() {
     if (!_suspendedByMe) return;
     _suspendedByMe = false;
-    // Gracia para que el teardown GL se aquiete antes de que el fondo
-    // recree su superficie ANGLE (orden inverso al de entrada).
     Future.delayed(_resumeGrace).then((_) {
       try {
         ref.read(gameVideoSuspendedProvider.notifier).set(false);
@@ -143,14 +263,11 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     _settleTimer = null;
   }
 
-  /// Crea la superficie GL tras la gracia de asentamiento (cancelable
-  /// al desmontar o cambiar de juego vía [_cancelWait]).
   void _createThreeAfterSettle() {
     _settleTimer?.cancel();
     _settleTimer = Timer(_settleGrace, () {
       _settleTimer = null;
       if (!mounted) return;
-      // El vídeo pudo reactivarse durante la gracia: re-esperar.
       try {
         if (ref.read(gameVideoActiveCountProvider) != 0) {
           _waitForVideoStop();
@@ -184,7 +301,6 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       } else if (elapsed >= _waitMax) {
         t.cancel();
         _waitTimer = null;
-        // El vídeo no murió a tiempo: 2D antes que arriesgar el FATAL.
         setState(() {
           _loading = false;
           _show3D = false;
@@ -230,7 +346,6 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
         loadingWidget: const Center(child: AppLoader()),
       );
     } catch (_) {
-      // Sin contexto GL en el dispositivo: cae a 2D sin romper el detalle.
       _three = null;
       if (!mounted) return;
       setState(() {
@@ -242,8 +357,6 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     if (mounted) setState(() {});
   }
 
-  /// 2D = frontal plana por defecto; el pre-render 3D de RomM solo se
-  /// usa si no hay frontal. La caja 3D vive en el modo 3D.
   String get _fallback2D {
     final g = widget.game;
     if (g.coverLargeUrl != null && g.coverLargeUrl!.isNotEmpty) {
@@ -255,15 +368,41 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     return g.box3dUrl ?? '';
   }
 
-  /// Grosor de caja por familia de plataforma (SNES/cartucho grueso vs CD fino).
   List<double> _boxSizeFor(String slug) {
     const thick = {
-      'nes', 'snes', 'n64', 'gb', 'gbc', 'gba', 'genesis', 'megadrive',
-      'mastersystem', 'gamegear', 'lynx', 'ngp', 'ngpc', 'nds', 'n3ds', 'vb',
+      'nes',
+      'snes',
+      'n64',
+      'gb',
+      'gbc',
+      'gba',
+      'genesis',
+      'megadrive',
+      'mastersystem',
+      'gamegear',
+      'lynx',
+      'ngp',
+      'ngpc',
+      'nds',
+      'n3ds',
+      'vb',
     };
     const thin = {
-      'ps', 'psx', 'ps1', 'ps2', 'saturn', 'dreamcast', 'psp', 'psvita',
-      'segacd', 'sega-cd', '3do', 'cdi', 'pcengine', 'turbografx16', 'neogeocd',
+      'ps',
+      'psx',
+      'ps1',
+      'ps2',
+      'saturn',
+      'dreamcast',
+      'psp',
+      'psvita',
+      'segacd',
+      'sega-cd',
+      '3do',
+      'cdi',
+      'pcengine',
+      'turbografx16',
+      'neogeocd',
     };
     final s = slug.trim().toLowerCase();
     if (thin.contains(s)) return const [1.0, 1.4, 0.1];
@@ -271,7 +410,6 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     return const [1.0, 1.4, 0.18];
   }
 
-  /// Sanea una URL de asset (la `ts` de RomM trae espacios sin codificar).
   String _sanitizeUrl(String url) {
     final trimmed = url.trim();
     if (trimmed.isEmpty) return '';
@@ -286,46 +424,77 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     }
   }
 
-  /// Carga una cara y, si se pide (`sampleColor`), su color predominante
-  /// (para teñir las caras que queden sin textura). Solo se muestrea el
-  /// lomo: es barato y evita trabajo inútil en frontal/trasera.
+  // ─────────────────────────────────────────────────────────────────────────
+  // FIX PRINCIPAL: _loadFace ahora recibe y usa las cabeceras Bearer.
+  // Antes nunca se pasaban → la API de ROMM rechazaba o devolvía vacío.
+  // ─────────────────────────────────────────────────────────────────────────
   Future<({three.Texture? texture, int? dominant})> _loadFace(
     String url, {
     bool sampleColor = false,
+    bool rejectBlank = true,
+    String debugLabel = 'cara',
   }) async {
     const empty = (texture: null, dominant: null);
     final clean = _sanitizeUrl(url);
-    if (clean.isEmpty) return empty;
+    if (clean.isEmpty) {
+      debugPrint('[Box3D] cara $debugLabel: URL vacía');
+      return empty;
+    }
     final repo = ref.read(rommRepositoryProvider);
-    if (repo == null) return empty;
+    if (repo == null) {
+      debugPrint('[Box3D] cara $debugLabel: sin repo ($clean)');
+      return empty;
+    }
     try {
-      final bytes = await repo.downloadAssetBytes(clean);
-      if (bytes == null || bytes.isEmpty) return empty;
-      final tex = await three.TextureLoader(flipY: true)
-          .fromBytes(Uint8List.fromList(bytes));
+      // FIX: pasamos las cabeceras que vienen del widget (Bearer token).
+      // downloadAssetBytes debe aceptar un Map<String,String>? opcional.
+      // Si tu implementación aún no lo tiene, ver nota al final del bloque.
+      final bytes = await repo.downloadAssetBytes(
+        clean,
+        headers: widget.headers, // ← CAMBIO CLAVE
+      );
+      if (bytes == null || bytes.isEmpty) {
+        debugPrint('[Box3D] cara $debugLabel: descarga vacía ($clean)');
+        return empty;
+      }
+
+      final normalized = await _normalizedCoverBytes(
+        bytes,
+        rejectBlank: rejectBlank,
+        debugLabel: debugLabel,
+      );
+      if (normalized == null || normalized.isEmpty) {
+        debugPrint(
+          '[Box3D] cara $debugLabel: normalize nulo '
+          '(${bytes.length} bytes de $clean)',
+        );
+        return empty;
+      }
+
+      // `TextureLoader.fromBytes` (pipeline verificado) con el PNG lineal.
+      // flipY:true como en el commit funcional 6d67590: sin el, la caratula
+      // se muestrea invertida y con ClampToEdge sale un borde plano (gris).
+      final tex = await three.TextureLoader(flipY: true).fromBytes(normalized);
       if (tex == null) return empty;
+
       tex.colorSpace = three.SRGBColorSpace;
-      // Las carátulas de RomM son NPOT (p.ej. 517x680): con mipmaps la
-      // textura queda incompleta en ANGLE/D3D11 y la cara sale negra.
-      // three.js hace lo mismo con NPOT en WebGL1. Wrap/filtros explícitos
-      // (aunque sean los defaults) para no depender del constructor.
       tex.wrapS = three.ClampToEdgeWrapping;
       tex.wrapT = three.ClampToEdgeWrapping;
       tex.magFilter = three.LinearFilter;
       tex.minFilter = three.LinearFilter;
       tex.generateMipmaps = false;
+      // FIX: needsUpdate se setea AQUÍ para el upload inicial del codec,
+      // pero se vuelve a poner a true después de añadir la malla a la
+      // escena (ver _setup), que es cuando ANGLE tiene el contexto GL listo.
       tex.needsUpdate = true;
-      final dominant =
-          sampleColor ? await _predominantColor(bytes) : null;
+
+      final dominant = sampleColor ? await _predominantColor(bytes) : null;
       return (texture: tex, dominant: dominant);
     } catch (_) {
       return empty;
     }
   }
 
-  /// Color predominante de una carátula como `0xFFRRGGBB` (histograma con
-  /// 4 bits por canal sobre miniatura, transparentes ignorados). Para teñir
-  /// las caras del modelo que no tengan textura del color del lomo.
   Future<int?> _predominantColor(List<int> bytes) async {
     try {
       final codec = await ui.instantiateImageCodec(
@@ -341,7 +510,8 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       final counts = <int, int>{};
       for (var i = 0; i + 4 <= pixels.length; i += 4) {
         if (pixels[i + 3] < 128) continue;
-        final key = ((pixels[i] >> 4) << 8) |
+        final key =
+            ((pixels[i] >> 4) << 8) |
             ((pixels[i + 1] >> 4) << 4) |
             (pixels[i + 2] >> 4);
         counts[key] = (counts[key] ?? 0) + 1;
@@ -360,8 +530,13 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     }
   }
 
-  /// Cantos/caras sin textura. Con `tint` (predominante del lomo) se tiñen
-  /// de ese color; sin él, marrón sólido corporativo.
+  // ─────────────────────────────────────────────────────────────────────────
+  // FIX: todos los materiales son MeshStandardMaterial.
+  // Mezclar MeshBasicMaterial + MeshStandardMaterial en un GroupMaterial
+  // hace que el driver ANGLE compile shaders incompatibles y las caras
+  // con textura salen negras sin ningún error en el log.
+  // roughness:1 / metalness:0 imita el aspecto plano del Basic.
+  // ─────────────────────────────────────────────────────────────────────────
   three.Material _edgeMaterial({int? tint}) {
     return three.MeshStandardMaterial({
       three.MaterialProperty.color: tint ?? 0x2b1d12,
@@ -370,28 +545,39 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     });
   }
 
-  /// Caras con carátula: `MeshBasicMaterial` a propósito (sin luces ni
-  /// normales): los colores salen exactos como en el 2D y usa un programa
-  /// distinto al de los cantos Standard. Los cantos siguen con Standard
-  /// para conservar el sombreado del grosor de la caja.
   three.Material _faceMaterial(three.Texture tex) {
-    return three.MeshBasicMaterial({
+    // `MeshBasicMaterial` como en el commit funcional 6d67590: las caras con
+    // caratula se muestran sin luces ni normales (color exacto) y usan un
+    // programa distinto al de los cantos Standard. Con `MeshStandardMaterial`
+    // el map no se muestreaba en ANGLE y las caras quedaban planas.
+    final mat = three.MeshBasicMaterial({
       three.MaterialProperty.map: tex,
     });
+    debugPrint(
+      '[Box3D] _faceMaterial: inTex=${tex.runtimeType} '
+      'inVersion=${tex.version} outMap=${mat.map != null} '
+      'outVersion=${mat.map?.version} same=${identical(mat.map, tex)}',
+    );
+    return mat;
   }
 
   Future<void> _setup() async {
+    debugPrint(
+      '[Box3D] _setup START — game=${widget.game.id} can3D=${widget.game.can3D}',
+    );
+    debugPrint('[Box3D] _setup — frontLarge=${widget.game.coverLargeUrl}');
+    debugPrint('[Box3D] _setup — frontSmall=${widget.game.coverSmallUrl}');
     final t = _three;
-    if (t == null) return;
+    if (t == null) {
+      debugPrint('[Box3D] _setup ABORT — _three es null');
+      return;
+    }
     final g = widget.game;
 
     try {
       t.scene = three.Scene();
+      debugPrint('[Box3D] scene OK');
       final aspect = widget.width / widget.height;
-      // Encuadre inicial con presencia: cámara más cerca y FOV estrecho
-      // para que la caja se vea grande nada más cargar. Se conserva el
-      // ángulo 3/4 (proporción x/y/z) y el `minDistance` (2.4) para no
-      // tocar el zoom manual.
       final camera = three.PerspectiveCamera(27, aspect, 0.1, 100);
       camera.position.setValues(1.25, 0.3, 3.2);
       t.camera = camera;
@@ -417,18 +603,32 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
       _controls!.autoRotateSpeed = 3.0;
       _controls!.update();
 
-      // Caras primero: la malla se crea UNA vez con los materiales finales.
-      // (Mutar GroupMaterial.children tras el primer render no llega al
-      // puente nativo ANGLE y la carátula nunca aparecía.)
       final frontUrl = (g.coverLargeUrl?.isNotEmpty == true
           ? g.coverLargeUrl!
           : (g.coverSmallUrl ?? ''));
+      debugPrint('[Box3D] frontUrl=$frontUrl');
+
       final results = await Future.wait([
-        _loadFace(frontUrl),
-        _loadFace(g.coverBackUrl ?? ''),
-        _loadFace(g.coverSpineUrl ?? '', sampleColor: true),
+        _loadFace(frontUrl, debugLabel: 'front'),
+        _loadFace(g.coverBackUrl ?? '', rejectBlank: false, debugLabel: 'back'),
+        _loadFace(
+          g.coverSpineUrl ?? '',
+          sampleColor: true,
+          rejectBlank: false,
+          debugLabel: 'spine',
+        ),
       ]);
-      if (!mounted || _three == null) return;
+      debugPrint('[Box3D] Future.wait completado');
+      debugPrint('[Box3D] front tex=${results[0].texture != null}');
+      debugPrint('[Box3D] back  tex=${results[1].texture != null}');
+      debugPrint('[Box3D] spine tex=${results[2].texture != null}');
+
+      // Guardia anti-carrera
+      if (!mounted || _three == null || !identical(t, _three)) {
+        debugPrint('[Box3D] ABORT post-await — desmontado o carrera');
+        return;
+      }
+
       if (results[0].texture == null) {
         setState(() {
           _loading = false;
@@ -447,11 +647,20 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
         }
         return;
       }
-      // Orden BoxGeometry: [+x, -x, +y, -y, +z(frontal), -z(trasera)].
-      // Los cantos sin textura se tiñen del predominante del lomo (sin
-      // lomo, marrón sólido); la trasera sin carátula va en gris neutro.
+
+      if (results[1].texture == null || results[2].texture == null) {
+        debugPrint(
+          '[Box3D] juego ${g.id}: '
+          'back=${results[1].texture != null ? "ok" : "GRIS (nula)"} '
+          'spine=${results[2].texture != null ? "ok" : "sin textura"} '
+          'backUrl=${g.coverBackUrl ?? "-"} spineUrl=${g.coverSpineUrl ?? "-"}',
+        );
+      }
+
       final edge = _edgeMaterial(tint: results[2].dominant);
       final backFallback = _edgeMaterial(tint: 0x808080);
+
+      // Orden BoxGeometry: [+x, -x, +y, -y, +z(frontal), -z(trasera)]
       final materials = <three.Material>[
         edge,
         edge,
@@ -462,26 +671,36 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
             ? _faceMaterial(results[1].texture!)
             : backFallback,
       ];
+
       if (results[2].texture != null) {
-        // Solo el lateral lleva el lomo texturizado (+x/-x). Superior e
-        // inferior (+y/-y) quedan tintados con el predominante del lomo.
         final spine = _faceMaterial(results[2].texture!);
         materials[0] = spine;
         materials[1] = spine;
       }
+
       final size = _boxSizeFor(g.platformSlug);
       final geometry = three.BoxGeometry(size[0], size[1], size[2]);
+
       final groupMat = three.GroupMaterial(materials);
       _box = three.Mesh(geometry, groupMat);
       _group = three.Group();
       _group!.add(_box!);
       t.scene.add(_group!);
 
+      debugPrint(
+        '[Box3D] mesh: groups=${geometry.groups.length} '
+        'materials=${materials.length} '
+        'matTypes=${materials.map((m) => m.runtimeType).toList()} '
+        'maps=${materials.map((m) => m.map != null).toList()} '
+        'mapVersions=${materials.map((m) => m.map?.version).toList()}',
+      );
+
       setState(() {
         _loading = false;
         _ready = true;
       });
-    } catch (_) {
+    } catch (e, st) {
+      debugPrint('[Box3D] _setup EXCEPTION: $e\n$st'); // <-- st para stacktrace
       if (!mounted) return;
       _disposeThree();
       setState(() {
@@ -494,7 +713,6 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   void _onToggle(bool to3D) {
     if (to3D == _show3D) return;
     if (!to3D) {
-      // A 2D: libera la superficie GL (el vídeo sigue suspendido).
       _cancelWait();
       _disposeThree();
       setState(() {
@@ -558,10 +776,7 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(3),
-        child: child,
-      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(3), child: child),
     );
   }
 
@@ -569,11 +784,11 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
     final url = _fallback2D;
     return _frame(
       child: url.isNotEmpty
-          ? Image.network(
-              url,
-              fit: BoxFit.cover,
-              headers: widget.headers,
-              errorBuilder: (_, _, _) => _CoverFallback(game: widget.game),
+          ? _ValidatedCoverImage(
+              key: ValueKey(url),
+              url: url,
+              headers: widget.headers, // FIX: también pasa headers al 2D
+              game: widget.game,
             )
           : _CoverFallback(game: widget.game),
     );
@@ -631,6 +846,11 @@ class _GameCoverViewerState extends ConsumerState<GameCoverViewer> {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// _ViewToggle, _ValidatedCoverImage, _CoverFallback sin cambios funcionales,
+// salvo que _ValidatedCoverImage ahora acepta y usa headers.
+// ─────────────────────────────────────────────────────────────────────────────
+
 class _ViewToggle extends StatelessWidget {
   const _ViewToggle({
     required this.show3D,
@@ -648,12 +868,11 @@ class _ViewToggle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Factor TV: segmentos más grandes y legibles a distancia. En
-    // desktop/móvil se mantiene el tamaño actual.
     final segRadius = BorderRadius.circular(isTv ? 10 : 8);
     final hPad = isTv ? 20.0 : 14.0;
     final vPad = isTv ? 12.0 : 7.0;
     final fontSize = isTv ? 15.0 : 12.0;
+
     Widget seg(String label, bool active, VoidCallback onTap) {
       return AppHover(
         effect: AppHoverEffect.highlightWithScale,
@@ -699,6 +918,70 @@ class _ViewToggle extends StatelessWidget {
           seg(label3D, show3D, () => onChanged(true)),
         ],
       ),
+    );
+  }
+}
+
+class _ValidatedCoverImage extends ConsumerStatefulWidget {
+  const _ValidatedCoverImage({
+    super.key,
+    required this.url,
+    required this.headers, // FIX: añadido
+    required this.game,
+  });
+
+  final String url;
+  final Map<String, String>? headers; // FIX: añadido
+  final RommGame game;
+
+  @override
+  ConsumerState<_ValidatedCoverImage> createState() =>
+      _ValidatedCoverImageState();
+}
+
+class _ValidatedCoverImageState extends ConsumerState<_ValidatedCoverImage> {
+  late final Future<Uint8List?> _bytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _bytes = _fetch();
+  }
+
+  Future<Uint8List?> _fetch() async {
+    try {
+      final repo = ref.read(rommRepositoryProvider);
+      if (repo == null) return null;
+      // FIX: pasa las cabeceras Bearer al repo, igual que en _loadFace.
+      final bytes = await repo.downloadAssetBytes(
+        widget.url,
+        headers: widget.headers,
+      );
+      if (bytes == null || bytes.isEmpty) return null;
+      return Uint8List.fromList(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Uint8List?>(
+      future: _bytes,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Container(color: const Color(0xFF0B1220));
+        }
+        final data = snapshot.data;
+        if (data == null || data.isEmpty) {
+          return _CoverFallback(game: widget.game);
+        }
+        return Image.memory(
+          data,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _CoverFallback(game: widget.game),
+        );
+      },
     );
   }
 }

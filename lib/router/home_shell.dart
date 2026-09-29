@@ -73,6 +73,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
   bool _isInsideGames(String loc, int branchIndex) {
     // Rama games ahora índice 6 (tras insertar E-Reader en 5)
     if (branchIndex != 6) return false;
+    // Principal y listas de plataforma (diseño "hub o lista"); el detalle
+    // y el jukebox quedan fuera. El llamador pasa la URI completa porque
+    // el matchedLocation del shell se queda stale en '/games', y el veto
+    // de detalle vivo (detailOpen) bloquea los enter() tardíos.
     if (loc == '/games') return true;
     if (loc.startsWith('/games/platform')) return true;
     return false;
@@ -96,7 +100,11 @@ class _HomeShellState extends ConsumerState<HomeShell>
   }
 
   void _syncMusic(String loc, int branchIndex) {
-    final nowInside = _isInsideGames(loc, branchIndex);
+    var nowInside = _isInsideGames(loc, branchIndex);
+    // Detalle vivo (recién abierto o restaurado de otra rama sin pasar por
+    // initState): el fondo queda vetado aunque la ruta leída sea '/games'
+    // stale. Solo se permite parar, nunca arrancar.
+    if (nowInside && GameBgPlayer.instance.detailOpen) nowInside = false;
     if (nowInside == _insideGames) return;
     _insideGames = nowInside;
     if (_insideGames) {
@@ -126,8 +134,15 @@ class _HomeShellState extends ConsumerState<HomeShell>
       GameBgPlayer.instance.setMuted(muted);
     });
 
-    // Sincroniza música según rama y ubicación (hub/lista vs detalle)
-    final loc = GoRouterState.of(context).matchedLocation;
+    // Sincroniza música según rama y ubicación (hub/listas, nunca detalle).
+    // Se usa la URI completa: el matchedLocation del shell se queda stale
+    // en '/games' al volver de otra rama al detalle y reactivaría el fondo.
+    String loc;
+    try {
+      loc = GoRouter.of(context).routeInformationProvider.value.uri.path;
+    } catch (_) {
+      loc = GoRouterState.of(context).matchedLocation;
+    }
     final branchIndex = widget.navigationShell.currentIndex;
     _syncMusic(loc, branchIndex);
 

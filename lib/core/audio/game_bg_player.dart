@@ -23,6 +23,30 @@ class GameBgPlayer {
   // Token anti-carreras: si se sale (leave) mientras una pista se está
   // cargando, el play tardío debe abortarse y no sonar fuera de /games.
   int _session = 0;
+  // Detalles de juego vivos (puede apilarse detalle sobre detalle).
+  // Mientras haya al menos uno, el shell tiene vetado el enter(): el
+  // detalle manda silencio aunque la ruta le llegue tarde al shell
+  // (restaurar la rama desde Ajustes no re-ejecuta initState).
+  int _detailDepth = 0;
+
+  /// True si hay algún detalle de juego vivo (visible o preservado en
+  /// la pila de la rama). El jukebox no toca este contador.
+  bool get detailOpen => _detailDepth > 0;
+
+  /// Un detalle entra en escena: veta el fondo y aborta cargas en vuelo.
+  Future<void> enterDetail() async {
+    _detailDepth++;
+    _session++;
+    try {
+      await _player.stop();
+    } catch (_) {}
+  }
+
+  /// Un detalle se destruye: libera el veto (sin reanudar; de eso se
+  /// encarga quien lo llame con [returnFromDetail] si procede).
+  void exitDetail() {
+    if (_detailDepth > 0) _detailDepth--;
+  }
 
   void _ensureInit() {
     if (_initialized) return;
@@ -102,6 +126,22 @@ class GameBgPlayer {
     if (!_inside || _muted || _queue.isEmpty) return;
     _session++;
     _queue.shuffle(Random());
+    _index = 0;
+    await _playCurrent(_session);
+  }
+
+  /// Salida del detalle hacia las listas de juegos: retoma el fondo con
+  /// reshuffle aunque la cola se hubiera vaciado con un leave() previo
+  /// (salvo mute). Solo lo llama el detalle en su dispose, que siempre
+  /// vuelve a una lista (el detalle solo se abre con push desde listas;
+  /// el jukebox nunca abre detalles). El shell confirmará o cortará en
+  /// su próximo rebuild según la URI real.
+  Future<void> resumeListsAfterDetail() async {
+    _inDetail = false;
+    if (_muted) return;
+    _inside = true;
+    _session++;
+    _queue = List<String>.from(kThemeTracks)..shuffle(Random());
     _index = 0;
     await _playCurrent(_session);
   }

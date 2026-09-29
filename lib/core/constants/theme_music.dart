@@ -3,9 +3,12 @@
 const kThemeTracks = <String>[
   'audio/themes/8-bit dust.mp3',
   'audio/themes/Crystal Save Menu.mp3',
+  'audio/themes/Ethereal Madness.mp3',
+  'audio/themes/Hidden Bonus Room.mp3',
   'audio/themes/Launcher Loop.mp3',
   'audio/themes/Neon Cartridge Drift.mp3',
   'audio/themes/Neon Static.mp3',
   'audio/themes/Pause Screen.mp3',
   'audio/themes/Pixel Menu Drift.mp3',
+  'audio/themes/Triumph at the Final Gate.mp3',
 ];

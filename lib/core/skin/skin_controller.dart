@@ -10,6 +10,11 @@ import 'skin_presets.dart';
 const _kSkinKey = 'jellyfin.skin';
 const _kSkinPresetKey = 'jellyfin.skin_preset';
 
+/// Desplazamiento del título al pasar el ratón como preferencia global:
+/// antes vivía solo dentro del JSON del skin y se perdía al reiniciar
+/// (rehidratación desde preset o JSON sin la clave).
+const _kTitleMarqueeKey = 'fynitiv.title_marquee';
+
 /// Skin activo de la app (persistido).
 ///
 /// Si el usuario aplicó un preset sin personalizarlo, solo se guarda su id
@@ -25,7 +30,7 @@ class SkinController extends AsyncNotifier<Skin> {
       final preset = SkinPresets.all
           .where((s) => s.id == presetId)
           .firstOrNull;
-      if (preset != null) return preset;
+      if (preset != null) return await _withMarquee(preset);
     }
     final raw = prefs.getString(_kSkinKey);
     if (raw != null) {
@@ -46,7 +51,9 @@ class SkinController extends AsyncNotifier<Skin> {
               .where((s) => s.id == skin.id)
               .firstOrNull;
           if (preset != null && preset.homeScrolls.isNotEmpty) {
-            return skin.copyWith(homeScrolls: preset.homeScrolls);
+            return await _withMarquee(
+              skin.copyWith(homeScrolls: preset.homeScrolls),
+            );
           }
         }
         // Migración: skins custom guardados antes de que `newReleases` tuviera
@@ -169,15 +176,29 @@ class SkinController extends AsyncNotifier<Skin> {
             SharedPreferences.getInstance().then((p) {
               p.setString(_kSkinKey, jsonEncode(migrated.toJson()));
             });
-            return migrated;
+            return await _withMarquee(migrated);
           }
         }
-        return skin;
+        return await _withMarquee(skin);
       } catch (_) {
         // Skin corrupto: usamos el predeterminado.
       }
     }
-    return SkinPresets.jellyfinDefault;
+    return _withMarquee(SkinPresets.jellyfinDefault);
+  }
+
+  /// Impone el ajuste global de marquee sobre un skin resuelto y lo siembra
+  /// en prefs la primera vez (desde el propio skin) para no voltear a los
+  /// usuarios que ya lo personalizaron en el JSON del skin.
+  Future<Skin> _withMarquee(Skin base) async {
+    final prefs = await SharedPreferences.getInstance();
+    var v = prefs.getBool(_kTitleMarqueeKey);
+    if (v == null) {
+      v = base.titleMarqueeOnHover;
+      await prefs.setBool(_kTitleMarqueeKey, v);
+    }
+    if (v == base.titleMarqueeOnHover) return base;
+    return base.copyWith(titleMarqueeOnHover: v);
   }
 
   /// Aplica un skin personalizado y lo persiste completo.
@@ -186,6 +207,7 @@ class SkinController extends AsyncNotifier<Skin> {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kSkinPresetKey);
     await prefs.setString(_kSkinKey, jsonEncode(skin.toJson()));
+    await prefs.setBool(_kTitleMarqueeKey, skin.titleMarqueeOnHover);
   }
 
   /// Aplica un skin a partir de su id (busca en presets; si no, mantiene).
@@ -196,8 +218,10 @@ class SkinController extends AsyncNotifier<Skin> {
   }
 
   /// Aplica un preset (sin personalizar) y guarda solo su id.
+  /// El marquee global se impone encima para que cambiar de preset
+  /// no resetee el ajuste.
   Future<void> applyPresetSkin(Skin preset) async {
-    state = AsyncData(preset);
+    state = AsyncData(await _withMarquee(preset));
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_kSkinKey);
     await prefs.setString(_kSkinPresetKey, preset.id);

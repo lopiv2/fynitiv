@@ -982,7 +982,6 @@ class RommRepository {
     for (final e in raw) {
       if (e is Map<String, dynamic>) items.add(MusicGameEntry.fromJson(e, serverUrl));
     }
-    debugPrint('[ROMM] GET /api/music/games → ${items.length} juegos');
     return items;
   }
 
@@ -1017,7 +1016,6 @@ class RommRepository {
         );
       }
     }
-    debugPrint('[ROMM] GET /api/music/platforms → ${items.length} valores');
     return items;
   }
 
@@ -1044,7 +1042,6 @@ class RommRepository {
     for (final e in raw) {
       if (e is Map<String, dynamic>) items.add(MusicFacetValue.fromJson(e));
     }
-    debugPrint('[ROMM] GET /api/music/$field → ${items.length} valores');
     return items;
   }
 
@@ -1091,7 +1088,6 @@ class RommRepository {
       remaining -= raw.length;
       if (raw.isEmpty || raw.length < pageSize) break;
     }
-    debugPrint('[ROMM] GET $path${label.isEmpty ? '' : ' ($label)'} → ${items.length} pistas');
     return items;
   }
 
@@ -1132,24 +1128,38 @@ class RommRepository {
   }
 
   /// Descarga un asset protegido de RomM a bytes (para inyectar en WebView
-  /// como base64 sin exponer el token).
-  Future<List<int>?> downloadAssetBytes(String url) async {
-    try {
-      final res = await _dio.get<List<int>>(
-        url,
-        options: Options(
-          headers: {
-            if (_token != null && _token!.isNotEmpty)
-              'Authorization': 'Bearer $_token',
-          },
-          responseType: ResponseType.bytes,
-        ),
-      );
-      return res.data;
-    } catch (e) {
-      debugPrint('[ROMM] asset bytes failed url=$url err=$e');
-      return null;
+  /// como base64 sin exponer el token). Con un reintento: si el NAS tarda
+  /// o falla puntual, la carátula 3D no debe caer a gris al primer intento.
+  Future<List<int>?> downloadAssetBytes(
+    String url, {
+    Map<String, String>? headers,
+  }) async {
+    Object? lastError;
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        final res = await _dio.get<List<int>>(
+          url,
+          options: Options(
+            headers: {
+              if (_token != null && _token!.isNotEmpty)
+                'Authorization': 'Bearer $_token',
+              ...?headers,
+            },
+            responseType: ResponseType.bytes,
+          ),
+        );
+        final data = res.data;
+        if (data != null && data.isNotEmpty) return data;
+        lastError = 'vacío (200 sin bytes)';
+      } catch (e) {
+        lastError = e;
+      }
+      if (attempt == 0) {
+        await Future.delayed(const Duration(milliseconds: 400));
+      }
     }
+    debugPrint('[ROMM] asset bytes failed url=$url err=$lastError');
+    return null;
   }
 
   /// Marca un juego como jugado: PUT /api/roms/{id}/props?update_last_played=true

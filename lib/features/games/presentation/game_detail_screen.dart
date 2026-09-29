@@ -28,6 +28,7 @@ import '../data/platform_machine_asset_resolver.dart';
 import '../domain/game_ost_track.dart';
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
+import 'widgets/game_box3d_scene_viewer.dart';
 import 'widgets/game_box3d_viewer.dart';
 import 'widgets/game_rating_row.dart';
 import 'widgets/ost_favorite_button.dart';
@@ -63,7 +64,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     );
     // Corta el fondo del hub y el player global para que la voz SoLoud
     // quede solo para el OST del juego (singleton compartido).
+    // enterDetail además veta futuros enter() del shell mientras este
+    // detalle viva (incluido al volver de otra rama sin re-init).
     Future.microtask(() {
+      GameBgPlayer.instance.enterDetail();
       GameBgPlayer.instance.suspendForDetail();
       try {
         ref.read(soloudMusicProvider.notifier).stop(resumeBackground: false);
@@ -80,8 +84,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     WidgetsBinding.instance.removeObserver(this);
     _ostSub?.cancel();
     GameOstPlayer.instance.stop();
-    // Retoma el fondo del hub con reshuffle al salir del detalle.
-    GameBgPlayer.instance.returnFromDetail();
+    // Libera el veto del detalle y retoma el fondo de las listas.
+    GameBgPlayer.instance.exitDetail();
+    GameBgPlayer.instance.resumeListsAfterDetail();
     super.dispose();
   }
 
@@ -94,11 +99,36 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     }
   }
 
+  /// Visor de portada seleccionable: `true` usa el nuevo `flutter_scene`,
+  /// `false` el `three_js` existente. Flag temporal para comparar A/B.
+  static const bool _useSceneViewer = true;
+
+  Widget _coverViewer(
+    RommGame game,
+    Map<String, String>? headers,
+    double width,
+    double height,
+  ) {
+    if (_useSceneViewer) {
+      return GameCoverViewerScene(
+        game: game,
+        headers: headers,
+        width: width,
+        height: height,
+      );
+    }
+    return GameCoverViewer(
+      game: game,
+      headers: headers,
+      width: width,
+      height: height,
+    );
+  }
+
   void _maybeStartOst(List<GameOstTrack> tracks) {
     if (_ostStarted || tracks.isEmpty) return;
     _ostStarted = true;
     final muted = ref.read(gameBgMutedProvider);
-    debugPrint('[Ost] _maybeStartOst tracks=${tracks.length} muted=$muted');
     final repo = ref.read(rommRepositoryProvider);
     GameOstPlayer.instance.setAuthToken(repo?.token);
     GameOstPlayer.instance.setMuted(muted);
@@ -162,7 +192,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       return;
     }
     // El progreso/pausa/cancel vive en el gestor global (barra inferior).
-    await ref.read(downloadManagerProvider.notifier).enqueue(
+    await ref
+        .read(downloadManagerProvider.notifier)
+        .enqueue(
           url: repo.downloadUrl(game.id, fileName),
           fileName: fileName,
           sourceLabel: game.name,
@@ -324,12 +356,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      GameCoverViewer(
-                                        game: g,
-                                        headers: headers,
-                                        width: 200,
-                                        height: 282,
-                                      ),
+                                      _coverViewer(g, headers, 200, 282),
                                       const SizedBox(height: 12),
                                       _OstNowPlayingCard(
                                         ostAsync: ostAsync,
@@ -345,8 +372,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                           downloadManagerProvider.select(
                                             (m) => m.values.any(
                                               (t) =>
-                                                  t.fileName ==
-                                                      g.firstFile &&
+                                                  t.fileName == g.firstFile &&
                                                   t.isActive,
                                             ),
                                           ),
@@ -381,11 +407,11 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                           SizedBox(
                                             width: detailLeftW,
                                             child: Center(
-                                              child: GameCoverViewer(
-                                                game: g,
-                                                headers: headers,
-                                                width: 260,
-                                                height: 366,
+                                              child: _coverViewer(
+                                                g,
+                                                headers,
+                                                340,
+                                                480,
                                               ),
                                             ),
                                           ),
@@ -402,13 +428,13 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                                   downloading: ref.watch(
                                                     downloadManagerProvider
                                                         .select(
-                                                      (m) => m.values.any(
-                                                        (t) =>
-                                                            t.fileName ==
-                                                                g.firstFile &&
-                                                            t.isActive,
-                                                      ),
-                                                    ),
+                                                          (m) => m.values.any(
+                                                            (t) =>
+                                                                t.fileName ==
+                                                                    g.firstFile &&
+                                                                t.isActive,
+                                                          ),
+                                                        ),
                                                   ),
                                                   onPlay: () => _play(g),
                                                   onDownload: () =>
@@ -705,8 +731,7 @@ class _OriginButton extends ConsumerWidget {
     final onAccent = accent.computeLuminance() > 0.5
         ? Colors.black
         : Colors.white;
-    final primaryHover =
-        Color.lerp(accent, Colors.black, 0.15) ?? accent;
+    final primaryHover = Color.lerp(accent, Colors.black, 0.15) ?? accent;
     final effect = primary
         ? AppHoverEffect.highlightWithScale
         : AppHoverEffect.scaleHighlightOutline;
@@ -1045,6 +1070,9 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
         final sounding = player.sounding;
         final muted = player.isMuted;
         final compact = widget.compact;
+        final marqueeEnabled =
+            ref.watch(skinControllerProvider).value?.titleMarqueeOnHover ??
+            false;
         // Las pistas OST no traen cover: se usa la portada del juego dueño.
         final gameCover = (widget.game.coverLargeUrl?.isNotEmpty == true)
             ? widget.game.coverLargeUrl!
@@ -1090,13 +1118,13 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                     child: ostCover.isNotEmpty
                         ? Image.network(
                             ostCover,
-                            width: coverSize,
-                            height: coverSize,
-                            fit: BoxFit.cover,
+                            width: coverSize * 1.5,
+                            height: coverSize * 1.5,
+                            fit: BoxFit.fitHeight,
                             headers: ostHeaders,
                             errorBuilder: (_, _, _) => Container(
-                              width: coverSize,
-                              height: coverSize,
+                              width: coverSize * 1.5,
+                              height: coverSize * 1.5,
                               color: const Color(0xFF1A1A1A),
                               child: const Icon(
                                 Icons.music_note,
@@ -1106,8 +1134,8 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                             ),
                           )
                         : Container(
-                            width: coverSize,
-                            height: coverSize,
+                            width: coverSize * 1.5,
+                            height: coverSize * 1.5,
                             color: const Color(0xFF1A1A1A),
                             child: const Icon(
                               Icons.music_note,
@@ -1131,24 +1159,22 @@ class _OstNowPlayingCardState extends ConsumerState<_OstNowPlayingCard> {
                             fontWeight: FontWeight.w800,
                           ),
                           isHovered: true,
-                          enabled:
-                              ref
-                                  .watch(skinControllerProvider)
-                                  .value
-                                  ?.titleMarqueeOnHover ??
-                              false,
+                          enabled: marqueeEnabled,
                           velocity: 28,
                           gap: 36,
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          current?.artist ?? widget.game.name,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                        MarqueeText(
+                          key: ValueKey(current?.artist ?? widget.game.name),
+                          text: current?.artist ?? widget.game.name,
                           style: TextStyle(
                             color: Colors.white54,
                             fontSize: compact ? 12 : 14,
                           ),
+                          isHovered: true,
+                          enabled: marqueeEnabled,
+                          velocity: 28,
+                          gap: 36,
                         ),
                       ],
                     ),
