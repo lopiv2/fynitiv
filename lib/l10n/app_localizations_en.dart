@@ -1734,4 +1734,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get ostUnmuteTheme => 'Unmute theme song';
+
+  @override
+  String get cover3dMaterial => '3D cover material';
+
+  @override
+  String get cover3dMaterialHint =>
+      'Applies to the 3D cover shown in the game detail.';
+
+  @override
+  String get coverMaterialUnlit => 'Flat (no light)';
+
+  @override
+  String get coverMaterialMatte => 'Matte';
+
+  @override
+  String get coverMaterialSoftTouch => 'Soft-touch';
+
+  @override
+  String get coverMaterialGlossy => 'Glossy plastic';
+
+  @override
+  String get coverMaterialBrushedMetal => 'Brushed metal';
+
+  @override
+  String get coverMaterialChrome => 'Chrome';
 }

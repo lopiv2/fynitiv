@@ -73,12 +73,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
   bool _isInsideGames(String loc, int branchIndex) {
     // Rama games ahora índice 6 (tras insertar E-Reader en 5)
     if (branchIndex != 6) return false;
-    // Principal y listas de plataforma (diseño "hub o lista"); el detalle
-    // y el jukebox quedan fuera. El llamador pasa la URI completa porque
-    // el matchedLocation del shell se queda stale en '/games', y el veto
-    // de detalle vivo (detailOpen) bloquea los enter() tardíos.
+    // Hub, listas y detalle: el detalle decide su propio audio (fondo si no
+    // hay OST, OST si lo hay). El jukebox tiene su música propia y queda
+    // fuera. El llamador pasa la URI completa porque el matchedLocation del
+    // shell se queda stale en '/games'.
     if (loc == '/games') return true;
     if (loc.startsWith('/games/platform')) return true;
+    if (loc.startsWith('/games/rom')) return true;
     return false;
   }
 
@@ -100,11 +101,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
   }
 
   void _syncMusic(String loc, int branchIndex) {
-    var nowInside = _isInsideGames(loc, branchIndex);
-    // Detalle vivo (recién abierto o restaurado de otra rama sin pasar por
-    // initState): el fondo queda vetado aunque la ruta leída sea '/games'
-    // stale. Solo se permite parar, nunca arrancar.
-    if (nowInside && GameBgPlayer.instance.detailOpen) nowInside = false;
+    final nowInside = _isInsideGames(loc, branchIndex);
+    // Si el OST del detalle está activo (sonando o en cola), el detalle
+    // manda: este rebuild no debe arrancar el fondo por encima.
+    if (nowInside && GameOstPlayer.instance.isPlaying) return;
     if (nowInside == _insideGames) return;
     _insideGames = nowInside;
     if (_insideGames) {

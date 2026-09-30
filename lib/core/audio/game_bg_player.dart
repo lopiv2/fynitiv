@@ -23,30 +23,6 @@ class GameBgPlayer {
   // Token anti-carreras: si se sale (leave) mientras una pista se está
   // cargando, el play tardío debe abortarse y no sonar fuera de /games.
   int _session = 0;
-  // Detalles de juego vivos (puede apilarse detalle sobre detalle).
-  // Mientras haya al menos uno, el shell tiene vetado el enter(): el
-  // detalle manda silencio aunque la ruta le llegue tarde al shell
-  // (restaurar la rama desde Ajustes no re-ejecuta initState).
-  int _detailDepth = 0;
-
-  /// True si hay algún detalle de juego vivo (visible o preservado en
-  /// la pila de la rama). El jukebox no toca este contador.
-  bool get detailOpen => _detailDepth > 0;
-
-  /// Un detalle entra en escena: veta el fondo y aborta cargas en vuelo.
-  Future<void> enterDetail() async {
-    _detailDepth++;
-    _session++;
-    try {
-      await _player.stop();
-    } catch (_) {}
-  }
-
-  /// Un detalle se destruye: libera el veto (sin reanudar; de eso se
-  /// encarga quien lo llame con [returnFromDetail] si procede).
-  void exitDetail() {
-    if (_detailDepth > 0) _detailDepth--;
-  }
 
   void _ensureInit() {
     if (_initialized) return;
@@ -85,7 +61,21 @@ class GameBgPlayer {
   /// Llamado al entrar en /games (hub o lista). Hace shuffle nuevo.
   Future<void> enter() async {
     _ensureInit();
-    if (_inside) return;
+    if (_inside) {
+      // Ya dentro de la rama: si la música quedó en pausa (p. ej. tras
+      // perder el foco) debe volver a sonar, sin reiniciar la pista.
+      if (_muted || _inDetail) return;
+      if (_player.state == SoloudSingleState.paused) {
+        try {
+          await _player.resume();
+        } catch (_) {}
+      } else if (_player.state != SoloudSingleState.playing &&
+          _queue.isNotEmpty) {
+        _session++;
+        await _playCurrent(_session);
+      }
+      return;
+    }
     _inside = true;
     _inDetail = false;
     _session++;

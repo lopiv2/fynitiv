@@ -715,5 +715,13 @@
   "ostTheme": "Theme song",
   "ostThemeFromJellyfin": "from Jellyfin",
   "ostMuteTheme": "Mute theme song",
-  "ostUnmuteTheme": "Unmute theme song"
+  "ostUnmuteTheme": "Unmute theme song",
+  "cover3dMaterial": "3D cover material",
+  "cover3dMaterialHint": "Applies to the 3D cover shown in the game detail.",
+  "coverMaterialUnlit": "Flat (no light)",
+  "coverMaterialMatte": "Matte",
+  "coverMaterialSoftTouch": "Soft-touch",
+  "coverMaterialGlossy": "Glossy plastic",
+  "coverMaterialBrushedMetal": "Brushed metal",
+  "coverMaterialChrome": "Chrome"
 }

@@ -1738,4 +1738,29 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get ostUnmuteTheme => 'Activar tema';
+
+  @override
+  String get cover3dMaterial => 'Material de la carátula 3D';
+
+  @override
+  String get cover3dMaterialHint =>
+      'Se aplica a la carátula del detalle del juego.';
+
+  @override
+  String get coverMaterialUnlit => 'Plano (sin luz)';
+
+  @override
+  String get coverMaterialMatte => 'Mate';
+
+  @override
+  String get coverMaterialSoftTouch => 'Soft-touch';
+
+  @override
+  String get coverMaterialGlossy => 'Plástico brillante';
+
+  @override
+  String get coverMaterialBrushedMetal => 'Metal cepillado';
+
+  @override
+  String get coverMaterialChrome => 'Cromo';
 }

@@ -3277,6 +3277,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Unmute theme song'**
   String get ostUnmuteTheme;
+
+  /// No description provided for @cover3dMaterial.
+  ///
+  /// In en, this message translates to:
+  /// **'3D cover material'**
+  String get cover3dMaterial;
+
+  /// No description provided for @cover3dMaterialHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to the 3D cover shown in the game detail.'**
+  String get cover3dMaterialHint;
+
+  /// No description provided for @coverMaterialUnlit.
+  ///
+  /// In en, this message translates to:
+  /// **'Flat (no light)'**
+  String get coverMaterialUnlit;
+
+  /// No description provided for @coverMaterialMatte.
+  ///
+  /// In en, this message translates to:
+  /// **'Matte'**
+  String get coverMaterialMatte;
+
+  /// No description provided for @coverMaterialSoftTouch.
+  ///
+  /// In en, this message translates to:
+  /// **'Soft-touch'**
+  String get coverMaterialSoftTouch;
+
+  /// No description provided for @coverMaterialGlossy.
+  ///
+  /// In en, this message translates to:
+  /// **'Glossy plastic'**
+  String get coverMaterialGlossy;
+
+  /// No description provided for @coverMaterialBrushedMetal.
+  ///
+  /// In en, this message translates to:
+  /// **'Brushed metal'**
+  String get coverMaterialBrushedMetal;
+
+  /// No description provided for @coverMaterialChrome.
+  ///
+  /// In en, this message translates to:
+  /// **'Chrome'**
+  String get coverMaterialChrome;
 }
 
 class _AppLocalizationsDelegate

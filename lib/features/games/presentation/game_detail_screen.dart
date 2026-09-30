@@ -24,12 +24,12 @@ import '../../../core/widgets/marquee_text.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/ost_providers.dart';
 import '../application/romm_providers.dart';
+import '../data/emulatorjs_playable.dart';
 import '../data/platform_machine_asset_resolver.dart';
 import '../domain/game_ost_track.dart';
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
 import 'widgets/game_box3d_scene_viewer.dart';
-import 'widgets/game_box3d_viewer.dart';
 import 'widgets/game_rating_row.dart';
 import 'widgets/ost_favorite_button.dart';
 
@@ -51,6 +51,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
   StreamSubscription<GameOstTrack?>? _ostSub;
   GameOstTrack? _currentTrack;
   bool _ostStarted = false;
+  // True cuando este detalle calló el fondo para ceder la voz al OST; solo
+  // entonces hay que reanudarlo al salir (sin OST el fondo sigue sonando).
+  bool _bgSuspended = false;
 
   @override
   void initState() {
@@ -62,13 +65,10 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
             ref.invalidate(rommContinuePlayingProvider);
           }),
     );
-    // Corta el fondo del hub y el player global para que la voz SoLoud
-    // quede solo para el OST del juego (singleton compartido).
-    // enterDetail además veta futuros enter() del shell mientras este
-    // detalle viva (incluido al volver de otra rama sin re-init).
+    // Corta el player global de música (Jellyfin) para que la voz SoLoud no
+    // se solape. El fondo de juego NO se corta aquí: solo se cede al OST si
+    // el juego tiene banda sonora (ver _maybeStartOst).
     Future.microtask(() {
-      GameBgPlayer.instance.enterDetail();
-      GameBgPlayer.instance.suspendForDetail();
       try {
         ref.read(soloudMusicProvider.notifier).stop(resumeBackground: false);
       } catch (_) {}
@@ -84,9 +84,11 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     WidgetsBinding.instance.removeObserver(this);
     _ostSub?.cancel();
     GameOstPlayer.instance.stop();
-    // Libera el veto del detalle y retoma el fondo de las listas.
-    GameBgPlayer.instance.exitDetail();
-    GameBgPlayer.instance.resumeListsAfterDetail();
+    // Solo se retoma el fondo si este detalle lo había cedido al OST; si el
+    // juego no tenía OST, el fondo nunca se cortó y sigue sonando.
+    if (_bgSuspended) {
+      GameBgPlayer.instance.resumeListsAfterDetail();
+    }
     super.dispose();
   }
 
@@ -99,25 +101,14 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     }
   }
 
-  /// Visor de portada seleccionable: `true` usa el nuevo `flutter_scene`,
-  /// `false` el `three_js` existente. Flag temporal para comparar A/B.
-  static const bool _useSceneViewer = true;
-
+  /// Visor de portada 3D con `flutter_scene`.
   Widget _coverViewer(
     RommGame game,
     Map<String, String>? headers,
     double width,
     double height,
   ) {
-    if (_useSceneViewer) {
-      return GameCoverViewerScene(
-        game: game,
-        headers: headers,
-        width: width,
-        height: height,
-      );
-    }
-    return GameCoverViewer(
+    return GameCoverViewerScene(
       game: game,
       headers: headers,
       width: width,
@@ -126,8 +117,18 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
   }
 
   void _maybeStartOst(List<GameOstTrack> tracks) {
-    if (_ostStarted || tracks.isEmpty) return;
+    if (_ostStarted) return;
+    // Sin banda sonora: el fondo de juego debe seguir/hacer sonar la música
+    // de la rama (idempotente si ya estaba dentro). No se marca como
+    // arrancado: si una carga posterior trae pistas, el OST aún puede sonar.
+    if (tracks.isEmpty) {
+      GameBgPlayer.instance.enter();
+      return;
+    }
+    // Con OST: callar el fondo y ceder la voz al OST del juego.
     _ostStarted = true;
+    _bgSuspended = true;
+    GameBgPlayer.instance.suspendForDetail();
     final muted = ref.read(gameBgMutedProvider);
     final repo = ref.read(rommRepositoryProvider);
     GameOstPlayer.instance.setAuthToken(repo?.token);
@@ -217,18 +218,14 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       ostTracksProvider(widget.gameId),
       (prev, next) {
         final tracks = next.value;
-        if (tracks != null && tracks.isNotEmpty) {
-          _maybeStartOst(tracks);
-        }
+        if (tracks != null) _maybeStartOst(tracks);
       },
     );
     final ostAsync = ref.watch(ostTracksProvider(widget.gameId));
     ostAsync.whenData((tracks) {
-      if (tracks.isNotEmpty) {
-        WidgetsBinding.instance.addPostFrameCallback(
-          (_) => _maybeStartOst(tracks),
-        );
-      }
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _maybeStartOst(tracks),
+      );
     });
 
     final game = ref.watch(rommGameProvider(widget.gameId));
@@ -501,7 +498,7 @@ String _formatDate(BuildContext context, DateTime? d) {
 }
 
 // ---------------------------------------------------------------------------
-// Poster 2D/3D: ver widgets/game_box3d_viewer.dart (GameCoverViewer).
+// Poster 2D/3D: ver widgets/game_box3d_scene_viewer.dart (GameCoverViewerScene).
 
 // ---------------------------------------------------------------------------
 // Hero info: title + stats + buttons (Origin layout)
@@ -653,23 +650,31 @@ class _GameHeroInfo extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
-        // Buttons Origin style: Install (orange) + Options
-        Row(
-          children: [
-            _OriginButton(
-              label: l10n.gameInstall,
-              primary: true,
-              loading: launching,
-              onTap: onPlay,
-            ),
-            const SizedBox(width: 10),
-            _OriginButton(
-              label: l10n.gameOptions,
-              primary: false,
-              loading: downloading,
-              onTap: onDownload,
-            ),
-          ],
+        // Buttons Origin style: Jugar (solo si la plataforma tiene core
+        // EmulatorJS) + Descargar (siempre).
+        Builder(
+          builder: (context) {
+            final canPlay = isEmulatorJsPlayable(game.platformSlug);
+            return Row(
+              children: [
+                if (canPlay) ...[
+                  _OriginButton(
+                    label: l10n.gameInstall,
+                    primary: true,
+                    loading: launching,
+                    onTap: onPlay,
+                  ),
+                  const SizedBox(width: 10),
+                ],
+                _OriginButton(
+                  label: l10n.gameOptions,
+                  primary: false,
+                  loading: downloading,
+                  onTap: onDownload,
+                ),
+              ],
+            );
+          },
         ),
       ],
     );

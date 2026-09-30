@@ -712,5 +712,13 @@
   "ostTheme": "Tema principal",
   "ostThemeFromJellyfin": "desde Jellyfin",
   "ostMuteTheme": "Silenciar tema",
-  "ostUnmuteTheme": "Activar tema"
+  "ostUnmuteTheme": "Activar tema",
+  "cover3dMaterial": "Material de la carátula 3D",
+  "cover3dMaterialHint": "Se aplica a la carátula del detalle del juego.",
+  "coverMaterialUnlit": "Plano (sin luz)",
+  "coverMaterialMatte": "Mate",
+  "coverMaterialSoftTouch": "Soft-touch",
+  "coverMaterialGlossy": "Plástico brillante",
+  "coverMaterialBrushedMetal": "Metal cepillado",
+  "coverMaterialChrome": "Cromo"
 }

@@ -27,9 +27,7 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
   Player? _player;
   VideoController? _videoController;
   bool _ready = false;
-  bool _counted = false;
   bool _disposed = false;
-  GameVideoActiveCountController? _counter;
 
   /// Puerta global mpv: serializa los teardowns nativos de TODOS los
   /// fondos. No se crea un Player nuevo hasta que el dispose anterior
@@ -39,25 +37,12 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
 
   bool _isOff() {
     // Solo llamar cuando mounted (initState síncrono o callbacks con guard).
-    return ref.read(gameVideoDisabledProvider) ||
-        ref.read(gameVideoSuspendedProvider);
-  }
-
-  /// Reserva el slot ANGLE al crear el Player (cubre open+play+dispose).
-  /// Idempotente: las llamadas extra son no-op.
-  void _incActive() {
-    if (_counted) return;
-    _counted = true;
-    try {
-      _counter?.increment();
-    } catch (_) {}
+    return ref.read(gameVideoDisabledProvider);
   }
 
   @override
   void initState() {
     super.initState();
-    // Guardar el notifier aquí: en dispose()/gaps async usar ref es inseguro.
-    _counter = ref.read(gameVideoActiveCountProvider.notifier);
     _maybeInit();
   }
 
@@ -78,10 +63,6 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
     final controller = VideoController(player);
     _player = player;
     _videoController = controller;
-    // Reservar el slot ANTES de open/play: el visor 3D espera a que el
-    // contador sea 0, y durante el open el contador también debe cubrir
-    // (si no, el 3D crea su superficie mientras mpv negocia la suya).
-    _incActive();
     try {
       if (_disposed || !mounted || _player != player) return;
       await player.setVolume(0);
@@ -118,7 +99,6 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
         final retryCtrl = VideoController(retryPlayer);
         _player = retryPlayer;
         _videoController = retryCtrl;
-        _incActive();
         try {
           if (_disposed || !mounted || _player != retryPlayer) return;
           await retryPlayer.setVolume(0);
@@ -151,13 +131,7 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
   Future<void> _dispose() {
     // Se reclama en síncrono (idempotencia ante llamadas concurrentes).
     // El teardown nativo se encadena tras la puerta global: el siguiente
-    // Player no se crea hasta que este dispose termina. El decremento va
-    // DESPUÉS de stop()+dispose(): el visor 3D crea su superficie GL
-    // cuando el contador llega a 0, y si el 0 llega con el vídeo aún
-    // liberándose, las dos superficies ANGLE conviven. El notifier
-    // guardado (_counter, sin ref) es seguro tras awaits y tras unmount.
-    final shouldDec = _counted;
-    _counted = false;
+    // Player no se crea hasta que este dispose termina.
     _ready = false;
     final player = _player;
     _player = null;
@@ -169,11 +143,6 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
       // de destruir la salida (ver `disposeMpvPlayer`).
       await disposeMpvPlayer(player);
       _videoController = null;
-      if (shouldDec) {
-        try {
-          _counter?.decrement();
-        } catch (_) {}
-      }
       if (!_disposed && mounted) {
         setState(() {});
       }
@@ -202,10 +171,7 @@ class _GameVideoBackgroundState extends ConsumerState<GameVideoBackground> {
     }
 
     ref.listen<bool>(gameVideoDisabledProvider, (_, _) => handleOffChange());
-    ref.listen<bool>(gameVideoSuspendedProvider, (_, _) => handleOffChange());
-    final off =
-        ref.watch(gameVideoDisabledProvider) ||
-        ref.watch(gameVideoSuspendedProvider);
+    final off = ref.watch(gameVideoDisabledProvider);
     if (off) {
       if (_player != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) async {

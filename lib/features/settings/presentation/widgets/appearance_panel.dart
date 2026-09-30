@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/settings/cover3d_material.dart';
 import '../../../../core/settings/music_chart_source.dart';
 import '../../../../core/settings/music_chart_source_controller.dart';
 import '../../../../core/skin/music_player_skin.dart';
@@ -672,6 +673,66 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                   ),
                 );
               }),
+              const SizedBox(height: 24),
+              // Material de la carátula 3D del detalle de juego.
+              Text(
+                l10n.cover3dMaterial,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              _OptionRow(
+                label: l10n.cover3dMaterial,
+                child: Consumer(
+                  builder: (context, ref, _) {
+                    final material = ref.watch(cover3dMaterialProvider);
+                    return DropdownButtonFormField<Cover3dMaterial>(
+                      initialValue: material,
+                      dropdownColor: const Color(0xFF1A2568),
+                      style: const TextStyle(color: Colors.white),
+                      items: [
+                        for (final (value, label) in [
+                          (Cover3dMaterial.unlit, l10n.coverMaterialUnlit),
+                          (Cover3dMaterial.matte, l10n.coverMaterialMatte),
+                          (
+                            Cover3dMaterial.softTouch,
+                            l10n.coverMaterialSoftTouch,
+                          ),
+                          (Cover3dMaterial.glossy, l10n.coverMaterialGlossy),
+                          (
+                            Cover3dMaterial.brushedMetal,
+                            l10n.coverMaterialBrushedMetal,
+                          ),
+                          (Cover3dMaterial.chrome, l10n.coverMaterialChrome),
+                        ])
+                          DropdownMenuItem(
+                            value: value,
+                            child: Text(
+                              label,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        ref
+                            .read(cover3dMaterialProvider.notifier)
+                            .setMaterial(v);
+                      },
+                    );
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  l10n.cover3dMaterialHint,
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+              ),
               const SizedBox(height: 24),
               Text(
                 l10n.importExport,
