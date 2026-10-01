@@ -93,6 +93,11 @@ dependencies:
   flutter_easyloading: ^4.0.2
   flutter_scene: ^0.20.0
   vector_math: ^2.4.3
+  qr_flutter: ^4.1.0
+  package_info_plus: ^10.2.1
+  archive: ^4.3.0
+  android_intent_plus: ^6.1.0
+  installed_apps: ^2.2.0
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -145,6 +150,8 @@ flutter:
     - assets/images/videogames/platforms/Arcade/
     - assets/images/videogames/platforms/Computers/ScummVM.png
     - assets/images/videogames/machines/
+    # Catálogo de emuladores por plataforma (pestaña Emuladores)
+    - assets/data/emulators.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

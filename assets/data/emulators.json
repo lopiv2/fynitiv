@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "aliases": {
+    "playstation": "psx",
+    "ps1": "psx",
+    "ps": "psx",
+    "ps2": "ps2",
+    "megadrive": "genesis",
+    "segaMD": "genesis",
+    "segaMS": "sms",
+    "segaGG": "gamegear",
+    "gamegear": "gamegear",
+    "sega32x": "sega32x",
+    "segaSaturn": "saturn",
+    "snes": "snes",
+    "sfc": "snes",
+    "supernintendo": "snes",
+    "famicom": "nes",
+    "gb": "gb",
+    "gameboy": "gb",
+    "gbc": "gbc",
+    "gameboycolor": "gbc",
+    "gba": "gba",
+    "gameboyadvance": "gba",
+    "n64": "n64",
+    "nintendo64": "n64",
+    "nds": "nds",
+    "nintendods": "nds",
+    "3ds": "3ds",
+    "psp": "psp",
+    "vb": "vb",
+    "virtualboy": "vb",
+    "ngp": "ngp",
+    "neogeopocket": "ngp",
+    "ngpc": "ngp",
+    "ws": "ws",
+    "wonderswan": "ws",
+    "atari2600": "atari2600",
+    "atari7800": "atari7800",
+    "atari5200": "atari5200",
+    "lynx": "lynx",
+    "jaguar": "jaguar",
+    "colecovision": "colecovision",
+    "msx": "msx",
+    "zxs": "zxs",
+    "acpc": "acpc",
+    "c64": "c64",
+    "doom": "doom",
+    "scummvm": "scummvm",
+    "win": "win",
+    "openbor": "openbor"
+  },
+  "emulators": {
+    "retroarch": {
+      "name": "RetroArch",
+      "android": {
+        "download_url": "https://www.retroarch.com/index.php?page=android",
+        "package": "com.retroarch",
+        "activity": "com.retroarch.browser.retroactivity.RetroActivityFuture",
+        "cores": {
+          "nes": "fceumm", "fds": "fceumm", "snes": "snes9x", "gb": "gambatte",
+          "gbc": "gambatte", "gba": "mgba", "genesis": "genesis_plus_gx",
+          "sms": "genesis_plus_gx", "gamegear": "genesis_plus_gx",
+          "sg1000": "genesis_plus_gx", "sega32x": "picodrive", "n64": "mupen64plus_next",
+          "psx": "pcsx_rearmed", "psp": "ppsspp", "nds": "melonds",
+          "atari2600": "stella", "atari7800": "prosystem", "atari5200": "atari800",
+          "atari800": "atari800", "lynx": "handy", "jaguar": "virtualjaguar",
+          "arcade": "mame2003_plus", "neogeo": "fbneo", "pce": "mednafen_pce",
+          "vb": "mednafen_vb", "ws": "mednafen_wswan", "ngp": "mednafen_ngp",
+          "colecovision": "bluemsx", "msx": "bluemsx", "c64": "vice_x64",
+          "zxs": "fuse", "doom": "prboom", "scummvm": "scummvm", "3do": "opera",
+          "saturn": "mednafen_saturn", "pcfx": "mednafen_pcfx"
+        }
+      },
+      "windows": {
+        "download_url": "https://buildbot.libretro.com/stable/1.19.1/windows/x86_64/RetroArch.7z",
+        "args": "\"%ROM%\""
+      }
+    },
+    "dolphin": {
+      "name": "Dolphin",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=org.dolphinemu.dolphinemu",
+        "package": "org.dolphinemu.dolphinemu",
+        "activity": "org.dolphinemu.dolphinemu.ui.main.MainActivity"
+      },
+      "windows": {
+        "download_url": "https://dolphin-emu.org/download/",
+        "args": "-e \"%ROM%\""
+      }
+    },
+    "duckstation": {
+      "name": "DuckStation",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=com.github.stenzek.duckstation",
+        "package": "com.github.stenzek.duckstation",
+        "activity": "com.github.stenzek.duckstation.MainActivity"
+      },
+      "windows": {
+        "download_url": "https://github.com/stenzek/duckstation/releases",
+        "args": "-batch \"%ROM%\""
+      }
+    },
+    "ppsspp": {
+      "name": "PPSSPP",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=org.ppsspp.ppsspp",
+        "package": "org.ppsspp.ppsspp",
+        "activity": "org.ppsspp.ppsspp.PpssppActivity"
+      },
+      "windows": {
+        "download_url": "https://www.ppsspp.org/download/",
+        "args": "\"%ROM%\""
+      }
+    },
+    "melonds": {
+      "name": "melonDS",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=me.magnum.melonds",
+        "package": "me.magnum.melonds",
+        "activity": "me.magnum.melonds.ui.emulator.EmulatorActivity"
+      },
+      "windows": {
+        "download_url": "https://melonds.kuribo64.net/downloads.php",
+        "args": "\"%ROM%\""
+      }
+    },
+    "mgba": {
+      "name": "mGBA",
+      "android": {
+        "download_url": "https://mgba.io/downloads.html",
+        "package": "io.mgba.mgba",
+        "activity": "io.mgba.mgba.MainActivity"
+      },
+      "windows": {
+        "download_url": "https://mgba.io/downloads.html",
+        "args": "\"%ROM%\""
+      }
+    },
+    "snes9x": {
+      "name": "Snes9x",
+      "windows": {
+        "download_url": "https://www.snes9x.com/downloads.php",
+        "args": "\"%ROM%\""
+      }
+    },
+    "mesen": {
+      "name": "Mesen",
+      "windows": {
+        "download_url": "https://www.mesen.ca/",
+        "args": "\"%ROM%\""
+      }
+    },
+    "aethersx2": {
+      "name": "NetherSX2 (AetherSX2)",
+      "android": {
+        "download_url": "https://github.com/Trixarian/NetherSX2-patch/releases",
+        "package": "xyz.aethersx2.android",
+        "activity": "xyz.aethersx2.android.MainActivity"
+      }
+    },
+    "pcsx2": {
+      "name": "PCSX2",
+      "windows": {
+        "download_url": "https://pcsx2.net/downloads/",
+        "args": "-- \"%ROM%\""
+      }
+    },
+    "azahar": {
+      "name": "Azahar (Citra)",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=org.azahar_emu.azahar",
+        "package": "org.azahar_emu.azahar",
+        "activity": "org.citra.citra_emu.ui.main.MainActivity"
+      },
+      "windows": {
+        "download_url": "https://azahar-emu.org/",
+        "args": "\"%ROM%\""
+      }
+    },
+    "fbneo": {
+      "name": "FinalBurn Neo",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=com.retroarch",
+        "package": "com.retroarch",
+        "activity": "com.retroarch.browser.retroactivity.RetroActivityFuture"
+      },
+      "windows": {
+        "download_url": "https://github.com/finalburnneo/FBNeo/releases",
+        "args": "\"%ROM%\""
+      }
+    },
+    "stella": {
+      "name": "Stella",
+      "windows": {
+        "download_url": "https://stella-emu.github.io/downloads.html",
+        "args": "\"%ROM%\""
+      }
+    },
+    "yabasanshiro": {
+      "name": "Yaba Sanshiro 2",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=org.devmiyax.yabasanshiro",
+        "package": "org.devmiyax.yabasanshiro",
+        "activity": "org.uoyabause.android.Yabause"
+      },
+      "windows": {
+        "download_url": "https://www.yabasanshiro.com/",
+        "args": "\"%ROM%\""
+      }
+    },
+    "rpcs3": {
+      "name": "RPCS3",
+      "windows": {
+        "download_url": "https://rpcs3.net/download",
+        "args": "\"%ROM%\""
+      }
+    },
+    "ryujinx": {
+      "name": "Ryujinx",
+      "windows": {
+        "download_url": "https://ryujinx.app/download",
+        "args": "\"%ROM%\""
+      }
+    },
+    "dosboxx": {
+      "name": "DOSBox-X",
+      "windows": {
+        "download_url": "https://dosbox-x.com/",
+        "args": "\"%ROM%\""
+      }
+    },
+    "scummvm": {
+      "name": "ScummVM",
+      "android": {
+        "download_url": "https://play.google.com/store/apps/details?id=org.scummvm.scummvm",
+        "package": "org.scummvm.scummvm",
+        "activity": "org.scummvm.scummvm.ScummVMActivity"
+      },
+      "windows": {
+        "download_url": "https://www.scummvm.org/downloads/",
+        "args": "\"%ROM%\""
+      }
+    }
+  },
+  "platforms": {
+    "nes": { "recommended": { "android": "retroarch", "windows": "mesen" }, "emulators": ["retroarch", "mesen"] },
+    "fds": { "recommended": { "android": "retroarch", "windows": "mesen" }, "emulators": ["retroarch", "mesen"] },
+    "snes": { "recommended": { "android": "retroarch", "windows": "snes9x" }, "emulators": ["retroarch", "snes9x"] },
+    "gb": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch", "mgba"] },
+    "gbc": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch", "mgba"] },
+    "gba": { "recommended": { "android": "mgba", "windows": "mgba" }, "emulators": ["mgba", "retroarch"] },
+    "n64": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "genesis": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch", "fbneo"] },
+    "sms": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "gamegear": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "sg1000": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "sega32x": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "saturn": { "recommended": { "android": "yabasanshiro", "windows": "retroarch" }, "emulators": ["retroarch", "yabasanshiro"] },
+    "psx": { "recommended": { "android": "duckstation", "windows": "duckstation" }, "emulators": ["duckstation", "retroarch"] },
+    "ps2": { "recommended": { "android": "aethersx2", "windows": "pcsx2" }, "emulators": ["pcsx2", "aethersx2"] },
+    "psp": { "recommended": { "android": "ppsspp", "windows": "ppsspp" }, "emulators": ["ppsspp"] },
+    "nds": { "recommended": { "android": "melonds", "windows": "melonds" }, "emulators": ["melonds", "retroarch"] },
+    "3ds": { "recommended": { "android": "azahar", "windows": "azahar" }, "emulators": ["azahar"] },
+    "vb": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "ngp": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "ws": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "arcade": { "recommended": { "android": "retroarch", "windows": "fbneo" }, "emulators": ["retroarch", "fbneo"] },
+    "neogeo": { "recommended": { "android": "retroarch", "windows": "fbneo" }, "emulators": ["retroarch", "fbneo"] },
+    "atari2600": { "recommended": { "android": "retroarch", "windows": "stella" }, "emulators": ["retroarch", "stella"] },
+    "atari7800": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "atari5200": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "atari800": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "lynx": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "jaguar": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "colecovision": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "msx": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "c64": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "zxs": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "acpc": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "3do": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "doom": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
+    "scummvm": { "recommended": { "android": "scummvm", "windows": "scummvm" }, "emulators": ["scummvm", "retroarch"] },
+    "win": { "recommended": { "android": "dosboxx", "windows": "dosboxx" }, "emulators": ["dosboxx"] },
+    "ngc": { "recommended": { "android": "dolphin", "windows": "dolphin" }, "emulators": ["dolphin"] },
+    "wii": { "recommended": { "android": "dolphin", "windows": "dolphin" }, "emulators": ["dolphin"] },
+    "ps3": { "recommended": { "windows": "rpcs3" }, "emulators": ["rpcs3"] },
+    "switch": { "recommended": { "windows": "ryujinx" }, "emulators": ["ryujinx"] }
+  }
+}

@@ -1,12 +1,18 @@
+import 'dart:async';
+
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../l10n/app_localizations.dart';
 import '../../../games/application/romm_providers.dart';
+import '../../../games/data/romm_repository.dart';
 import '../../../games/domain/romm_config.dart';
 
 /// Panel de configuración del servidor ROMM (juego online).
-/// Soporta dos modos: usuario/contraseña y API key (Bearer directo).
+/// El emparejamiento es por QR (device authorization flow de RomM).
 class GamesPanel extends ConsumerStatefulWidget {
   const GamesPanel({super.key});
 
@@ -16,62 +22,42 @@ class GamesPanel extends ConsumerStatefulWidget {
 
 class _GamesPanelState extends ConsumerState<GamesPanel> {
   final _urlController = TextEditingController();
-  final _apiKeyController = TextEditingController();
-  bool _obscureApiKey = true;
-  bool _saving = false;
   String? _message;
 
   @override
   void dispose() {
     _urlController.dispose();
-    _apiKeyController.dispose();
     super.dispose();
   }
 
   void _prefill(RommConfig? config) {
     if (config == null) return;
     _urlController.text = config.serverUrl;
-    _apiKeyController.text = config.apiKey ?? '';
   }
 
-  Future<void> _save() async {
+  Future<void> _pairWithQr() async {
     final l10n = AppLocalizations.of(context)!;
     final url = _urlController.text.trim();
-    final apiKey = _apiKeyController.text.trim();
-
-    if (url.isEmpty || apiKey.isEmpty) {
-      setState(() => _message = apiKey.isEmpty ? l10n.enterApiKey : l10n.gamesConfigRequired);
+    if (url.isEmpty) {
+      setState(() => _message = l10n.gamesConfigRequired);
       return;
     }
-    setState(() {
-      _saving = true;
-      _message = null;
-    });
-    try {
-      final ok = await ref.read(rommAuthProvider.notifier).login(
-            serverUrl: url,
-            username: 'api',
-            password: '',
-            apiKey: apiKey,
-            useApiKey: true,
-          );
-      setState(() {
-        _message = ok ? l10n.gamesConfigSaved : l10n.gamesConfigFailed;
-      });
-    } catch (e) {
-      setState(() => _message = '${l10n.gamesConfigFailed}\n$e');
-    } finally {
-      if (mounted) setState(() => _saving = false);
+    setState(() => _message = null);
+    final ok = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _RommQrPairingDialog(serverUrl: url),
+    );
+    if (ok == true && mounted) {
+      setState(() => _message = l10n.rommPairSuccess);
+      unawaited(EasyLoading.showSuccess(l10n.rommPairSuccess));
     }
   }
 
   Future<void> _logout() async {
     await ref.read(rommAuthProvider.notifier).logout();
     if (mounted) {
-      setState(() {
-        _apiKeyController.clear();
-        _message = null;
-      });
+      setState(() => _message = null);
     }
   }
 
@@ -101,7 +87,7 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
               ),
               const SizedBox(height: 8),
               Text(
-                l10n.rommApiKeyHelp,
+                l10n.rommPairHelp,
                 style: const TextStyle(color: Colors.white54, fontSize: 12),
               ),
               const SizedBox(height: 24),
@@ -153,42 +139,26 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
             ),
             style: const TextStyle(color: Colors.white),
           ),
-          const SizedBox(height: 12),
-          TextField(
-            controller: _apiKeyController,
-            obscureText: _obscureApiKey,
-            decoration: InputDecoration(
-              labelText: l10n.apiKeyBearerLabel,
-              hintText: 'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...',
-              labelStyle: const TextStyle(color: Colors.white54),
-              hintStyle: const TextStyle(color: Colors.white24, fontSize: 12),
-              enabledBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(color: Colors.white24),
-              ),
-              suffixIcon: IconButton(
-                onPressed: () =>
-                    setState(() => _obscureApiKey = !_obscureApiKey),
-                icon: Icon(
-                  _obscureApiKey ? Icons.visibility : Icons.visibility_off,
-                  color: Colors.white54,
-                  size: 20,
-                ),
-              ),
+          const SizedBox(height: 20),
+          Text(
+            l10n.rommPairTitle,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-            style: const TextStyle(color: Colors.white, fontSize: 13),
-            maxLines: 1,
           ),
           const SizedBox(height: 6),
           Text(
-            l10n.rommApiKeyHelp,
+            l10n.rommPairHelp,
             style: const TextStyle(color: Colors.white38, fontSize: 11),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 10),
           if (_message != null) ...[
-            SelectableText(
+            Text(
               _message!,
               style: TextStyle(
-                color: _message == l10n.gamesConfigSaved
+                color: _message == l10n.rommPairSuccess
                     ? Colors.greenAccent
                     : Colors.red.shade300,
                 fontSize: 13,
@@ -199,18 +169,9 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
           Align(
             alignment: Alignment.centerRight,
             child: FilledButton.icon(
-              onPressed: _saving ? null : _save,
-              icon: _saving
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.cloud_done_outlined, size: 18),
-              label: Text(l10n.gamesConfigSave),
+              onPressed: _pairWithQr,
+              icon: const Icon(Icons.qr_code_2, size: 18),
+              label: Text(l10n.rommPairButton),
             ),
           ),
         ],
@@ -228,7 +189,6 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final isApiKey = config.isApiKeyMode;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -253,9 +213,7 @@ class _StatusCard extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  isApiKey
-                      ? '${l10n.gamesConnected} · API Key'
-                      : '${l10n.gamesConnected} · ${config.username}',
+                  '${l10n.gamesConnected} · ${l10n.rommPairTitle}',
                   style: const TextStyle(color: Colors.white54, fontSize: 13),
                 ),
               ],
@@ -274,3 +232,199 @@ class _StatusCard extends StatelessWidget {
     );
   }
 }
+
+/// Diálogo de emparejamiento por QR (device authorization flow de RomM).
+class _RommQrPairingDialog extends ConsumerStatefulWidget {
+  const _RommQrPairingDialog({required this.serverUrl});
+
+  final String serverUrl;
+
+  @override
+  ConsumerState<_RommQrPairingDialog> createState() =>
+      _RommQrPairingDialogState();
+}
+
+class _RommQrPairingDialogState extends ConsumerState<_RommQrPairingDialog> {
+  RommDeviceAuthStart? _start;
+  Object? _error;
+  RommPairOutcome? _outcome;
+  Timer? _ticker;
+  int _secondsLeft = 0;
+
+  String get _qrData {
+    final base = widget.serverUrl.replaceAll(RegExp(r'/$'), '');
+    return '$base${_start!.verificationPathComplete}';
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _begin();
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    if (_outcome != RommPairOutcome.approved) {
+      ref.read(rommAuthProvider.notifier).cancelQrPairing();
+    }
+    super.dispose();
+  }
+
+  Future<void> _begin() async {
+    try {
+      final start = await ref
+          .read(rommAuthProvider.notifier)
+          .beginQrPairing(serverUrl: widget.serverUrl, deviceName: 'fynitiv');
+      if (!mounted) return;
+      setState(() {
+        _start = start;
+        _secondsLeft = start.expiresIn;
+      });
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        setState(() => _secondsLeft = _secondsLeft - 1);
+      });
+      final outcome = await ref
+          .read(rommAuthProvider.notifier)
+          .pollQrPairing(start);
+      _ticker?.cancel();
+      if (!mounted) return;
+      if (outcome == RommPairOutcome.approved) {
+        Navigator.of(context).pop(true);
+        return;
+      }
+      setState(() => _outcome = outcome);
+    } catch (e) {
+      if (mounted) setState(() => _error = e);
+    }
+  }
+
+  void _cancel() {
+    ref.read(rommAuthProvider.notifier).cancelQrPairing();
+    Navigator.of(context).pop(false);
+  }
+
+  Future<void> _openBrowser() async {
+    final start = _start;
+    if (start == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    final ok = await launchUrl(
+      Uri.parse(_qrData),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      unawaited(EasyLoading.showError(l10n.rommPairFailed));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return AlertDialog(
+      backgroundColor: const Color(0xFF0B1220),
+      title: Text(
+        l10n.rommPairTitle,
+        style: const TextStyle(color: Colors.white, fontSize: 18),
+      ),
+      content: SizedBox(width: 320, child: _content(l10n)),
+      actions: [
+        TextButton(
+          onPressed: _cancel,
+          child: Text(
+            _outcome == null ? l10n.rommQrCancel : l10n.gamesDisconnect,
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _content(AppLocalizations l10n) {
+    if (_error != null) {
+      return Text(
+        '${l10n.rommPairFailed}\n$_error',
+        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+      );
+    }
+    final start = _start;
+    if (start == null) {
+      return const Padding(
+        padding: EdgeInsets.all(32),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    final outcome = _outcome;
+    if (outcome != null) {
+      final msg = switch (outcome) {
+        RommPairOutcome.denied => l10n.rommQrDenied,
+        RommPairOutcome.expired => l10n.rommQrExpired,
+        RommPairOutcome.cancelled => l10n.rommQrCancel,
+        RommPairOutcome.approved => l10n.rommPairSuccess,
+      };
+      return Text(
+        msg,
+        style: const TextStyle(color: Colors.white70, fontSize: 13),
+      );
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(12),
+          color: Colors.white,
+          child: QrImageView(
+            data: _qrData,
+            version: QrVersions.auto,
+            size: 220,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          '${l10n.rommPairCodeLabel}: ${start.userCode}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            letterSpacing: 2,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          l10n.rommQrScanHint,
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: Colors.white54,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '${l10n.rommQrWaiting}  ${_secondsLeft}s',
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        TextButton.icon(
+          onPressed: _openBrowser,
+          icon: const Icon(Icons.open_in_new, size: 16, color: Colors.white70),
+          label: Text(
+            l10n.rommQrOpenBrowser,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+}
+

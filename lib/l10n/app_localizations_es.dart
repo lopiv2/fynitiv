@@ -744,7 +744,7 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gamesConfigFailed => 'No se pudo conectar. Revisa los datos.';
 
   @override
-  String get gamesConfigRequired => 'Completa URL, usuario y contraseña.';
+  String get gamesConfigRequired => 'Introduce la URL del servidor.';
 
   @override
   String get gamesServerUrl => 'URL del servidor';
@@ -1077,14 +1077,109 @@ class AppLocalizationsEs extends AppLocalizations {
   String get moreAlbumsOfArtist => 'Más álbumes del artista';
 
   @override
-  String get enterApiKey => 'Introduce la API Key';
+  String get rommPairTitle => 'Emparejar dispositivo';
 
   @override
-  String get rommApiKeyHelp =>
-      'Conéctate con tu API Key de RomM (Bearer). Genera la API Key en RomM → Perfil → API Keys.';
+  String get rommPairHelp =>
+      'Escanea este QR con el móvil (con sesión iniciada en RomM) y aprueba el dispositivo. También puedes abrir el enlace o ir a RomM → /pair/device e introducir el código.';
 
   @override
-  String get apiKeyBearerLabel => 'API Key (Bearer)';
+  String get rommPairCodeLabel => 'Código';
+
+  @override
+  String get rommPairButton => 'Emparejar con QR';
+
+  @override
+  String get rommPairSuccess => 'Dispositivo emparejado correctamente';
+
+  @override
+  String get rommPairFailed =>
+      'No se pudo emparejar. Revisa el código e inténtalo de nuevo.';
+
+  @override
+  String get rommQrScanHint =>
+      'Escanea con el móvil o abre el enlace para aprobar el dispositivo.';
+
+  @override
+  String get rommQrWaiting => 'Esperando aprobación…';
+
+  @override
+  String get rommQrOpenBrowser => 'Abrir en el navegador';
+
+  @override
+  String get rommQrDenied => 'Emparejamiento denegado';
+
+  @override
+  String get rommQrExpired => 'El código caducó. Inténtalo de nuevo.';
+
+  @override
+  String get rommQrCancel => 'Cancelar';
+
+  @override
+  String get rommQrPreparing => 'Preparando emparejamiento…';
+
+  @override
+  String get gamesPlayLocal => 'Jugar en local';
+
+  @override
+  String get gamesLocalDownloading =>
+      'Descargando el juego… vuelve a pulsar Jugar al terminar';
+
+  @override
+  String get gamesLocalNoFile => 'Este juego no tiene archivo descargable';
+
+  @override
+  String get gamesLocalNoEmulator =>
+      'No hay emulador configurado. Configúralo en Ajustes > Juego online.';
+
+  @override
+  String get gamesLocalLaunchError => 'No se pudo abrir el emulador';
+
+  @override
+  String get gamesEmulatorTitle => 'Emulador';
+
+  @override
+  String get gamesAndroidPackage => 'Paquete de RetroArch (Android)';
+
+  @override
+  String get gamesWindowsExe => 'Ruta del emulador (Windows)';
+
+  @override
+  String get gamesWindowsArgs => 'Argumentos (usa %ROM%)';
+
+  @override
+  String get gamesEmulatorSave => 'Guardar emulador';
+
+  @override
+  String get gamesTabGames => 'Juegos';
+
+  @override
+  String get gamesTabEmulators => 'Emuladores';
+
+  @override
+  String get emulatorsTitle => 'Emuladores por plataforma';
+
+  @override
+  String get emulatorsNone => 'Sin emuladores para esta plataforma';
+
+  @override
+  String get emulatorsDownload => 'Descargar';
+
+  @override
+  String get emulatorsNoDownload =>
+      'No hay enlace de descarga para este emulador';
+
+  @override
+  String get emulatorsInstalled => 'Instalado';
+
+  @override
+  String get emulatorsNotInstalled => 'No instalado';
+
+  @override
+  String get emulatorsSelectExe => 'Seleccionar .exe';
+
+  @override
+  String get emulatorsPathSaved => 'Ruta del emulador guardada';
 
   @override
   String get nameCannotBeEmpty => 'El nombre no puede estar vacío';

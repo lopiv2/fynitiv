@@ -115,6 +115,7 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
     required String fileName,
     String? sourceLabel,
     Map<String, String> headers = const {},
+    String? destinationDir,
     required String doneMessage,
     required String failMessage,
   }) async {
@@ -128,8 +129,16 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
       }
       return existing.id;
     }
-    final dir = await getDownloadsDirectory() ??
-        await getApplicationDocumentsDirectory();
+    final Directory dir;
+    if (destinationDir != null && destinationDir.isNotEmpty) {
+      dir = Directory(destinationDir);
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
+    } else {
+      dir = await getDownloadsDirectory() ??
+          await getApplicationDocumentsDirectory();
+    }
     final savePath =
         '${dir.path}${Platform.pathSeparator}${_diskName(fileName)}';
     final id = '${DateTime.now().microsecondsSinceEpoch}-$fileName';

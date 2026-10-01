@@ -30,6 +30,71 @@ class RommResolvedArtwork {
   final String box3dUrl;
 }
 
+/// Datos devueltos por `POST /api/auth/device/init`.
+class RommDeviceAuthStart {
+  const RommDeviceAuthStart({
+    required this.deviceCode,
+    required this.userCode,
+    required this.verificationPath,
+    required this.verificationPathComplete,
+    required this.expiresIn,
+    required this.interval,
+  });
+
+  /// Secreto para el polling; no se muestra.
+  final String deviceCode;
+
+  /// Código corto que el usuario escribe o escanea.
+  final String userCode;
+
+  /// Path web relativo del aprobador (p. ej. `/pair/device`).
+  final String verificationPath;
+
+  /// Path completo con `?user_code=…`, para el QR.
+  final String verificationPathComplete;
+
+  /// Segundos de validez (600 por defecto).
+  final int expiresIn;
+
+  /// Segundos entre polls (5 por defecto).
+  final int interval;
+}
+
+/// Estados intermedios del polling del device authorization.
+enum RommDeviceAuthStatus { pending, slowDown, denied, expired }
+
+/// Resultado de `POST /api/auth/device/token`.
+class RommDeviceAuthPollResult {
+  const RommDeviceAuthPollResult({
+    required this.approved,
+    this.accessToken,
+    this.deviceId,
+    this.status,
+  });
+
+  final bool approved;
+  final String? accessToken;
+  final String? deviceId;
+  final RommDeviceAuthStatus? status;
+}
+
+/// Firmware/BIOS de RomM para una plataforma.
+class RommFirmware {
+  const RommFirmware({
+    required this.id,
+    required this.platformId,
+    required this.fileName,
+    required this.filePath,
+    required this.missingFromFs,
+  });
+
+  final int id;
+  final int platformId;
+  final String fileName;
+  final String filePath;
+  final bool missingFromFs;
+}
+
 /// Cliente de la API REST de ROMM (RomM).
 class RommRepository {
   RommRepository({required this.serverUrl, Dio? dio}) : _dio = dio ?? Dio() {
@@ -128,6 +193,102 @@ class RommRepository {
     if (scopes.isEmpty) {
       // Token con scopes vacío puede causar 403 en /api/platforms - se loguea solo en debug si se necesita
     }
+  }
+
+  /// Arranca el flujo de autorización de dispositivo (RFC 8628 de RomM):
+  /// `POST /api/auth/device/init`. Endpoint abierto (sin token).
+  Future<RommDeviceAuthStart> deviceAuthInit({
+    required String clientDeviceIdentifier,
+    required String name,
+    required String client,
+    String? platform,
+    String? clientVersion,
+    required List<String> requestedScopes,
+  }) async {
+    final res = await _dio.post(
+      '/api/auth/device/init',
+      data: {
+        'client_device_identifier': clientDeviceIdentifier,
+        'name': name,
+        'client': client,
+        if (platform != null && platform.isNotEmpty) 'platform': platform,
+        if (clientVersion != null && clientVersion.isNotEmpty)
+          'client_version': clientVersion,
+        'requested_scopes': requestedScopes,
+      },
+      options: Options(contentType: Headers.jsonContentType),
+    );
+    final data = res.data as Map<String, dynamic>? ?? const {};
+    return RommDeviceAuthStart(
+      deviceCode: data['device_code']?.toString() ?? '',
+      userCode: data['user_code']?.toString() ?? '',
+      verificationPath: data['verification_path']?.toString() ?? '/pair/device',
+      verificationPathComplete:
+          data['verification_path_complete']?.toString() ??
+              '/pair/device?user_code=${data['user_code']}',
+      expiresIn: (data['expires_in'] as num?)?.toInt() ?? 600,
+      interval: (data['interval'] as num?)?.toInt() ?? 5,
+    );
+  }
+
+  /// Consulta el estado del flujo: `POST /api/auth/device/token`.
+  /// Devuelve el token cuando el usuario aprueba, o el estado pendiente.
+  Future<RommDeviceAuthPollResult> deviceAuthPoll(String deviceCode) async {
+    try {
+      final res = await _dio.post(
+        '/api/auth/device/token',
+        data: {'device_code': deviceCode},
+        options: Options(contentType: Headers.jsonContentType),
+      );
+      final data = res.data as Map<String, dynamic>? ?? const {};
+      final token = data['access_token']?.toString();
+      if (token == null || token.isEmpty) {
+        throw DioException(
+          requestOptions: res.requestOptions,
+          error: 'RomM no devolvió token tras la aprobación: ${res.data}',
+        );
+      }
+      return RommDeviceAuthPollResult(
+        approved: true,
+        accessToken: token,
+        deviceId: data['device_id']?.toString(),
+      );
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 400) {
+        final detail = _detailOf(e.response?.data);
+        switch (detail) {
+          case 'authorization_pending':
+            return const RommDeviceAuthPollResult(
+              approved: false,
+              status: RommDeviceAuthStatus.pending,
+            );
+          case 'slow_down':
+            return const RommDeviceAuthPollResult(
+              approved: false,
+              status: RommDeviceAuthStatus.slowDown,
+            );
+          case 'access_denied':
+            return const RommDeviceAuthPollResult(
+              approved: false,
+              status: RommDeviceAuthStatus.denied,
+            );
+          case 'expired_token':
+            return const RommDeviceAuthPollResult(
+              approved: false,
+              status: RommDeviceAuthStatus.expired,
+            );
+        }
+      }
+      rethrow;
+    }
+  }
+
+  static String _detailOf(dynamic data) {
+    if (data is Map) {
+      final d = data['detail'] ?? data['error'] ?? data['message'];
+      return d?.toString() ?? '';
+    }
+    return data?.toString() ?? '';
   }
 
   /// Lista de plataformas de la biblioteca.
@@ -1240,5 +1401,43 @@ class RommRepository {
       options: _authOptions,
     );
     return savePath;
+  }
+
+  /// Lista de firmware/BIOS de RomM (opcionalmente de una plataforma).
+  Future<List<RommFirmware>> getFirmware({int? platformId}) async {
+    final res = await _dio.get(
+      '/api/firmware',
+      queryParameters: {
+        if (platformId != null) 'platform_id': platformId,
+      },
+      options: _authOptions,
+    );
+    final raw = res.data;
+    final list = raw is List ? raw : const [];
+    return list
+        .whereType<Map>()
+        .map(
+          (m) => RommFirmware(
+            id: (m['id'] as num?)?.toInt() ?? 0,
+            platformId: (m['platform_id'] as num?)?.toInt() ?? 0,
+            fileName: m['file_name']?.toString() ?? '',
+            filePath: m['file_path']?.toString() ?? '',
+            missingFromFs: m['missing_from_fs'] == true,
+          ),
+        )
+        .where((f) => f.id > 0 && f.fileName.isNotEmpty)
+        .toList();
+  }
+
+  /// URL de descarga de un firmware (requiere el token en headers).
+  String firmwareDownloadUrl(int id, String fileName) {
+    final base = serverUrl.replaceAll(RegExp(r'/$'), '');
+    final encoded = fileName.split('/').map(Uri.encodeComponent).join('/');
+    return '$base/api/firmware/$id/content/$encoded';
+  }
+
+  /// Descarga una URL autenticada a un fichero local.
+  Future<void> downloadUrlTo(String url, String savePath) async {
+    await _dio.download(url, savePath, options: _authOptions);
   }
 }

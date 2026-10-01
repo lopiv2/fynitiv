@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/audio/game_bg_player.dart';
 import '../../../core/audio/game_ost_player.dart';
@@ -24,7 +23,6 @@ import '../../../core/widgets/marquee_text.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/ost_providers.dart';
 import '../application/romm_providers.dart';
-import '../data/emulatorjs_playable.dart';
 import '../data/platform_machine_asset_resolver.dart';
 import '../domain/game_ost_track.dart';
 import '../domain/romm_game.dart';
@@ -139,38 +137,37 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     GameOstPlayer.instance.playQueue(tracks);
   }
 
-  Future<void> _play(RommGame game) async {
+  Future<void> _playLocal(RommGame game) async {
     final l10n = AppLocalizations.of(context)!;
-    final repo = ref.read(rommRepositoryProvider);
-    if (repo == null) return;
-    unawaited(
-      repo
-          .markPlayed(game.id)
-          .then((_) => ref.invalidate(rommContinuePlayingProvider)),
-    );
+    if (_launching) return;
     setState(() => _launching = true);
     try {
-      final host = await repo.claimStreamingSession(game.id);
+      final result = await ref.read(localPlayControllerProvider).play(
+            game,
+            doneMessage: l10n.gamesDownloaded,
+            failMessage: l10n.downloadFailed,
+          );
       if (!mounted) return;
-      if (host == null || host.isEmpty) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.gamesNoStreaming)));
-        return;
-      }
-      final uri = Uri.tryParse(host);
-      if (uri == null) return;
-      final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-      if (!ok && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(l10n.gamesLaunchError)));
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('$e')));
+      switch (result.status) {
+        case LocalPlayStatus.launched:
+          final repo = ref.read(rommRepositoryProvider);
+          if (repo != null) {
+            unawaited(
+              repo
+                  .markPlayed(game.id)
+                  .then((_) => ref.invalidate(rommContinuePlayingProvider)),
+            );
+          }
+        case LocalPlayStatus.downloading:
+          unawaited(EasyLoading.showInfo(l10n.gamesLocalDownloading));
+        case LocalPlayStatus.noFile:
+          unawaited(EasyLoading.showError(l10n.gamesLocalNoFile));
+        case LocalPlayStatus.noEmulator:
+          unawaited(EasyLoading.showError(l10n.gamesLocalNoEmulator));
+        case LocalPlayStatus.error:
+          unawaited(EasyLoading.showError(l10n.gamesLocalLaunchError));
+        case LocalPlayStatus.downloaded:
+          break;
       }
     } finally {
       if (mounted) setState(() => _launching = false);
@@ -374,9 +371,9 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                             ),
                                           ),
                                         ),
-                                        onPlay: () => _play(g),
-                                        onDownload: () => _download(g),
-                                        compact: true,
+                                         onPlay: () => _playLocal(g),
+                                         onDownload: () => _download(g),
+                                         compact: true,
                                       ),
                                       const SizedBox(height: 18),
                                       _OriginDescription(
@@ -433,7 +430,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
                                                           ),
                                                         ),
                                                   ),
-                                                  onPlay: () => _play(g),
+                                        onPlay: () => _playLocal(g),
                                                   onDownload: () =>
                                                       _download(g),
                                                   compact: false,
@@ -654,7 +651,7 @@ class _GameHeroInfo extends StatelessWidget {
         // EmulatorJS) + Descargar (siempre).
         Builder(
           builder: (context) {
-            final canPlay = isEmulatorJsPlayable(game.platformSlug);
+            final canPlay = game.firstFile != null;
             return Row(
               children: [
                 if (canPlay) ...[

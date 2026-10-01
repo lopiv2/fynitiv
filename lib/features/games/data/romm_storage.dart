@@ -5,41 +5,30 @@ import '../domain/romm_config.dart';
 
 /// Persistencia de la configuración del servidor ROMM.
 ///
-/// La URL y el usuario se guardan en [SharedPreferences]; el token de acceso
-/// y el API key se guardan en [FlutterSecureStorage] (no se persiste la contraseña).
+/// La URL y el id de dispositivo se guardan en [SharedPreferences]; el token
+/// de acceso (Client API Token) se guarda en [FlutterSecureStorage].
 class RommStorage {
   RommStorage({required this.secure});
 
   final FlutterSecureStorage secure;
 
   static const _kServerUrl = 'romm.server_url';
-  static const _kUsername = 'romm.username';
-  static const _kUseApiKey = 'romm.use_api_key';
   static const _kToken = 'romm.access_token';
-  static const _kApiKey = 'romm.api_key';
+  static const _kDeviceId = 'romm.device_id';
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
   Future<void> saveConfig(RommConfig config) async {
     final prefs = await _prefs;
     await prefs.setString(_kServerUrl, config.serverUrl);
-    await prefs.setString(_kUsername, config.username);
-    await prefs.setBool(_kUseApiKey, config.useApiKey);
   }
 
   Future<RommConfig?> loadConfig() async {
     final prefs = await _prefs;
     final serverUrl = prefs.getString(_kServerUrl);
-    final username = prefs.getString(_kUsername);
-    final useApiKey = prefs.getBool(_kUseApiKey) ?? false;
     if (serverUrl == null || serverUrl.isEmpty) return null;
-    final apiKey = await secure.read(key: _kApiKey);
-    return RommConfig(
-      serverUrl: serverUrl,
-      username: username ?? '',
-      apiKey: apiKey,
-      useApiKey: useApiKey,
-    );
+    final token = await secure.read(key: _kToken);
+    return RommConfig(serverUrl: serverUrl, token: token);
   }
 
   Future<void> writeToken(String token) =>
@@ -49,21 +38,23 @@ class RommStorage {
 
   Future<void> deleteToken() => secure.delete(key: _kToken);
 
-  Future<void> writeApiKey(String apiKey) =>
-      secure.write(key: _kApiKey, value: apiKey);
+  /// Id del dispositivo registrado en RomM (para el Device Sync Protocol).
+  Future<String?> readDeviceId() async {
+    final prefs = await _prefs;
+    return prefs.getString(_kDeviceId);
+  }
 
-  Future<String?> readApiKey() => secure.read(key: _kApiKey);
-
-  Future<void> deleteApiKey() => secure.delete(key: _kApiKey);
+  Future<void> writeDeviceId(String id) async {
+    final prefs = await _prefs;
+    await prefs.setString(_kDeviceId, id);
+  }
 
   Future<void> clear() async {
     final prefs = await _prefs;
     await Future.wait([
       secure.delete(key: _kToken),
-      secure.delete(key: _kApiKey),
       prefs.remove(_kServerUrl),
-      prefs.remove(_kUsername),
-      prefs.remove(_kUseApiKey),
+      prefs.remove(_kDeviceId),
     ]);
   }
 }

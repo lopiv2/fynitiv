@@ -1529,7 +1529,7 @@ abstract class AppLocalizations {
   /// No description provided for @gamesConfigRequired.
   ///
   /// In en, this message translates to:
-  /// **'Fill in URL, username and password.'**
+  /// **'Enter the server URL.'**
   String get gamesConfigRequired;
 
   /// No description provided for @gamesServerUrl.
@@ -2120,23 +2120,203 @@ abstract class AppLocalizations {
   /// **'More albums by the artist'**
   String get moreAlbumsOfArtist;
 
-  /// No description provided for @enterApiKey.
+  /// No description provided for @rommPairTitle.
   ///
   /// In en, this message translates to:
-  /// **'Enter the API Key'**
-  String get enterApiKey;
+  /// **'Pair device'**
+  String get rommPairTitle;
 
-  /// No description provided for @rommApiKeyHelp.
+  /// No description provided for @rommPairHelp.
   ///
   /// In en, this message translates to:
-  /// **'Connect with your RomM API Key (Bearer). Generate the API Key in RomM → Profile → API Keys.'**
-  String get rommApiKeyHelp;
+  /// **'Scan this QR with your phone (signed in to RomM) and approve the device. You can also open the link, or go to RomM → /pair/device and enter the code.'**
+  String get rommPairHelp;
 
-  /// No description provided for @apiKeyBearerLabel.
+  /// No description provided for @rommPairCodeLabel.
   ///
   /// In en, this message translates to:
-  /// **'API Key (Bearer)'**
-  String get apiKeyBearerLabel;
+  /// **'Code'**
+  String get rommPairCodeLabel;
+
+  /// No description provided for @rommPairButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair with QR'**
+  String get rommPairButton;
+
+  /// No description provided for @rommPairSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Device paired successfully'**
+  String get rommPairSuccess;
+
+  /// No description provided for @rommPairFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not pair. Check the code and try again.'**
+  String get rommPairFailed;
+
+  /// No description provided for @rommQrScanHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan with your phone or open the link to approve the device.'**
+  String get rommQrScanHint;
+
+  /// No description provided for @rommQrWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval…'**
+  String get rommQrWaiting;
+
+  /// No description provided for @rommQrOpenBrowser.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in browser'**
+  String get rommQrOpenBrowser;
+
+  /// No description provided for @rommQrDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Pairing denied'**
+  String get rommQrDenied;
+
+  /// No description provided for @rommQrExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'The code expired. Try again.'**
+  String get rommQrExpired;
+
+  /// No description provided for @rommQrCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get rommQrCancel;
+
+  /// No description provided for @rommQrPreparing.
+  ///
+  /// In en, this message translates to:
+  /// **'Preparing pairing…'**
+  String get rommQrPreparing;
+
+  /// No description provided for @gamesPlayLocal.
+  ///
+  /// In en, this message translates to:
+  /// **'Play locally'**
+  String get gamesPlayLocal;
+
+  /// No description provided for @gamesLocalDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading the game… press Play again when done'**
+  String get gamesLocalDownloading;
+
+  /// No description provided for @gamesLocalNoFile.
+  ///
+  /// In en, this message translates to:
+  /// **'This game has no downloadable file'**
+  String get gamesLocalNoFile;
+
+  /// No description provided for @gamesLocalNoEmulator.
+  ///
+  /// In en, this message translates to:
+  /// **'No emulator configured. Set it up in Settings > Online games.'**
+  String get gamesLocalNoEmulator;
+
+  /// No description provided for @gamesLocalLaunchError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the emulator'**
+  String get gamesLocalLaunchError;
+
+  /// No description provided for @gamesEmulatorTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emulator'**
+  String get gamesEmulatorTitle;
+
+  /// No description provided for @gamesAndroidPackage.
+  ///
+  /// In en, this message translates to:
+  /// **'RetroArch package (Android)'**
+  String get gamesAndroidPackage;
+
+  /// No description provided for @gamesWindowsExe.
+  ///
+  /// In en, this message translates to:
+  /// **'Emulator path (Windows)'**
+  String get gamesWindowsExe;
+
+  /// No description provided for @gamesWindowsArgs.
+  ///
+  /// In en, this message translates to:
+  /// **'Arguments (use %ROM%)'**
+  String get gamesWindowsArgs;
+
+  /// No description provided for @gamesEmulatorSave.
+  ///
+  /// In en, this message translates to:
+  /// **'Save emulator'**
+  String get gamesEmulatorSave;
+
+  /// No description provided for @gamesTabGames.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get gamesTabGames;
+
+  /// No description provided for @gamesTabEmulators.
+  ///
+  /// In en, this message translates to:
+  /// **'Emulators'**
+  String get gamesTabEmulators;
+
+  /// No description provided for @emulatorsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Emulators by platform'**
+  String get emulatorsTitle;
+
+  /// No description provided for @emulatorsNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No emulators for this platform'**
+  String get emulatorsNone;
+
+  /// No description provided for @emulatorsDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'Download'**
+  String get emulatorsDownload;
+
+  /// No description provided for @emulatorsNoDownload.
+  ///
+  /// In en, this message translates to:
+  /// **'No download link for this emulator'**
+  String get emulatorsNoDownload;
+
+  /// No description provided for @emulatorsInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed'**
+  String get emulatorsInstalled;
+
+  /// No description provided for @emulatorsNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'Not installed'**
+  String get emulatorsNotInstalled;
+
+  /// No description provided for @emulatorsSelectExe.
+  ///
+  /// In en, this message translates to:
+  /// **'Select .exe'**
+  String get emulatorsSelectExe;
+
+  /// No description provided for @emulatorsPathSaved.
+  ///
+  /// In en, this message translates to:
+  /// **'Emulator path saved'**
+  String get emulatorsPathSaved;
 
   /// No description provided for @nameCannotBeEmpty.
   ///

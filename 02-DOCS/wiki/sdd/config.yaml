@@ -1,0 +1,68 @@
+version: 1
+project:
+  root: .
+  stacks:
+    - flutter
+  package_managers:
+    - pub
+  monorepo: false
+  signals:
+    - "flutter 3.49.0 (channel master), Dart SDK ^3.12.2"
+    - "Riverpod para estado/DI; go_router para rutas; Dio para HTTP"
+    - "gen-l10n ARB (lib/l10n/app_en.arb, app_es.arb)"
+    - "flutter_lints ^6.0.0 con analysis_options.yaml"
+    - "AGENTS.md: prohibido flutter build; verificación = flutter analyze (+ flutter test si se pide)"
+    - "AGENTS.md: no ejecutar ni escribir tests salvo petición explícita del usuario"
+    - "AGENTS.md: notificaciones via flutter_easyloading; textos con cadenas ARB EN+ES"
+    - "AGENTS.md: usar AppLoader en peticiones Dio de Jellyfin/RomM"
+sdd:
+  artifact_store: 02-DOCS/wiki/sdd
+  execution_mode: interactive
+  registry_path: .rsc/skill-registry.json
+  review_budget:
+    line_budget: 400
+    file_budget: 12
+  delivery_strategy:
+    default: ask-on-risk
+testing:
+  strict_tdd: false            # AGENTS.md prohibe escribir/ejecutar tests sin petición explícita
+  runners:
+    - flutter_test
+  commands:
+    apply:
+      - flutter pub get
+    verify:
+      - flutter analyze
+    test:
+      - flutter test
+phase_rules:
+  proposal: optional-on-ambiguity
+  specify: requires intent or proposal
+  plan: requires spec
+  tasks: requires plan and spec
+  analyze: requires spec plan tasks
+  implement: requires analyze pass, strict_tdd when testing.strict_tdd is true
+  verify: requires spec tasks evidence
+  archive: requires verify record and review/ship outcome
+models:
+  enabled: false
+  provider: anthropic
+  tiers:
+    heavy: claude-opus-4-8
+    balanced: claude-sonnet-4-6
+    light: claude-haiku-4-5-20251001
+  phases:
+    constitution: heavy
+    specify: balanced
+    clarify: balanced
+    plan: heavy
+    tasks: balanced
+    analyze: heavy
+    implement: balanced
+    verify: balanced
+    review: heavy
+    ship: light
+    debug: heavy
+    worktrees: light
+    sdd-init: light
+  overrides: {}

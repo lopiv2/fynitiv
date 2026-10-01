@@ -24,7 +24,7 @@ enum BoxModel {
 
   /// Caja grande de PC/ordenadores (DOS, Amiga, C64, MSX, ScummVM…):
   /// más ancha y profunda.
-  bigBox(width: 1.18, height: 1.40, depth: 0.42),
+  bigBox(width: 1.18, height: 1.40, depth: 0.22),
 
   /// Forma por defecto.
   defaultBox(width: 1.00, height: 1.40, depth: 0.18);

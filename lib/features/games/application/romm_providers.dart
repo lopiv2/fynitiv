@@ -1,15 +1,222 @@
-﻿import 'package:dio/dio.dart';
+﻿import 'dart:io';
+
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../../core/di/providers.dart';
+import '../../downloads/application/download_manager_provider.dart';
+import '../data/emulator_catalog.dart';
+import '../data/emulator_launcher.dart';
+import '../data/emulator_preferences.dart';
+import '../data/local_game_store.dart';
 import '../data/romm_repository.dart';
 import '../data/romm_storage.dart';
+import '../domain/emulator_profile.dart';
 import '../domain/romm_config.dart';
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
 
+/// Scopes que pide fynitiv al emparejar por QR.
+const kRommRequestedScopes = <String>[
+  'me.read',
+  'me.write',
+  'roms.read',
+  'roms.user.read',
+  'roms.user.write',
+  'platforms.read',
+  'assets.read',
+  'assets.write',
+  'devices.read',
+  'devices.write',
+  'firmware.read',
+];
+
+/// Resultado final del emparejamiento por QR.
+enum RommPairOutcome { approved, denied, expired, cancelled }
+
+
 final rommStorageProvider = Provider<RommStorage>(
   (ref) => RommStorage(secure: ref.watch(flutterSecureStorageProvider)),
+);
+
+/// Almacén local de ROMs descargadas.
+final localGameStoreProvider = Provider<LocalGameStore>(
+  (ref) => LocalGameStore(),
+);
+
+/// Lanzador de emulador externo (Android RetroArch / Windows exe).
+final emulatorLauncherProvider = Provider<EmulatorLauncher>(
+  (ref) => EmulatorLauncher(),
+);
+
+/// Preferencias de emuladores (asociación por plataforma y overrides).
+final emulatorPreferencesProvider = Provider<EmulatorPreferences>(
+  (ref) => EmulatorPreferences(),
+);
+
+/// Estados del flujo de juego local.
+enum LocalPlayStatus { downloading, downloaded, launched, noFile, noEmulator, error }
+
+class LocalPlayResult {
+  const LocalPlayResult(this.status, {this.path, this.message});
+
+  final LocalPlayStatus status;
+  final String? path;
+  final String? message;
+}
+
+/// Orquesta BIOS → ROM → lanzamiento en el emulador asociado a la plataforma.
+class LocalPlayController {
+  LocalPlayController(this.ref);
+
+  final Ref ref;
+
+  Future<LocalPlayResult> play(
+    RommGame game, {
+    required String doneMessage,
+    required String failMessage,
+  }) async {
+    final repo = ref.read(rommRepositoryProvider);
+    if (repo == null) {
+      return const LocalPlayResult(LocalPlayStatus.error, message: 'no-session');
+    }
+    final fileName = game.firstFile;
+    if (fileName == null || fileName.isEmpty) {
+      return const LocalPlayResult(LocalPlayStatus.noFile);
+    }
+    final store = ref.read(localGameStoreProvider);
+    final prefs = ref.read(emulatorPreferencesProvider);
+    final catalog = await ref.read(emulatorCatalogProvider.future);
+
+    // Emulador asociado (o recomendado por SO) para la plataforma.
+    final platformEmus = catalog.forPlatform(game.platformSlug);
+    final associated = await prefs.association(game.platformSlug);
+    final recommended = _isAndroid
+        ? platformEmus?.recommendedAndroid
+        : platformEmus?.recommendedWindows;
+    final emulator = catalog.emulatorById(associated) ??
+        catalog.emulatorById(recommended);
+    final spec = emulator == null ? null : _specForOs(emulator);
+    if (emulator == null || spec == null) {
+      return const LocalPlayResult(LocalPlayStatus.noEmulator);
+    }
+
+    final dir = await store.platformDir(game.platformSlug);
+    final localPath = store.localPathFor(dir, fileName);
+    final hasRom = await store.isDownloaded(localPath);
+
+    if (!hasRom) {
+      await ref.read(downloadManagerProvider.notifier).enqueue(
+            url: repo.downloadUrl(game.id, fileName),
+            fileName: fileName,
+            sourceLabel: game.name,
+            destinationDir: dir,
+            headers: _authHeaders(repo),
+            doneMessage: doneMessage,
+            failMessage: failMessage,
+          );
+    }
+    // BIOS: best-effort, en segundo plano y solo si falta el ROM.
+    unawaitedOrNull(_ensureBios(repo, store, prefs, emulator.id, game.platformId));
+
+    if (!hasRom) {
+      return LocalPlayResult(LocalPlayStatus.downloading, path: localPath);
+    }
+
+    final playable = await store.resolvePlayableFile(localPath);
+    final launcher = ref.read(emulatorLauncherProvider);
+    if (!launcher.isSupported) {
+      return const LocalPlayResult(LocalPlayStatus.noEmulator);
+    }
+    String? configPath;
+    if (emulator.id == 'retroarch') {
+      configPath = await _writeRetroArchConfig(store);
+    }
+    final core = spec.cores[catalog.canonicalSlug(game.platformSlug)];
+    final res = await launcher.launch(
+      emulator: emulator,
+      spec: spec,
+      romPath: playable,
+      prefs: prefs,
+      coreName: core,
+      configFilePath: configPath,
+    );
+    if (!res.ok) {
+      return LocalPlayResult(
+        LocalPlayStatus.error,
+        path: playable,
+        message: res.error,
+      );
+    }
+    return LocalPlayResult(LocalPlayStatus.launched, path: playable);
+  }
+
+  static bool get _isAndroid =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  EmulatorOsSpec? _specForOs(Emulator emulator) {
+    if (kIsWeb) return null;
+    if (Platform.isAndroid) return emulator.android ?? emulator.windows;
+    if (Platform.isWindows) return emulator.windows;
+    return null;
+  }
+
+  Map<String, String> _authHeaders(RommRepository repo) => {
+        if (repo.token?.trim().isNotEmpty == true)
+          'Authorization': 'Bearer ${repo.token!.trim()}',
+      };
+
+  Future<void> _ensureBios(
+    RommRepository repo,
+    LocalGameStore store,
+    EmulatorPreferences prefs,
+    String emulatorId,
+    int platformId,
+  ) async {
+    try {
+      final biosDir = await prefs.biosDir(emulatorId) ?? await store.biosDir();
+      await store.ensureDir(biosDir);
+      final firmwares = await repo.getFirmware(platformId: platformId);
+      for (final fw in firmwares) {
+        if (fw.missingFromFs) continue;
+        final path = '$biosDir${Platform.pathSeparator}${fw.fileName}';
+        if (await store.fileExists(path)) continue;
+        try {
+          await repo.downloadUrlTo(
+            repo.firmwareDownloadUrl(fw.id, fw.fileName),
+            path,
+          );
+        } catch (_) {}
+      }
+    } catch (_) {}
+  }
+
+  Future<String> _writeRetroArchConfig(LocalGameStore store) async {
+    final states = await store.statesDir();
+    final bios = await store.biosDir();
+    final saves = await store.savesDir();
+    await store.ensureDir(states);
+    await store.ensureDir(bios);
+    await store.ensureDir(saves);
+    final path = '$states${Platform.pathSeparator}retroarch_override.cfg';
+    final content = 'system_directory = "$bios"\n'
+        'savefile_directory = "$saves"\n'
+        'savestate_directory = "$states"\n'
+        'savefile_in_content = "false"\n';
+    await File(path).writeAsString(content);
+    return path;
+  }
+}
+
+/// Ejecuta un futuro sin esperar y silencia errores (fire-and-forget).
+void unawaitedOrNull(Future<void> future) {
+  future.catchError((_) {});
+}
+
+final localPlayControllerProvider = Provider<LocalPlayController>(
+  (ref) => LocalPlayController(ref),
 );
 
 /// ConfiguraciÃ³n del servidor ROMM persistida en el dispositivo.
@@ -31,6 +238,11 @@ class RommAuthController extends Notifier<RommAuthState> {
   RommRepository? _repository;
   bool _initialized = false;
 
+  // Estado del emparejamiento por QR en curso.
+  RommRepository? _pairRepo;
+  String? _pairServerUrl;
+  bool _pairCancelled = false;
+
   RommRepository? get repository => _repository;
 
   @override
@@ -43,81 +255,140 @@ class RommAuthController extends Notifier<RommAuthState> {
     return const RommAuthState(loading: true);
   }
 
-  /// Restaura la API key guardada y prepara el repositorio.
-  /// El modo usuario/contraseÃ±a fue eliminado, solo API Key es soportado.
+  /// Restaura el token guardado (obtenido por emparejamiento QR) y prepara
+  /// el repositorio autenticado.
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
     final config = await ref.read(rommConfigProvider.future);
-    if (config == null) {
+    if (config == null || !config.isPaired) {
       state = const RommAuthState();
       return;
     }
-    if (config.isApiKeyMode && config.apiKey != null && config.apiKey!.isNotEmpty) {
-      _repository = RommRepository(serverUrl: config.serverUrl);
-      _repository!.setToken(config.apiKey);
-      state = const RommAuthState(authenticated: true);
-      return;
-    }
-    // Config antigua por usuario/contraseÃ±a: forzar migraciÃ³n a API Key
-    if (!config.isApiKeyMode) {
-      await ref.read(rommStorageProvider).deleteToken();
-      state = const RommAuthState();
-      return;
-    }
-    state = const RommAuthState();
+    _repository = RommRepository(serverUrl: config.serverUrl);
+    _repository!.setToken(config.token);
+    state = const RommAuthState(authenticated: true);
   }
 
-  Future<bool> login({
+  /// Arranca el emparejamiento por QR contra RomM (device authorization flow).
+  /// Devuelve los datos para pintar el QR y el código. No autentica todavía.
+  Future<RommDeviceAuthStart> beginQrPairing({
     required String serverUrl,
-    required String username,
-    required String password,
-    String? apiKey,
-    bool useApiKey = false,
+    required String deviceName,
   }) async {
-    // Solo API Key permitido - usuario/contraseÃ±a eliminado
-    if (!useApiKey) {
-      throw Exception('ConexiÃ³n por usuario/contraseÃ±a deshabilitada. Usa API Key en RomM â†’ Perfil â†’ API Keys.');
-    }
-    state = const RommAuthState(loading: true);
-    try {
-      final storage = ref.read(rommStorageProvider);
-      if (apiKey == null || apiKey.isEmpty) {
-        throw Exception('API Key vacÃ­a');
-      }
-      final repo = RommRepository(serverUrl: serverUrl);
-      repo.setToken(apiKey);
-      // ValidaciÃ³n rÃ¡pida: intenta listar plataformas
+    final repo = RommRepository(serverUrl: serverUrl);
+    final deviceId = await ref
+        .read(sessionStorageProvider)
+        .getOrCreateDeviceId();
+    final version = await _clientVersion();
+    final start = await repo.deviceAuthInit(
+      clientDeviceIdentifier: deviceId,
+      name: deviceName,
+      client: 'fynitiv',
+      platform: _platformSlug(),
+      clientVersion: version,
+      requestedScopes: kRommRequestedScopes,
+    );
+    _pairRepo = repo;
+    _pairServerUrl = serverUrl;
+    _pairCancelled = false;
+    return start;
+  }
+
+  /// Hace polling hasta que el usuario aprueba, deniega, caduca o se cancela.
+  Future<RommPairOutcome> pollQrPairing(RommDeviceAuthStart start) async {
+    final repo = _pairRepo;
+    final serverUrl = _pairServerUrl;
+    if (repo == null || serverUrl == null) return RommPairOutcome.cancelled;
+
+    var interval = start.interval > 0 ? start.interval : 5;
+    final deadline = DateTime.now().add(Duration(seconds: start.expiresIn));
+    while (DateTime.now().isBefore(deadline)) {
+      await Future<void>.delayed(Duration(seconds: interval));
+      if (_pairCancelled) return RommPairOutcome.cancelled;
+      RommDeviceAuthPollResult result;
       try {
-        await repo.getPlatforms();
-      } catch (e)   {
-        throw Exception('Error ROMM: ${e.toString()}');
+        result = await repo.deviceAuthPoll(start.deviceCode);
+      } catch (_) {
+        continue;
       }
-      await storage.saveConfig(RommConfig(serverUrl: serverUrl, username: username, apiKey: apiKey, useApiKey: true));
-      await storage.writeApiKey(apiKey);
-      await storage.deleteToken();
-      _repository = repo;
-      state = const RommAuthState(authenticated: true);
-      ref.invalidate(rommConfigProvider);
-      return true;
-    } on DioException {
-      state = const RommAuthState();
-      rethrow;
-    } catch (e) {
-      state = const RommAuthState();
-      rethrow;
+      if (result.approved) {
+        await _commitPairedToken(
+          repo: repo,
+          serverUrl: serverUrl,
+          token: result.accessToken!,
+          deviceId: result.deviceId,
+        );
+        return RommPairOutcome.approved;
+      }
+      switch (result.status) {
+        case RommDeviceAuthStatus.pending:
+        case null:
+          break;
+        case RommDeviceAuthStatus.slowDown:
+          interval += 5;
+        case RommDeviceAuthStatus.denied:
+          return RommPairOutcome.denied;
+        case RommDeviceAuthStatus.expired:
+          return RommPairOutcome.expired;
+      }
+    }
+    return _pairCancelled ? RommPairOutcome.cancelled : RommPairOutcome.expired;
+  }
+
+  /// Cancela un emparejamiento en curso (cierre del diálogo).
+  void cancelQrPairing() {
+    _pairCancelled = true;
+  }
+
+  Future<void> _commitPairedToken({
+    required RommRepository repo,
+    required String serverUrl,
+    required String token,
+    String? deviceId,
+  }) async {
+    repo.setToken(token);
+    final storage = ref.read(rommStorageProvider);
+    await storage.saveConfig(RommConfig(serverUrl: serverUrl, token: token));
+    await storage.writeToken(token);
+    if (deviceId != null && deviceId.isNotEmpty) {
+      await storage.writeDeviceId(deviceId);
+    }
+    _repository = repo;
+    state = const RommAuthState(authenticated: true);
+    ref.invalidate(rommConfigProvider);
+  }
+
+  Future<String?> _clientVersion() async {
+    try {
+      final info = await PackageInfo.fromPlatform();
+      return info.version;
+    } catch (_) {
+      return null;
     }
   }
 
-  /// Login directo con API key (atajo para UI)
-  Future<bool> loginWithApiKey({
-    required String serverUrl,
-    required String apiKey,
-    String username = 'api',
-  }) =>
-      login(serverUrl: serverUrl, username: username, password: '', apiKey: apiKey, useApiKey: true);
+  static String _platformSlug() {
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+        return 'android';
+      case TargetPlatform.windows:
+        return 'windows';
+      case TargetPlatform.linux:
+        return 'linux';
+      case TargetPlatform.macOS:
+        return 'macos';
+      case TargetPlatform.iOS:
+        return 'ios';
+      case TargetPlatform.fuchsia:
+        return 'fuchsia';
+    }
+  }
 
   Future<void> logout() async {
+    _pairCancelled = true;
+    _pairRepo = null;
+    _pairServerUrl = null;
     await ref.read(rommStorageProvider).clear();
     _repository = null;
     _initialized = false;

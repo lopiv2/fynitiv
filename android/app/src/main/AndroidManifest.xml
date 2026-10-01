@@ -41,5 +41,17 @@
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
         </intent>
+        <!-- Emuladores del catálogo: visibilidad para autodetectar instalado -->
+        <package android:name="com.retroarch"/>
+        <package android:name="com.retroarch.aarch64"/>
+        <package android:name="org.dolphinemu.dolphinemu"/>
+        <package android:name="com.github.stenzek.duckstation"/>
+        <package android:name="org.ppsspp.ppsspp"/>
+        <package android:name="me.magnum.melonds"/>
+        <package android:name="io.mgba.mgba"/>
+        <package android:name="xyz.aethersx2.android"/>
+        <package android:name="org.azahar_emu.azahar"/>
+        <package android:name="org.devmiyax.yabasanshiro"/>
+        <package android:name="org.scummvm.scummvm"/>
     </queries>
 </manifest>

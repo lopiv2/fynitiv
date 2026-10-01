@@ -14,12 +14,12 @@ import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/scroll_title.dart';
+import 'widgets/emulators_tab.dart';
 import 'widgets/jukebox_entry_card.dart';
 import 'widgets/game_content_row.dart';
 import 'widgets/game_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/romm_providers.dart';
-import '../data/emulatorjs_playable.dart';
 import '../data/platform_asset_resolver.dart';
 import '../data/platform_category.dart';
 import '../data/platform_led_color.dart';
@@ -36,6 +36,7 @@ class GamesScreen extends ConsumerStatefulWidget {
 }
 
 class _GamesScreenState extends ConsumerState<GamesScreen> {
+  int _tab = 0;
   String _query = '';
   PlatformCategory _filter = PlatformCategory.all;
   final TextEditingController _searchController = TextEditingController();
@@ -99,6 +100,13 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                 policy: ReadingOrderTraversalPolicy(),
                 child: CustomScrollView(
                   slivers: [
+                    SliverToBoxAdapter(
+                      child: _GamesTabBar(
+                        tab: _tab,
+                        onChanged: (t) => setState(() => _tab = t),
+                      ),
+                    ),
+                    if (_tab == 0) ...[
                     SliverToBoxAdapter(
                       child: _HeroHeader(
                         totalPlatforms: list.length,
@@ -200,6 +208,13 @@ class _GamesScreenState extends ConsumerState<GamesScreen> {
                               ),
                             );
                           },
+                        ),
+                      ),
+                    ] else
+                      SliverToBoxAdapter(
+                        child: EmulatorsTab(
+                          platforms: list,
+                          headers: headers,
                         ),
                       ),
                   ],
@@ -784,9 +799,6 @@ class _PlatformCard extends ConsumerWidget {
     final ledColor = platformLedColor(platform, fallback: accent);
     // Transparente en reposo (glass), sólida al hacer hover para que el glow resalte
     final solidHover = const Color(0xFF1E2633);
-    // Jugable en navegador via EmulatorJS: badge verde arriba-derecha.
-    // Funcion pura local (no depende de streaming.enabled del servidor).
-    final canStream = isEmulatorJsPlayable(platform.slug);
     return AppHover(
       effect: AppHoverEffect.scaleHighlightOutlineLed,
       config: AppHoverConfig.scaleHighlightOutlineLed(
@@ -804,39 +816,7 @@ class _PlatformCard extends ConsumerWidget {
       onTap: () =>
           context.push('/games/platform/${platform.id}', extra: platform),
       playSoundOnHover: true,
-      child: Stack(
-        children: [
-          glassCard,
-          if (canStream)
-            Positioned(
-              bottom: 8,
-              right: 8,
-              child: Tooltip(
-                message: l10n.gamesPlayInBrowser,
-                child: Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2ED9A3),
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.4),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.black,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
+      child: glassCard,
     );
   }
 }
@@ -1013,6 +993,68 @@ class _ErrorView extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Selector de pestañas Juegos | Emuladores (grande para TV).
+class _GamesTabBar extends StatelessWidget {
+  const _GamesTabBar({required this.tab, required this.onChanged});
+
+  final int tab;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 4),
+      child: Row(
+        children: [
+          _GamesTabButton(
+            label: l10n.gamesTabGames,
+            selected: tab == 0,
+            onTap: () => onChanged(0),
+          ),
+          const SizedBox(width: 12),
+          _GamesTabButton(
+            label: l10n.gamesTabEmulators,
+            selected: tab == 1,
+            onTap: () => onChanged(1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GamesTabButton extends StatelessWidget {
+  const _GamesTabButton({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return FilledButton(
+      onPressed: onTap,
+      style: FilledButton.styleFrom(
+        backgroundColor: selected ? Colors.white : Colors.white10,
+        foregroundColor: selected ? Colors.black : Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     );
   }
