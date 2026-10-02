@@ -3,6 +3,7 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/theme/dashboard_background.dart';
+import '../../../core/widgets/app_tab_bar.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../radio/presentation/radio_screen.dart';
 import '../application/live_state.dart';
@@ -94,75 +95,30 @@ class _LiveTvScreenState extends ConsumerState<LiveTvScreen>
                       ),
                     ],
                   ),
-                  // Centro: tabs TV / Radio centrados (más compactos)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: MediaQuery.sizeOf(context).width * 0.3,
-                    ),
+                  // Centro: tabs TV / Radio (widget común AppTabBar)
+                  Expanded(
                     child: Center(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: TabBar(
-                          controller: _tabController,
-                          isScrollable: true,
-                          tabAlignment: TabAlignment.center,
-                          dividerColor: Colors.transparent,
-                          indicator: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          indicatorSize: TabBarIndicatorSize.tab,
-                          labelColor: Colors.black,
-                          unselectedLabelColor: Colors.white70,
-                          labelStyle: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                          ),
-                          unselectedLabelStyle: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w500,
-                          ),
-                          tabs: [
-                            Tab(
-                              height: 26,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  FaIcon(
-                                    FontAwesomeIcons.tv,
-                                    size: 24,
-                                    color: _tabController.index == 0
-                                        ? Colors.black
-                                        : Colors.white70,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Text(l10n.liveTvTabTv),
-                                ],
-                              ),
+                      child: AppTabBar(
+                        index: _tabController.index,
+                        onChanged: (i) => _tabController.animateTo(i),
+                        items: [
+                          AppTabItem(
+                            label: l10n.liveTvTabTv,
+                            iconBuilder: (selected) => FaIcon(
+                              FontAwesomeIcons.tv,
+                              size: 24,
+                              color: selected ? Colors.black : Colors.white70,
                             ),
-                            Tab(
-                              height: 26,
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.radio_rounded,
-                                    size: 28,
-                                    color: _tabController.index == 1
-                                        ? Colors.black
-                                        : Colors.white70,
-                                  ),
-                                  const SizedBox(width: 5),
-                                  Text(l10n.liveTvTabRadio),
-                                ],
-                              ),
+                          ),
+                          AppTabItem(
+                            label: l10n.liveTvTabRadio,
+                            iconBuilder: (selected) => Icon(
+                              Icons.radio_rounded,
+                              size: 28,
+                              color: selected ? Colors.black : Colors.white70,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

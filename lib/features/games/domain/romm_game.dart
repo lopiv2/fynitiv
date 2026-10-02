@@ -15,6 +15,7 @@ class RommGame {
     this.logoUrl,
     this.screenshotUrl,
     this.hasStreaming = false,
+    this.hasMultipleFiles = false,
     this.firstFile,
     this.lastPlayed,
     this.firstReleaseDate,
@@ -55,6 +56,10 @@ class RommGame {
   /// de este juego (permite jugar en el navegador/emulador web).
   final bool hasStreaming;
 
+  /// True si el juego tiene varios archivos (carpeta/multidisco): se descarga
+  /// como zip y se extrae.
+  final bool hasMultipleFiles;
+
   /// Nombre del primer archivo del juego (para la descarga).
   final String? firstFile;
 
@@ -85,6 +90,7 @@ class RommGame {
     String? logoUrl,
     String? screenshotUrl,
     bool? hasStreaming,
+    bool? hasMultipleFiles,
     String? firstFile,
     DateTime? lastPlayed,
     DateTime? firstReleaseDate,
@@ -107,6 +113,7 @@ class RommGame {
       logoUrl: logoUrl ?? this.logoUrl,
       screenshotUrl: screenshotUrl ?? this.screenshotUrl,
       hasStreaming: hasStreaming ?? this.hasStreaming,
+      hasMultipleFiles: hasMultipleFiles ?? this.hasMultipleFiles,
       firstFile: firstFile ?? this.firstFile,
       lastPlayed: lastPlayed ?? this.lastPlayed,
       firstReleaseDate: firstReleaseDate ?? this.firstReleaseDate,

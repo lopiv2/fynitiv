@@ -10,6 +10,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/widgets/app_hover.dart';
+import '../../../../core/widgets/app_hover_button.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../application/romm_providers.dart';
 import '../../data/emulator_catalog.dart';
@@ -20,11 +22,7 @@ import '../../domain/romm_platform.dart';
 /// Pestaña "Emuladores": por plataforma, emulador recomendado, descarga,
 /// asociación y estado de instalación.
 class EmulatorsTab extends ConsumerWidget {
-  const EmulatorsTab({
-    super.key,
-    required this.platforms,
-    this.headers,
-  });
+  const EmulatorsTab({super.key, required this.platforms, this.headers});
 
   final List<RommPlatform> platforms;
   final Map<String, String>? headers;
@@ -40,32 +38,43 @@ class EmulatorsTab extends ConsumerWidget {
       ),
       error: (e, _) => Padding(
         padding: const EdgeInsets.all(24),
-        child: Text(
-          '$e',
-          style: const TextStyle(color: Colors.white54),
-        ),
+        child: Text('$e', style: const TextStyle(color: Colors.white54)),
       ),
-      data: (cat) => Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-              child: Text(
-                l10n.emulatorsTitle,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
+      data: (cat) {
+        final isWindows = !kIsWeb && Platform.isWindows;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+                child: Text(
+                  l10n.emulatorsTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            for (final p in platforms)
-              _PlatformEmulatorCard(catalog: cat, platform: p),
-          ],
-        ),
-      ),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+                  maxCrossAxisExtent: 460,
+                  mainAxisExtent: isWindows ? 250 : 196,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 14,
+                ),
+                itemCount: platforms.length,
+                itemBuilder: (_, i) =>
+                    _PlatformEmulatorCard(catalog: cat, platform: platforms[i]),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -81,16 +90,17 @@ class _PlatformEmulatorCard extends ConsumerStatefulWidget {
       _PlatformEmulatorCardState();
 }
 
-class _PlatformEmulatorCardState
-    extends ConsumerState<_PlatformEmulatorCard> {
+class _PlatformEmulatorCardState extends ConsumerState<_PlatformEmulatorCard> {
   String? _selectedId;
   bool _installed = false;
+  bool _configured = false;
   bool _loaded = false;
 
   bool get _isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-  PlatformEmulators? get _entry => widget.catalog.forPlatform(widget.platform.slug);
+  PlatformEmulators? get _entry =>
+      widget.catalog.forPlatform(widget.platform.slug);
 
   EmulatorOsSpec? _specFor(Emulator e) {
     if (kIsWeb) return null;
@@ -100,6 +110,11 @@ class _PlatformEmulatorCardState
   }
 
   Emulator? get _selected => widget.catalog.emulatorById(_selectedId);
+
+  EmulatorOsSpec? get _selectedSpec =>
+      _selected == null ? null : _specFor(_selected!);
+
+  bool get _isCore => _selectedSpec?.retroarchCore != null;
 
   @override
   void initState() {
@@ -111,22 +126,41 @@ class _PlatformEmulatorCardState
     final prefs = ref.read(emulatorPreferencesProvider);
     final entry = _entry;
     final assoc = await prefs.association(widget.platform.slug);
-    final recommended =
-        _isAndroid ? entry?.recommendedAndroid : entry?.recommendedWindows;
+    final recommended = _isAndroid
+        ? entry?.recommendedAndroid
+        : entry?.recommendedWindows;
     _selectedId = widget.catalog.emulatorById(assoc) != null
         ? assoc
         : (recommended ??
-            (entry != null && entry.emulators.isNotEmpty
-                ? entry.emulators.first
-                : null));
+              (entry != null && entry.emulators.isNotEmpty
+                  ? entry.emulators.first
+                  : null));
     await _checkInstalled();
+    await _refreshConfigured();
     if (mounted) setState(() => _loaded = true);
+  }
+
+  /// Marca si el emulador seleccionado está listo (instalado en Android,
+  /// `.exe` guardado en Windows).
+  Future<void> _refreshConfigured() async {
+    var configured = false;
+    final id = _selectedId;
+    if (id != null) {
+      if (_isAndroid) {
+        configured = _installed;
+      } else if (!kIsWeb && Platform.isWindows) {
+        final targetId = _isCore ? 'retroarch' : id;
+        final exe =
+            await ref.read(emulatorPreferencesProvider).windowsExe(targetId);
+        configured = exe != null && exe.isNotEmpty;
+      }
+    }
+    if (mounted) setState(() => _configured = configured);
   }
 
   Future<void> _checkInstalled() async {
     if (!_isAndroid) return;
-    final spec = _selected == null ? null : _specFor(_selected!);
-    final pkg = spec?.package;
+    final pkg = _isCore ? 'com.retroarch' : _selectedSpec?.package;
     if (pkg == null || pkg.isEmpty) {
       _installed = false;
       return;
@@ -146,6 +180,8 @@ class _PlatformEmulatorCardState
         .read(emulatorPreferencesProvider)
         .setAssociation(widget.platform.slug, id);
     await _checkInstalled();
+    await _refreshConfigured();
+    ref.invalidate(platformPlayReadinessProvider);
     if (mounted) setState(() {});
   }
 
@@ -153,7 +189,9 @@ class _PlatformEmulatorCardState
     final l10n = AppLocalizations.of(context)!;
     final emulator = _selected;
     final spec = emulator == null ? null : _specFor(emulator);
-    final url = spec?.downloadUrl;
+    final url = (spec?.retroarchCore != null)
+        ? widget.catalog.emulatorById('retroarch')?.windows?.downloadUrl
+        : spec?.downloadUrl;
     if (url == null || url.isEmpty) {
       unawaited(EasyLoading.showError(l10n.emulatorsNoDownload));
       return;
@@ -173,9 +211,15 @@ class _PlatformEmulatorCardState
     if (path == null) return;
     await ref
         .read(emulatorPreferencesProvider)
-        .setWindowsExe(emulator.id, path);
+        .setWindowsExe(_isCore ? 'retroarch' : emulator.id, path);
+    await _refreshConfigured();
+    ref.invalidate(platformPlayReadinessProvider);
     if (mounted) {
-      unawaited(EasyLoading.showSuccess(AppLocalizations.of(context)!.emulatorsPathSaved));
+      unawaited(
+        EasyLoading.showSuccess(
+          AppLocalizations.of(context)!.emulatorsPathSaved,
+        ),
+      );
     }
   }
 
@@ -193,7 +237,6 @@ class _PlatformEmulatorCardState
     final accent = skin?.accent ?? const Color(0xFF2B7FFF);
     final highlightText = skin?.textPrimary ?? Colors.white;
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
@@ -208,8 +251,8 @@ class _PlatformEmulatorCardState
               if (machine != null) ...[
                 Image.asset(
                   machine,
-                  width: 44,
-                  height: 30,
+                  width: 84,
+                  height: 100,
                   fit: BoxFit.contain,
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
@@ -220,6 +263,8 @@ class _PlatformEmulatorCardState
                   widget.platform.displayName.isEmpty
                       ? widget.platform.name
                       : widget.platform.displayName,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: Colors.white,
                     fontSize: 16,
@@ -259,36 +304,51 @@ class _PlatformEmulatorCardState
                   ),
                 ),
                 const SizedBox(width: 12),
-                FilledButton.icon(
+                AppHoverButton.filled(
+                  label: l10n.emulatorsDownload,
+                  icon: Icons.download_outlined,
                   onPressed: _download,
-                  style: FilledButton.styleFrom(
-                    backgroundColor: accent,
-                    foregroundColor: highlightText,
-                  ),
-                  icon: Icon(
-                    Icons.download_outlined,
-                    size: 18,
-                    color: highlightText,
-                  ),
-                  label: Text(
-                    l10n.emulatorsDownload,
-                    style: TextStyle(
-                      color: highlightText,
-                      fontWeight: FontWeight.w700,
-                    ),
+                  textColor: highlightText,
+                  config: AppHoverConfig(
+                    highlightNormal: accent,
+                    highlightHovered:
+                        Color.lerp(accent, Colors.white, 0.18) ?? accent,
+                    borderRadius: const BorderRadius.all(Radius.circular(10)),
+                    scale: 1.05,
                   ),
                 ),
               ],
             ),
             if (showWindowsPath) ...[
               const SizedBox(height: 10),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: OutlinedButton.icon(
-                  onPressed: _pickWindowsExe,
-                  icon: const Icon(Icons.folder_open, size: 18),
-                  label: Text(l10n.emulatorsSelectExe),
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppHoverButton.outlined(
+                    label: l10n.emulatorsSelectExe,
+                    icon: Icons.folder_open,
+                    onPressed: _pickWindowsExe,
+                    textColor: highlightText,
+                    borderColor: accent,
+                    config: AppHoverConfig(
+                      highlightNormal: Colors.transparent,
+                      highlightHovered: accent.withValues(alpha: 0.16),
+                      borderRadius: const BorderRadius.all(Radius.circular(10)),
+                      scale: 1.05,
+                    ),
+                  ),
+                  if (_configured) ...[
+                    const SizedBox(width: 8),
+                    Tooltip(
+                      message: l10n.emulatorsConfigured,
+                      child: const Icon(
+                        Icons.check_circle,
+                        color: Color(0xFF2ED9A3),
+                        size: 22,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ],
@@ -322,10 +382,7 @@ class _InstalledBadge extends StatelessWidget {
             color: color,
           ),
           const SizedBox(width: 6),
-          Text(
-            label,
-            style: TextStyle(color: color, fontSize: 12),
-          ),
+          Text(label, style: TextStyle(color: color, fontSize: 12)),
         ],
       ),
     );

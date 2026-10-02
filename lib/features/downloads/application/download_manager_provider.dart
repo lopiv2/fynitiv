@@ -5,8 +5,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:path_provider/path_provider.dart';
 
+import '../../../core/storage/app_paths.dart';
 import '../domain/download_task.dart';
 
 /// Transferencia en curso: el `Dio` + `CancelToken` propios de cada task
@@ -23,12 +23,17 @@ class _ActiveTransfer {
 
 enum _CancelIntent { none, pause, cancel }
 
-/// Nombre seguro para disco: base del archivo (sin subcarpetas del
-/// servidor) y sin caracteres ilegales en Windows (`<>:"|?*`).
-String _diskName(String fileName) {
-  final base = fileName.split('/').last.split('\\').last;
-  final clean = base.replaceAll(RegExp(r'[<>:"|?*\x00-\x1F]'), '_').trim();
-  return clean.isEmpty ? 'download.bin' : clean;
+/// Ruta relativa segura para disco, preservando subcarpetas (ROMs multiarchivo
+/// y juegos por carpeta) y saneando caracteres ilegales en Windows (`<>:"|?*`).
+String _relativePath(String fileName) {
+  final parts = fileName
+      .split(RegExp(r'[/\\]+'))
+      .where((p) => p.isNotEmpty && p != '.' && p != '..')
+      .map((p) => p.replaceAll(RegExp(r'[<>:"|?*\x00-\x1F]'), '_').trim())
+      .where((p) => p.isNotEmpty)
+      .toList();
+  if (parts.isEmpty) return 'download.bin';
+  return parts.join(Platform.pathSeparator);
 }
 
 /// Motivo corto y legible para el toast (HTTP + mensaje, truncado).
@@ -136,11 +141,13 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
         await dir.create(recursive: true);
       }
     } else {
-      dir = await getDownloadsDirectory() ??
-          await getApplicationDocumentsDirectory();
+      dir = Directory(await AppPaths.downloads());
+      if (!await dir.exists()) {
+        await dir.create(recursive: true);
+      }
     }
     final savePath =
-        '${dir.path}${Platform.pathSeparator}${_diskName(fileName)}';
+        '${dir.path}${Platform.pathSeparator}${_relativePath(fileName)}';
     final id = '${DateTime.now().microsecondsSinceEpoch}-$fileName';
     state = {
       ...state,
@@ -220,6 +227,52 @@ class DownloadManagerController extends Notifier<Map<String, DownloadTask>> {
       final part = File('$savePath.part');
       if (await part.exists()) await part.delete();
     } catch (_) {}
+  }
+
+  /// Marca una task descargada como "extrayendo" (zip → carpeta del juego).
+  void startExtracting(String id) {
+    final task = state[id];
+    if (task == null) return;
+    _pruneTimers.remove(id)?.cancel();
+    state = {
+      ...state,
+      id: task.copyWith(
+        status: DownloadStatus.extracting,
+        extractProgress: 0,
+      ),
+    };
+  }
+
+  /// Actualiza el progreso de extracción (0..1).
+  void updateExtractProgress(String id, double progress) {
+    final task = state[id];
+    if (task == null || task.status != DownloadStatus.extracting) return;
+    state = {
+      ...state,
+      id: task.copyWith(extractProgress: progress.clamp(0.0, 1.0)),
+    };
+  }
+
+  /// Termina la extracción y programa el retirado de la barra.
+  void finishExtracting(String id) {
+    final task = state[id];
+    if (task == null) return;
+    state = {
+      ...state,
+      id: task.copyWith(
+        status: DownloadStatus.completed,
+        extractProgress: 1,
+      ),
+    };
+    _pruneTimers.remove(id)?.cancel();
+    _pruneTimers[id] = Timer(const Duration(seconds: 6), () {
+      final done = state[id];
+      if (done != null && done.status == DownloadStatus.completed) {
+        final next = Map<String, DownloadTask>.of(state)..remove(id);
+        state = next;
+      }
+      _pruneTimers.remove(id);
+    });
   }
 
   Future<void> _start(

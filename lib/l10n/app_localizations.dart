@@ -1052,6 +1052,12 @@ abstract class AppLocalizations {
   /// **'Download failed'**
   String get downloadFailed;
 
+  /// No description provided for @downloadExtracting.
+  ///
+  /// In en, this message translates to:
+  /// **'Extracting…'**
+  String get downloadExtracting;
+
   /// Download progress amount, e.g. 120 MB of 450 MB.
   ///
   /// In en, this message translates to:
@@ -2318,6 +2324,12 @@ abstract class AppLocalizations {
   /// **'Emulator path saved'**
   String get emulatorsPathSaved;
 
+  /// No description provided for @emulatorsConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Configured correctly'**
+  String get emulatorsConfigured;
+
   /// No description provided for @nameCannotBeEmpty.
   ///
   /// In en, this message translates to:
@@ -2581,6 +2593,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Download'**
   String get gameOptions;
+
+  /// No description provided for @gameSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles'**
+  String get gameSubtitles;
+
+  /// No description provided for @gameFullscreen.
+  ///
+  /// In en, this message translates to:
+  /// **'Fullscreen'**
+  String get gameFullscreen;
+
+  /// No description provided for @gameRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get gameRunning;
 
   /// No description provided for @gameKeyFeatures.
   ///

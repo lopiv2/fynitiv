@@ -500,6 +500,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get downloadFailed => 'La descarga ha fallado';
 
   @override
+  String get downloadExtracting => 'Extrayendo…';
+
+  @override
   String downloadOf(String done, String total) {
     return '$done de $total';
   }
@@ -1182,6 +1185,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get emulatorsPathSaved => 'Ruta del emulador guardada';
 
   @override
+  String get emulatorsConfigured => 'Configurado correctamente';
+
+  @override
   String get nameCannotBeEmpty => 'El nombre no puede estar vacío';
 
   @override
@@ -1342,6 +1348,15 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get gameOptions => 'Descargar';
+
+  @override
+  String get gameSubtitles => 'Subtítulos';
+
+  @override
+  String get gameFullscreen => 'Pantalla completa';
+
+  @override
+  String get gameRunning => 'En ejecución';
 
   @override
   String get gameKeyFeatures => 'Características principales:';

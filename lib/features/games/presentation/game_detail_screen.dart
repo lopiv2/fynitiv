@@ -140,6 +140,7 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
   Future<void> _playLocal(RommGame game) async {
     final l10n = AppLocalizations.of(context)!;
     if (_launching) return;
+    if (ref.read(gameRunningProvider) == game.id) return;
     setState(() => _launching = true);
     try {
       final result = await ref.read(localPlayControllerProvider).play(
@@ -165,9 +166,19 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
         case LocalPlayStatus.noEmulator:
           unawaited(EasyLoading.showError(l10n.gamesLocalNoEmulator));
         case LocalPlayStatus.error:
-          unawaited(EasyLoading.showError(l10n.gamesLocalLaunchError));
+          unawaited(
+            EasyLoading.showError(
+              result.message == null
+                  ? l10n.gamesLocalLaunchError
+                  : '${l10n.gamesLocalLaunchError}\n${result.message}',
+            ),
+          );
         case LocalPlayStatus.downloaded:
           break;
+      }
+    } catch (e) {
+      if (mounted) {
+        unawaited(EasyLoading.showError('${l10n.gamesLocalLaunchError}\n$e'));
       }
     } finally {
       if (mounted) setState(() => _launching = false);
@@ -190,19 +201,25 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
       return;
     }
     // El progreso/pausa/cancel vive en el gestor global (barra inferior).
-    await ref
-        .read(downloadManagerProvider.notifier)
-        .enqueue(
-          url: repo.downloadUrl(game.id, fileName),
-          fileName: fileName,
-          sourceLabel: game.name,
-          headers: {
-            if (repo.token?.trim().isNotEmpty == true)
-              'Authorization': 'Bearer ${repo.token!.trim()}',
-          },
-          doneMessage: l10n.gamesDownloaded,
-          failMessage: l10n.downloadFailed,
-        );
+    try {
+      await ref
+          .read(downloadManagerProvider.notifier)
+          .enqueue(
+            url: repo.downloadUrl(game.id, fileName),
+            fileName: fileName,
+            sourceLabel: game.name,
+            headers: {
+              if (repo.token?.trim().isNotEmpty == true)
+                'Authorization': 'Bearer ${repo.token!.trim()}',
+            },
+            doneMessage: l10n.gamesDownloaded,
+            failMessage: l10n.downloadFailed,
+          );
+    } catch (e) {
+      if (mounted) {
+        unawaited(EasyLoading.showError('${l10n.downloadFailed}\n$e'));
+      }
+    }
   }
 
   @override
@@ -554,7 +571,7 @@ class _GameTitle extends StatelessWidget {
   }
 }
 
-class _GameHeroInfo extends StatelessWidget {
+class _GameHeroInfo extends ConsumerWidget {
   const _GameHeroInfo({
     required this.game,
     required this.headers,
@@ -574,7 +591,7 @@ class _GameHeroInfo extends StatelessWidget {
   final bool compact;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final lastPlayedLabel = game.lastPlayed != null
         ? _formatDate(context, game.lastPlayed)
@@ -647,18 +664,25 @@ class _GameHeroInfo extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 18),
-        // Buttons Origin style: Jugar (solo si la plataforma tiene core
-        // EmulatorJS) + Descargar (siempre).
+        // Buttons Origin style: Jugar (si hay archivo y la plataforma está
+        // configurada para jugar) + Descargar (siempre).
         Builder(
           builder: (context) {
-            final canPlay = game.firstFile != null;
+            final platformReady =
+                ref
+                    .watch(platformPlayReadinessProvider)
+                    .value?[game.platformSlug] ??
+                false;
+            final canPlay = game.firstFile != null && platformReady;
+            final busy = ref.watch(gameRunningProvider) == game.id;
             return Row(
               children: [
                 if (canPlay) ...[
                   _OriginButton(
-                    label: l10n.gameInstall,
+                    label: busy ? l10n.gameRunning : l10n.gameInstall,
                     primary: true,
                     loading: launching,
+                    disabled: busy,
                     onTap: onPlay,
                   ),
                   const SizedBox(width: 10),
@@ -669,6 +693,10 @@ class _GameHeroInfo extends StatelessWidget {
                   loading: downloading,
                   onTap: onDownload,
                 ),
+                if (canPlay) ...[
+                  const SizedBox(width: 10),
+                  _GamePlayToggles(gameId: game.id),
+                ],
               ],
             );
           },
@@ -678,8 +706,92 @@ class _GameHeroInfo extends StatelessWidget {
   }
 }
 
-class _Stat extends StatelessWidget {
-  const _Stat({required this.label, required this.value});
+/// Toggles persistentes por juego: subtítulos y pantalla completa.
+class _GamePlayToggles extends ConsumerStatefulWidget {
+  const _GamePlayToggles({required this.gameId});
+
+  final int gameId;
+
+  @override
+  ConsumerState<_GamePlayToggles> createState() => _GamePlayTogglesState();
+}
+
+class _GamePlayTogglesState extends ConsumerState<_GamePlayToggles> {
+  bool _subtitles = false;
+  bool _fullscreen = false;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final opts =
+        await ref.read(gamePlayOptionsStoreProvider).read(widget.gameId);
+    if (!mounted) return;
+    setState(() {
+      _subtitles = opts.subtitles;
+      _fullscreen = opts.fullscreen;
+      _loaded = true;
+    });
+  }
+
+  Future<void> _toggleSubtitles() async {
+    setState(() => _subtitles = !_subtitles);
+    await ref
+        .read(gamePlayOptionsStoreProvider)
+        .setSubtitles(widget.gameId, _subtitles);
+  }
+
+  Future<void> _toggleFullscreen() async {
+    setState(() => _fullscreen = !_fullscreen);
+    await ref
+        .read(gamePlayOptionsStoreProvider)
+        .setFullscreen(widget.gameId, _fullscreen);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    if (!_loaded) return const SizedBox.shrink();
+    final accent = ref.watch(skinControllerProvider).value?.accent ??
+        const Color(0xFF2B7FFF);
+    Widget toggle({
+      required bool on,
+      required IconData icon,
+      required String tooltip,
+      required VoidCallback onTap,
+    }) {
+      return IconButton(
+        tooltip: tooltip,
+        onPressed: onTap,
+        icon: Icon(icon, color: on ? accent : Colors.white54),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        toggle(
+          on: _subtitles,
+          icon: _subtitles ? Icons.subtitles : Icons.subtitles_off,
+          tooltip: l10n.gameSubtitles,
+          onTap: _toggleSubtitles,
+        ),
+        toggle(
+          on: _fullscreen,
+          icon: _fullscreen ? Icons.fullscreen : Icons.fullscreen_exit,
+          tooltip: l10n.gameFullscreen,
+          onTap: _toggleFullscreen,
+        ),
+      ],
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {  const _Stat({required this.label, required this.value});
   final String label;
   final String value;
   @override
@@ -716,11 +828,13 @@ class _OriginButton extends ConsumerWidget {
     required this.primary,
     required this.onTap,
     this.loading = false,
+    this.disabled = false,
   });
   final String label;
   final bool primary;
   final VoidCallback onTap;
   final bool loading;
+  final bool disabled;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     // Coherencia con el resto de la app: usa AppHover / AppHoverButton.
@@ -754,6 +868,43 @@ class _OriginButton extends ConsumerWidget {
             outlineHoveredWidth: 1.5,
             scale: 1.04,
           );
+
+    if (disabled) {
+      return Opacity(
+        opacity: 0.5,
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: primary ? accent : const Color(0xFF363B43),
+            borderRadius: config.borderRadius,
+            border: primary
+                ? null
+                : Border.all(color: accent.withValues(alpha: 0.45)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                primary ? Icons.play_arrow_rounded : Icons.download_rounded,
+                size: primary ? 20 : 18,
+                color: primary ? onAccent : Colors.white,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: primary ? onAccent : Colors.white,
+                  fontSize: 14,
+                  fontWeight: primary ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     if (loading) {
       return AppHover(

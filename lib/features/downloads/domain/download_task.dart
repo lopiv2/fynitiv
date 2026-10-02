@@ -12,6 +12,9 @@ enum DownloadStatus {
   /// Falló (red, servidor, disco). Reintentable con resume.
   error,
 
+  /// Descargado y extrayendo (zip → carpeta del juego).
+  extracting,
+
   /// Completada y renombrada a su nombre final.
   completed,
 }
@@ -33,6 +36,7 @@ class DownloadTask {
     this.receivedBytes = 0,
     this.totalBytes = 0,
     this.speedBps = 0,
+    this.extractProgress = 0,
     this.error,
   });
 
@@ -70,6 +74,9 @@ class DownloadTask {
 
   /// Velocidad suavizada en bytes/segundo.
   final double speedBps;
+
+  /// 0..1 del proceso de extracción del zip (cuando `status == extracting`).
+  final double extractProgress;
   final String? error;
 
   /// 0..1; 0 si el total es desconocido.
@@ -95,6 +102,7 @@ class DownloadTask {
     int? receivedBytes,
     int? totalBytes,
     double? speedBps,
+    double? extractProgress,
     String? error,
     bool clearError = false,
   }) {
@@ -111,6 +119,7 @@ class DownloadTask {
       receivedBytes: receivedBytes ?? this.receivedBytes,
       totalBytes: totalBytes ?? this.totalBytes,
       speedBps: speedBps ?? this.speedBps,
+      extractProgress: extractProgress ?? this.extractProgress,
       error: clearError ? null : (error ?? this.error),
     );
   }

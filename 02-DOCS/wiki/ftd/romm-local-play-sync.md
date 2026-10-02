@@ -86,7 +86,119 @@ Plan: `02-DOCS/wiki/sdd/plans/romm-local-play-sync.md`
     estructura.
   - Deps: `qr_flutter`, `package_info_plus`, `archive`, `android_intent_plus`, `installed_apps`.
     `<queries>` de paquetes Android en `AndroidManifest.xml`.
-  - Verificación: `flutter analyze` → "No issues found!".
+  - **Tick "configurado"**: `platformPlayReadinessProvider` (Windows = `.exe` guardado; Android =
+    paquete instalado). Tick verde con tooltip "Configurado correctamente" en la tarjeta de Emuladores
+    (junto al desplegable) y en la tarjeta de plataforma de games screen (esquina inferior derecha).
+  - **Botón Jugar condicionado**: en `game_detail_screen` aparece solo si hay archivo **y** la
+    plataforma está lista (`platformPlayReadinessProvider`); si no, solo se muestra Descargar.
+  - **Pestañas comunes**: nuevo widget `core/widgets/app_tab_bar.dart` (`AppTabBar`/`AppTabItem`,
+    index-based, con `AppHover` para hover/foco TV), reutilizado por la pantalla de Juego online
+    (Juegos | Emuladores) y por Live TV (TV | Radio), sustituyendo el `TabBar` inline de Live TV.
+- Verificación: `flutter analyze` → "No issues found!".
+
+### Cambio 2026-10-01 — raíz Fynitiv + descarga por zip de juegos de carpeta
+
+- **Raíz común**: `lib/core/storage/app_paths.dart` (`AppPaths`): Windows `C:\Fynitiv`, Android
+  externo de la app (`Android/data/<pkg>/files/Fynitiv`), otros `.../Fynitiv`. Subcarpetas
+  `roms/`, `bios/`, `saves/`, `states/`, `Downloads/`. Si no se puede crear (permisos), lanza
+  `AppPathsException` y la UI avisa.
+- **Descargas generales** (vídeos/música Jellyfin): por defecto van a `Fynitiv/Downloads`.
+- **Zip multiarchivo**: `RommGame.hasMultipleFiles` (de `has_multiple_files`/`files>1`);
+  `RommRepository.romZipUrl(romId, filename:)` → `/api/roms/download?rom_ids=`; `LocalGameStore.extractZipInto`
+  extrae preservando subcarpetas (quitando carpeta raíz única).
+- **Juego local**: `LocalPlayController` distingue single-file (descarga directa) de multiarchivo/carpeta
+  (zip → extracción **automática** al terminar). Plataformas de carpeta (`scummvm`, `win`, `dos`,
+  `msdos`, `openbor`) lanzan el **directorio**; el resto, el archivo principal. La descarga se espera
+  en la misma pulsación (spinner) y luego se lanza.
+- Verificación: `flutter analyze` → "No issues found!".
+
+### Extracción aplanada, sin soundtrack y con marcador (2026-10-01)
+
+- `extractZipInto` **aplana prefijos comunes** (`roms/<juego>/<juego>/…` → `…/<juego>/`), **omite** las
+  carpetas prescindibles (`soundtrack`) y notifica progreso.
+- `LocalGameStore.clearDir` + `markReady`/`isReady`: se limpia la carpeta del juego antes de extraer y
+  se marca `.fynitiv.ready`; si ya está lista, **se lanza directamente** sin volver a descargar/extraer.
+- El zip se **borra** tras extraer correctamente (ya no ocupa espacio y no incluye el soundtrack en la
+  carpeta del juego).
+- Verificación: `flutter analyze` → "No issues found!".
+
+### Fix 2026-10-01 — lanzamiento Windows (ScummVM) 
+
+- El proceso se lanzaba (`launch ok=true`) pero ScummVM salía con **code 1**: no acepta la carpeta como
+  argumento. Args correctos: `--auto-detect --path="%ROM%"` (catálogo `emulators.json`).
+- `EmulatorLauncher._launchWindows`: `ProcessStartMode.detached` → `normal`, `workingDirectory` a la
+  carpeta del exe, y log del **pid** + código de salida para diagnosticar cierres inmediatos.
+- Verificación manual: `scummvm --auto-detect --path="<carpeta>"` mantiene el proceso vivo; la carpeta
+  extraída contiene `monkey2.000`/`.scummvm` (correcto).
+
+### Al lanzar el emulador, pausar la OST (2026-10-01)
+
+- En `game_detail_screen._playLocal`, en `LocalPlayStatus.launched` se llama
+  `GameOstPlayer.instance.pauseForExternal()` para que la banda sonora no suene mientras el emulador
+  externo está en primer plano. `resumeIfNeeded()` (lifecycle) la reanuda al volver si procede.
+- Verificación: `flutter analyze` → "No issues found!".
+
+### Toggles por juego: subtítulos y pantalla completa (2026-10-01)
+
+- Persistencia por juego (`romm.game.subtitles.<id>`, `romm.game.fullscreen.<id>`) en
+  `data/game_play_options.dart`; provider `gamePlayOptionsStoreProvider`.
+- `EmulatorOsSpec.subtitlesFlag`/`fullscreenFlag` (JSON `subtitles_flag`/`fullscreen_flag`); ScummVM los
+  define (`--subtitles`, `--fullscreen`), RetroArch `--fullscreen`.
+- En el detalle, junto a Descargar y solo si `canPlay`, `_GamePlayToggles` (dos botones con tooltip y
+  color del skin) que persisten y afectan al lanzamiento (`EmulatorLauncher` añade `extraArgs`).
+- Verificación: JSON válido, `flutter gen-l10n` OK y `flutter analyze` → "No issues found!".
+
+### Estado "jugando": pausa de audio y botón deshabilitado (2026-10-01)
+
+- `EmulatorLaunchResult.exit` (Windows) expone el `exitCode` del proceso del emulador.
+- `gameRunningProvider` (Notifier<int?>) guarda el id del juego en ejecución; se marca al lanzar y se
+  limpia cuando el proceso termina.
+- Al lanzar: `GameOstPlayer.pauseForExternal()` + `GameBgPlayer.pauseForGame()` (nuevo, sin el guard de
+  `pauseForExternal`); al salir: `resumeIfNeeded()` de ambos.
+- El botón **Jugar** se muestra deshabilitado ("En ejecución") mientras ese juego corre, y se rehabilita
+  al cerrarse el emulador (evita lanzarlo dos veces).
+- Verificación: `flutter analyze` → "No issues found!".
+
+### ScummVM: cierre inmediato y salir al cerrar el juego (2026-10-01)
+
+- **Causa del cierre inmediato**: se pasaban flags inexistentes (`--auto-run`, `--quit-after-play`) y,
+  además, las opciones iban **después** del gameid → ScummVM daba `Stray argument '<gameid>'` y salía con
+  code 1. Solución: quitar esos flags y dejar el **gameid SIEMPRE al final** de los args.
+- **No quedarse residente**: se genera un config propio copiando `%APPDATA%\ScummVM\scummvm.ini` y
+  forzando `[scummvm] gui_return_to_launcher_at_exit=false` (+ `start_minimized=false`), pasado con
+  `-c "<cfg>"` (en `states/scummvm_fynitiv.ini`).
+- `_launchScummVm` resuelve el gameid desde el `.scummvm` y lanza `--path=<carpeta> … <gameid al final>`.
+- Al salir el proceso, `exitCode` completa → se limpia el estado "en ejecución" y el botón se rehabilita.
+- Verificación manual: `--path=… -c … --subtitles monkey2` (gameid último) mantiene el proceso vivo;
+  con opciones tras el gameid, `Stray argument`. `flutter analyze` → "No issues found!".
+
+### Barra de descarga: estado "Extrayendo" con progreso (2026-10-01)
+
+- `DownloadStatus.extracting` + `DownloadTask.extractProgress`; `DownloadManagerController` añade
+  `startExtracting`/`updateExtractProgress`/`finishExtracting` (cancela el prune del zip y lo
+  reprograma al terminar).
+- `LocalGameStore.extractZipInto` notifica progreso por archivo; `LocalPlayController` actualiza la
+  barra durante la extracción.
+- La fila de la barra muestra icono `unarchive`, texto "Extrayendo…", porcentaje y barra de progreso.
+- Verificación: `flutter analyze` → "No issues found!".
+
+### Fix 2026-10-01 — layout por juego, multiarchivo y plataformas de carpeta
+
+- **Bug ruta doble**: `rootDir()` devolvía `.../romm/roms` y `platformDir` añadía otro
+  `roms` → `.../romm/roms/roms/<slug>`. Ahora la raíz es `.../romm` y cuelgan `roms/`, `bios/`,
+  `saves/`, `states/`.
+- **Layout por juego**: `LocalGameStore.gameDir(slug, name)` → `roms/<slug>/<juego>/`; la descarga
+  preserva subcarpetas (`localPathFor` y el gestor de descargas sanean y conservan estructura).
+- **Multiarchivo**: `RommRepository.getGameFiles(romId)` (vía `/api/roms/{id}/files`); `LocalPlayController`
+  descarga **todos** los archivos del juego, no solo el primero.
+- **Selección de archivo jugable**: `_pickPlayableFile` prioriza `.scummvm/.m3u/.cue/.chd/.iso` y ROMs,
+  y descarta arte/audio/docs/saves (`flac`, `mp3`, `png`, `pdf`…), evitando casos como ScummVM con
+  `001 Introduction.flac`.
+- **Plataformas de carpeta** (`scummvm`, `win`, `dos`, `msdos`, `openbor`): se lanza el **directorio**
+  del juego, no un archivo.
+- **Diagnóstico**: `debugPrint` `[LocalPlay]`/`[EmulatorLauncher]` y captura de errores visible en
+  `_playLocal`.
+- Verificación: `flutter analyze` → "No issues found!".
 - Implementación 2026-10-01 (Bloques 1-3), rama `feat/romm-local-play-sync`:
   - **Bloque 1**: eliminado el modo API Key. `RommConfig{serverUrl, token}`; `RommStorage` usa
     `romm.access_token` (seguro) y `romm.device_id` (string); fuera `login`/`loginWithApiKey`.
@@ -100,6 +212,20 @@ Plan: `02-DOCS/wiki/sdd/plans/romm-local-play-sync.md`
     orquesta descargar+extraer+lanzar. Botón "Jugar" del detalle usa `_playLocal` (fallback a streaming
     si no hay emulador). Tarjeta "Emulador" en Ajustes (paquete Android / exe+args Windows).
   - Verificación: `flutter analyze` → "No issues found!" tras cada bloque.
+
+### Alternativas de emulador y cores de RetroArch (2026-10-01)
+
+- `EmulatorOsSpec.retroarchCore` (JSON `retroarch_core`): una alternativa que es un **core de
+  RetroArch**. El lanzador usa RetroArch con `-L <core>_libretro.dll` (Windows) o el core en el intent
+  Android, en vez de un exe propio.
+- Catálogo ampliado: 48 emuladores y 51 plataformas. Añadidas alternativas por sistema (Nestopia UE,
+  Mupen64Plus-Next, DeSmuME, Beetle VB/Lynx/WonderSwan/NeoPop/PCE/SuperGrafx/Saturn/PSX HW, Gearcoleco,
+  blueMSX, VICE x64sc, PUAE, DOSBox Pure, FreeIntv, O2EM, SAME CDi, Opera, Genesis Plus GX, PicoDrive,
+  Flycast, Vecx, Fuse, MAME, Virtual Jaguar, xemu, WinUAE) y plataformas nuevas (pce, sgx, amiga,
+  intellivision, odyssey-2, cdi, dreamcast, vectrex, xbox).
+- Para una alternativa-core, la tarjeta usa el `.exe` de **RetroArch** (readiness y selección de fichero
+  apuntan a `retroarch`), y "Descargar" apunta a RetroArch.
+- Verificación: JSON válido y `flutter analyze` → "No issues found!".
 
 ## Next
 Probar el emparejamiento QR en real (RomM 5.3.1): Ajustes → Juego online → "Emparejar con QR" →

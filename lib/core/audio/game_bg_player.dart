@@ -161,6 +161,14 @@ class GameBgPlayer {
     } catch (_) {}
   }
 
+  /// Pausa la música de fondo al lanzar un juego (emulador externo), sin
+  /// importar el foco ni la pantalla.
+  Future<void> pauseForGame() async {
+    try {
+      await _player.pause();
+    } catch (_) {}
+  }
+
   Future<void> resumeIfNeeded() async {
     if (!_inside || _inDetail || _muted) return;
     try {

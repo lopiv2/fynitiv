@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:android_intent_plus/android_intent.dart';
@@ -8,11 +9,21 @@ import 'emulator_preferences.dart';
 
 /// Resultado de intentar lanzar el emulador.
 class EmulatorLaunchResult {
-  const EmulatorLaunchResult.ok() : ok = true, error = null;
-  const EmulatorLaunchResult.fail(this.error) : ok = false;
+  const EmulatorLaunchResult.ok({this.exit, this.pid})
+    : ok = true,
+      error = null;
+  const EmulatorLaunchResult.fail(this.error)
+    : ok = false,
+      exit = null,
+      pid = null;
 
   final bool ok;
   final String? error;
+
+  /// Futuro que completa con el código de salida cuando el proceso del
+  /// emulador termina (solo en Windows; null en el resto).
+  final Future<int>? exit;
+  final int? pid;
 }
 
 /// Lanza un emulador externo con un ROM local.
@@ -22,8 +33,11 @@ class EmulatorLaunchResult {
 class EmulatorLauncher {
   EmulatorLauncher();
 
-  bool get isSupported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isWindows);
+  /// Mantién vivos los procesos lanzados (que no los recoja el GC antes de
+  /// que completen su `exitCode`).
+  static final List<Process> _live = <Process>[];
+
+  bool get isSupported => !kIsWeb && (Platform.isAndroid || Platform.isWindows);
 
   Future<EmulatorLaunchResult> launch({
     required Emulator emulator,
@@ -32,13 +46,28 @@ class EmulatorLauncher {
     required EmulatorPreferences prefs,
     String? coreName,
     String? configFilePath,
+    List<String> extraArgs = const [],
   }) async {
     if (kIsWeb) return const EmulatorLaunchResult.fail('unsupported');
     if (Platform.isAndroid) {
-      return _launchAndroid(emulator, spec, romPath, prefs, coreName, configFilePath);
+      return _launchAndroid(
+        emulator,
+        spec,
+        romPath,
+        prefs,
+        coreName,
+        configFilePath,
+      );
     }
     if (Platform.isWindows) {
-      return _launchWindows(emulator, spec, romPath, prefs, configFilePath);
+      return _launchWindows(
+        emulator,
+        spec,
+        romPath,
+        prefs,
+        configFilePath,
+        extraArgs,
+      );
     }
     return const EmulatorLaunchResult.fail('unsupported');
   }
@@ -52,27 +81,50 @@ class EmulatorLauncher {
     String? configFilePath,
   ) async {
     try {
-      final pkg = await prefs.androidPackage(emulator.id) ?? spec.package;
+      final isCore = spec.retroarchCore != null;
+      final pkg = isCore
+          ? (await prefs.androidPackage('retroarch') ?? 'com.retroarch')
+          : (await prefs.androidPackage(emulator.id) ?? spec.package);
       if (pkg == null || pkg.isEmpty) {
         return const EmulatorLaunchResult.fail('no-package');
       }
-      final activity = spec.activity;
+      final activity = isCore
+          ? 'com.retroarch.browser.retroactivity.RetroActivityFuture'
+          : spec.activity;
+      final core = isCore ? spec.retroarchCore : coreName;
       final intent = AndroidIntent(
         action: 'android.intent.action.VIEW',
         package: pkg,
         componentName: activity != null ? '$pkg/$activity' : null,
         arguments: <String, dynamic>{
           'ROM': romPath,
-          if (coreName != null && coreName.isNotEmpty)
-            'LIBRETRO': '/data/data/$pkg/cores/${coreName}_libretro_android.so',
+          if (core != null && core.isNotEmpty)
+            'LIBRETRO': '/data/data/$pkg/cores/${core}_libretro_android.so',
           if (configFilePath != null && configFilePath.isNotEmpty)
             'CONFIGFILE': configFilePath,
         },
       );
       await intent.launch();
+      debugPrint(
+        '[EmulatorLauncher] android pkg=$pkg activity=$activity rom=$romPath core=$core',
+      );
       return const EmulatorLaunchResult.ok();
     } catch (e) {
+      debugPrint('[EmulatorLauncher] android FAILED $e');
       return EmulatorLaunchResult.fail('$e');
+    }
+  }
+
+  static Future<void> killProcess(int pid) async {
+    try {
+      if (Platform.isWindows) {
+        // taskkill /F /T mata el proceso Y todos sus hijos
+        await Process.run('taskkill', ['/F', '/T', '/PID', '$pid']);
+      } else {
+        Process.killPid(pid);
+      }
+    } catch (e) {
+      debugPrint('[EmulatorLauncher] kill pid=$pid failed: $e');
     }
   }
 
@@ -82,28 +134,234 @@ class EmulatorLauncher {
     String romPath,
     EmulatorPreferences prefs,
     String? configFilePath,
+    List<String> extraArgs,
   ) async {
+    // ── Alternativa que es un core de RetroArch ──────────────────────────────
+    if (spec.retroarchCore != null) {
+      final raExe = await prefs.windowsExe('retroarch');
+      if (raExe == null || raExe.isEmpty) {
+        debugPrint(
+          '[EmulatorLauncher] no retroarch exe for core ${spec.retroarchCore}',
+        );
+        return const EmulatorLaunchResult.fail('no-emulator');
+      }
+      final corePath =
+          '${File(raExe).parent.path}${Platform.pathSeparator}cores'
+          '${Platform.pathSeparator}${spec.retroarchCore}_libretro.dll';
+      var args = '-L "$corePath" "$romPath"';
+      if (configFilePath != null && configFilePath.isNotEmpty) {
+        args = '--config "$configFilePath" $args';
+      }
+      if (extraArgs.isNotEmpty) {
+        args = '$args ${extraArgs.join(' ')}';
+      }
+      return _startWindowsProcess(raExe, args);
+    }
+
     final exe = await prefs.windowsExe(emulator.id);
     if (exe == null || exe.isEmpty) {
+      debugPrint('[EmulatorLauncher] windows no exe for ${emulator.id}');
       return const EmulatorLaunchResult.fail('no-emulator');
     }
-    final template = await prefs.windowsArgs(emulator.id) ??
-        spec.args ??
-        '"%ROM%"';
+
+    // ── ScummVM: lanzamiento especial ────────────────────────────────────────
+    if (emulator.id == 'scummvm') {
+      return _launchScummVm(exe, romPath, configFilePath, extraArgs);
+    }
+
+    // ── Resto de emuladores: plantilla normal ─────────────────────────────────
+    final template =
+        await prefs.windowsArgs(emulator.id) ?? spec.args ?? '"%ROM%"';
     var args = template.replaceAll('%ROM%', romPath);
     if (configFilePath != null && configFilePath.isNotEmpty) {
       args = '--config "$configFilePath" $args';
     }
+    if (extraArgs.isNotEmpty) {
+      args = '$args ${extraArgs.join(' ')}';
+    }
+    return _startWindowsProcess(exe, args);
+  }
+
+  Future<EmulatorLaunchResult> _startWindowsProcess(
+    String exe,
+    String args,
+  ) async {
     try {
-      await Process.start(
+      final exeFile = File(exe);
+      final process = await Process.start(
         exe,
         _splitArgs(args),
+        workingDirectory: await exeFile.exists() ? exeFile.parent.path : null,
         runInShell: false,
-        mode: ProcessStartMode.detached,
+        mode: ProcessStartMode.normal,
       );
-      return const EmulatorLaunchResult.ok();
+      debugPrint(
+        '[EmulatorLauncher] windows pid=${process.pid} launched: $exe $args',
+      );
+      _live.add(process);
+      unawaited(
+        process.exitCode
+            .then((code) {
+              _live.remove(process);
+              debugPrint(
+                '[EmulatorLauncher] windows exited pid=${process.pid} code=$code',
+              );
+            })
+            .timeout(
+              const Duration(minutes: 30),
+              onTimeout: () async {
+                debugPrint(
+                  '[EmulatorLauncher] timeout pid=${process.pid} — forzando kill',
+                );
+                await killProcess(process.pid);
+                _live.remove(process);
+              },
+            ),
+      );
+      return EmulatorLaunchResult.ok(exit: process.exitCode, pid: process.pid);
     } catch (e) {
+      debugPrint(
+        '[EmulatorLauncher] windows FAILED exe="$exe" args="$args": $e',
+      );
       return EmulatorLaunchResult.fail('$e');
+    }
+  }
+
+  /// Lanzamiento específico para ScummVM en Windows.
+  ///
+  /// Prioridad para resolver el gameid:
+  ///   1. El playable es un archivo .scummvm → lee el gameid del interior.
+  ///   2. La carpeta del playable contiene un .scummvm → ídem.
+  ///   3. Fallback: abre ScummVM con --path apuntando a la carpeta (muestra launcher).
+  ///
+  /// Con gameid resuelto lanza: `scummvm.exe --path <dir> <gameid>`.
+  /// Sin gameid lanza: `scummvm.exe --path=<dir>` (launcher normal).
+  Future<EmulatorLaunchResult> _launchScummVm(
+    String exe,
+    String romPath,
+    String? configFilePath,
+    List<String> extraArgs,
+  ) async {
+    // 1 · Intenta leer el gameid desde el archivo .scummvm
+    String? gameId = await _readScummVmGameId(romPath);
+
+    // 2 · Si el playable es una carpeta, busca un .scummvm dentro
+    if (gameId == null) {
+      final dir = Directory(romPath);
+      if (await dir.exists()) {
+        final scummFile = dir
+            .listSync()
+            .whereType<File>()
+            .where((f) => f.path.toLowerCase().endsWith('.scummvm'))
+            .firstOrNull;
+        if (scummFile != null) {
+          gameId = await _readScummVmGameId(scummFile.path);
+        }
+      }
+    }
+
+    debugPrint(
+      '[EmulatorLauncher] scummvm gameid resuelto: ${gameId ?? "(ninguno, abriendo launcher)"}',
+    );
+
+    // Construye los argumentos según si tenemos gameid o no
+    final List<String> scummArgs;
+    if (gameId != null && gameId.isNotEmpty) {
+      // Resuelve la carpeta: si el playable es un .scummvm, su padre es la carpeta del juego
+      final gameFolder =
+          File(romPath).existsSync() &&
+              romPath.toLowerCase().endsWith('.scummvm')
+          ? File(romPath).parent.path
+          : romPath;
+
+      scummArgs = [
+        '--path=$gameFolder', // ← dónde están los archivos del juego
+        if (configFilePath != null && configFilePath.isNotEmpty) ...[
+          '-c',
+          configFilePath,
+        ],
+        ...extraArgs.where(
+          (a) =>
+              !a.contains('--auto-run') &&
+              !a.contains('--auto-detect') &&
+              !a.contains('--path') &&
+              !a.contains('--quit-after-play'),
+        ),
+        gameId, // ← el gameid SIEMPRE al final (si no: "Stray argument")
+      ];
+    } else {
+      // Fallback: abre el launcher apuntando a la carpeta
+      final folder = File(romPath).existsSync()
+          ? File(romPath).parent.path
+          : romPath;
+      scummArgs = [
+        '--path=$folder',
+        if (configFilePath != null && configFilePath.isNotEmpty) ...[
+          '-c',
+          configFilePath,
+        ],
+        ...extraArgs.where(
+          (a) => !a.contains('--auto-run') && !a.contains('--auto-detect'),
+        ),
+      ];
+    }
+
+    try {
+      final exeFile = File(exe);
+      final process = await Process.start(
+        exe,
+        scummArgs,
+        workingDirectory: await exeFile.exists() ? exeFile.parent.path : null,
+        runInShell: false,
+        mode: ProcessStartMode.normal,
+      );
+      debugPrint(
+        '[EmulatorLauncher] scummvm pid=${process.pid} launched: $exe ${scummArgs.join(' ')}',
+      );
+      _live.add(process);
+      unawaited(
+        process.exitCode
+            .then((code) async {
+              _live.remove(process);
+              debugPrint(
+                '[EmulatorLauncher] scummvm exited pid=${process.pid} code=$code',
+              );
+              // Limpia cualquier proceso hijo que ScummVM haya dejado vivo
+              await killProcess(process.pid);
+            })
+            .timeout(
+              const Duration(minutes: 30),
+              onTimeout: () async {
+                debugPrint(
+                  '[EmulatorLauncher] scummvm timeout pid=${process.pid} — forzando kill',
+                );
+                await killProcess(process.pid);
+                _live.remove(process);
+              },
+            ),
+      );
+      return EmulatorLaunchResult.ok(exit: process.exitCode, pid: process.pid);
+    } catch (e) {
+      debugPrint(
+        '[EmulatorLauncher] scummvm FAILED exe="$exe" args="${scummArgs.join(' ')}": $e',
+      );
+      return EmulatorLaunchResult.fail('$e');
+    }
+  }
+
+  /// Lee el gameid de un archivo .scummvm (texto plano, primera línea no vacía).
+  Future<String?> _readScummVmGameId(String path) async {
+    if (!path.toLowerCase().endsWith('.scummvm')) return null;
+    try {
+      final content = await File(path).readAsString();
+      var id = content.trim().split('\n').first.trim();
+      // ScummVM guarda "engine:gameid" (p.ej. "scumm:monkey2") pero el
+      // argumento de línea de comandos solo acepta la parte del gameid
+      if (id.contains(':')) id = id.split(':').last.trim();
+      return id.isNotEmpty ? id : null;
+    } catch (e) {
+      debugPrint('[EmulatorLauncher] no se pudo leer .scummvm "$path": $e');
+      return null;
     }
   }
 

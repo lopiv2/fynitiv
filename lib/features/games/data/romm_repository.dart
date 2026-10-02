@@ -727,12 +727,54 @@ class RommRepository {
     return '';
   }
 
+  /// True si el juego tiene varios archivos (carpeta/multidisco).
+  bool _isMultiFile(Map<String, dynamic>? g) {
+    if (g == null) return false;
+    if (g['has_multiple_files'] == true) return true;
+    final files = g['files'];
+    return files is List && files.length > 1;
+  }
+
+  /// Extensiones preferidas como archivo "jugable" (de mayor a menor prioridad).
+  static const _kPlayablePreferred = <String>[
+    'scummvm', 'm3u', 'cue', 'chd', 'iso', 'gdi', 'pbp', 'zip', '7z',
+    'nes', 'fds', 'unf', 'unif', 'snes', 'smc', 'sfc', 'gb', 'gbc', 'gba',
+    'n64', 'z64', 'v64', 'md', 'gen', 'smd', 'sms', 'gg', '32x', 'pce', 'sgx',
+    'ngp', 'ngc', 'ws', 'wsc', 'a26', 'a52', 'a78', 'col', 'int', 'vec', 'lnx',
+    'exe', 'bat', 'sh', 'bin', 'cso',
+  ];
+
+  /// Extensiones que nunca son el archivo jugable (arte, audio, docs, saves).
+  static const _kJunkExtensions = <String>{
+    'flac', 'mp3', 'ogg', 'wav', 'm4a', 'aac', 'opus',
+    'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg',
+    'pdf', 'txt', 'xml', 'json', 'nfo', 'ini', 'cfg', 'log',
+    'sav', 'srm', 'state', 'db',
+  };
+
+  /// Elige el archivo con más pinta de ser el contenido jugable.
+  String? _pickPlayableFile(List files) {    final names = files
+        .whereType<Map>()
+        .map((m) => m['file_name']?.toString() ?? '')
+        .where((s) => s.isNotEmpty)
+        .toList();
+    if (names.isEmpty) return null;
+    int score(String n) {
+      final dot = n.lastIndexOf('.');
+      final ext = dot >= 0 ? n.substring(dot + 1).toLowerCase() : '';
+      if (_kJunkExtensions.contains(ext)) return -1000;
+      final idx = _kPlayablePreferred.indexOf(ext);
+      if (idx >= 0) return 1000 - idx;
+      return 0;
+    }
+
+    names.sort((a, b) => score(b).compareTo(score(a)));
+    return names.first;
+  }
+
   RommGame _mapGame(Map<String, dynamic>? g) {
     final files = g?['files'] as List? ?? const [];
-    String? firstFile;
-    if (files.isNotEmpty && files.first is Map) {
-      firstFile = (files.first as Map)['file_name'] as String?;
-    }
+    final firstFile = _pickPlayableFile(files);
     DateTime? lastPlayed;
     final ru = g?['rom_user'] as Map<String, dynamic>?;
     final rawLast = ru?['last_played'] as String?;
@@ -880,6 +922,7 @@ class RommRepository {
       logoUrl: norm(logoRaw),
       screenshotUrl: norm(screenshotRaw),
       firstFile: firstFile,
+      hasMultipleFiles: _isMultiFile(g),
       lastPlayed: lastPlayed,
       firstReleaseDate: firstReleaseDate,
       fsSizeBytes: (g?['fs_size_bytes'] as num?)?.toInt() ?? 0,
@@ -1404,8 +1447,7 @@ class RommRepository {
   }
 
   /// Lista de firmware/BIOS de RomM (opcionalmente de una plataforma).
-  Future<List<RommFirmware>> getFirmware({int? platformId}) async {
-    final res = await _dio.get(
+  Future<List<RommFirmware>> getFirmware({int? platformId}) async {    final res = await _dio.get(
       '/api/firmware',
       queryParameters: {
         if (platformId != null) 'platform_id': platformId,
@@ -1439,5 +1481,43 @@ class RommRepository {
   /// Descarga una URL autenticada a un fichero local.
   Future<void> downloadUrlTo(String url, String savePath) async {
     await _dio.download(url, savePath, options: _authOptions);
+  }
+
+  /// URL del zip de un juego (incluye todos sus archivos/carpeta).
+  /// `GET /api/roms/download?rom_ids={id}&filename={name}.zip`.
+  String romZipUrl(int romId, {String? filename}) {
+    final base = serverUrl.replaceAll(RegExp(r'/$'), '');
+    final query = Uri(
+      queryParameters: {
+        'rom_ids': '$romId',
+        if (filename != null && filename.isNotEmpty) 'filename': filename,
+      },
+    ).query;
+    return '$base/api/roms/download?$query';
+  }
+
+  /// Lista los nombres de archivo de un juego (para descargar juegos
+  /// multiarchivo/carpeta completos). Devuelve [] si no se puede obtener.
+  Future<List<String>> getGameFiles(int romId) async {
+    for (final path in ['/api/roms/$romId/files', '/api/roms/$romId?with_files=true']) {
+      try {
+        final res = await _dio.get(path, options: _authOptions);
+        final raw = res.data;
+        final list = raw is List
+            ? raw
+            : (raw is Map
+                  ? (raw['files'] ?? raw['items'] ?? raw['results'])
+                  : null);
+        if (list is List) {
+          final names = list
+              .whereType<Map>()
+              .map((m) => m['file_name']?.toString() ?? '')
+              .where((s) => s.isNotEmpty)
+              .toList();
+          if (names.isNotEmpty) return names;
+        }
+      } catch (_) {}
+    }
+    return const [];
   }
 }

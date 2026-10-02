@@ -6,6 +6,9 @@ class EmulatorOsSpec {
     this.activity,
     this.cores = const {},
     this.args,
+    this.subtitlesFlag,
+    this.fullscreenFlag,
+    this.retroarchCore,
   });
 
   /// URL para descargar/instalar (Play Store, web oficial, GitHub…).
@@ -23,6 +26,16 @@ class EmulatorOsSpec {
   /// Plantilla de argumentos de Windows (`%ROM%` = ruta del juego).
   final String? args;
 
+  /// Flag para habilitar subtítulos (si el emulador lo soporta).
+  final String? subtitlesFlag;
+
+  /// Flag para forzar pantalla completa (si el emulador lo soporta).
+  final String? fullscreenFlag;
+
+  /// Si está definido, este emulador es un **core de RetroArch**: el lanzador
+  /// usa RetroArch con `-L <core>` en vez de un ejecutable propio.
+  final String? retroarchCore;
+
   static EmulatorOsSpec fromJson(Map<String, dynamic> json) {
     return EmulatorOsSpec(
       downloadUrl: json['download_url']?.toString(),
@@ -33,6 +46,9 @@ class EmulatorOsSpec {
           ) ??
           const {},
       args: json['args']?.toString(),
+      subtitlesFlag: json['subtitles_flag']?.toString(),
+      fullscreenFlag: json['fullscreen_flag']?.toString(),
+      retroarchCore: json['retroarch_core']?.toString(),
     );
   }
 }

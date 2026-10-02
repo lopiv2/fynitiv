@@ -11,6 +11,7 @@ import '../../../core/settings/game_bg_music_controller.dart';
 import '../../../core/settings/game_video_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
+import '../../../core/widgets/app_tab_bar.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/scroll_title.dart';
@@ -618,6 +619,8 @@ class _PlatformCard extends ConsumerWidget {
         ? <String, String>{'Authorization': 'Bearer $token'}
         : null;
 
+    final ready =
+        ref.watch(platformPlayReadinessProvider).value?[platform.slug] ?? false;
     final localAsset = PlatformAssetResolver.resolve(platform);
     final machineAsset = PlatformMachineAssetResolver.resolve(platform);
 
@@ -816,7 +819,39 @@ class _PlatformCard extends ConsumerWidget {
       onTap: () =>
           context.push('/games/platform/${platform.id}', extra: platform),
       playSoundOnHover: true,
-      child: glassCard,
+      child: Stack(
+        children: [
+          glassCard,
+          if (ready)
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: Tooltip(
+                message: l10n.emulatorsConfigured,
+                child: Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2ED9A3),
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.4),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.check,
+                    color: Colors.black,
+                    size: 18,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -998,7 +1033,7 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-/// Selector de pestañas Juegos | Emuladores (grande para TV).
+/// Selector de pestañas Juegos | Emuladores (estilo Live TV / Radio).
 class _GamesTabBar extends StatelessWidget {
   const _GamesTabBar({required this.tab, required this.onChanged});
 
@@ -1009,52 +1044,30 @@ class _GamesTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 4),
-      child: Row(
-        children: [
-          _GamesTabButton(
-            label: l10n.gamesTabGames,
-            selected: tab == 0,
-            onTap: () => onChanged(0),
-          ),
-          const SizedBox(width: 12),
-          _GamesTabButton(
-            label: l10n.gamesTabEmulators,
-            selected: tab == 1,
-            onTap: () => onChanged(1),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GamesTabButton extends StatelessWidget {
-  const _GamesTabButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: onTap,
-      style: FilledButton.styleFrom(
-        backgroundColor: selected ? Colors.white : Colors.white10,
-        foregroundColor: selected ? Colors.black : Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 18),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(14),
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+      child: Center(
+        child: AppTabBar(
+          index: tab,
+          onChanged: onChanged,
+          items: [
+            AppTabItem(
+              label: l10n.gamesTabGames,
+              iconBuilder: (selected) => Icon(
+                Icons.sports_esports_rounded,
+                size: 24,
+                color: selected ? Colors.black : Colors.white70,
+              ),
+            ),
+            AppTabItem(
+              label: l10n.gamesTabEmulators,
+              iconBuilder: (selected) => Icon(
+                Icons.memory_rounded,
+                size: 24,
+                color: selected ? Colors.black : Colors.white70,
+              ),
+            ),
+          ],
         ),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
       ),
     );
   }

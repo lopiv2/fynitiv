@@ -76,6 +76,10 @@ class _DownloadRow extends ConsumerWidget {
     final (statusText, statusColor) = switch (task.status) {
       DownloadStatus.downloading =>
         ('${(task.progress * 100).toStringAsFixed(0)} %', Colors.white),
+      DownloadStatus.extracting => (
+        '${(task.extractProgress * 100).toStringAsFixed(0)} %',
+        const Color(0xFF6BB8FF),
+      ),
       DownloadStatus.queued => (l10n.downloadQueued, Colors.white70),
       DownloadStatus.paused => (l10n.downloadPaused, Colors.orangeAccent),
       DownloadStatus.error => (l10n.downloadFailed, Colors.redAccent),
@@ -84,17 +88,21 @@ class _DownloadRow extends ConsumerWidget {
 
     final eta = task.eta;
     final statsParts = <String>[
-      if (task.totalBytes > 0)
-        l10n.downloadOf(
+      if (task.status == DownloadStatus.extracting)
+        l10n.downloadExtracting
+      else ...[
+        if (task.totalBytes > 0)
+          l10n.downloadOf(
+            formatBytes(task.receivedBytes),
+            formatBytes(task.totalBytes),
+          )
+        else if (task.receivedBytes > 0)
           formatBytes(task.receivedBytes),
-          formatBytes(task.totalBytes),
-        )
-      else if (task.receivedBytes > 0)
-        formatBytes(task.receivedBytes),
-      if (task.status == DownloadStatus.downloading && task.speedBps > 0)
-        '${formatBytes(task.speedBps.round())}/s',
-      if (eta != null && task.status == DownloadStatus.downloading)
-        l10n.downloadTimeLeft(_fmt(eta)),
+        if (task.status == DownloadStatus.downloading && task.speedBps > 0)
+          '${formatBytes(task.speedBps.round())}/s',
+        if (eta != null && task.status == DownloadStatus.downloading)
+          l10n.downloadTimeLeft(_fmt(eta)),
+      ],
     ];
 
     return Padding(
@@ -110,7 +118,9 @@ class _DownloadRow extends ConsumerWidget {
                   ? Icons.check_circle_outline
                   : task.status == DownloadStatus.error
                       ? Icons.error_outline
-                      : Icons.download_rounded,
+                      : task.status == DownloadStatus.extracting
+                          ? Icons.unarchive_outlined
+                          : Icons.download_rounded,
               size: iconSize,
               color: statusColor,
             ),
@@ -151,6 +161,13 @@ class _DownloadRow extends ConsumerWidget {
                     backgroundColor: const Color(0xFF2A2A2A),
                     color: const Color(0xFF6BB8FF),
                   )
+                else if (task.status == DownloadStatus.extracting)
+                  LinearProgressIndicator(
+                    value: task.extractProgress,
+                    minHeight: (4 * s).clamp(3, 6).toDouble(),
+                    backgroundColor: const Color(0xFF2A2A2A),
+                    color: const Color(0xFF6BB8FF),
+                  )
                 else
                   SizedBox(height: (4 * s).clamp(3, 6).toDouble()),
                 SizedBox(height: 3 * s),
@@ -176,6 +193,8 @@ class _DownloadRow extends ConsumerWidget {
     double iconSize,
   ) {
     switch (task.status) {
+      case DownloadStatus.extracting:
+        return const [];
       case DownloadStatus.downloading:
       case DownloadStatus.queued:
         return [
