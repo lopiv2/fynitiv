@@ -39,6 +39,10 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 
 - No quiero que vuelvas a una version anterior de codigo de Github haciendo checkout sin preguntarme antes. Podriamos romper algo que ya funciona
 
+## Trabajar siempre en la rama main (sin ramas feature)
+
+- No crear nunca ramas feature (`feat/...`, `fix/...`, worktrees, etc.). Todo el trabajo va directamente sobre `main`.
+
 ## Corrige los problemas siempre que puedas antes de tu respuesta final
 
 - Debes corregir los problemas de consola siempre que puedas antes de dar tu respuesta final
