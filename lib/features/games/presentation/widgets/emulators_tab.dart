@@ -9,6 +9,7 @@ import 'package:installed_apps/installed_apps.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/skin/skin_controller.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../application/romm_providers.dart';
 import '../../data/emulator_catalog.dart';
@@ -44,23 +45,26 @@ class EmulatorsTab extends ConsumerWidget {
           style: const TextStyle(color: Colors.white54),
         ),
       ),
-      data: (cat) => ListView(
+      data: (cat) => Padding(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
-            child: Text(
-              l10n.emulatorsTitle,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.w700,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 12),
+              child: Text(
+                l10n.emulatorsTitle,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
             ),
-          ),
-          for (final p in platforms)
-            _PlatformEmulatorCard(catalog: cat, platform: p),
-        ],
+            for (final p in platforms)
+              _PlatformEmulatorCard(catalog: cat, platform: p),
+          ],
+        ),
       ),
     );
   }
@@ -185,6 +189,9 @@ class _PlatformEmulatorCardState
         .whereType<Emulator>()
         .toList();
     final showWindowsPath = !kIsWeb && Platform.isWindows;
+    final skin = ref.watch(skinControllerProvider).value;
+    final accent = skin?.accent ?? const Color(0xFF2B7FFF);
+    final highlightText = skin?.textPrimary ?? Colors.white;
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
       padding: const EdgeInsets.all(16),
@@ -254,8 +261,22 @@ class _PlatformEmulatorCardState
                 const SizedBox(width: 12),
                 FilledButton.icon(
                   onPressed: _download,
-                  icon: const Icon(Icons.download_outlined, size: 18),
-                  label: Text(l10n.emulatorsDownload),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: accent,
+                    foregroundColor: highlightText,
+                  ),
+                  icon: Icon(
+                    Icons.download_outlined,
+                    size: 18,
+                    color: highlightText,
+                  ),
+                  label: Text(
+                    l10n.emulatorsDownload,
+                    style: TextStyle(
+                      color: highlightText,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
                 ),
               ],
             ),
