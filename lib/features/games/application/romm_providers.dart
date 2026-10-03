@@ -23,6 +23,7 @@ import '../domain/emulator_profile.dart';
 import '../domain/romm_config.dart';
 import '../domain/romm_game.dart';
 import '../domain/romm_platform.dart';
+import 'romm_sync_controller.dart';
 
 /// Scopes que pide fynitiv al emparejar por QR.
 const kRommRequestedScopes = <String>[
@@ -219,7 +220,7 @@ class LocalPlayController {
         canonical: canonical,
         store: store,
         prefs: prefs,
-        gameId: game.id,
+        game: game,
         extraArgs: extraArgs,
       );
     }
@@ -256,7 +257,7 @@ class LocalPlayController {
       canonical: canonical,
       store: store,
       prefs: prefs,
-      gameId: game.id,
+      game: game,
       extraArgs: extraArgs,
     );
   }
@@ -268,9 +269,22 @@ class LocalPlayController {
     required String canonical,
     required LocalGameStore store,
     required EmulatorPreferences prefs,
-    required int gameId,
+    required RommGame game,
     List<String> extraArgs = const [],
   }) async {
+    final gameId = game.id;
+    // Metadatos del juego para mapear sus partidas/estados al rom_id de RomM.
+    try {
+      final metaDir = await store.gameDir(game.platformSlug, game.name);
+      final stem = _playableStem(playable);
+      await store.writeGameMeta(metaDir, {
+        'romId': game.id,
+        'platformSlug': game.platformSlug,
+        'name': game.name,
+        'playable': playable,
+        'stem': ?stem,
+      });
+    } catch (_) {}
     final launcher = ref.read(emulatorLauncherProvider);
     if (!launcher.isSupported) {
       return const LocalPlayResult(LocalPlayStatus.noEmulator);
@@ -325,6 +339,8 @@ class LocalPlayController {
           running.stop();
           unawaited(GameOstPlayer.instance.resumeIfNeeded());
           unawaited(GameBgPlayer.instance.resumeIfNeeded());
+          // Sync automático de partidas/estados al cerrar la sesión.
+          unawaited(ref.read(rommSyncProvider.notifier).sync());
         }),
       );
     }
@@ -364,6 +380,15 @@ class LocalPlayController {
 
   static bool get _isAndroid =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  /// Nombre base (sin extensión) del archivo jugable, usado para mapear las
+  /// partidas/estados que el emulador escribe con ese nombre.
+  static String? _playableStem(String playable) {
+    final name = playable.split(RegExp(r'[/\\]+')).last;
+    final dot = name.lastIndexOf('.');
+    if (dot <= 0) return null;
+    return name.substring(0, dot);
+  }
 
   EmulatorOsSpec? _specForOs(Emulator emulator) {
     if (kIsWeb) return null;

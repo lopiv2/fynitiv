@@ -1,25 +1,26 @@
 # Intent
-Desbloquear `flutter build windows`: falla en `build_hooks` con `Building native assets failed` por `ogg.dll` duplicada entre `flutter_soloud` y `flutter_recorder` (transitiva de `audio_flux`).
+Desbloquear `flutter build windows`: fallaba en `build_hooks` con `Building native assets failed` por `ogg.dll` duplicada entre `flutter_soloud` y `flutter_recorder` (transitiva de `audio_flux`). Retirar el pin transitorio tras el fix upstream.
 
 # Scope
-- Solo `pubspec.yaml` (+ `pubspec.lock` regenerado): fijar `flutter_recorder` a `2.0.4` como dependencia directa exacta.
+- Solo `pubspec.yaml` (+ `pubspec.lock` regenerado): eliminar la dependencia directa `flutter_recorder: 2.0.4`; se resuelve transitivamente vía `audio_flux: ^2.0.0`.
 - No se toca código de widgets, ni ARB, ni skins, ni `PrimeCardBadge`.
-- No se ejecuta `flutter build` como verificación (solo diagnóstico previo); verificación con `flutter analyze`.
+- No se ejecuta `flutter build` como verificación (norma del proyecto); verificación con `flutter analyze`.
 
 # Checklist
 - [x] Reproducir y capturar causa raíz en log verbose (`Application asset verification failed`, duplicado `ogg.dll`: `package:flutter_recorder/xiph/ogg.dll` vs `package:flutter_soloud/xiph/ogg.dll`)
-- [x] Añadir pin `flutter_recorder: 2.0.4` en `pubspec.yaml`
-- [x] `flutter pub get` y confirmar `pubspec.lock` en `2.0.4`
+- [x] Pin transitorio `flutter_recorder: 2.0.4` en `pubspec.yaml` (mitigación temporal)
+- [x] Confirmar fix upstream en `flutter_recorder` 2.0.6 (changelog)
+- [x] Eliminar la dependencia directa `flutter_recorder` de `pubspec.yaml`
+- [x] `flutter pub get` y confirmar `pubspec.lock` en `2.0.6` como transitiva de `audio_flux`
 - [x] `flutter analyze` sin errores nuevos
 
 # Evidence
-- `flutter pub get` (27/09/2026): `flutter_recorder 2.0.4 (2.0.5 available)`, `Got dependencies!`; `pubspec.lock`: `flutter_recorder` `dependency: "direct main"`, `version: "2.0.4"`.
-- `flutter analyze`: `No issues found! (ran in 3.6s)`.
-- No se ejecuta `flutter build` como verificación (norma del proyecto); pendiente que el desarrollador compile Windows y confirme que `build_hooks` pasa.
-- Log verbose `flutter build windows --debug -v` (27/09/2026): `Rerunning build for flutter_soloud...`, luego `Application asset verification failed - Duplicate dynamic library file name "ogg.dll" for the following asset ids: "package:flutter_recorder/xiph/ogg.dll", "package:flutter_soloud/xiph/ogg.dll"` → `Target build_hooks failed`.
-- `flutter_recorder` 2.0.5 changelog: `fix windows: bundle ogg.dll required by the recorder import library` (introduce el duplicado; no hay versión posterior con fix; última en pub.dev a 27/09/2026: 2.0.5).
-- La app no usa grabación de micro; `flutter_recorder` solo entra vía `audio_flux` (visualización con FFT de SoLoud), riesgo bajo.
-- Upstream ya renombró en Android a `libfr_ogg`/`libfr_opus` para evitar colisiones con `flutter_soloud` (changelog 1.2.0); en Windows el alias `ogg.dll` sigue colisionando.
+- Causa raíz (27/09/2026): `flutter_recorder` 2.0.5 introduce `ogg.dll`; colisiona con `flutter_soloud` en `native_assets` → `Target build_hooks failed`.
+- Fix upstream `flutter_recorder` 2.0.6 (01/10/2026): *"fix windows: rebuild vendored ogg with export name `fr_ogg.dll` and remove `ogg.dll` alias to avoid Native Assets collision with `flutter_soloud` #66"*.
+- `audio_flux: ^2.0.0` declara `flutter_recorder: ^2.0.3`, por lo que acepta `2.0.6` sin dependencia directa.
+- `flutter pub get` seguido de `flutter pub upgrade flutter_recorder` (03/10/2026): `flutter_recorder` resuelto a `2.0.6` (transitive) en `pubspec.lock`.
+- `flutter analyze` (03/10/2026): `No issues found! (ran in 47.5s)`.
+- Build Windows confirmado por el desarrollador (03/10/2026): `build_hooks` pasa; el build compila `flutter_recorder.vcxproj` sin el duplicado `ogg.dll` (solo warnings benignos de terceros: C4018/C4996/C4244 en `capture.cpp`, `flutter_recorder.cpp`, `miniaudio.h`, `pffft.c`).
 
 # Next
-- Tras el pin, si el build de Windows pasa, reportar upstream (`flutter_recorder`: renombrar el alias Windows a `fr_ogg.dll` como en Android) y retirar el pin cuando haya fix. Alternativa descartada por ahora: `no_xiph_libs: true` en `flutter_soloud` (perdería Opus/Ogg/Vorbis/FLAC en SoLoud) y eliminar `audio_flux` (cambio mayor).
+- Cerrado. Feature completada sin follow-up. Reabrir solo si reaparece la colisión `ogg.dll` en `build_hooks`.

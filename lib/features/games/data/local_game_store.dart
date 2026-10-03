@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive.dart';
@@ -238,6 +239,61 @@ class LocalGameStore {
   Future<void> clearDir(String dir) async {
     final d = Directory(dir);
     if (await d.exists()) await d.delete(recursive: true);
+  }
+
+  static const _kMetaFile = '.fynitiv.meta';
+
+  /// Fichero de metadatos de un juego (romId, plataforma, jugable).
+  String metaPath(String gameDir) =>
+      '$gameDir${Platform.pathSeparator}$_kMetaFile';
+
+  /// Escribe los metadatos de un juego para poder mapear sus partidas/estados
+  /// al `rom_id` de RomM al sincronizar.
+  Future<void> writeGameMeta(String gameDir, Map<String, dynamic> meta) async {
+    await ensureDir(gameDir);
+    await File(metaPath(gameDir)).writeAsString(jsonEncode(meta));
+  }
+
+  Future<Map<String, dynamic>?> readGameMeta(String gameDir) async {
+    final f = File(metaPath(gameDir));
+    if (!await f.exists()) return null;
+    try {
+      final raw = await f.readAsString();
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Recorre `roms/` y devuelve cada juego con metadatos: `(gameDir, meta)`.
+  Future<List<(String, Map<String, dynamic>)>> listGameMetas() async {
+    final root = Directory(await romsRoot());
+    if (!await root.exists()) return [];
+    final out = <(String, Map<String, dynamic>)>[];
+    await for (final e in root.list(recursive: true, followLinks: false)) {
+      if (e is! File) continue;
+      if (e.uri.pathSegments.last != _kMetaFile) continue;
+      try {
+        final raw = await e.readAsString();
+        final decoded = jsonDecode(raw);
+        if (decoded is Map<String, dynamic>) {
+          out.add((e.parent.path, decoded));
+        }
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  /// Lista los archivos (no ocultos) de una carpeta; vacío si no existe.
+  Future<List<String>> listFiles(String dir) async {
+    final d = Directory(dir);
+    if (!await d.exists()) return [];
+    final out = <String>[];
+    await for (final e in d.list(followLinks: false)) {
+      if (e is File) out.add(e.path);
+    }
+    return out;
   }
 
   /// Subcarpetas que no son necesarias para jugar y se omiten al extraer.

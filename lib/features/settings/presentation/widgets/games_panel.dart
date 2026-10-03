@@ -6,8 +6,11 @@ import 'package:material_ui/material_ui.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/widgets/app_loader.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../games/application/bios_sync_controller.dart';
 import '../../../games/application/romm_providers.dart';
+import '../../../games/application/romm_sync_controller.dart';
 import '../../../games/data/romm_repository.dart';
 import '../../../games/domain/romm_config.dart';
 
@@ -96,6 +99,10 @@ class _GamesPanelState extends ConsumerState<GamesPanel> {
                   config: config.value!,
                   onLogout: _logout,
                 ),
+                const SizedBox(height: 16),
+                const _BiosSyncCard(),
+                const SizedBox(height: 16),
+                const _SavesSyncCard(),
                 const SizedBox(height: 24),
               ],
               _configCard(l10n),
@@ -230,6 +237,161 @@ class _StatusCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Tarjeta de sincronización de BIOS/firmware (RomM → cliente).
+class _BiosSyncCard extends ConsumerWidget {
+  const _BiosSyncCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final s = ref.watch(biosSyncProvider);
+    final subtitle = s.running
+        ? l10n.rommBiosSyncRunning('${s.done}', '${s.total}')
+        : l10n.rommBiosSyncHelp;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.06),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.memory, color: Colors.white70, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.rommBiosSyncTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          if (s.running)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: AppLoader(size: 22),
+            )
+          else
+            FilledButton.tonalIcon(
+              onPressed: () => _run(ref, l10n),
+              icon: const Icon(Icons.download, size: 18),
+              label: Text(l10n.rommBiosSyncButton),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _run(WidgetRef ref, AppLocalizations l10n) async {
+    final result = await ref.read(biosSyncProvider.notifier).sync();
+    if (result == null) {
+      unawaited(EasyLoading.showError(l10n.rommBiosSyncLogin));
+      return;
+    }
+    if (result.downloaded > 0) {
+      unawaited(EasyLoading.showSuccess(l10n.rommBiosSyncDone(result.downloaded)));
+    } else if (result.failed > 0) {
+      unawaited(EasyLoading.showError(l10n.rommBiosSyncError));
+    } else {
+      unawaited(EasyLoading.showInfo(l10n.rommBiosSyncUpToDate));
+    }
+  }
+}
+
+/// Tarjeta de sincronización bidireccional de partidas/estados.
+class _SavesSyncCard extends ConsumerWidget {
+  const _SavesSyncCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final s = ref.watch(rommSyncProvider);
+    final subtitle = s.running
+        ? l10n.rommSyncRunning('${s.done}', '${s.total}')
+        : l10n.rommSyncHelp;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.white.withValues(alpha: 0.06),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.save_alt, color: Colors.white70, size: 22),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.rommSyncTitle,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          if (s.running)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: AppLoader(size: 22),
+            )
+          else
+            FilledButton.tonalIcon(
+              onPressed: () => _run(ref, l10n),
+              icon: const Icon(Icons.sync, size: 18),
+              label: Text(l10n.rommSyncButton),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _run(WidgetRef ref, AppLocalizations l10n) async {
+    final result = await ref.read(rommSyncProvider.notifier).sync();
+    if (result == null) {
+      unawaited(EasyLoading.showError(l10n.rommSyncLogin));
+      return;
+    }
+    final changed = result.uploaded + result.downloaded;
+    if (result.failed > 0 && changed == 0 && result.conflicts == 0) {
+      unawaited(EasyLoading.showError(l10n.rommSyncError));
+    } else if (changed == 0 && result.conflicts == 0) {
+      unawaited(EasyLoading.showInfo(l10n.rommSyncUpToDate));
+    } else {
+      unawaited(
+        EasyLoading.showSuccess(
+          l10n.rommSyncDone(result.uploaded, result.downloaded),
+        ),
+      );
+    }
   }
 }
 

@@ -31,8 +31,8 @@ Plan: `02-DOCS/wiki/sdd/plans/romm-local-play-sync.md`
 - [x] T006 `LocalGameStore` (layout roms/bios/saves/states, descarga, extracción `.zip`)
 - [x] T007 `EmulatorLauncher` catalog-driven (Android intent / Windows exe) + pestaña Emuladores
 - [ ] T008 `PlaySessionTracker`
-- [ ] T009 `RommSyncEngine`
-- [ ] T010 UI de sync + historial
+- [x] T009 `RommSyncEngine`
+- [x] T010 UI de sync + historial
 - [x] T011 catálogo de emuladores + asociación por plataforma + autodetección de instalado
 - [ ] T012 cierre + evidencia
 
@@ -231,3 +231,16 @@ Plan: `02-DOCS/wiki/sdd/plans/romm-local-play-sync.md`
 Probar el emparejamiento QR en real (RomM 5.3.1): Ajustes → Juego online → "Emparejar con QR" →
 escanear con el móvil → aprobar. Después T008-T010 y T012 (play sessions, motor de sync
 saves/states y UI de sync).
+
+### Sync saves/states (T009/T010) — 2026-10-03
+
+- `RommSyncController`/`rommSyncProvider` (`application/romm_sync_controller.dart`): escanea
+  `saves/`+`states/`, mapea a `rom_id` por `.fynitiv.meta` (stem del jugable), `sha1`+mtime,
+  `POST /api/sync/negotiate`, ejecuta ops (upload `POST /api/saves` multipart `saveFile`; download
+  `GET {source}`; conflict = keep_both sin sobrescribir), `POST /api/sync/sessions/{id}/complete`.
+- Meta por juego: `LocalGameStore` (`.fynitiv.meta`, `listGameMetas`, `listFiles`) escrita al lanzar
+  en `LocalPlayController._launch`.
+- UI: `_SavesSyncCard` en `games_panel`; sync automático al cerrar la sesión (`exit.then`).
+- FTD del feature: `02-DOCS/wiki/ftd/romm-saves-sync.md`. `flutter analyze` → "No issues found!".
+- Pendiente: verificación manual en RomM real + 2º dispositivo; T008 (play sessions); T012.
+

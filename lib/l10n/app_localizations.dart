@@ -2210,6 +2210,102 @@ abstract class AppLocalizations {
   /// **'Play locally'**
   String get gamesPlayLocal;
 
+  /// No description provided for @rommBiosSyncTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'BIOS sync'**
+  String get rommBiosSyncTitle;
+
+  /// No description provided for @rommBiosSyncHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Download the firmware/BIOS that RomM has and is missing on this device.'**
+  String get rommBiosSyncHelp;
+
+  /// No description provided for @rommBiosSyncButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync BIOS'**
+  String get rommBiosSyncButton;
+
+  /// No description provided for @rommBiosSyncRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing {done}/{total}…'**
+  String rommBiosSyncRunning(String done, String total);
+
+  /// No description provided for @rommBiosSyncDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} BIOS downloaded'**
+  String rommBiosSyncDone(int count);
+
+  /// No description provided for @rommBiosSyncUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'BIOS are up to date'**
+  String get rommBiosSyncUpToDate;
+
+  /// No description provided for @rommBiosSyncError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not sync BIOS'**
+  String get rommBiosSyncError;
+
+  /// No description provided for @rommBiosSyncLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to RomM to sync BIOS'**
+  String get rommBiosSyncLogin;
+
+  /// No description provided for @rommSyncTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves & states sync'**
+  String get rommSyncTitle;
+
+  /// No description provided for @rommSyncHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync this device\'s saves and states with RomM (both ways). Conflicts keep both versions.'**
+  String get rommSyncHelp;
+
+  /// No description provided for @rommSyncButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync saves'**
+  String get rommSyncButton;
+
+  /// No description provided for @rommSyncRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing {done}/{total}…'**
+  String rommSyncRunning(String done, String total);
+
+  /// No description provided for @rommSyncDone.
+  ///
+  /// In en, this message translates to:
+  /// **'{up} uploaded · {down} downloaded'**
+  String rommSyncDone(int up, int down);
+
+  /// No description provided for @rommSyncUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Saves and states are up to date'**
+  String get rommSyncUpToDate;
+
+  /// No description provided for @rommSyncError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not sync saves'**
+  String get rommSyncError;
+
+  /// No description provided for @rommSyncLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to RomM to sync saves'**
+  String get rommSyncLogin;
+
   /// No description provided for @gamesLocalDownloading.
   ///
   /// In en, this message translates to:

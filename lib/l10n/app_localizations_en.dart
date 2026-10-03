@@ -1122,6 +1122,64 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gamesPlayLocal => 'Play locally';
 
   @override
+  String get rommBiosSyncTitle => 'BIOS sync';
+
+  @override
+  String get rommBiosSyncHelp =>
+      'Download the firmware/BIOS that RomM has and is missing on this device.';
+
+  @override
+  String get rommBiosSyncButton => 'Sync BIOS';
+
+  @override
+  String rommBiosSyncRunning(String done, String total) {
+    return 'Syncing $done/$total…';
+  }
+
+  @override
+  String rommBiosSyncDone(int count) {
+    return '$count BIOS downloaded';
+  }
+
+  @override
+  String get rommBiosSyncUpToDate => 'BIOS are up to date';
+
+  @override
+  String get rommBiosSyncError => 'Could not sync BIOS';
+
+  @override
+  String get rommBiosSyncLogin => 'Connect to RomM to sync BIOS';
+
+  @override
+  String get rommSyncTitle => 'Saves & states sync';
+
+  @override
+  String get rommSyncHelp =>
+      'Sync this device\'s saves and states with RomM (both ways). Conflicts keep both versions.';
+
+  @override
+  String get rommSyncButton => 'Sync saves';
+
+  @override
+  String rommSyncRunning(String done, String total) {
+    return 'Syncing $done/$total…';
+  }
+
+  @override
+  String rommSyncDone(int up, int down) {
+    return '$up uploaded · $down downloaded';
+  }
+
+  @override
+  String get rommSyncUpToDate => 'Saves and states are up to date';
+
+  @override
+  String get rommSyncError => 'Could not sync saves';
+
+  @override
+  String get rommSyncLogin => 'Connect to RomM to sync saves';
+
+  @override
   String get gamesLocalDownloading =>
       'Downloading the game… press Play again when done';
 

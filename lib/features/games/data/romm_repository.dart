@@ -1483,6 +1483,78 @@ class RommRepository {
     await _dio.download(url, savePath, options: _authOptions);
   }
 
+  /// Descarga un firmware/BIOS de RomM a un fichero local, notificando
+  /// progreso (bytes recibidos / total).
+  Future<void> downloadFirmware({
+    required int id,
+    required String fileName,
+    required String savePath,
+    void Function(int received, int total)? onProgress,
+  }) async {
+    await _dio.download(
+      firmwareDownloadUrl(id, fileName),
+      savePath,
+      options: _authOptions,
+      onReceiveProgress: onProgress,
+    );
+  }
+
+  /// Negocia un sync bidireccional de assets (Device Sync Protocol).
+  /// `roms` = `[{rom_id, saves: [{file, mtime, sha1}]}]`.
+  /// Devuelve `{session_id, operations: [...]}`.
+  Future<Map<String, dynamic>> negotiateSync({
+    required String deviceId,
+    required List<Map<String, dynamic>> roms,
+  }) async {
+    final res = await _dio.post(
+      '/api/sync/negotiate',
+      data: {'device_id': deviceId, 'roms': roms},
+      options: _authOptions,
+    );
+    final data = res.data;
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
+
+  /// Sube un save/state local a RomM (`POST /api/saves`, multipart `saveFile`).
+  Future<void> uploadSave({
+    required int romId,
+    required String deviceId,
+    required String filePath,
+    required String fileName,
+    Object? sessionId,
+  }) async {
+    final form = FormData.fromMap({
+      'saveFile': await MultipartFile.fromFile(filePath, filename: fileName),
+    });
+    await _dio.post(
+      '/api/saves',
+      data: form,
+      queryParameters: {
+        'rom_id': romId,
+        'device_id': deviceId,
+        if (sessionId != null) 'session_id': sessionId,
+      },
+      options: _authOptions,
+    );
+  }
+
+  /// Cierra una sesión de sync (`POST /api/sync/sessions/{id}/complete`).
+  Future<void> completeSyncSession({
+    required Object sessionId,
+    required int completed,
+    required int failed,
+  }) async {
+    await _dio.post(
+      '/api/sync/sessions/$sessionId/complete',
+      data: {
+        'operations_completed': completed,
+        'operations_failed': failed,
+        'play_sessions': const <Map<String, dynamic>>[],
+      },
+      options: _authOptions,
+    );
+  }
+
   /// URL del zip de un juego (incluye todos sus archivos/carpeta).
   /// `GET /api/roms/download?rom_ids={id}&filename={name}.zip`.
   String romZipUrl(int romId, {String? filename}) {

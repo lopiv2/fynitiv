@@ -1125,6 +1125,64 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gamesPlayLocal => 'Jugar en local';
 
   @override
+  String get rommBiosSyncTitle => 'Sincronizar BIOS';
+
+  @override
+  String get rommBiosSyncHelp =>
+      'Descarga el firmware/BIOS que tiene RomM y falta en este dispositivo.';
+
+  @override
+  String get rommBiosSyncButton => 'Sincronizar BIOS';
+
+  @override
+  String rommBiosSyncRunning(String done, String total) {
+    return 'Sincronizando $done/$total…';
+  }
+
+  @override
+  String rommBiosSyncDone(int count) {
+    return '$count BIOS descargadas';
+  }
+
+  @override
+  String get rommBiosSyncUpToDate => 'Las BIOS están al día';
+
+  @override
+  String get rommBiosSyncError => 'No se pudieron sincronizar las BIOS';
+
+  @override
+  String get rommBiosSyncLogin => 'Conecta con RomM para sincronizar BIOS';
+
+  @override
+  String get rommSyncTitle => 'Sincronizar partidas';
+
+  @override
+  String get rommSyncHelp =>
+      'Sincroniza partidas y estados de este dispositivo con RomM (en ambos sentidos). Los conflictos conservan ambas versiones.';
+
+  @override
+  String get rommSyncButton => 'Sincronizar partidas';
+
+  @override
+  String rommSyncRunning(String done, String total) {
+    return 'Sincronizando $done/$total…';
+  }
+
+  @override
+  String rommSyncDone(int up, int down) {
+    return '$up subidas · $down bajadas';
+  }
+
+  @override
+  String get rommSyncUpToDate => 'Partidas y estados al día';
+
+  @override
+  String get rommSyncError => 'No se pudieron sincronizar las partidas';
+
+  @override
+  String get rommSyncLogin => 'Conecta con RomM para sincronizar partidas';
+
+  @override
   String get gamesLocalDownloading =>
       'Descargando el juego… vuelve a pulsar Jugar al terminar';
 

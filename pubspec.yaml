@@ -84,11 +84,10 @@ dependencies:
   animated_gradient: ^0.0.3
   flutter_soloud: ^5.1.0
   audio_flux: ^2.0.0
-  # Pin transitorio: flutter_recorder 2.0.5 empaqueta ogg.dll en Windows y
-  # colisiona con flutter_soloud (native_assets: Duplicate dynamic library
-  # file name "ogg.dll"). Fijado a 2.0.4 hasta fix upstream.
+  # flutter_recorder entra transitivamente vía audio_flux (^2.0.3). A partir
+  # de 2.0.6 exporta fr_ogg.dll y elimina el alias ogg.dll, evitando la
+  # colisión de native_assets con flutter_soloud en Windows.
   # Ver 02-DOCS/wiki/ftd/windows-ogg-dll-duplicado.md
-  flutter_recorder: 2.0.4
   # Sistema universal de notificaciones/toasts en toda la app
   flutter_easyloading: ^4.0.2
   flutter_scene: ^0.20.0

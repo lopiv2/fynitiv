@@ -429,6 +429,45 @@
   "rommQrCancel": "Cancel",
   "rommQrPreparing": "Preparing pairing…",
   "gamesPlayLocal": "Play locally",
+  "rommBiosSyncTitle": "BIOS sync",
+  "rommBiosSyncHelp": "Download the firmware/BIOS that RomM has and is missing on this device.",
+  "rommBiosSyncButton": "Sync BIOS",
+  "rommBiosSyncRunning": "Syncing {done}/{total}…",
+  "@rommBiosSyncRunning": {
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "rommBiosSyncDone": "{count} BIOS downloaded",
+  "@rommBiosSyncDone": {
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+  "rommBiosSyncUpToDate": "BIOS are up to date",
+  "rommBiosSyncError": "Could not sync BIOS",
+  "rommBiosSyncLogin": "Connect to RomM to sync BIOS",
+  "rommSyncTitle": "Saves & states sync",
+  "rommSyncHelp": "Sync this device's saves and states with RomM (both ways). Conflicts keep both versions.",
+  "rommSyncButton": "Sync saves",
+  "rommSyncRunning": "Syncing {done}/{total}…",
+  "@rommSyncRunning": {
+    "placeholders": {
+      "done": { "type": "String" },
+      "total": { "type": "String" }
+    }
+  },
+  "rommSyncDone": "{up} uploaded · {down} downloaded",
+  "@rommSyncDone": {
+    "placeholders": {
+      "up": { "type": "int" },
+      "down": { "type": "int" }
+    }
+  },
+  "rommSyncUpToDate": "Saves and states are up to date",
+  "rommSyncError": "Could not sync saves",
+  "rommSyncLogin": "Connect to RomM to sync saves",
   "gamesLocalDownloading": "Downloading the game… press Play again when done",
   "gamesLocalNoFile": "This game has no downloadable file",
   "gamesLocalNoEmulator": "No emulator configured. Set it up in Settings > Online games.",
