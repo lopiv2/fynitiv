@@ -37,6 +37,10 @@ class EmulatorLauncher {
   /// que completen su `exitCode`).
   static final List<Process> _live = <Process>[];
 
+  /// Nombre de imagen (Windows) del último emulador lanzado, para poder
+  /// limpiar instancias residentes al volver a la app.
+  static String? lastImageName;
+
   bool get isSupported => !kIsWeb && (Platform.isAndroid || Platform.isWindows);
 
   Future<EmulatorLaunchResult> launch({
@@ -65,6 +69,7 @@ class EmulatorLauncher {
         spec,
         romPath,
         prefs,
+        coreName,
         configFilePath,
         extraArgs,
       );
@@ -128,11 +133,25 @@ class EmulatorLauncher {
     }
   }
 
+  /// Mata todos los procesos con ese nombre de imagen en Windows
+  /// (p. ej. `retroarch.exe`). RetroArch deja instancias residentes tras
+  /// cerrar con ciertos cores (bug conocido) o en "handoff" de instancia
+  /// única; esto limpia huérfanos por PID ya distinto al que lanzamos.
+  static Future<void> killByImage(String imageName) async {
+    if (!Platform.isWindows || imageName.isEmpty) return;
+    try {
+      await Process.run('taskkill', ['/F', '/T', '/IM', imageName]);
+    } catch (e) {
+      debugPrint('[EmulatorLauncher] kill image=$imageName failed: $e');
+    }
+  }
+
   Future<EmulatorLaunchResult> _launchWindows(
     Emulator emulator,
     EmulatorOsSpec spec,
     String romPath,
     EmulatorPreferences prefs,
+    String? coreName,
     String? configFilePath,
     List<String> extraArgs,
   ) async {
@@ -173,6 +192,16 @@ class EmulatorLauncher {
     final template =
         await prefs.windowsArgs(emulator.id) ?? spec.args ?? '"%ROM%"';
     var args = template.replaceAll('%ROM%', romPath);
+    // RetroArch base: fija el core de la plataforma con `-L` (si el catálogo
+    // lo define) para no arrancar sin core.
+    if (emulator.id == 'retroarch' &&
+        coreName != null &&
+        coreName.isNotEmpty) {
+      final corePath =
+          '${File(exe).parent.path}${Platform.pathSeparator}cores'
+          '${Platform.pathSeparator}${coreName}_libretro.dll';
+      args = '-L "$corePath" $args';
+    }
     if (configFilePath != null && configFilePath.isNotEmpty) {
       args = '--config "$configFilePath" $args';
     }
@@ -186,7 +215,13 @@ class EmulatorLauncher {
     String exe,
     String args,
   ) async {
+    final imageName = exe.split(RegExp(r'[/\\]+')).last;
+    lastImageName = imageName;
     try {
+      // Limpia instancias huérfanas previas del mismo emulador (RetroArch
+      // puede quedar residente tras una sesión y provocar "handoff" en la
+      // siguiente: el nuevo proceso sale con code=1 sin arrancar el juego).
+      await killByImage(imageName);
       final exeFile = File(exe);
       final process = await Process.start(
         exe,
@@ -206,6 +241,8 @@ class EmulatorLauncher {
               debugPrint(
                 '[EmulatorLauncher] windows exited pid=${process.pid} code=$code',
               );
+              // Cierra cualquier hijo/instancia que quede residente.
+              unawaited(killByImage(imageName));
             })
             .timeout(
               const Duration(minutes: 30),
@@ -243,7 +280,7 @@ class EmulatorLauncher {
     List<String> extraArgs,
   ) async {
     // 1 · Intenta leer el gameid desde el archivo .scummvm
-    String? gameId = await _readScummVmGameId(romPath);
+    String? gameId = await readScummVmGameId(romPath);
 
     // 2 · Si el playable es una carpeta, busca un .scummvm dentro
     if (gameId == null) {
@@ -255,7 +292,7 @@ class EmulatorLauncher {
             .where((f) => f.path.toLowerCase().endsWith('.scummvm'))
             .firstOrNull;
         if (scummFile != null) {
-          gameId = await _readScummVmGameId(scummFile.path);
+          gameId = await readScummVmGameId(scummFile.path);
         }
       }
     }
@@ -306,6 +343,7 @@ class EmulatorLauncher {
       ];
     }
 
+    lastImageName = exe.split(RegExp(r'[/\\]+')).last;
     try {
       final exeFile = File(exe);
       final process = await Process.start(
@@ -328,6 +366,7 @@ class EmulatorLauncher {
               );
               // Limpia cualquier proceso hijo que ScummVM haya dejado vivo
               await killProcess(process.pid);
+              await killByImage(exe.split(RegExp(r'[/\\]+')).last);
             })
             .timeout(
               const Duration(minutes: 30),
@@ -349,18 +388,32 @@ class EmulatorLauncher {
     }
   }
 
-  /// Lee el gameid de un archivo .scummvm (texto plano, primera línea no vacía).
-  Future<String?> _readScummVmGameId(String path) async {
-    if (!path.toLowerCase().endsWith('.scummvm')) return null;
+  /// Lee el gameid de un `.scummvm` (texto plano, primera línea no vacía).
+  /// Acepta tanto la ruta del `.scummvm` como la carpeta del juego (busca el
+  /// `.scummvm` dentro). Público para reutilizarlo al generar los metadatos
+  /// de sync y mapear las partidas de ScummVM (`<gameid>.sNN`).
+  static Future<String?> readScummVmGameId(String path) async {
+    var target = path;
+    if (!path.toLowerCase().endsWith('.scummvm')) {
+      final dir = Directory(path);
+      if (!await dir.exists()) return null;
+      final scumm = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.toLowerCase().endsWith('.scummvm'))
+          .firstOrNull;
+      if (scumm == null) return null;
+      target = scumm.path;
+    }
     try {
-      final content = await File(path).readAsString();
+      final content = await File(target).readAsString();
       var id = content.trim().split('\n').first.trim();
       // ScummVM guarda "engine:gameid" (p.ej. "scumm:monkey2") pero el
       // argumento de línea de comandos solo acepta la parte del gameid
       if (id.contains(':')) id = id.split(':').last.trim();
       return id.isNotEmpty ? id : null;
     } catch (e) {
-      debugPrint('[EmulatorLauncher] no se pudo leer .scummvm "$path": $e');
+      debugPrint('[EmulatorLauncher] no se pudo leer .scummvm "$target": $e');
       return null;
     }
   }

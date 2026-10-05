@@ -23,6 +23,7 @@ import '../../../core/widgets/marquee_text.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/ost_providers.dart';
 import '../application/romm_providers.dart';
+import '../data/emulator_launcher.dart';
 import '../data/platform_machine_asset_resolver.dart';
 import '../domain/game_ost_track.dart';
 import '../domain/romm_game.dart';
@@ -96,7 +97,19 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
     // recupera por si el sistema lo cortó (llamada, etc.).
     if (state == AppLifecycleState.resumed) {
       GameOstPlayer.instance.resumeIfNeeded();
+      _killResidentEmulator();
     }
+  }
+
+  /// RetroArch puede quedar residente tras cerrar (bug de ciertos cores). Si
+  /// volvemos a la app con un juego marcado como "en ejecución", forzamos la
+  /// limpieza; al matar el proceso, su `exitCode` completa y el estado se
+  /// limpia (y dispara el sync) por el handler habitual.
+  void _killResidentEmulator() {
+    if (ref.read(gameRunningProvider) == null) return;
+    final image = EmulatorLauncher.lastImageName;
+    if (image == null || image.isEmpty) return;
+    unawaited(EmulatorLauncher.killByImage(image));
   }
 
   /// Visor de portada 3D con `flutter_scene`.
@@ -147,6 +160,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
             game,
             doneMessage: l10n.gamesDownloaded,
             failMessage: l10n.downloadFailed,
+            coreDownloadingMessage: l10n.gamesLocalCoreDownloading,
+            syncSavesMessage: l10n.gamesLocalSyncSaves,
           );
       if (!mounted) return;
       switch (result.status) {
@@ -165,6 +180,8 @@ class _GameDetailScreenState extends ConsumerState<GameDetailScreen>
           unawaited(EasyLoading.showError(l10n.gamesLocalNoFile));
         case LocalPlayStatus.noEmulator:
           unawaited(EasyLoading.showError(l10n.gamesLocalNoEmulator));
+        case LocalPlayStatus.coreMissing:
+          unawaited(EasyLoading.showError(l10n.gamesLocalCoreMissing));
         case LocalPlayStatus.error:
           unawaited(
             EasyLoading.showError(

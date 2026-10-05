@@ -85,26 +85,63 @@ class Emulator {
   }
 }
 
+/// Descriptor declarativo de cómo un emulador/core de una plataforma
+/// guarda sus partidas/estados, para poder mapearlas al `rom_id` de RomM.
+class EmulatorSaveLayout {
+  const EmulatorSaveLayout({
+    this.idSource = 'stem',
+    this.savesSubdir = '',
+    this.statesSubdir = '',
+  });
+
+  /// Cómo se identifica el juego en el nombre del save:
+  /// `stem` (nombre base del ROM), `scummvm_gameid` (gameid de ScummVM) o
+  /// `title_id` (ID nativo, futuro).
+  final String idSource;
+
+  /// Subcarpeta (relativa a `saves/`) donde el emulador/core escribe; '' = raíz.
+  final String savesSubdir;
+
+  /// Subcarpeta (relativa a `states/`) donde el emulador/core escribe; '' = raíz.
+  final String statesSubdir;
+
+  bool get usesScummVmGameId => idSource == 'scummvm_gameid';
+
+  static EmulatorSaveLayout fromJson(Map<String, dynamic> json) {
+    return EmulatorSaveLayout(
+      idSource: json['id_source']?.toString() ?? 'stem',
+      savesSubdir: json['saves_subdir']?.toString() ?? '',
+      statesSubdir: json['states_subdir']?.toString() ?? '',
+    );
+  }
+}
+
 /// Emuladores disponibles para una plataforma.
 class PlatformEmulators {
   const PlatformEmulators({
     required this.emulators,
     this.recommendedAndroid,
     this.recommendedWindows,
+    this.saveLayout = const EmulatorSaveLayout(),
   });
 
   final List<String> emulators;
   final String? recommendedAndroid;
   final String? recommendedWindows;
+  final EmulatorSaveLayout saveLayout;
 
   static PlatformEmulators fromJson(Map<String, dynamic> json) {
     final rec = (json['recommended'] as Map?)?.cast<String, dynamic>() ?? const {};
+    final layout = json['save_layout'];
     return PlatformEmulators(
       emulators: (json['emulators'] as List? ?? const [])
           .map((e) => e.toString())
           .toList(),
       recommendedAndroid: rec['android']?.toString(),
       recommendedWindows: rec['windows']?.toString(),
+      saveLayout: layout is Map
+          ? EmulatorSaveLayout.fromJson(layout.cast<String, dynamic>())
+          : const EmulatorSaveLayout(),
     );
   }
 }

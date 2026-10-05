@@ -1194,6 +1194,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gamesLocalLaunchError => 'Could not open the emulator';
 
   @override
+  String get gamesLocalSyncSaves => 'Syncing saves…';
+
+  @override
+  String get gamesLocalCoreDownloading => 'Downloading the RetroArch core…';
+
+  @override
+  String get gamesLocalCoreMissing =>
+      'Could not install the RetroArch core needed for this platform';
+
+  @override
   String get gamesEmulatorTitle => 'Emulator';
 
   @override

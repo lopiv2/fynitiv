@@ -2330,6 +2330,24 @@ abstract class AppLocalizations {
   /// **'Could not open the emulator'**
   String get gamesLocalLaunchError;
 
+  /// No description provided for @gamesLocalSyncSaves.
+  ///
+  /// In en, this message translates to:
+  /// **'Syncing saves…'**
+  String get gamesLocalSyncSaves;
+
+  /// No description provided for @gamesLocalCoreDownloading.
+  ///
+  /// In en, this message translates to:
+  /// **'Downloading the RetroArch core…'**
+  String get gamesLocalCoreDownloading;
+
+  /// No description provided for @gamesLocalCoreMissing.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not install the RetroArch core needed for this platform'**
+  String get gamesLocalCoreMissing;
+
   /// No description provided for @gamesEmulatorTitle.
   ///
   /// In en, this message translates to:

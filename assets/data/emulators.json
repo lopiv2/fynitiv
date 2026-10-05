@@ -94,7 +94,21 @@
       "windows": {
         "download_url": "https://buildbot.libretro.com/stable/1.19.1/windows/x86_64/RetroArch.7z",
         "args": "\"%ROM%\"",
-        "fullscreen_flag": "--fullscreen"
+        "fullscreen_flag": "--fullscreen",
+        "cores": {
+          "nes": "fceumm", "fds": "fceumm", "snes": "snes9x", "gb": "gambatte",
+          "gbc": "gambatte", "gba": "mgba", "genesis": "genesis_plus_gx",
+          "sms": "genesis_plus_gx", "gamegear": "genesis_plus_gx",
+          "sg1000": "genesis_plus_gx", "sega32x": "picodrive", "n64": "mupen64plus_next",
+          "psx": "pcsx_rearmed", "psp": "ppsspp", "nds": "melonds",
+          "atari2600": "stella", "atari7800": "prosystem", "atari5200": "atari800",
+          "atari800": "atari800", "lynx": "handy", "jaguar": "virtualjaguar",
+          "arcade": "mame2003_plus", "neogeo": "fbneo", "pce": "mednafen_pce",
+          "vb": "mednafen_vb", "ws": "mednafen_wswan", "ngp": "mednafen_ngp",
+          "colecovision": "bluemsx", "msx": "bluemsx", "c64": "vice_x64",
+          "zxs": "fuse", "doom": "prboom", "scummvm": "scummvm", "3do": "opera",
+          "saturn": "mednafen_saturn", "pcfx": "mednafen_pcfx"
+        }
       }
     },
     "dolphin": {
@@ -332,7 +346,7 @@
     "acpc": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
     "3do": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch", "opera"] },
     "doom": { "recommended": { "android": "retroarch", "windows": "retroarch" }, "emulators": ["retroarch"] },
-    "scummvm": { "recommended": { "android": "scummvm", "windows": "scummvm" }, "emulators": ["scummvm", "retroarch"] },
+    "scummvm": { "recommended": { "android": "scummvm", "windows": "scummvm" }, "emulators": ["scummvm", "retroarch"], "save_layout": { "id_source": "scummvm_gameid", "saves_subdir": "ScummVM", "states_subdir": "ScummVM" } },
     "win": { "recommended": { "android": "dosboxx", "windows": "dosboxx" }, "emulators": ["dosboxx", "dosbox_pure"] },
     "ngc": { "recommended": { "android": "dolphin", "windows": "dolphin" }, "emulators": ["dolphin"] },
     "wii": { "recommended": { "android": "dolphin", "windows": "dolphin" }, "emulators": ["dolphin"] },

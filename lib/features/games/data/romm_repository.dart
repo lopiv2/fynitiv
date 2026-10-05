@@ -1499,28 +1499,40 @@ class RommRepository {
     );
   }
 
-  /// Negocia un sync bidireccional de assets (Device Sync Protocol).
-  /// `roms` = `[{rom_id, saves: [{file, mtime, sha1}]}]`.
-  /// Devuelve `{session_id, operations: [...]}`.
+  /// Negocia un sync bidireccional de **partidas** (Device Sync Protocol de
+  /// RomM 5.x): `POST /api/sync/negotiate`.
+  ///
+  /// `saves` = lista plana de
+  /// `{rom_id, file_name, slot, content_hash, updated_at, file_size_bytes}`.
+  /// `romIds` acota las descargas a los roms instalados (opcional).
+  /// Devuelve `{session_id, operations: [{action, rom_id, save_id, file_name,
+  /// slot, ...}], total_*}`.
   Future<Map<String, dynamic>> negotiateSync({
     required String deviceId,
-    required List<Map<String, dynamic>> roms,
+    required List<Map<String, dynamic>> saves,
+    List<int>? romIds,
   }) async {
     final res = await _dio.post(
       '/api/sync/negotiate',
-      data: {'device_id': deviceId, 'roms': roms},
+      data: {
+        'device_id': deviceId,
+        'saves': saves,
+        if (romIds != null && romIds.isNotEmpty) 'rom_ids': romIds,
+      },
       options: _authOptions,
     );
     final data = res.data;
     return data is Map<String, dynamic> ? data : <String, dynamic>{};
   }
 
-  /// Sube un save/state local a RomM (`POST /api/saves`, multipart `saveFile`).
+  /// Sube un save local a RomM (`POST /api/saves`, multipart `saveFile`).
   Future<void> uploadSave({
     required int romId,
     required String deviceId,
     required String filePath,
     required String fileName,
+    String? slot,
+    String? emulator,
     Object? sessionId,
   }) async {
     final form = FormData.fromMap({
@@ -1532,10 +1544,36 @@ class RommRepository {
       queryParameters: {
         'rom_id': romId,
         'device_id': deviceId,
+        if (slot != null && slot.isNotEmpty) 'slot': slot,
+        if (emulator != null && emulator.isNotEmpty) 'emulator': emulator,
         if (sessionId != null) 'session_id': sessionId,
       },
       options: _authOptions,
     );
+  }
+
+  /// Resumen de partidas por slot de un rom (`GET /api/saves/summary`).
+  /// Devuelve `{total_count, slots:[{slot, count, latest:{...}}]}`.
+  Future<Map<String, dynamic>> getSavesSummary(int romId) async {
+    final res = await _dio.get(
+      '/api/saves/summary',
+      queryParameters: {'rom_id': romId},
+      options: _authOptions,
+    );
+    final data = res.data;
+    return data is Map<String, dynamic> ? data : <String, dynamic>{};
+  }
+
+  /// URL del contenido de una partida (`GET /api/saves/{id}/content`).
+  String saveContentUrl(int saveId, {String? deviceId, Object? sessionId}) {
+    final base = serverUrl.replaceAll(RegExp(r'/$'), '');
+    final query = Uri(
+      queryParameters: {
+        if (deviceId != null && deviceId.isNotEmpty) 'device_id': deviceId,
+        if (sessionId != null) 'session_id': '$sessionId',
+      },
+    ).query;
+    return '$base/api/saves/$saveId/content${query.isEmpty ? '' : '?$query'}';
   }
 
   /// Cierra una sesión de sync (`POST /api/sync/sessions/{id}/complete`).

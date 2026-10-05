@@ -296,6 +296,19 @@ class LocalGameStore {
     return out;
   }
 
+  /// Lista recursivamente los archivos de una carpeta y sus subcarpetas
+  /// (para encontrar saves/estados que los cores guardan en subcarpetas,
+  /// p. ej. `saves/ScummVM/<gameid>.s00`).
+  Future<List<String>> listFilesRecursive(String dir) async {
+    final d = Directory(dir);
+    if (!await d.exists()) return [];
+    final out = <String>[];
+    await for (final e in d.list(recursive: true, followLinks: false)) {
+      if (e is File) out.add(e.path);
+    }
+    return out;
+  }
+
   /// Subcarpetas que no son necesarias para jugar y se omiten al extraer.
   static const _kSkipFolders = <String>{'soundtrack'};
 

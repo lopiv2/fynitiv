@@ -1197,6 +1197,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get gamesLocalLaunchError => 'No se pudo abrir el emulador';
 
   @override
+  String get gamesLocalSyncSaves => 'Sincronizando partidas…';
+
+  @override
+  String get gamesLocalCoreDownloading => 'Descargando el core de RetroArch…';
+
+  @override
+  String get gamesLocalCoreMissing =>
+      'No se pudo instalar el core de RetroArch necesario para esta plataforma';
+
+  @override
   String get gamesEmulatorTitle => 'Emulador';
 
   @override

@@ -1,8 +1,10 @@
 ﻿import 'dart:async';
 import 'dart:io';
 
+import 'package:archive/archive.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:installed_apps/installed_apps.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -87,6 +89,7 @@ enum LocalPlayStatus {
   launched,
   noFile,
   noEmulator,
+  coreMissing,
   error,
 }
 
@@ -108,6 +111,8 @@ class LocalPlayController {
     RommGame game, {
     required String doneMessage,
     required String failMessage,
+    String? coreDownloadingMessage,
+    String? syncSavesMessage,
   }) async {
     final repo = ref.read(rommRepositoryProvider);
     if (repo == null) {
@@ -222,6 +227,8 @@ class LocalPlayController {
         prefs: prefs,
         game: game,
         extraArgs: extraArgs,
+        coreDownloadingMessage: coreDownloadingMessage,
+        syncSavesMessage: syncSavesMessage,
       );
     }
 
@@ -259,6 +266,8 @@ class LocalPlayController {
       prefs: prefs,
       game: game,
       extraArgs: extraArgs,
+      coreDownloadingMessage: coreDownloadingMessage,
+      syncSavesMessage: syncSavesMessage,
     );
   }
 
@@ -271,26 +280,73 @@ class LocalPlayController {
     required EmulatorPreferences prefs,
     required RommGame game,
     List<String> extraArgs = const [],
+    String? coreDownloadingMessage,
+    String? syncSavesMessage,
   }) async {
     final gameId = game.id;
     // Metadatos del juego para mapear sus partidas/estados al rom_id de RomM.
+    var layout = const EmulatorSaveLayout();
+    String? stem;
     try {
+      layout =
+          (await ref.read(emulatorCatalogProvider.future))
+              .forPlatform(game.platformSlug)
+              ?.saveLayout ??
+          const EmulatorSaveLayout();
+      stem = layout.usesScummVmGameId
+          ? await EmulatorLauncher.readScummVmGameId(playable)
+          : _playableStem(playable);
       final metaDir = await store.gameDir(game.platformSlug, game.name);
-      final stem = _playableStem(playable);
       await store.writeGameMeta(metaDir, {
         'romId': game.id,
         'platformSlug': game.platformSlug,
         'name': game.name,
         'playable': playable,
         'stem': ?stem,
+        'saveSubdir': layout.savesSubdir,
+        'stateSubdir': layout.statesSubdir,
+        'emulator': emulator.id,
+        'saveSync': _supportsSaveSync(emulator, spec),
       });
     } catch (_) {}
+    // Pull de las partidas del servidor antes de jugar (para continuar aquí).
+    if (_supportsSaveSync(emulator, spec)) {
+      if (syncSavesMessage != null) {
+        unawaited(EasyLoading.show(status: syncSavesMessage));
+      }
+      try {
+        await ref
+            .read(rommSyncProvider.notifier)
+            .pullRom(
+              romId: game.id,
+              stem: stem,
+              subdir: layout.savesSubdir,
+              emulator: emulator.id,
+            );
+      } catch (e) {
+        debugPrint('[LocalPlay] pullRom falló: $e');
+      } finally {
+        if (syncSavesMessage != null) {
+          unawaited(EasyLoading.dismiss());
+        }
+      }
+    }
     final launcher = ref.read(emulatorLauncherProvider);
     if (!launcher.isSupported) {
       return const LocalPlayResult(LocalPlayStatus.noEmulator);
     }
+    if (!await _ensureRetroArchCore(
+      spec: spec,
+      canonical: canonical,
+      prefs: prefs,
+      loadingMessage: coreDownloadingMessage,
+    )) {
+      return const LocalPlayResult(LocalPlayStatus.coreMissing);
+    }
     String? configPath;
-    if (emulator.id == 'retroarch') {
+    if (_supportsSaveSync(emulator, spec)) {
+      // RetroArch (base o core alternativo) redirige saves/states a nuestra
+      // estructura para poder sincronizarlos con RomM.
       configPath = await _writeRetroArchConfig(store);
     } else if (emulator.id == 'scummvm' && Platform.isWindows) {
       configPath = await _writeScummvmConfig(store);
@@ -390,6 +446,68 @@ class LocalPlayController {
     return name.substring(0, dot);
   }
 
+  /// True si el emulador guarda en nuestra carpeta `saves/`/`states/` y por
+  /// tanto sus partidas pueden sincronizarse con RomM: solo RetroArch (base o
+  /// como core alternativo). Los standalone usan su propio directorio/nombres.
+  static bool _supportsSaveSync(Emulator emulator, EmulatorOsSpec spec) =>
+      emulator.id == 'retroarch' || spec.retroarchCore != null;
+
+  /// Buildbot de cores libretro (Windows x86_64).
+  static const _kCoreBuildbot =
+      'https://buildbot.libretro.com/nightly/windows/x86_64/latest';
+
+  /// Asegura que el core de RetroArch de la plataforma está en `<exe>/cores`,
+  /// descargándolo de libretro buildbot si falta (Windows). En Android los
+  /// cores vienen dentro del APK de RetroArch, así que no aplica.
+  Future<bool> _ensureRetroArchCore({
+    required EmulatorOsSpec spec,
+    required String canonical,
+    required EmulatorPreferences prefs,
+    String? loadingMessage,
+  }) async {
+    if (kIsWeb || !Platform.isWindows) return true;
+    final core = spec.retroarchCore ?? spec.cores[canonical];
+    if (core == null || core.isEmpty) return true;
+    final raExe = await prefs.windowsExe('retroarch');
+    if (raExe == null || raExe.isEmpty) return false;
+    final coresDir = '${File(raExe).parent.path}${Platform.pathSeparator}cores';
+    final dll = File('$coresDir${Platform.pathSeparator}${core}_libretro.dll');
+    if (await dll.exists()) return true;
+    debugPrint('[LocalPlay] core $core missing -> download');
+    if (loadingMessage != null) {
+      unawaited(EasyLoading.show(status: loadingMessage));
+    }
+    try {
+      await Directory(coresDir).create(recursive: true);
+      final tmpDir = await Directory.systemTemp.createTemp('fynitiv_core_');
+      final zipPath = '${tmpDir.path}${Platform.pathSeparator}$core.zip';
+      final dio = Dio(
+        BaseOptions(receiveTimeout: const Duration(minutes: 2)),
+      );
+      await dio.download('$_kCoreBuildbot/${core}_libretro.dll.zip', zipPath);
+      final archive = ZipDecoder().decodeBytes(
+        await File(zipPath).readAsBytes(),
+      );
+      final entry = archive.files.firstWhere(
+        (f) => f.isFile && f.name.toLowerCase().endsWith('.dll'),
+        orElse: () => throw const FileSystemException('core zip sin .dll'),
+      );
+      await dll.writeAsBytes(entry.content as List<int>);
+      try {
+        await tmpDir.delete(recursive: true);
+      } catch (_) {}
+      debugPrint('[LocalPlay] core $core installed -> ${dll.path}');
+      return true;
+    } catch (e) {
+      debugPrint('[LocalPlay] core $core download FAILED: $e');
+      return false;
+    } finally {
+      if (loadingMessage != null) {
+        unawaited(EasyLoading.dismiss());
+      }
+    }
+  }
+
   EmulatorOsSpec? _specForOs(Emulator emulator) {
     if (kIsWeb) return null;
     if (Platform.isAndroid) return emulator.android ?? emulator.windows;
@@ -439,7 +557,18 @@ class LocalPlayController {
         'system_directory = "$bios"\n'
         'savefile_directory = "$saves"\n'
         'savestate_directory = "$states"\n'
-        'savefile_in_content = "false"\n';
+        'savefile_in_content = "false"\n'
+        // Salir al cerrar el contenido y no reescribir nuestro override (evita
+        // que RetroArch quede residente y que sobrescriba el fichero).
+        'quit_on_close_content = "true"\n'
+        'config_save_on_exit = "false"\n'
+        'ui_companion_start_on_boot = "false"\n'
+        'ui_companion_enable = "false"\n'
+        // Sin ordenar por core: deja los .srm/.state planos y mapeables por stem.
+        'sort_savefiles_enable = "false"\n'
+        'sort_savestates_enable = "false"\n'
+        'sort_savefiles_by_content_enable = "false"\n'
+        'sort_savestates_by_content_enable = "false"\n';
     await File(path).writeAsString(content);
     return path;
   }
