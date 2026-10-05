@@ -8,6 +8,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/navigation/platform_mode.dart';
 import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/skin/skin_scope.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/horizontal_scroll_behavior.dart';
 import '../../../../core/widgets/scroll_title.dart';
@@ -208,7 +209,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   /// imagen; sin backdrop se mantiene el alto del skin. El hueco entre filas
   /// lo controla [rowSpacing].
   double get _rowHeight {
-    final skin = ref.watch(skinControllerProvider).value;
+    final skin =
+        SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
     final showExtension = skin?.cardHoverExtension ?? false;
     final hasBelowText =
         !widget.hideTitle && !widget.showMetaOverlay && !showExtension;
@@ -232,7 +234,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   double get _spacing {
     if (widget.itemSpacing != null) return widget.itemSpacing!;
     // Fallback al skin (12 por defecto) o valores legacy por tipo.
-    final skinSpacing = ref.watch(skinControllerProvider).value?.itemSpacing;
+    final skinSpacing =
+        (SkinScope.maybeOf(context) ??
+                ref.watch(skinControllerProvider).value)
+            ?.itemSpacing;
     if (skinSpacing != null) return skinSpacing;
     return widget.useBackdrop ? 20 : 12;
   }
@@ -537,7 +542,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     // Si este es backdrop y hay siguiente fila → doble spacing (backdrop→poster y backdrop→backdrop).
     // Si es poster→poster o poster→backdrop → simple. Última fila sin siguiente → simple.
     final baseRowSpacing =
-        ref.watch(skinControllerProvider).value?.rowSpacing ?? 24;
+        (SkinScope.maybeOf(context) ??
+                ref.watch(skinControllerProvider).value)
+            ?.rowSpacing ??
+        24;
     final hasNextEffective = widget.hasNext || widget.isNextPoster;
     final rowSpacing = (widget.useBackdrop && hasNextEffective)
         ? baseRowSpacing * 2

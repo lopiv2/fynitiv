@@ -1340,6 +1340,30 @@ abstract class AppLocalizations {
   /// **'Books and comics from your Jellyfin library.'**
   String get eReaderDescription;
 
+  /// No description provided for @eReaderRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get eReaderRecent;
+
+  /// No description provided for @eReaderAllBooks.
+  ///
+  /// In en, this message translates to:
+  /// **'All books'**
+  String get eReaderAllBooks;
+
+  /// No description provided for @eReaderRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read'**
+  String get eReaderRead;
+
+  /// No description provided for @eReaderUnsupported.
+  ///
+  /// In en, this message translates to:
+  /// **'Format not supported yet'**
+  String get eReaderUnsupported;
+
   /// No description provided for @albums.
   ///
   /// In en, this message translates to:

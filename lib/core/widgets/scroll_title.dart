@@ -3,6 +3,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../skin/skin_controller.dart';
+import '../skin/skin_scope.dart';
 
 /// Título de un scroll/fila de contenido: el texto con el color de texto
 /// primario del skin ([Skin.textPrimary]) y en negrita. Si se aporta
@@ -25,7 +26,9 @@ class ScrollTitle extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final textPrimary =
-        ref.watch(skinControllerProvider).value?.textPrimary ?? Colors.white;
+        (SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value)
+            ?.textPrimary ??
+        Colors.white;
     final titleWidget = Text(
       title,
       style: TextStyle(

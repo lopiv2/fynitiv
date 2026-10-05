@@ -4,6 +4,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/skin/skin_scope.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../application/image_url.dart';
@@ -137,7 +138,8 @@ class LibraryGridCard extends ConsumerWidget {
     final effectiveSubtitle = subtitle ?? libraryCountSubtitle(ref, view, l10n);
     final effectiveIcon = icon ?? libraryViewIcon(view);
     // Solo Disney: siempre cuerpo Disney (con imagen o con degradado).
-    final skin = ref.watch(skinControllerProvider).value;
+    final skin =
+        SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
     final serverUrl = ref.watch(authServerUrlProvider);
     final isDisney = skin?.id == 'disney_plus';
     final bgUrl = (isDisney && serverUrl != null)

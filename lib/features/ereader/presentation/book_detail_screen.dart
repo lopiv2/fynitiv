@@ -5,184 +5,36 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
-import 'package:media_kit/media_kit.dart';
-import 'package:media_kit_video/media_kit_video.dart';
 
-import '../../../core/audio/item_theme_player.dart';
 import '../../../core/skin/skin_controller.dart';
-import '../../../core/video/mpv_teardown.dart';
-import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/included_badge.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../player/application/playback_provider.dart';
 import '../../downloads/application/download_manager_provider.dart';
-import '../application/image_url.dart';
-import '../application/library_providers.dart';
-import 'widgets/content_row.dart';
+import '../../library/application/image_url.dart';
+import '../../library/application/library_providers.dart';
+import '../../library/presentation/widgets/content_row.dart';
+import '../../player/application/playback_provider.dart';
 
 /// Pantalla de informacion con composicion inspirada en Prime Video.
-class ItemDetailScreen extends ConsumerStatefulWidget {
-  const ItemDetailScreen({super.key, required this.item});
+class BookDetailScreen extends ConsumerStatefulWidget {
+  const BookDetailScreen({super.key, required this.item});
 
   final BaseItemDto item;
 
   @override
-  ConsumerState<ItemDetailScreen> createState() => _ItemDetailScreenState();
+  ConsumerState<BookDetailScreen> createState() => _BookDetailScreenState();
 }
 
-class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
-    with WidgetsBindingObserver {
+class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
   final GlobalKey _detailsKey = GlobalKey();
   final GlobalKey _relatedKey = GlobalKey();
   BaseItemDto? _resolvedItem;
   bool _detailsSelected = false;
   bool? _isFavorite;
-  bool _trailerLoading = false;
-  Player? _trailerPlayer;
-  VideoController? _trailerVideoController;
-  String? _trailerError;
-  bool _themeStarted = false;
 
   BaseItemDto get item => _resolvedItem ?? widget.item;
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _isFavorite = widget.item.userData?.isFavorite;
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    // Reclamo síncrono como en _closeTrailer: si el cierre iba en vuelo,
-    // ya nuló y aquí no se re-libera (evita doble dispose nativo → mutex).
-    final trailer = _trailerPlayer;
-    _trailerPlayer = null;
-    _trailerVideoController = null;
-    if (trailer != null) {
-      unawaited(disposeMpvPlayer(trailer));
-    }
-    // El theme del detalle no debe sonar fuera de la ficha.
-    ItemThemePlayer.instance.leaveDetail();
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      ItemThemePlayer.instance.pauseForExternal();
-    } else if (state == AppLifecycleState.resumed) {
-      ItemThemePlayer.instance.resumeIfNeeded();
-    }
-  }
-
-  /// Autoplay del theme en el detalle (solo Jellyfin: theme.mp3).
-  /// Silencioso si no hay theme; toma propiedad frente al hover.
-  void _maybeStartTheme(ItemTheme? theme) {
-    debugPrint(
-      '[Theme] detalle "${widget.item.name}" theme=${theme == null ? 'null' : '${theme.source}'} started=$_themeStarted',
-    );
-    if (_themeStarted) return;
-    final url = theme?.streamUrl;
-    if (url == null || url.isEmpty) {
-      debugPrint('[Theme] detalle sin theme "${widget.item.name}"');
-      return;
-    }
-    if (ItemThemePlayer.instance.isPlayingUrl(url)) {
-      debugPrint('[Theme] detalle ya sonando');
-      _themeStarted = true;
-      return;
-    }
-    _themeStarted = true;
-    debugPrint('[Theme] detalle play source=${theme?.source}');
-    ItemThemePlayer.instance.play(url, inDetail: true);
-  }
-
-  Future<void> _openTrailer() async {
-    if (_trailerLoading || _trailerPlayer != null) return;
-    // El trailer (vídeo) tiene prioridad sobre el theme de fondo.
-    ItemThemePlayer.instance.pauseForExternal();
-    final itemId = item.id;
-    if (itemId == null || itemId.isEmpty) return;
-    setState(() {
-      _trailerLoading = true;
-      _trailerError = null;
-    });
-    String? streamUrl;
-    try {
-      streamUrl = await ref.read(trailerStreamProvider(item).future);
-    } catch (error) {
-      debugPrint('Failed to fetch KinoCheck trailer: $error');
-    }
-    if (!mounted) return;
-    if (streamUrl == null) {
-      if (!mounted) return;
-      final l10n = AppLocalizations.of(context)!;
-      setState(() {
-        _trailerLoading = false;
-        _trailerError = l10n.trailerNoTrailer;
-      });
-      return;
-    }
-    final player = Player();
-    final videoController = VideoController(
-      player,
-      configuration: const VideoControllerConfiguration(hwdec: 'auto-copy'),
-    );
-    try {
-      await player.open(
-        Media(
-          streamUrl,
-          httpHeaders: const {
-            'User-Agent':
-                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
-                'AppleWebKit/537.36 Chrome/124.0 Safari/537.36',
-          },
-        ),
-      );
-    } catch (_) {
-      await player.dispose();
-      if (mounted) {
-        final l10n = AppLocalizations.of(context)!;
-        setState(() {
-          _trailerLoading = false;
-          _trailerError = l10n.trailerOpenFailed;
-        });
-      }
-      return;
-    }
-    if (!mounted) {
-      await player.dispose();
-      return;
-    }
-    setState(() {
-      _trailerLoading = false;
-      _trailerPlayer = player;
-      _trailerVideoController = videoController;
-    });
-    await player.play();
-  }
-
-  Future<void> _closeTrailer() async {
-    // Reclamo síncrono: si el dispose() del widget iba en vuelo, ya nuló
-    // y aquí no se re-libera (evita doble dispose nativo → mutex).
-    final player = _trailerPlayer;
-    _trailerPlayer = null;
-    _trailerVideoController = null;
-    _trailerLoading = false;
-    _trailerError = null;
-    if (mounted) setState(() {});
-    if (player != null) {
-      // Drenaje con gracia (ver `disposeMpvPlayer`): en Windows liberar
-      // mpv pintando aborta el proceso (`unlock of unowned mutex`).
-      await disposeMpvPlayer(player);
-    }
-    ItemThemePlayer.instance.resumeIfNeeded();
-  }
 
   Future<void> _toggleFavorite() async {
     final itemId = item.id;
@@ -280,19 +132,16 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
     _resolvedItem =
         ref.watch(itemDetailProvider(widget.item.id ?? '')).value ??
         widget.item;
-    // Autoplay del theme (solo Jellyfin: theme.mp3), silencioso sin theme.
-    ref.listen<AsyncValue<ItemTheme?>>(
-      itemThemeProvider(item),
-      (_, next) => next.whenData(_maybeStartTheme),
-    );
-    // El listen no re-dispara si el provider ya resolvió (caché keepAlive):
-    // arranca también con el valor actual si ya trae theme.
-    ref.read(itemThemeProvider(item)).whenData(_maybeStartTheme);
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
+    // Los libros normalmente no tienen backdrop; si no lo hay, usamos la
+    // imagen primaria (portada) como cabecera.
+    final hasBackdrop = item.backdropImageTags?.isNotEmpty ?? false;
     final imageUrl = serverUrl == null
         ? null
-        : itemBackdropUrl(serverUrl, item, maxWidth: 1800);
+        : hasBackdrop
+        ? itemBackdropUrl(serverUrl, item, maxWidth: 1800)
+        : itemImageUrl(serverUrl, item, maxWidth: 1200);
     final logoUrl = serverUrl == null
         ? null
         : itemLogoUrl(serverUrl, item, maxWidth: 700);
@@ -310,7 +159,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
     final subtitleLanguages = _streamLabels(MediaStreamType.subtitle);
     final related = ref.watch(similarItemsProvider(item));
     final isFavorite = _isFavorite ?? item.userData?.isFavorite ?? false;
-    final wideScreen = MediaQuery.sizeOf(context).width >= 760;
     // Detalle de serie estilo Disney (solo ese skin; el resto mantiene Prime).
     // Más adelante se hará modular por pantalla como HomeScroll.
     final skin = ref.watch(skinControllerProvider).value;
@@ -351,22 +199,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
               ),
             ),
           ),
-          if (wideScreen &&
-              (_trailerLoading ||
-                  _trailerVideoController != null ||
-                  _trailerError != null))
-            Positioned(
-              top: 86,
-              right: 100,
-              width: MediaQuery.sizeOf(context).width * 0.55,
-              child: _TrailerPanel(
-                loading: _trailerLoading,
-                controller: _trailerVideoController,
-                onClose: _closeTrailer,
-                error: _trailerError,
-                showClose: false,
-              ),
-            ),
           SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -422,10 +254,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                             compact: compact,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(36, 8, 36, 0),
-                          child: _ItemThemeChip(item: item),
-                        ),
                         SizedBox(
                           height: compact ? 92 : constraints.maxHeight * 0.05,
                         ),
@@ -455,7 +283,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                       ),
                                     ),
                                   ),
-                                  onTrailer: _openTrailer,
                                   onFavorite: _toggleFavorite,
                                   onDownload: _downloadItem,
                                 )
@@ -481,7 +308,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                             ),
                                           ),
                                         ),
-                                        onTrailer: _openTrailer,
                                         onFavorite: _toggleFavorite,
                                         onDownload: _downloadItem,
                                       ),
@@ -559,19 +385,6 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
               },
             ),
           ),
-          if (wideScreen &&
-              (_trailerLoading ||
-                  _trailerVideoController != null ||
-                  _trailerError != null))
-            Positioned(
-              top: 94,
-              right: 44,
-              child: IconButton(
-                onPressed: _closeTrailer,
-                icon: const Icon(Icons.close, color: Colors.white),
-                style: IconButton.styleFrom(backgroundColor: Colors.black54),
-              ),
-            ),
         ],
       ),
     );
@@ -973,76 +786,12 @@ String _downloadFilename(String name) {
   return '${safeName.isEmpty ? 'video' : safeName}.mkv';
 }
 
-class _TrailerPanel extends StatelessWidget {
-  const _TrailerPanel({
-    required this.loading,
-    required this.controller,
-    required this.onClose,
-    this.error,
-    this.showClose = true,
-  });
-
-  final bool loading;
-  final VideoController? controller;
-  final VoidCallback onClose;
-  final String? error;
-  final bool showClose;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 16 / 9,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (controller != null)
-              Video(
-                controller: controller!,
-                controls: NoVideoControls,
-                fit: BoxFit.cover,
-                fill: Colors.black,
-              )
-            else
-              const ColoredBox(color: Colors.black),
-            if (loading)
-              const Center(child: CircularProgressIndicator())
-            else if (error != null)
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Text(
-                    error!,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                ),
-              ),
-            if (showClose)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: IconButton(
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close, color: Colors.white),
-                  style: IconButton.styleFrom(backgroundColor: Colors.black54),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _DetailActions extends StatelessWidget {
   const _DetailActions({
     required this.item,
     required this.l10n,
     required this.isFavorite,
     required this.downloading,
-    required this.onTrailer,
     required this.onFavorite,
     required this.onDownload,
   });
@@ -1051,7 +800,6 @@ class _DetailActions extends StatelessWidget {
   final AppLocalizations l10n;
   final bool isFavorite;
   final bool downloading;
-  final VoidCallback onTrailer;
   final VoidCallback onFavorite;
   final VoidCallback onDownload;
 
@@ -1062,12 +810,6 @@ class _DetailActions extends StatelessWidget {
       children: [
         Row(
           children: [
-            _DetailActionButton(
-              icon: Icons.play_circle_outline,
-              tooltip: l10n.watchTrailer,
-              onTap: onTrailer,
-            ),
-            const SizedBox(width: 12),
             _DetailActionButton(
               icon: isFavorite ? Icons.favorite : Icons.add,
               tooltip: isFavorite
@@ -1084,22 +826,13 @@ class _DetailActions extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // Los libros/cómics no se reproducen; el lector llegará más adelante.
-        if (item.type != BaseItemKind.book) ...[
-          _WideDetailButton(
-            label: l10n.watchNow,
-            icon: Icons.play_arrow,
-            primary: true,
-            onTap: () => context.push('/player/${item.id}', extra: item),
-          ),
-          const SizedBox(height: 14),
-        ],
+        // Botón de lectura (lector básico PDF/EPUB/CBZ).
         _WideDetailButton(
-          label: l10n.adFreeEasterEggButton,
-          onTap: () => showAdFreeEasterEggDialog(context),
+          label: l10n.eReaderRead,
+          icon: Icons.menu_book_outlined,
+          primary: true,
+          onTap: () => context.push('/ereader/read/${item.id}', extra: item),
         ),
-        const SizedBox(height: 14),
-        _WideDetailButton(label: l10n.moreOptionsToEnjoy, onTap: _noop),
         const SizedBox(height: 14),
         IncludedBadge(label: l10n.includedWithJellyfin, fontSize: 14),
         const SizedBox(height: 8),
@@ -1120,7 +853,6 @@ class _CompactDetailBody extends StatelessWidget {
     required this.l10n,
     required this.isFavorite,
     required this.downloading,
-    required this.onTrailer,
     required this.onFavorite,
     required this.onDownload,
   });
@@ -1131,7 +863,6 @@ class _CompactDetailBody extends StatelessWidget {
   final AppLocalizations l10n;
   final bool isFavorite;
   final bool downloading;
-  final VoidCallback onTrailer;
   final VoidCallback onFavorite;
   final VoidCallback onDownload;
 
@@ -1145,7 +876,6 @@ class _CompactDetailBody extends StatelessWidget {
           l10n: l10n,
           isFavorite: isFavorite,
           downloading: downloading,
-          onTrailer: onTrailer,
           onFavorite: onFavorite,
           onDownload: onDownload,
         ),
@@ -1226,85 +956,6 @@ class _DetailActionButton extends StatelessWidget {
         side: const BorderSide(color: Colors.white70, width: 2),
         shape: const CircleBorder(),
       ),
-    );
-  }
-}
-
-/// Chip del theme/OST en la ficha: muestra loader mientras resuelve el
-/// theme de Jellyfin (theme.mp3), etiqueta de origen y botón de mute.
-/// Silencioso si no hay theme (ocupa cero espacio).
-class _ItemThemeChip extends ConsumerStatefulWidget {
-  const _ItemThemeChip({required this.item});
-
-  final BaseItemDto item;
-
-  @override
-  ConsumerState<_ItemThemeChip> createState() => _ItemThemeChipState();
-}
-
-class _ItemThemeChipState extends ConsumerState<_ItemThemeChip> {
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final themeAsync = ref.watch(itemThemeProvider(widget.item));
-    return themeAsync.when(
-      loading: () => const Align(
-        alignment: Alignment.centerLeft,
-        child: SizedBox(height: 28, width: 28, child: AppLoader(size: 22)),
-      ),
-      error: (_, _) => const SizedBox.shrink(),
-      data: (theme) {
-        if (theme == null) return const SizedBox.shrink();
-        final muted = ItemThemePlayer.instance.isMuted;
-        final sourceLabel = l10n.ostThemeFromJellyfin;
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(
-              Icons.music_note_outlined,
-              color: Colors.white70,
-              size: 18,
-            ),
-            const SizedBox(width: 6),
-            Flexible(
-              child: Text(
-                '${l10n.ostTheme} · $sourceLabel',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-            const SizedBox(width: 4),
-            IconButton(
-              tooltip: muted ? l10n.ostUnmuteTheme : l10n.ostMuteTheme,
-              onPressed: () async {
-                final next = !ItemThemePlayer.instance.isMuted;
-                await ItemThemePlayer.instance.setMuted(next);
-                if (mounted) setState(() {});
-                // Si se reactiva y el theme sigue disponible, retoma.
-                if (!next) {
-                  final t = ref.read(itemThemeProvider(widget.item)).value;
-                  final url = t?.streamUrl ?? theme.streamUrl;
-                  if (url.isNotEmpty) {
-                    await ItemThemePlayer.instance.play(url, inDetail: true);
-                  }
-                }
-              },
-              icon: Icon(
-                muted ? Icons.volume_off_outlined : Icons.volume_up_outlined,
-                color: Colors.white70,
-                size: 20,
-              ),
-              padding: EdgeInsets.zero,
-              constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-            ),
-          ],
-        );
-      },
     );
   }
 }

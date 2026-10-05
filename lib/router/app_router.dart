@@ -22,7 +22,9 @@ import '../features/music/application/deezer_providers.dart';
 import '../features/music/presentation/artist_detail_screen.dart';
 import '../features/music/presentation/music_screen.dart';
 import '../features/music/presentation/playlist_detail_screen.dart';
+import '../features/ereader/presentation/book_detail_screen.dart';
 import '../features/ereader/presentation/ereader_screen.dart';
+import '../features/ereader/presentation/reader/book_reader_screen.dart';
 import '../features/games/presentation/game_detail_screen.dart';
 import '../features/games/presentation/game_list_screen.dart';
 import '../features/games/presentation/games_screen.dart';
@@ -231,7 +233,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/ereader', builder: (_, _) => const EReaderScreen()),
+              GoRoute(
+                path: '/ereader',
+                builder: (_, _) => const EReaderScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'details/:itemId',
+                    builder: (context, state) =>
+                        BookDetailScreen(item: state.extra as BaseItemDto),
+                  ),
+                  GoRoute(
+                    path: 'read/:itemId',
+                    builder: (context, state) =>
+                        BookReaderScreen(item: state.extra as BaseItemDto),
+                  ),
+                ],
+              ),
             ],
           ),
           StatefulShellBranch(

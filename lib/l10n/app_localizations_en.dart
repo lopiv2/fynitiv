@@ -650,6 +650,18 @@ class AppLocalizationsEn extends AppLocalizations {
       'Books and comics from your Jellyfin library.';
 
   @override
+  String get eReaderRecent => 'Recently added';
+
+  @override
+  String get eReaderAllBooks => 'All books';
+
+  @override
+  String get eReaderRead => 'Read';
+
+  @override
+  String get eReaderUnsupported => 'Format not supported yet';
+
+  @override
   String get albums => 'Albums';
 
   @override

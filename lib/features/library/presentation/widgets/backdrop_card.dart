@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/skin/skin_scope.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/card_badge_resolver.dart';
 import '../../../../core/widgets/hover_play_card.dart';
@@ -204,7 +205,8 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
       fallbackBackdropUrl ??= itemBackdropUrl(widget.serverUrl!, widget.item);
     }
     final progress = widget.item.userData?.playedPercentage;
-    final skin = ref.watch(skinControllerProvider).value;
+    final skin =
+        SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
     final radius = widget.cardBorderRadius ?? skin?.cardBorderRadius ?? 10;
     final accent = skin?.accent ?? const Color(0xFF2B7FFF);
     final textPrimary = skin?.textPrimary ?? Colors.white;

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../skin/skin_controller.dart';
+import '../skin/skin_scope.dart';
 
 /// Fondo con el esquema de color del skin activo.
 class DashboardBackground extends ConsumerWidget {
@@ -11,7 +12,8 @@ class DashboardBackground extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final skin = ref.watch(skinControllerProvider).value;
+    final skin =
+        SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
     final top = skin?.backgroundTop ?? const Color(0xFF0B1030);
     final bottom = skin?.backgroundBottom ?? const Color(0xFF1A2568);
 
