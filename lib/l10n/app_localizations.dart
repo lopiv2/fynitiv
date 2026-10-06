@@ -1364,6 +1364,108 @@ abstract class AppLocalizations {
   /// **'Format not supported yet'**
   String get eReaderUnsupported;
 
+  /// No description provided for @eReaderPreviousPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous page'**
+  String get eReaderPreviousPage;
+
+  /// No description provided for @eReaderNextPage.
+  ///
+  /// In en, this message translates to:
+  /// **'Next page'**
+  String get eReaderNextPage;
+
+  /// No description provided for @eReaderAuthor.
+  ///
+  /// In en, this message translates to:
+  /// **'Author'**
+  String get eReaderAuthor;
+
+  /// No description provided for @eReaderWriter.
+  ///
+  /// In en, this message translates to:
+  /// **'Writer'**
+  String get eReaderWriter;
+
+  /// No description provided for @eReaderIllustrator.
+  ///
+  /// In en, this message translates to:
+  /// **'Illustrator'**
+  String get eReaderIllustrator;
+
+  /// No description provided for @eReaderPenciller.
+  ///
+  /// In en, this message translates to:
+  /// **'Penciller'**
+  String get eReaderPenciller;
+
+  /// No description provided for @eReaderInker.
+  ///
+  /// In en, this message translates to:
+  /// **'Inker'**
+  String get eReaderInker;
+
+  /// No description provided for @eReaderColorist.
+  ///
+  /// In en, this message translates to:
+  /// **'Colorist'**
+  String get eReaderColorist;
+
+  /// No description provided for @eReaderLetterer.
+  ///
+  /// In en, this message translates to:
+  /// **'Letterer'**
+  String get eReaderLetterer;
+
+  /// No description provided for @eReaderCoverArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'Cover artist'**
+  String get eReaderCoverArtist;
+
+  /// No description provided for @eReaderEditor.
+  ///
+  /// In en, this message translates to:
+  /// **'Editor'**
+  String get eReaderEditor;
+
+  /// No description provided for @eReaderTranslator.
+  ///
+  /// In en, this message translates to:
+  /// **'Translator'**
+  String get eReaderTranslator;
+
+  /// No description provided for @eReaderArtist.
+  ///
+  /// In en, this message translates to:
+  /// **'Artist'**
+  String get eReaderArtist;
+
+  /// No description provided for @eReaderPublisher.
+  ///
+  /// In en, this message translates to:
+  /// **'Publisher'**
+  String get eReaderPublisher;
+
+  /// No description provided for @eReaderIsbn.
+  ///
+  /// In en, this message translates to:
+  /// **'ISBN'**
+  String get eReaderIsbn;
+
+  /// No description provided for @eReaderFileName.
+  ///
+  /// In en, this message translates to:
+  /// **'File'**
+  String get eReaderFileName;
+
+  /// No description provided for @eReaderFileSize.
+  ///
+  /// In en, this message translates to:
+  /// **'Size'**
+  String get eReaderFileSize;
+
   /// No description provided for @albums.
   ///
   /// In en, this message translates to:

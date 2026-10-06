@@ -16,6 +16,9 @@ import '../../library/application/image_url.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/content_row.dart';
 import '../../player/application/playback_provider.dart';
+import '../application/ereader_providers.dart';
+import '../data/book_format.dart';
+import '../data/epub_metadata.dart';
 
 /// Pantalla de informacion con composicion inspirada en Prime Video.
 class BookDetailScreen extends ConsumerStatefulWidget {
@@ -157,6 +160,19 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         const <String>[];
     final audioLanguages = _streamLabels(MediaStreamType.audio);
     final subtitleLanguages = _streamLabels(MediaStreamType.subtitle);
+    // Jellyfin puede no traer los metadatos del EPUB; se leen del OPF del
+    // fichero como respaldo solo si al servidor le falta algo.
+    final bookFormat = bookFormatOf(item);
+    final needsFileMetadata =
+        bookFormat == 'epub' &&
+        (people.isEmpty || studios.isEmpty || _isbnOf(item).isEmpty);
+    final epubMetadataAsync = needsFileMetadata
+        ? ref.watch(epubMetadataProvider(widget.item.id ?? ''))
+        : const AsyncValue<BookMetadata?>.data(null);
+    final fileInfoAsync = ref.watch(bookFileInfoProvider(widget.item.id ?? ''));
+    final fileInfo = fileInfoAsync.value ?? bookFileInfoOf(item);
+    final fileName = fileInfo.fileName;
+    final fileSize = fileInfo.sizeBytes;
     final related = ref.watch(similarItemsProvider(item));
     final isFavorite = _isFavorite ?? item.userData?.isFavorite ?? false;
     // Detalle de serie estilo Disney (solo ese skin; el resto mantiene Prime).
@@ -359,6 +375,10 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                             child: _RelatedSection(
                               items: related.value!.take(10).toList(),
                               serverUrl: serverUrl,
+                              onTap: (relatedItem) => context.push(
+                                '/ereader/details/${relatedItem.id}',
+                                extra: relatedItem,
+                              ),
                             ),
                           ),
                         Padding(
@@ -375,6 +395,11 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                               studios: studios,
                               audioLanguages: audioLanguages,
                               subtitleLanguages: subtitleLanguages,
+                              isBook: true,
+                              fileMetadata: epubMetadataAsync.value,
+                              metadataLoading: epubMetadataAsync.isLoading,
+                              fileName: fileName,
+                              fileSize: fileSize,
                             ),
                           ),
                         ),
@@ -443,10 +468,15 @@ class _DetailTitle extends StatelessWidget {
 }
 
 class _RelatedSection extends StatelessWidget {
-  const _RelatedSection({required this.items, required this.serverUrl});
+  const _RelatedSection({
+    required this.items,
+    required this.serverUrl,
+    this.onTap,
+  });
 
   final List<BaseItemDto> items;
   final String? serverUrl;
+  final void Function(BaseItemDto item)? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -459,9 +489,12 @@ class _RelatedSection extends StatelessWidget {
       height: 215,
       useBackdrop: true,
       showTitle: false,
-      onItemTap: (item) => context.push('/player/${item.id}', extra: item),
-      onItemImageTap: (item) =>
-          context.push('/home/details/${item.id}', extra: item),
+      onItemTap: onTap != null
+          ? onTap!
+          : (item) => context.push('/player/${item.id}', extra: item),
+      onItemImageTap: onTap != null
+          ? onTap!
+          : (item) => context.push('/home/details/${item.id}', extra: item),
     );
   }
 }
@@ -477,6 +510,11 @@ class _AdditionalInformation extends StatelessWidget {
     required this.studios,
     required this.audioLanguages,
     required this.subtitleLanguages,
+    this.isBook = false,
+    this.fileMetadata,
+    this.metadataLoading = false,
+    this.fileName,
+    this.fileSize,
   });
 
   final BaseItemDto item;
@@ -488,9 +526,15 @@ class _AdditionalInformation extends StatelessWidget {
   final List<String> studios;
   final List<String> audioLanguages;
   final List<String> subtitleLanguages;
+  final bool isBook;
+  final BookMetadata? fileMetadata;
+  final bool metadataLoading;
+  final String? fileName;
+  final int? fileSize;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final details = _InfoCard(
       title: item.name ?? '',
       child: Column(
@@ -512,6 +556,22 @@ class _AdditionalInformation extends StatelessWidget {
               if (item.isHD == true) const _Tag(text: 'HD'),
             ],
           ),
+          if (fileName != null || fileSize != null) ...[
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 20,
+              runSpacing: 6,
+              children: [
+                if (fileName != null)
+                  _CreditRow(label: l10n.eReaderFileName, value: fileName!),
+                if (fileSize != null)
+                  _CreditRow(
+                    label: l10n.eReaderFileSize,
+                    value: _formatBytes(fileSize!),
+                  ),
+              ],
+            ),
+          ],
           if (overview.isNotEmpty) ...[
             const SizedBox(height: 14),
             Text(
@@ -526,28 +586,82 @@ class _AdditionalInformation extends StatelessWidget {
         ],
       ),
     );
-    final l10n = AppLocalizations.of(context)!;
+    final creditRows = <Widget>[];
+    if (isBook) {
+      if (people.isNotEmpty) {
+        for (final entry in _groupPeople(people)) {
+          creditRows.add(
+            _CreditRow(
+              label: _bookRoleLabel(l10n, entry.key),
+              value: entry.value.join(', '),
+            ),
+          );
+        }
+      } else if (fileMetadata != null && fileMetadata!.authors.isNotEmpty) {
+        creditRows.add(
+          _CreditRow(
+            label: l10n.eReaderAuthor,
+            value: fileMetadata!.authors.join(', '),
+          ),
+        );
+      }
+      final publisher = studios.isNotEmpty
+          ? studios.join(', ')
+          : (fileMetadata?.publisher ?? '');
+      if (publisher.isNotEmpty) {
+        creditRows.add(
+          _CreditRow(label: l10n.eReaderPublisher, value: publisher),
+        );
+      }
+      final serverIsbn = _isbnOf(item);
+      final isbn = serverIsbn.isNotEmpty
+          ? serverIsbn
+          : (fileMetadata?.isbn ?? '');
+      if (isbn.isNotEmpty) {
+        creditRows.add(_CreditRow(label: l10n.eReaderIsbn, value: isbn));
+      }
+    } else {
+      creditRows.addAll([
+        _CreditRow(
+          label: l10n.director,
+          value: _peopleByType(people, 'Director'),
+        ),
+        _CreditRow(
+          label: l10n.producers,
+          value: _peopleByType(people, 'Producer'),
+        ),
+        _CreditRow(label: l10n.castLabel, value: _peopleNames(people)),
+        _CreditRow(label: l10n.studio, value: studios.join(', ')),
+      ]);
+    }
     final credits = _InfoCard(
       title: l10n.creatorsAndCast,
-      child: Column(
+      child: isBook && metadataLoading && creditRows.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: AppLoader()),
+            )
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var i = 0; i < creditRows.length; i++) ...[
+                  if (i > 0) const SizedBox(height: 14),
+                  creditRows[i],
+                ],
+              ],
+            ),
+    );
+    // Los libros/cómics no tienen pistas de audio ni subtítulos: no se muestran.
+    if (isBook) {
+      return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CreditRow(
-            label: l10n.director,
-            value: _peopleByType(people, 'Director'),
-          ),
-          const SizedBox(height: 14),
-          _CreditRow(
-            label: l10n.producers,
-            value: _peopleByType(people, 'Producer'),
-          ),
-          const SizedBox(height: 14),
-          _CreditRow(label: l10n.castLabel, value: _peopleNames(people)),
-          const SizedBox(height: 14),
-          _CreditRow(label: l10n.studio, value: studios.join(', ')),
+          details,
+          const SizedBox(height: 18),
+          credits,
         ],
-      ),
-    );
+      );
+    }
     final audio = _InfoCard(
       title: l10n.audioLanguages,
       child: _LanguageInfo(
@@ -776,6 +890,69 @@ String _peopleNames(List<BaseItemPerson> people) {
       .where((name) => name.isNotEmpty)
       .take(20)
       .join(', ');
+}
+
+/// Agrupa los nombres por tipo de persona (Autor, Ilustrador, ...), en el
+/// orden en que aparecen, para volcar todos los créditos del libro/cómic.
+List<MapEntry<String, List<String>>> _groupPeople(List<BaseItemPerson> people) {
+  final grouped = <String, List<String>>{};
+  for (final person in people) {
+    final name = (person.name ?? '').trim();
+    if (name.isEmpty) continue;
+    final type = person.type?.value ?? 'Unknown';
+    grouped.putIfAbsent(type, () => <String>[]).add(name);
+  }
+  return grouped.entries.toList();
+}
+
+/// Etiqueta traducida del rol del libro/cómic; si no se conoce, el original.
+String _bookRoleLabel(AppLocalizations l10n, String type) {
+  return switch (type) {
+    'Author' => l10n.eReaderAuthor,
+    'Writer' => l10n.eReaderWriter,
+    'Illustrator' => l10n.eReaderIllustrator,
+    'Penciller' => l10n.eReaderPenciller,
+    'Inker' => l10n.eReaderInker,
+    'Colorist' => l10n.eReaderColorist,
+    'Letterer' => l10n.eReaderLetterer,
+    'CoverArtist' => l10n.eReaderCoverArtist,
+    'Editor' => l10n.eReaderEditor,
+    'Translator' => l10n.eReaderTranslator,
+    'Artist' => l10n.eReaderArtist,
+    _ => type,
+  };
+}
+
+/// ISBN del libro/cómic (en `ProviderIds` o en `Tags` con prefijo "ISBN:").
+String _isbnOf(BaseItemDto item) {
+  final ids = item.providerIds;
+  if (ids != null) {
+    for (final entry in ids.entries) {
+      if (entry.key.toLowerCase().contains('isbn') &&
+          entry.value.trim().isNotEmpty) {
+        return entry.value.trim();
+      }
+    }
+  }
+  for (final tag in item.tags ?? const <String>[]) {
+    if (tag.toLowerCase().startsWith('isbn') && tag.contains(':')) {
+      return tag.substring(tag.indexOf(':') + 1).trim();
+    }
+  }
+  return '';
+}
+
+/// Tamaño en bytes legible (B/KB/MB/GB/TB).
+String _formatBytes(int bytes) {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var value = bytes.toDouble();
+  var unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  final decimals = unit == 0 ? 0 : (value >= 10 ? 1 : 2);
+  return '${value.toStringAsFixed(decimals)} ${units[unit]}';
 }
 
 String _downloadFilename(String name) {

@@ -662,6 +662,57 @@ class AppLocalizationsEs extends AppLocalizations {
   String get eReaderUnsupported => 'Formato no soportado todavía';
 
   @override
+  String get eReaderPreviousPage => 'Página anterior';
+
+  @override
+  String get eReaderNextPage => 'Página siguiente';
+
+  @override
+  String get eReaderAuthor => 'Autor';
+
+  @override
+  String get eReaderWriter => 'Guionista';
+
+  @override
+  String get eReaderIllustrator => 'Ilustrador';
+
+  @override
+  String get eReaderPenciller => 'Dibujante';
+
+  @override
+  String get eReaderInker => 'Entintador';
+
+  @override
+  String get eReaderColorist => 'Colorista';
+
+  @override
+  String get eReaderLetterer => 'Rotulista';
+
+  @override
+  String get eReaderCoverArtist => 'Portada';
+
+  @override
+  String get eReaderEditor => 'Editor';
+
+  @override
+  String get eReaderTranslator => 'Traductor';
+
+  @override
+  String get eReaderArtist => 'Artista';
+
+  @override
+  String get eReaderPublisher => 'Editorial';
+
+  @override
+  String get eReaderIsbn => 'ISBN';
+
+  @override
+  String get eReaderFileName => 'Archivo';
+
+  @override
+  String get eReaderFileSize => 'Tamaño';
+
+  @override
   String get albums => 'Álbumes';
 
   @override

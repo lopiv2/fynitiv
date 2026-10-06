@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 
 import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_presets.dart';
 import '../../library/application/library_providers.dart';
+import '../data/book_format.dart';
+import '../data/epub_metadata.dart';
 
 /// Skin fijo del E-Reader. No cambia con el skin global (VOD, etc.).
 const Skin eReaderSkin = SkinPresets.jellyfinDefault;
@@ -75,3 +78,50 @@ final eReaderBooksCountProvider = FutureProvider<int>((ref) {
     ).future,
   );
 });
+
+/// Información del fichero (nombre con extensión y tamaño) de un libro/cómic.
+///
+/// `MediaSources` trae `Size`/`Path` solo si se piden en `fields`, por eso se
+/// consulta el item por id con esos campos. La llamada es DIO.
+final bookFileInfoProvider = FutureProvider.family<BookFileInfo?, String>((
+  ref,
+  itemId,
+) async {
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null || itemId.isEmpty) return null;
+  try {
+    final res = await client.getItemsApi().getItems(
+      userId: userId,
+      ids: [itemId],
+      fields: const [ItemFields.mediaSources, ItemFields.path],
+      limit: 1,
+    );
+    final items = res.data?.items ?? const <BaseItemDto>[];
+    if (items.isEmpty) return null;
+    return bookFileInfoOf(items.first);
+  } catch (e) {
+    debugPrint('[ereader] file info failed: $e');
+    return null;
+  }
+});
+
+/// Metadatos embebidos (OPF de Dublin Core) de un EPUB descargado de Jellyfin.
+///
+/// Jellyfin puede no tener poblados autor/editorial/ISBN si no ha refrescado
+/// los metadatos del libro; en ese caso se leen directamente del fichero. La
+/// llamada es DIO: el llamador debe mostrar el loader mientras carga.
+final epubMetadataProvider =
+    FutureProvider.family<BookMetadata?, String>((ref, itemId) async {
+      final client = ref.watch(jellyfinClientProvider);
+      if (client == null || itemId.isEmpty) return null;
+      try {
+        final res = await client.getLibraryApi().getFile(itemId: itemId);
+        final bytes = res.data;
+        if (bytes == null || bytes.isEmpty) return null;
+        return parseEpubMetadata(bytes);
+      } catch (e) {
+        debugPrint('[ereader] epub metadata failed: $e');
+        return null;
+      }
+    });

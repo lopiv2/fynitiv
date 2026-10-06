@@ -4,8 +4,11 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-/// Visor básico de cómics CBZ: descomprime el zip, ordena las imágenes de
-/// forma natural y las muestra en un `PageView` con zoom.
+import '../../../../core/widgets/app_loader.dart';
+import 'spread_reader.dart';
+
+/// Visor de cómics CBZ: descomprime el zip, ordena las imágenes de forma
+/// natural y las muestra en un lector paginado a doble página con flechas.
 class ComicView extends StatefulWidget {
   const ComicView({super.key, required this.file});
 
@@ -16,10 +19,8 @@ class ComicView extends StatefulWidget {
 }
 
 class _ComicViewState extends State<ComicView> {
-  final PageController _controller = PageController();
   List<Uint8List> _pages = const [];
   bool _loading = true;
-  int _index = 0;
 
   @override
   void initState() {
@@ -27,24 +28,14 @@ class _ComicViewState extends State<ComicView> {
     _load();
   }
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   Future<void> _load() async {
     try {
       final bytes = await widget.file.readAsBytes();
       final archive = ZipDecoder().decodeBytes(bytes);
-      final entries = archive.files
-          .where((f) => f.isFile && _isImage(f.name))
-          .toList()
-        ..sort((a, b) => _naturalCompare(a.name, b.name));
-      final pages = entries
-          .map((e) => e.content as List<int>)
-          .map(Uint8List.fromList)
-          .toList();
+      final entries =
+          archive.files.where((f) => f.isFile && _isImage(f.name)).toList()
+            ..sort((a, b) => _naturalCompare(a.name, b.name));
+      final pages = entries.map((e) => e.content).toList();
       if (!mounted) return;
       setState(() {
         _pages = pages;
@@ -69,47 +60,29 @@ class _ComicViewState extends State<ComicView> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: AppLoader());
     }
     if (_pages.isEmpty) {
-      return const SizedBox.shrink();
+      return const Center(
+        child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 48),
+      );
     }
-    return Stack(
-      children: [
-        PageView.builder(
-          controller: _controller,
-          itemCount: _pages.length,
-          onPageChanged: (i) => setState(() => _index = i),
-          itemBuilder: (_, i) => InteractiveViewer(
-            minScale: 1,
-            maxScale: 5,
-            child: Center(
-              child: Image.memory(
-                _pages[i],
-                fit: BoxFit.contain,
-                gaplessPlayback: true,
-              ),
+    return SpreadReader(
+      pageCount: _pages.length,
+      pageBuilder: (context, i) => Padding(
+        padding: kReaderPagePadding,
+        child: InteractiveViewer(
+          minScale: 1,
+          maxScale: 5,
+          child: Center(
+            child: Image.memory(
+              _pages[i],
+              fit: BoxFit.contain,
+              gaplessPlayback: true,
             ),
           ),
         ),
-        Positioned(
-          right: 16,
-          bottom: 12,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: Colors.black54,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              child: Text(
-                '${_index + 1}/${_pages.length}',
-                style: const TextStyle(color: Colors.white, fontSize: 12),
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }

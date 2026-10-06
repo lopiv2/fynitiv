@@ -11,6 +11,7 @@ import 'package:pdfrx/pdfrx.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../library/application/library_providers.dart';
+import '../../data/book_format.dart';
 import 'comic_view.dart';
 import 'epub_view.dart';
 
@@ -33,15 +34,8 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
   @override
   void initState() {
     super.initState();
-    _format = _formatOf(widget.item);
+    _format = bookFormatOf(widget.item);
     _load();
-  }
-
-  static String _formatOf(BaseItemDto item) {
-    final container = (item.container ?? '').trim().toLowerCase();
-    if (container.isNotEmpty) return container;
-    final path = item.path ?? '';
-    return p.extension(path).replaceFirst('.', '').toLowerCase();
   }
 
   Future<void> _load() async {

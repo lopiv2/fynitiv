@@ -78,21 +78,36 @@ Future<String?> resolveLiveChannelStreamUrl(Ref ref, String channelId) async {
   final serverUrl = ref.watch(authServerUrlProvider);
   if (client == null || userId == null || serverUrl == null) return null;
 
-  final info = await client.getMediaInfoApi().getPostedPlaybackInfo(
-    itemId: channelId,
-    playbackInfoDto: PlaybackInfoDto(
-      userId: userId,
-      autoOpenLiveStream: true,
-      enableDirectPlay: true,
-      enableDirectStream: true,
-      enableTranscoding: true,
-    ),
-  );
-  final source = info.data?.mediaSources?.firstOrNull;
+  final PlaybackInfoResponse? info;
+  try {
+    final res = await client.getMediaInfoApi().getPostedPlaybackInfo(
+      itemId: channelId,
+      playbackInfoDto: PlaybackInfoDto(
+        userId: userId,
+        autoOpenLiveStream: true,
+        enableDirectPlay: true,
+        enableDirectStream: true,
+        enableTranscoding: true,
+      ),
+    );
+    info = res.data;
+  } on DioException catch (e) {
+    // Un 500 aquí (p. ej. el tuner del canal falla al abrirse) no debe tumbar
+    // la app: se registra el cuerpo del error y la UI muestra "sin URL".
+    liveTvLog(
+      'PlaybackInfo $channelId: DioException status=${e.response?.statusCode} '
+      '${e.type.name} ${e.message} body=${_snippet(e.response?.data)}',
+    );
+    return null;
+  } catch (e) {
+    liveTvLog('PlaybackInfo $channelId: error inesperado: $e');
+    return null;
+  }
+  final source = info?.mediaSources?.firstOrNull;
   if (source == null || source.id == null) {
     liveTvLog(
       'resolveLiveChannelStreamUrl: sin media source para $channelId '
-      '(sources=${info.data?.mediaSources?.length ?? 0})',
+      '(sources=${info?.mediaSources?.length ?? 0})',
     );
     return null;
   }
@@ -137,6 +152,13 @@ Future<String?> resolveLiveChannelStreamUrl(Ref ref, String channelId) async {
       '?MediaSourceId=${source.id}$liveStream$apiKey';
   liveTvLog('URL transcode: ${redactUrl(url)}');
   return url;
+}
+
+/// Recorta un cuerpo de error para el log.
+String _snippet(Object? data) {
+  if (data == null) return '<null>';
+  final text = data.toString();
+  return text.length > 500 ? '${text.substring(0, 500)}...' : text;
 }
 
 /// Estado del reproductor compartido de Live TV.

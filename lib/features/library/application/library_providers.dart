@@ -568,11 +568,13 @@ final similarItemsProvider =
           recursive: true,
           limit: 10,
           excludeItemIds: [itemId],
-          genres: item.genres,
+          genres: item.type == BaseItemKind.book ? null : item.genres,
           includeItemTypes: item.type == BaseItemKind.movie
               ? [BaseItemKind.movie]
               : item.type == BaseItemKind.series
               ? [BaseItemKind.series]
+              : item.type == BaseItemKind.book
+              ? [BaseItemKind.book]
               : null,
           fields: [
             ItemFields.overview,
@@ -586,7 +588,13 @@ final similarItemsProvider =
             ImageType.logo,
           ],
         );
-        return (res.data?.items ?? const []).take(10).toList();
+        final items = res.data?.items ?? const <BaseItemDto>[];
+        return items
+            .where(
+              (i) => item.type != BaseItemKind.book || i.type == BaseItemKind.book,
+            )
+            .take(10)
+            .toList();
       } catch (_) {
         return const [];
       }
