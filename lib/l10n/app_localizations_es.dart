@@ -2026,6 +2026,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get subtitleApplied => 'Subtítulo aplicado';
 
   @override
+  String get subtitleAppliedLocalOnly =>
+      'Subtítulo aplicado solo en este dispositivo';
+
+  @override
   String get couldNotLoadSubtitles => 'No se pudieron cargar los subtítulos';
 
   @override
@@ -2034,6 +2038,28 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get subtitleSync => 'Sincronización de subtítulos';
+
+  @override
+  String get subtitleDelayEarlier => 'Subtítulos 0,5 s antes';
+
+  @override
+  String get subtitleDelayLater => 'Subtítulos 0,5 s después';
+
+  @override
+  String get subtitleSyncByText => 'Sincronizar por texto';
+
+  @override
+  String get subtitleSyncPickLine => 'Elige la línea que suena';
+
+  @override
+  String get subtitleSyncHint => 'Toca la línea que están diciendo ahora';
+
+  @override
+  String get subtitleFilterHint => 'Filtrar texto…';
+
+  @override
+  String get subtitleTextUnavailable =>
+      'No se pudo leer el texto del subtítulo';
 
   @override
   String subtitleSyncOffset(String seconds) {

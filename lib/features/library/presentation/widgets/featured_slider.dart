@@ -571,250 +571,253 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
         Padding(
           padding: EdgeInsets.symmetric(horizontal: hp),
           child: LayoutBuilder(
-          builder: (context, constraints) {
-            final mode =
-                ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
-            final isTv = mode == PlatformMode.tv;
-            // En TV la altura original (0.38 / 280-440) ocupa demasiado vertical
-            // en 720p y con isla flotante. Se reduce ~25% para dejar ver filas.
-            final heightFactor = isTv
-                ? widget.heightFactor * 0.72
-                : widget.heightFactor;
-            final minH = isTv ? 260.0 : widget.minHeight;
-            final maxH = isTv ? 420.0 : widget.maxHeight;
-            final height = (constraints.maxWidth * heightFactor).clamp(
-              minH,
-              maxH,
-            );
-            return NotificationListener<ScrollNotification>(
-              onNotification: (notification) {
-                if (notification is ScrollStartNotification) {
-                  _timer?.cancel();
-                } else if (notification is ScrollEndNotification) {
-                  _startAutoPlay();
-                }
-                return false;
-              },
-              child: FocusScope(
-                onFocusChange: (hasFocus) {
-                  if (_sliderFocused != hasFocus) {
-                    setState(() => _sliderFocused = hasFocus);
+            builder: (context, constraints) {
+              final mode =
+                  ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
+              final isTv = mode == PlatformMode.tv;
+              // En TV la altura original (0.38 / 280-440) ocupa demasiado vertical
+              // en 720p y con isla flotante. Se reduce ~25% para dejar ver filas.
+              final heightFactor = isTv
+                  ? widget.heightFactor * 0.72
+                  : widget.heightFactor;
+              final minH = isTv ? 260.0 : widget.minHeight;
+              final maxH = isTv ? 420.0 : widget.maxHeight;
+              final height = (constraints.maxWidth * heightFactor).clamp(
+                minH,
+                maxH,
+              );
+              return NotificationListener<ScrollNotification>(
+                onNotification: (notification) {
+                  if (notification is ScrollStartNotification) {
+                    _timer?.cancel();
+                  } else if (notification is ScrollEndNotification) {
+                    _startAutoPlay();
                   }
+                  return false;
                 },
-                onKeyEvent: (node, event) {
-                  if (event is! KeyDownEvent) return KeyEventResult.ignored;
-                  // Comportamiento de teclado unificado para todas las plataformas
-                  // (tv, desktop, tablet, mobile) con teclado/mando conectado
+                child: FocusScope(
+                  onFocusChange: (hasFocus) {
+                    if (_sliderFocused != hasFocus) {
+                      setState(() => _sliderFocused = hasFocus);
+                    }
+                  },
+                  onKeyEvent: (node, event) {
+                    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+                    // Comportamiento de teclado unificado para todas las plataformas
+                    // (tv, desktop, tablet, mobile) con teclado/mando conectado
 
-                  final primary = FocusManager.instance.primaryFocus;
-                  final isAction =
-                      primary != null && _actionNodes.contains(primary);
-                  final isDot = primary != null && _dotNodes.contains(primary);
-                  // Índice del dot actual (para foco inicial al bajar desde acciones)
-                  final currentDotNode =
-                      _dotNodes.isNotEmpty && _currentPage < _dotNodes.length
-                      ? _dotNodes[_currentPage]
-                      : (_dotNodes.isNotEmpty ? _dotNodes.first : null);
-                  final firstActionNode = _actionNodes.isNotEmpty
-                      ? _actionNodes.first
-                      : null;
+                    final primary = FocusManager.instance.primaryFocus;
+                    final isAction =
+                        primary != null && _actionNodes.contains(primary);
+                    final isDot =
+                        primary != null && _dotNodes.contains(primary);
+                    // Índice del dot actual (para foco inicial al bajar desde acciones)
+                    final currentDotNode =
+                        _dotNodes.isNotEmpty && _currentPage < _dotNodes.length
+                        ? _dotNodes[_currentPage]
+                        : (_dotNodes.isNotEmpty ? _dotNodes.first : null);
+                    final firstActionNode = _actionNodes.isNotEmpty
+                        ? _actionNodes.first
+                        : null;
 
-                  // ── ARRIBA: isla/top bar ──────────────────────────────
-                  if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
-                    if (isDot) {
-                      if (firstActionNode != null) {
-                        if (firstActionNode.context != null) {
-                          firstActionNode.requestFocus();
-                          return KeyEventResult.handled;
+                    // ── ARRIBA: isla/top bar ──────────────────────────────
+                    if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                      if (isDot) {
+                        if (firstActionNode != null) {
+                          if (firstActionNode.context != null) {
+                            firstActionNode.requestFocus();
+                            return KeyEventResult.handled;
+                          }
                         }
                       }
-                    }
-                    // Desde acciones o cualquier parte del slider, ↑ → isla
-                    // + scroll total arriba para que el slider se vea como al entrar
-                    tvInicioFocusNode.requestFocus();
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      final ctx = node.context;
-                      if (ctx == null) return;
-                      // Buscar el Scrollable ancestro (ListView de HomeScreen)
-                      final scrollable = Scrollable.maybeOf(ctx);
-                      if (scrollable != null &&
-                          scrollable.position.pixels !=
-                              scrollable.position.minScrollExtent) {
-                        scrollable.position.animateTo(
-                          scrollable.position.minScrollExtent,
-                          duration: const Duration(milliseconds: 320),
-                          curve: Curves.easeOutCubic,
-                        );
-                      } else {
-                        // Fallback: ensureVisible del slider al tope
-                        try {
-                          Scrollable.ensureVisible(
-                            ctx,
-                            alignment: 0.0,
-                            alignmentPolicy:
-                                ScrollPositionAlignmentPolicy.explicit,
+                      // Desde acciones o cualquier parte del slider, ↑ → isla
+                      // + scroll total arriba para que el slider se vea como al entrar
+                      tvInicioFocusNode.requestFocus();
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        final ctx = node.context;
+                        if (ctx == null) return;
+                        // Buscar el Scrollable ancestro (ListView de HomeScreen)
+                        final scrollable = Scrollable.maybeOf(ctx);
+                        if (scrollable != null &&
+                            scrollable.position.pixels !=
+                                scrollable.position.minScrollExtent) {
+                          scrollable.position.animateTo(
+                            scrollable.position.minScrollExtent,
                             duration: const Duration(milliseconds: 320),
                             curve: Curves.easeOutCubic,
                           );
-                        } catch (_) {}
-                      }
-                    });
-                    return KeyEventResult.handled;
-                  }
-
-                  // ── ABAJO ─────────────────────────────────────────────
-                  if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
-                    if (isAction) {
-                      // Desde Ver ahora/trailer/fav/info → ↓ a dots
-                      if (currentDotNode != null) {
-                        currentDotNode.requestFocus();
-                        return KeyEventResult.handled;
-                      }
-                    }
-                    if (isDot) {
-                      // Desde dots → ↓ a Continuar viendo (siguiente fila).
-                      // El slider está aislado en su FocusScope, por lo que
-                      // node.focusInDirection(down) nunca encuentra la fila
-                      // exterior. Hay que subir al scope padre (HomeShell)
-                      // que contiene slider + filas.
-                      bool movedDownFromParent() {
-                        FocusNode? scope = node.parent;
-                        while (scope != null) {
-                          if (scope is FocusScopeNode) {
-                            if (scope.focusInDirection(
-                              TraversalDirection.down,
-                            )) {
-                              return true;
-                            }
-                          }
-                          scope = scope.parent;
+                        } else {
+                          // Fallback: ensureVisible del slider al tope
+                          try {
+                            Scrollable.ensureVisible(
+                              ctx,
+                              alignment: 0.0,
+                              alignmentPolicy:
+                                  ScrollPositionAlignmentPolicy.explicit,
+                              duration: const Duration(milliseconds: 320),
+                              curve: Curves.easeOutCubic,
+                            );
+                          } catch (_) {}
                         }
-                        return false;
-                      }
+                      });
+                      return KeyEventResult.handled;
+                    }
 
-                      if (movedDownFromParent()) {
-                        return KeyEventResult.handled;
-                      }
-                      final root = FocusManager.instance.rootScope;
-                      if (root.focusInDirection(TraversalDirection.down)) {
-                        return KeyEventResult.handled;
-                      }
-                      // Último fallback: next en el scope padre (siguiente fila)
-                      final parent = node.parent;
-                      if (parent is FocusScopeNode) {
-                        parent.nextFocus();
-                        return KeyEventResult.handled;
-                      }
-                      root.nextFocus();
-                      return KeyEventResult.handled;
-                    }
-                    // Fallback: si no está en acción ni dot, intentar bajar dentro
-                    // del slider (acción → dot) y si no, salir a la siguiente fila
-                    if (isAction || isDot) {
-                      return KeyEventResult.handled;
-                    }
-                    final movedInside = node.focusInDirection(
-                      TraversalDirection.down,
-                    );
-                    if (movedInside) return KeyEventResult.handled;
-                    // Intentar desde el padre antes de root
-                    FocusNode? scope = node.parent;
-                    while (scope != null) {
-                      if (scope is FocusScopeNode) {
-                        if (scope.focusInDirection(TraversalDirection.down)) {
+                    // ── ABAJO ─────────────────────────────────────────────
+                    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                      if (isAction) {
+                        // Desde Ver ahora/trailer/fav/info → ↓ a dots
+                        if (currentDotNode != null) {
+                          currentDotNode.requestFocus();
                           return KeyEventResult.handled;
                         }
                       }
-                      scope = scope.parent;
-                    }
-                    final root = FocusManager.instance.rootScope;
-                    final moved = root.focusInDirection(
-                      TraversalDirection.down,
-                    );
-                    if (moved) return KeyEventResult.handled;
-                    root.nextFocus();
-                    return KeyEventResult.handled;
-                  }
+                      if (isDot) {
+                        // Desde dots → ↓ a Continuar viendo (siguiente fila).
+                        // El slider está aislado en su FocusScope, por lo que
+                        // node.focusInDirection(down) nunca encuentra la fila
+                        // exterior. Hay que subir al scope padre (HomeShell)
+                        // que contiene slider + filas.
+                        bool movedDownFromParent() {
+                          FocusNode? scope = node.parent;
+                          while (scope != null) {
+                            if (scope is FocusScopeNode) {
+                              if (scope.focusInDirection(
+                                TraversalDirection.down,
+                              )) {
+                                return true;
+                              }
+                            }
+                            scope = scope.parent;
+                          }
+                          return false;
+                        }
 
-                  // ── IZQUIERDA / DERECHA ───────────────────────────────
-                  if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
-                      event.logicalKey == LogicalKeyboardKey.arrowRight) {
-                    final dir = event.logicalKey == LogicalKeyboardKey.arrowLeft
-                        ? TraversalDirection.left
-                        : TraversalDirection.right;
-
-                    if (isAction) {
-                      // Intentar mover entre Ver ahora ↔ trailer ↔ fav ↔ info
-                      final moved = node.focusInDirection(dir);
-                      if (moved) return KeyEventResult.handled;
-                      // En el borde derecho (Info) → → va a dots (no cambia banner)
-                      if (dir == TraversalDirection.right &&
-                          currentDotNode != null) {
-                        currentDotNode.requestFocus();
+                        if (movedDownFromParent()) {
+                          return KeyEventResult.handled;
+                        }
+                        final root = FocusManager.instance.rootScope;
+                        if (root.focusInDirection(TraversalDirection.down)) {
+                          return KeyEventResult.handled;
+                        }
+                        // Último fallback: next en el scope padre (siguiente fila)
+                        final parent = node.parent;
+                        if (parent is FocusScopeNode) {
+                          parent.nextFocus();
+                          return KeyEventResult.handled;
+                        }
+                        root.nextFocus();
                         return KeyEventResult.handled;
                       }
-                      // En el borde izquierdo (Ver ahora) → ← se queda (no wrap)
+                      // Fallback: si no está en acción ni dot, intentar bajar dentro
+                      // del slider (acción → dot) y si no, salir a la siguiente fila
+                      if (isAction || isDot) {
+                        return KeyEventResult.handled;
+                      }
+                      final movedInside = node.focusInDirection(
+                        TraversalDirection.down,
+                      );
+                      if (movedInside) return KeyEventResult.handled;
+                      // Intentar desde el padre antes de root
+                      FocusNode? scope = node.parent;
+                      while (scope != null) {
+                        if (scope is FocusScopeNode) {
+                          if (scope.focusInDirection(TraversalDirection.down)) {
+                            return KeyEventResult.handled;
+                          }
+                        }
+                        scope = scope.parent;
+                      }
+                      final root = FocusManager.instance.rootScope;
+                      final moved = root.focusInDirection(
+                        TraversalDirection.down,
+                      );
+                      if (moved) return KeyEventResult.handled;
+                      root.nextFocus();
                       return KeyEventResult.handled;
                     }
 
-                    if (isDot) {
+                    // ── IZQUIERDA / DERECHA ───────────────────────────────
+                    if (event.logicalKey == LogicalKeyboardKey.arrowLeft ||
+                        event.logicalKey == LogicalKeyboardKey.arrowRight) {
+                      final dir =
+                          event.logicalKey == LogicalKeyboardKey.arrowLeft
+                          ? TraversalDirection.left
+                          : TraversalDirection.right;
+
+                      if (isAction) {
+                        // Intentar mover entre Ver ahora ↔ trailer ↔ fav ↔ info
+                        final moved = node.focusInDirection(dir);
+                        if (moved) return KeyEventResult.handled;
+                        // En el borde derecho (Info) → → va a dots (no cambia banner)
+                        if (dir == TraversalDirection.right &&
+                            currentDotNode != null) {
+                          currentDotNode.requestFocus();
+                          return KeyEventResult.handled;
+                        }
+                        // En el borde izquierdo (Ver ahora) → ← se queda (no wrap)
+                        return KeyEventResult.handled;
+                      }
+
+                      if (isDot) {
+                        final moved = node.focusInDirection(dir);
+                        if (moved) return KeyEventResult.handled;
+                        // En bordes de dots no se cambia de banner automáticamente;
+                        // el cambio ocurre al enfocar otro dot (onFocusChange).
+                        return KeyEventResult.handled;
+                      }
+
+                      // Foco en otro elemento del slider (o sin foco claro):
+                      // mantener navegación horizontal contenida
                       final moved = node.focusInDirection(dir);
                       if (moved) return KeyEventResult.handled;
-                      // En bordes de dots no se cambia de banner automáticamente;
-                      // el cambio ocurre al enfocar otro dot (onFocusChange).
                       return KeyEventResult.handled;
                     }
-
-                    // Foco en otro elemento del slider (o sin foco claro):
-                    // mantener navegación horizontal contenida
-                    final moved = node.focusInDirection(dir);
-                    if (moved) return KeyEventResult.handled;
-                    return KeyEventResult.handled;
-                  }
-                  return KeyEventResult.ignored;
-                },
-                child: FocusTraversalGroup(
-                  policy: ReadingOrderTraversalPolicy(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      MouseRegion(
-                        onEnter: (_) => setState(() => _sliderHovered = true),
-                        onExit: (_) => setState(() => _sliderHovered = false),
-                        child: SizedBox(
-                          height: height,
-                          child: Stack(
-                            clipBehavior: Clip.none,
-                            fit: StackFit.expand,
-                            children: [
-                              _buildBannerLayer(),
-                              _buildDots(),
-                              if (widget.showArrows && _banners.length > 1) ...[
-                                _buildArrow(
-                                  icon: Icons.chevron_left,
-                                  onTap: _goToPrev,
-                                  align: Alignment.centerLeft,
-                                  padding: const EdgeInsets.only(left: 10),
-                                ),
-                                _buildArrow(
-                                  icon: Icons.chevron_right,
-                                  onTap: _goToNext,
-                                  align: Alignment.centerRight,
-                                  padding: const EdgeInsets.only(right: 10),
-                                ),
+                    return KeyEventResult.ignored;
+                  },
+                  child: FocusTraversalGroup(
+                    policy: ReadingOrderTraversalPolicy(),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MouseRegion(
+                          onEnter: (_) => setState(() => _sliderHovered = true),
+                          onExit: (_) => setState(() => _sliderHovered = false),
+                          child: SizedBox(
+                            height: height,
+                            child: Stack(
+                              clipBehavior: Clip.none,
+                              fit: StackFit.expand,
+                              children: [
+                                _buildBannerLayer(),
+                                _buildDots(),
+                                if (widget.showArrows &&
+                                    _banners.length > 1) ...[
+                                  _buildArrow(
+                                    icon: Icons.chevron_left,
+                                    onTap: _goToPrev,
+                                    align: Alignment.centerLeft,
+                                    padding: const EdgeInsets.only(left: 10),
+                                  ),
+                                  _buildArrow(
+                                    icon: Icons.chevron_right,
+                                    onTap: _goToNext,
+                                    align: Alignment.centerRight,
+                                    padding: const EdgeInsets.only(right: 10),
+                                  ),
+                                ],
                               ],
-                            ],
+                            ),
                           ),
                         ),
-                      ),
-                      _buildDotsOutside(),
-                    ],
+                        _buildDotsOutside(),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        ),
+              );
+            },
+          ),
         ),
         const SizedBox(height: 24),
       ],
@@ -1524,7 +1527,8 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                     if (event is KeyDownEvent &&
                         (event.logicalKey == LogicalKeyboardKey.enter ||
                             event.logicalKey == LogicalKeyboardKey.select ||
-                            event.logicalKey == LogicalKeyboardKey.gameButtonA)) {
+                            event.logicalKey ==
+                                LogicalKeyboardKey.gameButtonA)) {
                       final id = item.id;
                       if (id != null && id.isNotEmpty) {
                         context.push('/home/details/$id', extra: item);
@@ -1817,7 +1821,9 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
         border: Border.all(
           color: widget.showBorder ? widget.borderColor : Colors.transparent,
           width: widget.showBorder
-              ? (widget.isBorderHovered ? widget.hoverBorderWidth : widget.borderWidth)
+              ? (widget.isBorderHovered
+                    ? widget.hoverBorderWidth
+                    : widget.borderWidth)
               : 0,
         ),
       ),

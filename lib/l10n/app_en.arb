@@ -835,9 +835,17 @@
     }
   },
   "subtitleApplied": "Subtitle applied",
+  "subtitleAppliedLocalOnly": "Subtitle applied only on this device",
   "couldNotLoadSubtitles": "Could not load subtitles",
   "remoteSubtitlesUnavailable": "Your server doesn't allow remote subtitles. Enable the OpenSubtitles plugin in Jellyfin.",
   "subtitleSync": "Subtitle sync",
+  "subtitleDelayEarlier": "Subtitles 0.5 s earlier",
+  "subtitleDelayLater": "Subtitles 0.5 s later",
+  "subtitleSyncByText": "Sync by text",
+  "subtitleSyncPickLine": "Pick the line being spoken",
+  "subtitleSyncHint": "Tap the line being said right now",
+  "subtitleFilterHint": "Filter text…",
+  "subtitleTextUnavailable": "Couldn't read the subtitle text",
   "subtitleSyncOffset": "Offset: {seconds}",
   "@subtitleSyncOffset": {
     "placeholders": {

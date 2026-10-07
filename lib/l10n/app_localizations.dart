@@ -3812,6 +3812,12 @@ abstract class AppLocalizations {
   /// **'Subtitle applied'**
   String get subtitleApplied;
 
+  /// No description provided for @subtitleAppliedLocalOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle applied only on this device'**
+  String get subtitleAppliedLocalOnly;
+
   /// No description provided for @couldNotLoadSubtitles.
   ///
   /// In en, this message translates to:
@@ -3829,6 +3835,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Subtitle sync'**
   String get subtitleSync;
+
+  /// No description provided for @subtitleDelayEarlier.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles 0.5 s earlier'**
+  String get subtitleDelayEarlier;
+
+  /// No description provided for @subtitleDelayLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitles 0.5 s later'**
+  String get subtitleDelayLater;
+
+  /// No description provided for @subtitleSyncByText.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync by text'**
+  String get subtitleSyncByText;
+
+  /// No description provided for @subtitleSyncPickLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the line being spoken'**
+  String get subtitleSyncPickLine;
+
+  /// No description provided for @subtitleSyncHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the line being said right now'**
+  String get subtitleSyncHint;
+
+  /// No description provided for @subtitleFilterHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Filter text…'**
+  String get subtitleFilterHint;
+
+  /// No description provided for @subtitleTextUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t read the subtitle text'**
+  String get subtitleTextUnavailable;
 
   /// No description provided for @subtitleSyncOffset.
   ///

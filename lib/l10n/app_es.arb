@@ -832,9 +832,17 @@
     }
   },
   "subtitleApplied": "Subtítulo aplicado",
+  "subtitleAppliedLocalOnly": "Subtítulo aplicado solo en este dispositivo",
   "couldNotLoadSubtitles": "No se pudieron cargar los subtítulos",
   "remoteSubtitlesUnavailable": "Tu servidor no permite subtítulos remotos. Activa el plugin OpenSubtitles en Jellyfin.",
   "subtitleSync": "Sincronización de subtítulos",
+  "subtitleDelayEarlier": "Subtítulos 0,5 s antes",
+  "subtitleDelayLater": "Subtítulos 0,5 s después",
+  "subtitleSyncByText": "Sincronizar por texto",
+  "subtitleSyncPickLine": "Elige la línea que suena",
+  "subtitleSyncHint": "Toca la línea que están diciendo ahora",
+  "subtitleFilterHint": "Filtrar texto…",
+  "subtitleTextUnavailable": "No se pudo leer el texto del subtítulo",
   "subtitleSyncOffset": "Desfase: {seconds}",
   "@subtitleSyncOffset": {
     "placeholders": {

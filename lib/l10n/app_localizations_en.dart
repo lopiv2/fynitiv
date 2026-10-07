@@ -2020,6 +2020,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get subtitleApplied => 'Subtitle applied';
 
   @override
+  String get subtitleAppliedLocalOnly => 'Subtitle applied only on this device';
+
+  @override
   String get couldNotLoadSubtitles => 'Could not load subtitles';
 
   @override
@@ -2028,6 +2031,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subtitleSync => 'Subtitle sync';
+
+  @override
+  String get subtitleDelayEarlier => 'Subtitles 0.5 s earlier';
+
+  @override
+  String get subtitleDelayLater => 'Subtitles 0.5 s later';
+
+  @override
+  String get subtitleSyncByText => 'Sync by text';
+
+  @override
+  String get subtitleSyncPickLine => 'Pick the line being spoken';
+
+  @override
+  String get subtitleSyncHint => 'Tap the line being said right now';
+
+  @override
+  String get subtitleFilterHint => 'Filter text…';
+
+  @override
+  String get subtitleTextUnavailable => 'Couldn\'t read the subtitle text';
 
   @override
   String subtitleSyncOffset(String seconds) {

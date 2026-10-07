@@ -55,5 +55,7 @@ el subtítulo con el audio (`sub-delay` de mpv).
 - Prueba manual con el plugin OpenSubtitles configurado en el servidor (búsqueda por idioma,
   aplicar y valorar calidad del matching).
 - Valorar "Guardar en el servidor" (`downloadRemoteSubtitles` + refrescar playback info).
+  → Hecho en `subtitulos-guardar-servidor.md`.
 - Manejar el caso de usuario sin permiso `SubtitleManagement` con mensaje específico si el
-  genérico de error no es suficiente.
+  genérico de error no es suficiente. → Hecho: respaldo local + aviso
+  `subtitleAppliedLocalOnly` (`subtitulos-guardar-servidor.md`).

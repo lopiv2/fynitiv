@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
@@ -50,7 +51,9 @@ import '../../library/application/image_url.dart';
 import '../../music/application/music_player_provider.dart';
 import '../application/playback_provider.dart';
 import '../../subtitles/domain/subtitle_language.dart';
+import '../../subtitles/domain/subtitle_cues.dart';
 import '../../subtitles/presentation/subtitle_search_sheet.dart';
+import '../../subtitles/presentation/subtitle_sync_dialog.dart';
 
 /// Pantalla de reproducción a pantalla completa (estilo streaming).
 class PlayerScreen extends ConsumerWidget {
@@ -118,6 +121,11 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   Tracks _tracks = const Tracks();
   AudioTrack? _selectedAudio;
   SubtitleTrack? _selectedSubtitle;
+
+  /// Pista de subtítulo elegida por el usuario (nuestra referencia, con los
+  /// flags `data`/`uri` fiables, a diferencia de la que reporta mpv). Se usa
+  /// para sincronizar por texto.
+  SubtitleTrack? _appliedSubtitleTrack;
 
   /// Subtítulos descargados en runtime (p. ej. desde el plugin de
   /// OpenSubtitles del servidor) para poder reseleccionarlos en la sesión.
@@ -805,17 +813,30 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
 
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    // Con el foco en un control hijo, deja que el D-pad/Tab navegue entre
+    // controles en lugar de hacer seek.
+    final onRoot = _focus.hasPrimaryFocus;
     switch (event.logicalKey) {
       case LogicalKeyboardKey.space:
         _togglePlay();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowRight:
+        if (!onRoot) return KeyEventResult.ignored;
         _seekBy(const Duration(seconds: 10));
         _showControls();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowLeft:
+        if (!onRoot) return KeyEventResult.ignored;
         _seekBy(const Duration(seconds: -10));
         _showControls();
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.keyZ:
+        _nudgeSubtitleDelay(
+          HardwareKeyboard.instance.isShiftPressed ? 0.5 : -0.5,
+        );
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.keyX:
+        _nudgeSubtitleDelay(0.5);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.escape:
         if (_fullscreen) {
@@ -826,6 +847,129 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  /// Ajuste fino del desfase de subtítulos desde teclado (`z`/`Z`/`x`).
+  Future<void> _nudgeSubtitleDelay(double delta) async {
+    final next = (_subtitleDelay + delta).clamp(-60.0, 60.0);
+    if (next == _subtitleDelay) return;
+    await _applySubtitleDelay(next);
+    await _persistSubtitleDelay(next);
+    if (mounted) setState(() {});
+  }
+
+  /// Sincroniza eligiendo, en un diálogo con el texto del subtítulo, la línea
+  /// que se está diciendo: esa línea pasa a empezar en el instante actual.
+  Future<void> _openSubtitleSyncByText() async {
+    final track = _appliedSubtitleTrack ?? _selectedSubtitle;
+    if (track == null || _isAudio) return;
+    final l10n = AppLocalizations.of(context)!;
+    unawaited(EasyLoading.show(status: l10n.searchingSubtitles));
+    try {
+      final content = await _loadActiveSubtitleText(track);
+      if (!mounted) return;
+      final cues = content == null
+          ? const <SubtitleCue>[]
+          : parseSubtitleCues(content);
+      if (cues.isEmpty) {
+        debugPrint(
+          '[subtitle-sync] sin texto: data=${track.data} uri=${track.uri} '
+          'lang=${track.language} id=${track.id.length > 60 ? track.id.substring(0, 60) : track.id}',
+        );
+        unawaited(EasyLoading.showInfo(l10n.subtitleTextUnavailable));
+        return;
+      }
+      unawaited(EasyLoading.dismiss());
+      final openPosition = _player.state.position;
+      final selectedStart = await showSubtitleSyncDialog(
+        context,
+        cues: cues,
+        currentPosition: openPosition,
+      );
+      if (selectedStart == null || !mounted) return;
+      // La posición se lee justo tras tocar la línea (no al abrir el diálogo).
+      final now = _player.state.position;
+      final delay = ((now - selectedStart).inMilliseconds / 1000.0).clamp(
+        -60.0,
+        60.0,
+      );
+      await _applySubtitleDelay(delay);
+      await _persistSubtitleDelay(delay);
+      if (mounted) setState(() {});
+      unawaited(EasyLoading.showSuccess(l10n.subtitleApplied));
+    } catch (_) {
+      unawaited(EasyLoading.showError(l10n.couldNotLoadSubtitles));
+    }
+  }
+
+  /// Texto crudo del subtítulo activo: las pistas de datos lo llevan en `id`;
+  /// el resto se extrae como SRT vía la API autenticada de Jellyfin (por índice
+  /// de stream) y, si falla, descargando la URL de la pista externa.
+  Future<String?> _loadActiveSubtitleText(SubtitleTrack track) async {
+    if (track.data) return track.id;
+    final viaApi = await _loadSubtitleTextViaApi(track);
+    if (viaApi != null && viaApi.trim().isNotEmpty) return viaApi;
+    if (track.uri) {
+      try {
+        final res = await http.get(Uri.parse(track.id));
+        if (res.statusCode < 200 || res.statusCode >= 300) return null;
+        return _decodeSubtitle(res.bodyBytes);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  Future<String?> _loadSubtitleTextViaApi(SubtitleTrack track) async {
+    final client = ref.read(jellyfinClientProvider);
+    final source = _session.mediaSource;
+    if (client == null || source?.id == null) return null;
+    final stream = _findSubtitleStream(track);
+    final index = stream?.index;
+    if (index == null) return null;
+    // Se prueba SRT y, si el servidor no lo convierte, WebVTT.
+    for (final format in const ['srt', 'vtt']) {
+      try {
+        final res = await client.getSubtitleApi().getSubtitle(
+          routeItemId: _session.itemId,
+          routeMediaSourceId: source!.id!,
+          routeIndex: index,
+          routeFormat: format,
+        );
+        final bytes = res.data;
+        if (bytes == null || bytes.isEmpty) continue;
+        final text = _decodeSubtitle(bytes);
+        if (text.trim().isNotEmpty) return text;
+      } catch (_) {
+        // Prueba el siguiente formato.
+      }
+    }
+    return null;
+  }
+
+  /// Localiza el stream de subtítulo de Jellyfin correspondiente a la pista
+  /// activa: por URL de entrega, por idioma (prefiriendo externos) o el primero.
+  MediaStream? _findSubtitleStream(SubtitleTrack track) {
+    final streams = _session.mediaSource?.mediaStreams ?? const <MediaStream>[];
+    final url = track.id;
+    final wanted = normalizeToIso639_2(track.language);
+    MediaStream? byLanguage;
+    for (final stream in streams) {
+      if (stream.type != MediaStreamType.subtitle || stream.index == null) {
+        continue;
+      }
+      final delivery = stream.deliveryUrl;
+      if (delivery != null && delivery.isNotEmpty && url.contains(delivery)) {
+        return stream;
+      }
+      final matchesLanguage =
+          wanted.isEmpty || normalizeToIso639_2(stream.language) == wanted;
+      if (!matchesLanguage) continue;
+      if (track.uri && stream.isExternal == true) return stream;
+      byLanguage ??= stream;
+    }
+    return byLanguage;
   }
 
   void _close() {
@@ -1125,7 +1269,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         .toList();
     final externalSubMeta = jellySubs.where((s) {
       final d = s.deliveryUrl;
-      return d != null && d.isNotEmpty;
+      return (d != null && d.isNotEmpty) || s.isExternal == true;
     }).toList();
     final hasSubtitles =
         _tracks.subtitle.any((t) => t.id != 'auto' && t.id != 'no') ||
@@ -1136,7 +1280,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     final showSubtitleSearch = !hasSubtitles && !_isAudio;
 
     // El slider de sincronización solo con un subtítulo activo.
-    final hasActiveSubtitle = _selectedSubtitle != null &&
+    final hasActiveSubtitle =
+        _selectedSubtitle != null &&
         _selectedSubtitle!.id != 'no' &&
         _selectedSubtitle!.id != 'auto';
 
@@ -1260,6 +1405,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                         value: _subtitleDelay,
                         onChanged: _applySubtitleDelay,
                         onChangeEnd: _persistSubtitleDelay,
+                        onSyncByText: _openSubtitleSyncByText,
                       ),
                     Row(
                       children: [
@@ -1376,7 +1522,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                         const Spacer(),
                         _InlineVolume(
                           volume: effVolume,
-                          width: 140,
+                          width: 240,
                           onChanged: (v) {
                             // Tocar el volumen sale del trick-play (el modo
                             // lo tenía muteado; el gesto devuelve audio real).
@@ -1452,17 +1598,20 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       return;
     }
     if (id == 'no') {
+      _appliedSubtitleTrack = null;
       await _player.setSubtitleTrack(SubtitleTrack.no());
       return;
     }
     for (final t in [..._session.externalSubtitles, ..._downloadedSubtitles]) {
       if (id == t.id) {
+        _appliedSubtitleTrack = t;
         await _player.setSubtitleTrack(t);
         return;
       }
     }
     for (final t in _tracks.subtitle) {
       if (t.id == id) {
+        _appliedSubtitleTrack = t;
         await _player.setSubtitleTrack(t);
         return;
       }
@@ -1503,35 +1652,116 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     await _applyRemoteSubtitle(selected);
   }
 
-  /// Descarga los bytes del subtítulo remoto y lo aplica como pista activa.
+  /// Descarga un subtítulo remoto, lo guarda en el servidor (para que la API
+  /// de Jellyfin lo devuelva como pista externa del item) y lo aplica.
   Future<void> _applyRemoteSubtitle(RemoteSubtitleInfo info) async {
     final id = info.id;
     if (id == null || id.isEmpty) return;
     final client = ref.read(jellyfinClientProvider);
     if (client == null) return;
     final l10n = AppLocalizations.of(context)!;
+    final itemId = _session.itemId;
+    final knownSubtitles = _session.externalSubtitles.map((t) => t.id).toSet();
+    unawaited(EasyLoading.show(status: l10n.searchingSubtitles));
     try {
-      unawaited(EasyLoading.show(status: l10n.searchingSubtitles));
-      final res =
-          await client.getSubtitleApi().getRemoteSubtitles(subtitleId: id);
-      final bytes = res.data;
-      if (bytes == null || bytes.isEmpty) {
-        throw StateError('empty subtitle');
+      // Guardar en el servidor es lo que hace que la API devuelva el
+      // subtítulo como pista externa del item en próximas sesiones. Requiere
+      // permiso `SubtitleManagement`; si falla, se aplica solo en esta sesión.
+      final savedOnServer = await _persistRemoteSubtitle(client, itemId, id);
+      if (!mounted || _playerDisposed) {
+        unawaited(EasyLoading.dismiss());
+        return;
       }
-      final track = SubtitleTrack.data(
-        _decodeSubtitle(bytes),
-        title: info.name ?? info.providerName ?? l10n.subtitle,
-        language: info.threeLetterISOLanguageName,
-      );
-      _downloadedSubtitles.add(track);
+
+      SubtitleTrack? serverTrack;
+      if (savedOnServer) {
+        // Refresca la info de reproducción (y el detalle del item) para que la
+        // lista incluya la pista recién guardada. Invalidar mientras se
+        // reproduce no desmonta el player (`when` omite el loading en refresh).
+        ref.invalidate(playbackSessionProvider(itemId));
+        ref.invalidate(itemDetailProvider(itemId));
+        final refreshed = await ref.read(
+          playbackSessionProvider(itemId).future,
+        );
+        if (!mounted || _playerDisposed) {
+          unawaited(EasyLoading.dismiss());
+          return;
+        }
+        serverTrack = _pickNewExternalSubtitle(refreshed, knownSubtitles, info);
+      }
+
+      late final SubtitleTrack track;
+      if (serverTrack != null) {
+        track = serverTrack;
+      } else {
+        // Respaldo: bytes directos del proveedor, solo para esta sesión
+        // (sin permiso de gestión o si la pista aún no aparece en la API).
+        final res = await client.getSubtitleApi().getRemoteSubtitles(
+          subtitleId: id,
+        );
+        final bytes = res.data;
+        if (bytes == null || bytes.isEmpty) {
+          throw StateError('empty subtitle');
+        }
+        track = SubtitleTrack.data(
+          _decodeSubtitle(bytes),
+          title: info.name ?? info.providerName ?? l10n.subtitle,
+          language: info.threeLetterISOLanguageName,
+        );
+        _downloadedSubtitles.add(track);
+      }
+
       await _player.setSubtitleTrack(track);
+      _appliedSubtitleTrack = track;
       // Reaplica el desfase actual al subtítulo recién cargado.
       await _applySubtitleDelay(_subtitleDelay);
       if (mounted) setState(() {});
-      unawaited(EasyLoading.showSuccess(l10n.subtitleApplied));
+      unawaited(
+        EasyLoading.showSuccess(
+          savedOnServer ? l10n.subtitleApplied : l10n.subtitleAppliedLocalOnly,
+        ),
+      );
     } catch (_) {
       unawaited(EasyLoading.showError(l10n.couldNotLoadSubtitles));
     }
+  }
+
+  /// Guarda el subtítulo remoto en el servidor. Devuelve `false` si el usuario
+  /// carece del permiso `SubtitleManagement` o el proveedor falla.
+  Future<bool> _persistRemoteSubtitle(
+    JellyfinDart client,
+    String itemId,
+    String subtitleId,
+  ) async {
+    try {
+      await client.getSubtitleApi().downloadRemoteSubtitles(
+        itemId: itemId,
+        subtitleId: subtitleId,
+      );
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Elige la pista externa nueva de la sesión refrescada (la que no estaba
+  /// antes), priorizando el idioma solicitado.
+  SubtitleTrack? _pickNewExternalSubtitle(
+    PlaybackSession? session,
+    Set<String> knownIds,
+    RemoteSubtitleInfo info,
+  ) {
+    final fresh = (session?.externalSubtitles ?? const <SubtitleTrack>[])
+        .where((t) => !knownIds.contains(t.id))
+        .toList();
+    if (fresh.isEmpty) return null;
+    final wanted = normalizeToIso639_2(info.threeLetterISOLanguageName);
+    if (wanted.isNotEmpty) {
+      for (final track in fresh.reversed) {
+        if (normalizeToIso639_2(track.language) == wanted) return track;
+      }
+    }
+    return fresh.last;
   }
 
   /// Decodifica los bytes del subtítulo probando UTF-8 y cayendo a latin-1.
@@ -1562,10 +1792,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   Future<void> _persistSubtitleDelay(double seconds) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setDouble(
-        _subtitleDelayPrefKey(_session.itemId),
-        seconds,
-      );
+      await prefs.setDouble(_subtitleDelayPrefKey(_session.itemId), seconds);
     } catch (_) {}
   }
 
@@ -5218,11 +5445,7 @@ class _SearchSubtitlesButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
-              Icons.subtitles_outlined,
-              color: Colors.white,
-              size: 18,
-            ),
+            const Icon(Icons.subtitles_outlined, color: Colors.white, size: 18),
             const SizedBox(width: 6),
             Flexible(
               child: Text(
@@ -5249,11 +5472,13 @@ class _SubtitleSyncSlider extends StatefulWidget {
     required this.value,
     required this.onChanged,
     required this.onChangeEnd,
+    required this.onSyncByText,
   });
 
   final double value;
   final ValueChanged<double> onChanged;
   final ValueChanged<double> onChangeEnd;
+  final VoidCallback onSyncByText;
 
   @override
   State<_SubtitleSyncSlider> createState() => _SubtitleSyncSliderState();
@@ -5282,15 +5507,24 @@ class _SubtitleSyncSliderState extends State<_SubtitleSyncSlider> {
     widget.onChangeEnd(0);
   }
 
+  /// Ajuste fino de ±0,5 s (botones), con límite ±60 s y persistencia.
+  void _nudge(double delta) {
+    final next = (_value + delta).clamp(-60.0, 60.0);
+    if (next == _value) return;
+    setState(() => _value = next);
+    widget.onChanged(next);
+    widget.onChangeEnd(next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final value = _value.clamp(-10.0, 10.0);
+    final value = _value.clamp(-60.0, 60.0);
     final sign = value > 0.05
         ? '+'
         : value < -0.05
-            ? '−'
-            : '';
+        ? '−'
+        : '';
     final offset = '$sign${value.abs().toStringAsFixed(1)} s';
     return Row(
       children: [
@@ -5298,12 +5532,20 @@ class _SubtitleSyncSliderState extends State<_SubtitleSyncSlider> {
           message: l10n.subtitleSync,
           child: const Icon(Icons.sync, color: Colors.white70, size: 18),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
+        IconButton(
+          tooltip: l10n.subtitleDelayEarlier,
+          onPressed: () => _nudge(-0.5),
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          color: Colors.white70,
+          icon: const Icon(Icons.remove),
+        ),
         Expanded(
           child: Slider(
-            min: -10,
-            max: 10,
-            divisions: 200,
+            min: -60,
+            max: 60,
+            divisions: 1200,
             value: value,
             onChanged: _setValue,
             onChangeEnd: (v) => widget.onChangeEnd(v),
@@ -5312,8 +5554,16 @@ class _SubtitleSyncSliderState extends State<_SubtitleSyncSlider> {
             thumbColor: Colors.white,
           ),
         ),
+        IconButton(
+          tooltip: l10n.subtitleDelayLater,
+          onPressed: () => _nudge(0.5),
+          visualDensity: VisualDensity.compact,
+          iconSize: 20,
+          color: Colors.white70,
+          icon: const Icon(Icons.add),
+        ),
         SizedBox(
-          width: 52,
+          width: 48,
           child: Text(
             offset,
             textAlign: TextAlign.right,
@@ -5321,9 +5571,20 @@ class _SubtitleSyncSliderState extends State<_SubtitleSyncSlider> {
           ),
         ),
         IconButton(
+          tooltip: l10n.subtitleSyncByText,
+          onPressed: widget.onSyncByText,
+          visualDensity: VisualDensity.compact,
+          iconSize: 18,
+          color: Colors.white70,
+          icon: const Icon(Icons.list_alt),
+        ),
+        IconButton(
           tooltip: l10n.subtitleSyncReset,
-          icon: const Icon(Icons.restart_alt, color: Colors.white70, size: 18),
           onPressed: _value == 0 ? null : _reset,
+          visualDensity: VisualDensity.compact,
+          iconSize: 18,
+          color: Colors.white70,
+          icon: const Icon(Icons.restart_alt),
         ),
       ],
     );
