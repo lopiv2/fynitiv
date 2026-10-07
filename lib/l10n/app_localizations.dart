@@ -3775,6 +3775,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Chrome'**
   String get coverMaterialChrome;
+
+  /// No description provided for @searchSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Search subtitles'**
+  String get searchSubtitles;
+
+  /// No description provided for @searchSubtitlesMenu.
+  ///
+  /// In en, this message translates to:
+  /// **'Search subtitles…'**
+  String get searchSubtitlesMenu;
+
+  /// No description provided for @subtitleLanguage.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle language'**
+  String get subtitleLanguage;
+
+  /// No description provided for @searchingSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Searching subtitles…'**
+  String get searchingSubtitles;
+
+  /// No description provided for @subtitleDownloadsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} downloads'**
+  String subtitleDownloadsCount(int count);
+
+  /// No description provided for @subtitleApplied.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle applied'**
+  String get subtitleApplied;
+
+  /// No description provided for @couldNotLoadSubtitles.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not load subtitles'**
+  String get couldNotLoadSubtitles;
+
+  /// No description provided for @remoteSubtitlesUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Your server doesn\'t allow remote subtitles. Enable the OpenSubtitles plugin in Jellyfin.'**
+  String get remoteSubtitlesUnavailable;
+
+  /// No description provided for @subtitleSync.
+  ///
+  /// In en, this message translates to:
+  /// **'Subtitle sync'**
+  String get subtitleSync;
+
+  /// No description provided for @subtitleSyncOffset.
+  ///
+  /// In en, this message translates to:
+  /// **'Offset: {seconds}'**
+  String subtitleSyncOffset(String seconds);
+
+  /// No description provided for @subtitleSyncReset.
+  ///
+  /// In en, this message translates to:
+  /// **'Reset sync'**
+  String get subtitleSyncReset;
 }
 
 class _AppLocalizationsDelegate

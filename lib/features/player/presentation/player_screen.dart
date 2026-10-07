@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:audio_flux/audio_flux.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -47,6 +49,8 @@ import '../../../l10n/app_localizations.dart';
 import '../../library/application/image_url.dart';
 import '../../music/application/music_player_provider.dart';
 import '../application/playback_provider.dart';
+import '../../subtitles/domain/subtitle_language.dart';
+import '../../subtitles/presentation/subtitle_search_sheet.dart';
 
 /// Pantalla de reproducción a pantalla completa (estilo streaming).
 class PlayerScreen extends ConsumerWidget {
@@ -115,6 +119,13 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   AudioTrack? _selectedAudio;
   SubtitleTrack? _selectedSubtitle;
 
+  /// Subtítulos descargados en runtime (p. ej. desde el plugin de
+  /// OpenSubtitles del servidor) para poder reseleccionarlos en la sesión.
+  final List<SubtitleTrack> _downloadedSubtitles = [];
+
+  /// Desfase subtítulo↔audio en segundos (propiedad `sub-delay` de mpv).
+  double _subtitleDelay = 0;
+
   /// La restauración del audio guardado se intenta una sola vez por
   /// sesión, cuando mpv ya informa de las pistas.
   bool _audioRestored = false;
@@ -130,6 +141,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
           .toList();
 
   static String _audioPrefKey(String itemId) => 'audio_track_index_$itemId';
+
+  /// Valor centinela del ítem de menú "Buscar subtítulos…".
+  static const String _kSearchSubtitlesValue = '__search_subtitles__';
   bool _dragging = false;
   bool _fullscreen = false;
 
@@ -517,6 +531,15 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
       }
     } catch (_) {}
     try {
+      // El arranque del stream puede tardar más que el `network-timeout` por
+      // defecto de media_kit (5s): sin esto, mpv aborta la conexión con el
+      // servidor aunque responda bien. Mismo ajuste que en Live TV.
+      final networkPlatform = _player.platform;
+      if (networkPlatform is NativePlayer) {
+        try {
+          await networkPlatform.setProperty('network-timeout', '30');
+        } catch (_) {}
+      }
       await _player.open(
         Media(
           _session.streamUrl,
@@ -536,6 +559,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         await _player.setVolume(_volume);
       } catch (_) {}
       if (mounted) setState(() {});
+      // Restaura el desfase de subtítulos guardado para este ítem.
+      unawaited(_restoreSubtitleDelay());
       // Si venía del mini, miniPos tiene prioridad sobre session.start
       if (miniPos != null && miniPos > Duration.zero) {
         try {
@@ -1104,7 +1129,16 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     }).toList();
     final hasSubtitles =
         _tracks.subtitle.any((t) => t.id != 'auto' && t.id != 'no') ||
-        _session.externalSubtitles.isNotEmpty;
+        _session.externalSubtitles.isNotEmpty ||
+        _downloadedSubtitles.isNotEmpty;
+
+    // El botón de búsqueda aparece en vídeo cuando aún no hay subtítulos.
+    final showSubtitleSearch = !hasSubtitles && !_isAudio;
+
+    // El slider de sincronización solo con un subtítulo activo.
+    final hasActiveSubtitle = _selectedSubtitle != null &&
+        _selectedSubtitle!.id != 'no' &&
+        _selectedSubtitle!.id != 'auto';
 
     // Estado SoLoud para audio
     final soloudState = _isAudio ? ref.watch(soloudMusicProvider) : null;
@@ -1221,6 +1255,12 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    if (hasActiveSubtitle)
+                      _SubtitleSyncSlider(
+                        value: _subtitleDelay,
+                        onChanged: _applySubtitleDelay,
+                        onChangeEnd: _persistSubtitleDelay,
+                      ),
                     Row(
                       children: [
                         Text(
@@ -1366,6 +1406,12 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                             onSelected: _selectSubtitle,
                           ),
                           const SizedBox(width: 4),
+                        ] else if (showSubtitleSearch) ...[
+                          _SearchSubtitlesButton(
+                            label: l10n.searchSubtitles,
+                            onPressed: _openSubtitleSearch,
+                          ),
+                          const SizedBox(width: 4),
                         ],
                         if (audioTracks.length > 1) ...[
                           _AudioButton(
@@ -1401,11 +1447,15 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   }
 
   Future<void> _selectSubtitle(String id) async {
+    if (id == _kSearchSubtitlesValue) {
+      await _openSubtitleSearch();
+      return;
+    }
     if (id == 'no') {
       await _player.setSubtitleTrack(SubtitleTrack.no());
       return;
     }
-    for (final t in _session.externalSubtitles) {
+    for (final t in [..._session.externalSubtitles, ..._downloadedSubtitles]) {
       if (id == t.id) {
         await _player.setSubtitleTrack(t);
         return;
@@ -1417,6 +1467,117 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         return;
       }
     }
+  }
+
+  /// Idiomas candidatos para la búsqueda: pistas de audio/subtítulo del item
+  /// y el locale de la app (normalizados a ISO 639-2/B).
+  List<String> _subtitleSearchLanguages() {
+    final codes = <String>[];
+    for (final s
+        in _session.mediaSource?.mediaStreams ?? const <MediaStream>[]) {
+      if (s.type != MediaStreamType.audio &&
+          s.type != MediaStreamType.subtitle) {
+        continue;
+      }
+      final code = normalizeToIso639_2(s.language);
+      if (code.isNotEmpty && !codes.contains(code)) codes.add(code);
+    }
+    final locale = Localizations.localeOf(context);
+    final appCode = normalizeToIso639_2(locale.languageCode);
+    if (appCode.isNotEmpty && !codes.contains(appCode)) codes.add(appCode);
+    return codes;
+  }
+
+  /// Abre la búsqueda de subtítulos remotos (plugin del servidor) y aplica el
+  /// resultado elegido.
+  Future<void> _openSubtitleSearch() async {
+    if (_isAudio) return;
+    final client = ref.read(jellyfinClientProvider);
+    if (client == null) return;
+    final selected = await showSubtitleSearchSheet(
+      context,
+      itemId: _session.itemId,
+      languageCodes: _subtitleSearchLanguages(),
+    );
+    if (selected == null || !mounted || _playerDisposed) return;
+    await _applyRemoteSubtitle(selected);
+  }
+
+  /// Descarga los bytes del subtítulo remoto y lo aplica como pista activa.
+  Future<void> _applyRemoteSubtitle(RemoteSubtitleInfo info) async {
+    final id = info.id;
+    if (id == null || id.isEmpty) return;
+    final client = ref.read(jellyfinClientProvider);
+    if (client == null) return;
+    final l10n = AppLocalizations.of(context)!;
+    try {
+      unawaited(EasyLoading.show(status: l10n.searchingSubtitles));
+      final res =
+          await client.getSubtitleApi().getRemoteSubtitles(subtitleId: id);
+      final bytes = res.data;
+      if (bytes == null || bytes.isEmpty) {
+        throw StateError('empty subtitle');
+      }
+      final track = SubtitleTrack.data(
+        _decodeSubtitle(bytes),
+        title: info.name ?? info.providerName ?? l10n.subtitle,
+        language: info.threeLetterISOLanguageName,
+      );
+      _downloadedSubtitles.add(track);
+      await _player.setSubtitleTrack(track);
+      // Reaplica el desfase actual al subtítulo recién cargado.
+      await _applySubtitleDelay(_subtitleDelay);
+      if (mounted) setState(() {});
+      unawaited(EasyLoading.showSuccess(l10n.subtitleApplied));
+    } catch (_) {
+      unawaited(EasyLoading.showError(l10n.couldNotLoadSubtitles));
+    }
+  }
+
+  /// Decodifica los bytes del subtítulo probando UTF-8 y cayendo a latin-1.
+  String _decodeSubtitle(Uint8List bytes) {
+    try {
+      return utf8.decode(bytes);
+    } catch (_) {
+      return latin1.decode(bytes, allowInvalid: true);
+    }
+  }
+
+  static String _subtitleDelayPrefKey(String itemId) =>
+      'subtitle_delay_$itemId';
+
+  /// Aplica el desfase subtítulo↔audio (propiedad `sub-delay` de mpv).
+  Future<void> _applySubtitleDelay(double seconds) async {
+    _subtitleDelay = seconds;
+    if (_playerDisposed) return;
+    final platform = _player.platform;
+    if (platform is NativePlayer) {
+      try {
+        await platform.setProperty('sub-delay', seconds.toStringAsFixed(2));
+      } catch (_) {}
+    }
+  }
+
+  /// Persiste el desfase por ítem para reanudarlo en próximas sesiones.
+  Future<void> _persistSubtitleDelay(double seconds) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(
+        _subtitleDelayPrefKey(_session.itemId),
+        seconds,
+      );
+    } catch (_) {}
+  }
+
+  /// Restaura el desfase guardado del ítem (una vez por sesión).
+  Future<void> _restoreSubtitleDelay() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getDouble(_subtitleDelayPrefKey(_session.itemId));
+      if (saved == null || !mounted || _playerDisposed) return;
+      await _applySubtitleDelay(saved);
+      if (mounted) setState(() {});
+    } catch (_) {}
   }
 
   Future<void> _selectAudio(String id) async {
@@ -5007,11 +5168,164 @@ class _SubtitleButton extends StatelessWidget {
               ),
             ),
           ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: _PlayerViewState._kSearchSubtitlesValue,
+          child: Row(
+            children: [
+              const Icon(Icons.search, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  l10n.searchSubtitlesMenu,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+        ),
       ],
       child: const Padding(
         padding: EdgeInsets.all(8),
         child: Icon(Icons.closed_caption, color: Colors.white),
       ),
+    );
+  }
+}
+
+/// Chip que aparece cuando el contenido no tiene subtítulos y ofrece
+/// buscarlos y descargarlos del servidor.
+class _SearchSubtitlesButton extends StatelessWidget {
+  const _SearchSubtitlesButton({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white54),
+          color: Colors.white10,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.subtitles_outlined,
+              color: Colors.white,
+              size: 18,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Control inline para sincronizar los subtítulos con el audio (`sub-delay`).
+class _SubtitleSyncSlider extends StatefulWidget {
+  const _SubtitleSyncSlider({
+    required this.value,
+    required this.onChanged,
+    required this.onChangeEnd,
+  });
+
+  final double value;
+  final ValueChanged<double> onChanged;
+  final ValueChanged<double> onChangeEnd;
+
+  @override
+  State<_SubtitleSyncSlider> createState() => _SubtitleSyncSliderState();
+}
+
+class _SubtitleSyncSliderState extends State<_SubtitleSyncSlider> {
+  late double _value = widget.value;
+
+  @override
+  void didUpdateWidget(covariant _SubtitleSyncSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Sincroniza si el valor cambia desde fuera (p. ej. restauración).
+    if (widget.value != oldWidget.value) {
+      _value = widget.value;
+    }
+  }
+
+  void _setValue(double v) {
+    setState(() => _value = v);
+    widget.onChanged(v);
+  }
+
+  void _reset() {
+    setState(() => _value = 0);
+    widget.onChanged(0);
+    widget.onChangeEnd(0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final value = _value.clamp(-10.0, 10.0);
+    final sign = value > 0.05
+        ? '+'
+        : value < -0.05
+            ? '−'
+            : '';
+    final offset = '$sign${value.abs().toStringAsFixed(1)} s';
+    return Row(
+      children: [
+        Tooltip(
+          message: l10n.subtitleSync,
+          child: const Icon(Icons.sync, color: Colors.white70, size: 18),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Slider(
+            min: -10,
+            max: 10,
+            divisions: 200,
+            value: value,
+            onChanged: _setValue,
+            onChangeEnd: (v) => widget.onChangeEnd(v),
+            activeColor: Colors.white,
+            inactiveColor: Colors.white24,
+            thumbColor: Colors.white,
+          ),
+        ),
+        SizedBox(
+          width: 52,
+          child: Text(
+            offset,
+            textAlign: TextAlign.right,
+            style: const TextStyle(color: Colors.white70, fontSize: 12),
+          ),
+        ),
+        IconButton(
+          tooltip: l10n.subtitleSyncReset,
+          icon: const Icon(Icons.restart_alt, color: Colors.white70, size: 18),
+          onPressed: _value == 0 ? null : _reset,
+        ),
+      ],
     );
   }
 }

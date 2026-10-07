@@ -1998,4 +1998,42 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get coverMaterialChrome => 'Chrome';
+
+  @override
+  String get searchSubtitles => 'Search subtitles';
+
+  @override
+  String get searchSubtitlesMenu => 'Search subtitles…';
+
+  @override
+  String get subtitleLanguage => 'Subtitle language';
+
+  @override
+  String get searchingSubtitles => 'Searching subtitles…';
+
+  @override
+  String subtitleDownloadsCount(int count) {
+    return '$count downloads';
+  }
+
+  @override
+  String get subtitleApplied => 'Subtitle applied';
+
+  @override
+  String get couldNotLoadSubtitles => 'Could not load subtitles';
+
+  @override
+  String get remoteSubtitlesUnavailable =>
+      'Your server doesn\'t allow remote subtitles. Enable the OpenSubtitles plugin in Jellyfin.';
+
+  @override
+  String get subtitleSync => 'Subtitle sync';
+
+  @override
+  String subtitleSyncOffset(String seconds) {
+    return 'Offset: $seconds';
+  }
+
+  @override
+  String get subtitleSyncReset => 'Reset sync';
 }

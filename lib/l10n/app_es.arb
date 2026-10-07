@@ -818,5 +818,30 @@
   "coverMaterialSoftTouch": "Soft-touch",
   "coverMaterialGlossy": "Plástico brillante",
   "coverMaterialBrushedMetal": "Metal cepillado",
-  "coverMaterialChrome": "Cromo"
+  "coverMaterialChrome": "Cromo",
+  "searchSubtitles": "Buscar subtítulos",
+  "searchSubtitlesMenu": "Buscar subtítulos…",
+  "subtitleLanguage": "Idioma del subtítulo",
+  "searchingSubtitles": "Buscando subtítulos…",
+  "subtitleDownloadsCount": "{count} descargas",
+  "@subtitleDownloadsCount": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "subtitleApplied": "Subtítulo aplicado",
+  "couldNotLoadSubtitles": "No se pudieron cargar los subtítulos",
+  "remoteSubtitlesUnavailable": "Tu servidor no permite subtítulos remotos. Activa el plugin OpenSubtitles en Jellyfin.",
+  "subtitleSync": "Sincronización de subtítulos",
+  "subtitleSyncOffset": "Desfase: {seconds}",
+  "@subtitleSyncOffset": {
+    "placeholders": {
+      "seconds": {
+        "type": "String"
+      }
+    }
+  },
+  "subtitleSyncReset": "Restablecer sincronización"
 }
