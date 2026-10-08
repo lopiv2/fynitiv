@@ -14,6 +14,7 @@ import '../../../l10n/app_localizations.dart';
 import '../application/library_providers.dart';
 import 'widgets/content_row.dart';
 import 'widgets/featured_slider.dart';
+import 'widgets/mood_suggestions_grid.dart';
 
 /// Dashboard de la app: filas de contenido tipo Prime/Disney.
 class HomeScreen extends ConsumerWidget {
@@ -112,8 +113,7 @@ class HomeScreen extends ConsumerWidget {
     // Tap según el scroll: detalle o reproducción directa (default).
     void Function(BaseItemDto) tapFor(HomeScroll? cfg) {
       if (cfg?.tapAction == HomeScrollTapAction.details) {
-        return (item) =>
-            context.push('/home/details/${item.id}', extra: item);
+        return (item) => context.push('/home/details/${item.id}', extra: item);
       }
       return (item) => context.push('/player/${item.id}', extra: item);
     }
@@ -160,8 +160,8 @@ class HomeScreen extends ConsumerWidget {
       final isBack = cfg?.cardType == HomeScrollCardType.backdrop
           ? true
           : cfg?.cardType == HomeScrollCardType.poster
-              ? false
-              : isBackdropForContinue(cfg);
+          ? false
+          : isBackdropForContinue(cfg);
       final isNextPoster = isNextPosterFor(isBack);
       final hasNext = rowCursor < visibleBackdrops.length - 1;
       final w = ContentRow(
@@ -253,6 +253,7 @@ class HomeScreen extends ConsumerWidget {
       return [
         if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
           buildFeaturedSlider(),
+        const MoodSuggestionsGrid(),
         if ((skin?.showContinueRow ?? true) && (resume.value ?? []).isNotEmpty)
           buildContinueRow(),
         if (nextUpFiltered.isNotEmpty) buildUpNextRow(),
@@ -432,7 +433,9 @@ class HomeScreen extends ConsumerWidget {
               final items = recentSort == null
                   ? ref.watch(recentLibraryItemsProvider(viewId)).value ??
                         const []
-                  : ref.watch(recentRowItemsProvider((viewId, recentSort))).value ??
+                  : ref
+                            .watch(recentRowItemsProvider((viewId, recentSort)))
+                            .value ??
                         const [];
               if (items.isEmpty) continue;
               customBackdrops.add(useBackdrop);
@@ -497,6 +500,7 @@ class HomeScreen extends ConsumerWidget {
             if (showBanner && (latestBanner.value?.isNotEmpty ?? false)) {
               out.add(buildFeaturedSlider());
             }
+            out.add(const MoodSuggestionsGrid());
             break;
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;
@@ -508,12 +512,12 @@ class HomeScreen extends ConsumerWidget {
             break;
           case LayoutSectionType.recent:
             final recentScroll = section.scroll;
-            final useRecentBackdrop = recentScroll?.cardType ==
-                    HomeScrollCardType.backdrop
+            final useRecentBackdrop =
+                recentScroll?.cardType == HomeScrollCardType.backdrop
                 ? true
                 : recentScroll?.cardType == HomeScrollCardType.poster
-                    ? false
-                    : useBackdrop;
+                ? false
+                : useBackdrop;
             for (final type in const [
               CollectionType.music,
               CollectionType.movies,
@@ -531,13 +535,16 @@ class HomeScreen extends ConsumerWidget {
                     builder: (context) {
                       final recentSort = section.scroll?.sort;
                       final items = recentSort == null
-                          ? ref.watch(recentLibraryItemsProvider(viewId)).value ??
+                          ? ref
+                                    .watch(recentLibraryItemsProvider(viewId))
+                                    .value ??
                                 const []
                           : ref
                                     .watch(
-                                      recentRowItemsProvider(
-                                        (viewId, recentSort),
-                                      ),
+                                      recentRowItemsProvider((
+                                        viewId,
+                                        recentSort,
+                                      )),
                                     )
                                     .value ??
                                 const [];
@@ -583,8 +590,7 @@ class HomeScreen extends ConsumerWidget {
                         hideYear: recentScroll?.hideYear ?? false,
                         showHoverOverlay:
                             recentScroll?.showHoverOverlay ?? true,
-                        showPlayIcon:
-                            recentScroll?.showPlayIcon ?? true,
+                        showPlayIcon: recentScroll?.showPlayIcon ?? true,
                         highlightTitleOnHover:
                             recentScroll?.highlightTitleOnHover ?? false,
                         cardBorderRadius: recentScroll?.cardBorderRadius,
@@ -593,9 +599,9 @@ class HomeScreen extends ConsumerWidget {
                         hasNext: rowCursor < visibleBackdrops.length - 1,
                         onSeeMore: (recentScroll?.showSeeMore ?? true)
                             ? () => context.push(
-                                  '/library/${view.id}',
-                                  extra: view.name,
-                                )
+                                '/library/${view.id}',
+                                extra: view.name,
+                              )
                             : null,
                         onItemTap: isSeriesView
                             ? goSeriesDetail
@@ -619,10 +625,10 @@ class HomeScreen extends ConsumerWidget {
             final libraryScroll = section.scroll;
             final useLibraryBackdrop =
                 libraryScroll?.cardType == HomeScrollCardType.backdrop
-                    ? true
-                    : libraryScroll?.cardType == HomeScrollCardType.poster
-                        ? false
-                        : useBackdrop;
+                ? true
+                : libraryScroll?.cardType == HomeScrollCardType.poster
+                ? false
+                : useBackdrop;
             for (final type in const [
               CollectionType.music,
               CollectionType.movies,
@@ -644,9 +650,10 @@ class HomeScreen extends ConsumerWidget {
                                 const []
                           : ref
                                     .watch(
-                                      libraryRowItemsProvider(
-                                        (viewId, librarySort),
-                                      ),
+                                      libraryRowItemsProvider((
+                                        viewId,
+                                        librarySort,
+                                      )),
                                     )
                                     .value ??
                                 const [];
@@ -692,8 +699,7 @@ class HomeScreen extends ConsumerWidget {
                         hideYear: libraryScroll?.hideYear ?? false,
                         showHoverOverlay:
                             libraryScroll?.showHoverOverlay ?? true,
-                        showPlayIcon:
-                            libraryScroll?.showPlayIcon ?? true,
+                        showPlayIcon: libraryScroll?.showPlayIcon ?? true,
                         highlightTitleOnHover:
                             libraryScroll?.highlightTitleOnHover ?? false,
                         cardBorderRadius: libraryScroll?.cardBorderRadius,
@@ -702,9 +708,9 @@ class HomeScreen extends ConsumerWidget {
                         hasNext: rowCursor < visibleBackdrops.length - 1,
                         onSeeMore: (libraryScroll?.showSeeMore ?? true)
                             ? () => context.push(
-                                  '/library/${view.id}',
-                                  extra: view.name,
-                                )
+                                '/library/${view.id}',
+                                extra: view.name,
+                              )
                             : null,
                         onItemTap: isSeriesView
                             ? goSeriesDetail
@@ -729,10 +735,10 @@ class HomeScreen extends ConsumerWidget {
             final newReleasesScroll = section.scroll;
             final useNewReleasesBackdrop =
                 newReleasesScroll?.cardType == HomeScrollCardType.backdrop
-                    ? true
-                    : newReleasesScroll?.cardType == HomeScrollCardType.poster
-                        ? false
-                        : isBackdropForContinue(newReleasesScroll);
+                ? true
+                : newReleasesScroll?.cardType == HomeScrollCardType.poster
+                ? false
+                : isBackdropForContinue(newReleasesScroll);
             out.add(
               Builder(
                 builder: (context) {
@@ -768,8 +774,7 @@ class HomeScreen extends ConsumerWidget {
                     hideYear: newReleasesScroll?.hideYear ?? false,
                     showHoverOverlay:
                         newReleasesScroll?.showHoverOverlay ?? true,
-                    showPlayIcon:
-                        newReleasesScroll?.showPlayIcon ?? true,
+                    showPlayIcon: newReleasesScroll?.showPlayIcon ?? true,
                     highlightTitleOnHover:
                         newReleasesScroll?.highlightTitleOnHover ?? false,
                     cardBorderRadius: newReleasesScroll?.cardBorderRadius,
@@ -830,7 +835,8 @@ class HomeScreen extends ConsumerWidget {
                     hasNext: rowCursor < visibleBackdrops.length - 1,
                     onSeeMore: s.showSeeMore
                         ? () {
-                            final allViews = views.value ?? const <BaseItemDto>[];
+                            final allViews =
+                                views.value ?? const <BaseItemDto>[];
                             String targetViewId = '';
                             for (final kind in s.types) {
                               final mapped = _collectionTypeForKind(kind);

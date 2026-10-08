@@ -1,27 +1,26 @@
-# Tamaño del logo del featured slider acorde a la plataforma (TV)
+# Tamaño y posición del logo del featured slider (TV / resoluciones)
 
 ## Intent
-En los banners del featured slider (home y VOD) los logos/títulos se ven
-demasiado grandes en TV. El resto del contenido (texto, botones) ya recibe un
-ajuste por plataforma, pero el logo usa solo `contentScale`, por lo que queda
-desproporcionado en TV.
+En los banners del featured slider (home y VOD):
+1. Los logos/títulos se veían demasiado grandes en TV (el logo no compartía el
+   ajuste por plataforma del resto del contenido).
+2. En móvil/tablet el logo no aparecía (el banner es bajo y los offsets fijos
+   dejaban la zona central casi sin altura; el logo se recortaba).
+3. Faltaba hueco entre el logo y la fila de calificación/géneros de debajo
+   (skin Disney, `inlineMeta`), y al forzarlo se recortaba el logo.
 
-Bug relacionado (mismo banner): en móvil/tablet el logo no aparecía en absoluto
-porque el banner es bajo y los offsets fijos de la columna (top 134 / bottom 130)
-dejaban la zona central con ~16px, recortando el logo.
-
-Se sustituyen los valores fijos/mágicos por dimensionado **proporcional al
-tamaño de pantalla vía `MediaQuery.sizeOf`**, con un helper reutilizable.
+Todo se resuelve dimensionando por `MediaQuery` y unificando logo + meta en una
+sola columna (abajo-izquierda; centrada verticalmente en TV).
 
 ## Scope
-- In: helper `uiScaleFor(Size)` en `core/constants/ui_constants.dart`;
-  `_buildLogoSlide` escala el logo por `uiScaleFor(MediaQuery.sizeOf(context))`
-  (+ factor TV); offsets verticales de la columna del logo y de la meta
-  (`screenInset = alturaPantalla * 0.08`) en `featured_slider.dart`; hueco
-  escalable `logoMetaGap` entre el logo y la fila de calificación/géneros
-  (inlineMeta de Disney) más reserva del alto de la meta.
-- Out: escala `s` del resto del contenido (valor manual del usuario `0.22` en
-  TV), valores de skin (`bannerLogoMaxHeight`, `bannerLogoWidthFactor`,
+- In:
+  - `core/constants/ui_constants.dart`: helper `uiScaleFor(Size)`.
+  - `featured_slider.dart`: logo escalado por tamaño de pantalla; offsets
+    verticales proporcionales (`screenInset`); bloque logo + meta en una sola
+    `Column` con `SizedBox(logoMetaGap)` explícito, `FittedBox(scaleDown)` como
+    red de seguridad; `_NewBadge` escalable; escala de contenido y posición
+    específicas de TV.
+- Out: valores de skin (`bannerLogoMaxHeight`, `bannerLogoWidthFactor`,
   `bannerContentScale`), resto del banner.
 
 ## Checklist
@@ -29,30 +28,27 @@ tamaño de pantalla vía `MediaQuery.sizeOf`**, con un helper reutilizable.
 - [x] Helper `uiScaleFor(Size)` reutilizable con MediaQuery
 - [x] Logo escalado por tamaño de pantalla (+ factor TV)
 - [x] Offsets verticales proporcionales a la altura de pantalla
-- [x] Hueco escalable entre logo y meta inferior
+- [x] Logo + meta en una sola columna con hueco explícito (sin recorte)
+- [x] `FittedBox(scaleDown)` + `_NewBadge` escalable (robusto a cualquier resolución)
 - [x] `flutter analyze` limpio
 
 ## Evidence
 - `ui_constants.dart`: `uiScaleFor(Size)` combina ancho/alto con referencia
-  1600×900 y toma el menor ratio, acotado a [0.6, 1.0]. Reutilizable.
-- `_buildLogoSlide`: `s = contentScale * uiScaleFor(MediaQuery.sizeOf(context)) *
-  (isTv ? _kTvLogoScale : 1.0)`. Tamaños resultantes (logo base 110):
-  móvil/tablet ≈66, desktop ≈88, TV ≈79.
-- Offsets: `screenInset = (alturaPantalla * 0.08).clamp(40,140)`; en móvil 800 →
-  64 (antes 134/130 → zona útil ~16px, ahora ~152px). TV mantiene 80/24.
-- Separación logo↔meta: `logoBottom = metaBottom + metaRowHeight +
-  overviewReserve + logoMetaGap`, con `logoMetaGap = (28 * ui).clamp(16,40)`
-  (móvil ≈17, desktop ≈22, TV 28), `metaRowHeight` 30 (inline) / 26 (normal) y
-  `overviewReserve` 66 cuando el skin muestra la sinopsis bajo la meta. El
-  `bottom` del logo se ancla por encima de todo el bloque inferior + hueco, así
-  el espacio entre logo y la fila edad/año • géneros (Disney, inlineMeta) queda
-  garantizado y escala con la pantalla.
+  1600×900, toma el menor ratio y lo acota a [0.5, 1.0].
+- `_buildLogoSlide(constraints, ui)`: `s = contentScale * ui`. `ui` se calcula
+  en `build` con `uiScaleFor(mq, max: isTv ? 1.2 : 1.0)` (en TV crece hasta 1.2).
+- Escala del contenido del banner: `s = contentScale * (isTv ? 1.0 : 1.5)`
+  (antes en TV era `0.22`, que dejaba todo diminuto).
+- `screenInset = (alturaPantalla * 0.08).clamp(0, 140)` para `top`.
+- Un único `Positioned` (`featured_slider.dart`): `Align(bottomLeft)` (en TV
+  `centerLeft`, para que el bloque no quede pegado abajo) → `FittedBox(scaleDown)`
+  → `SizedBox(width=area)` → `Column(min)` con [logo/acciones/descripción] +
+  `SizedBox(logoMetaGap)` + [meta]. El hueco es un `SizedBox` real.
+  - `logoMetaGap = (28 * ui).clamp(16, 40)`.
+  - `_NewBadge` acepta `scale` (se le pasa `ui`).
 - `flutter analyze` → `No issues found!`.
+- Validado por el usuario en app: todo correcto en móvil/tablet/desktop y TV.
 
 ## Next
-- Validar visualmente el hueco logo↔calificación/géneros en el skin Disney
-  (móvil, tablet, desktop y TV). Ajustables: el `28` de `logoMetaGap`, el `0.08`
-  de `screenInset` y `uiScaleFor` (referencias/rango).
-
-
+- Cerrado. No hay pasos pendientes.
 

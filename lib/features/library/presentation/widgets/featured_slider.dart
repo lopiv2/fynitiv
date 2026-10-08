@@ -27,11 +27,6 @@ import '../../../../l10n/genre_localizer.dart';
 import '../../application/image_url.dart';
 import '../../application/library_providers.dart';
 
-/// Factor de reducción del logo del banner en TV. El banner es mucho más ancho
-/// que en móvil/desktop, por lo que el logo a tamaño de skin domina la
-/// composición; se reduce para que quede acorde a la plataforma.
-const double _kTvLogoScale = 0.72;
-
 /// Carrusel de banners horizontales genérico (estilo Disney+/Prime).
 ///
 /// Reutilizable por cualquier skin mediante sus parámetros: borde, altura,
@@ -1397,12 +1392,9 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     }
   }
 
-  Widget _buildLogoSlide(BoxConstraints constraints, bool isTv) {
-    // Tamaño del logo según el tamaño de pantalla (MediaQuery) y la
-    // plataforma: en TV se reduce además para que no domine el banner.
-    final ui = uiScaleFor(MediaQuery.sizeOf(context));
-    final tvFactor = isTv ? _kTvLogoScale : 1.0;
-    final s = widget.contentScale * ui * tvFactor;
+  Widget _buildLogoSlide(BoxConstraints constraints, double ui) {
+    // Tamaño del logo según el tamaño de pantalla ([ui] viene de build).
+    final s = widget.contentScale * ui;
     final logoUrl = _logoUrl;
     return AnimatedSlide(
       offset: _reveal && _hovered ? const Offset(0, -0.12) : Offset.zero,
@@ -1422,8 +1414,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                   SizedBox(height: 6 * s),
                 ],
                 SizedBox(
-                  width:
-                      constraints.maxWidth * widget.logoWidthFactor * tvFactor,
+                  width: constraints.maxWidth * widget.logoWidthFactor,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       maxHeight: widget.logoMaxHeight * s,
@@ -1471,34 +1462,20 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     final isTv =
         (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
         PlatformMode.tv;
-    // En TV se quitó la descripción (causaba overflow 167px) y se puede
-    // aumentar la altura del slider. Escala menor en TV para que la columna
-    // (logo+botones+badge) quepa en 316px sin overflow de 6px.
-    final s = widget.contentScale * (isTv ? 0.22 : 1.5);
+    // Escala del contenido del banner por plataforma. En TV (10-foot) el
+    // contenido va a escala natural; en móvil/desktop se agranda un poco.
+    final s = widget.contentScale * (isTv ? 1.0 : 1.5);
     // Offset vertical de la zona del logo/meta, proporcional a la altura de
     // pantalla (MediaQuery) para adaptarse a móvil/tablet sin valores fijos.
     final mq = MediaQuery.sizeOf(context);
     final screenInset = (mq.height * 0.08).clamp(0.0, 140.0);
-    final ui = uiScaleFor(mq);
+    // En TV se permite crecer más (hasta 1.2) para verse a distancia.
+    final ui = uiScaleFor(mq, max: isTv ? 1.2 : 1.0);
     final metaBottom = widget.inlineMeta
         ? (isTv ? 40.0 : screenInset)
         : (isTv ? 8.0 : 34.0);
-    // Hueco escalable entre el logo y el bloque inferior (edad/año • géneros).
+    // Hueco escalable entre el logo y la meta inferior (edad/año • géneros).
     final logoMetaGap = (28.0 * ui).clamp(16.0, 40.0);
-    // Alto aproximado de la fila de meta (inline: edad • año • géneros;
-    // normal: rating • año • géneros).
-    final metaRowHeight = widget.inlineMeta ? 30.0 : 26.0;
-    // Algunos skins (sin inlineMeta ni hoverReveal) añaden la sinopsis (~3
-    // líneas a 14px) bajo la meta; se reserva también su alto.
-    final showOverviewStatic =
-        !isTv &&
-        !widget.hoverReveal &&
-        !widget.inlineMeta &&
-        (item.overview ?? '').isNotEmpty;
-    final overviewReserve = showOverviewStatic ? 66.0 : 0.0;
-    // El logo se ancla por encima de todo el bloque inferior + un hueco.
-    final logoBottom =
-        metaBottom + metaRowHeight + overviewReserve + logoMetaGap;
     final backdropAlignment = (skin?.topBarFloating ?? false)
         ? const Alignment(0, -0.75)
         : const Alignment(0, -0.75);
@@ -1595,197 +1572,203 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                   ),
                 ),
               ),
-            // Columna izquierda: logo/título, botones de acción, insignia y
-            // descripción (solo al pasar el ratón). Al hacer hover se desliza
-            // hacia arriba únicamente el logo/título (con el logo de Jellyfin).
+            // Bloque inferior-izquierdo: logo/título, acciones y, debajo, la
+            // meta (edad/año • géneros), todo en una sola columna anclada
+            // abajo-izquierda. El hueco logo↔meta es un SizedBox explícito y el
+            // logo no se recorta por abajo. `FittedBox(scaleDown)` encoge el
+            // bloque si no cupiera en resoluciones pequeñas (nunca lo recorta).
             Positioned(
               left: isTv ? 60 : 70,
+              right: isTv ? 16 : 28,
               top: isTv ? 80.0 : screenInset,
-              bottom: logoBottom,
+              bottom: metaBottom,
               child: Align(
-                alignment: Alignment.centerLeft,
-                child: SingleChildScrollView(
-                  physics: const NeverScrollableScrollPhysics(),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Pastilla "Nueva película"/"Nueva serie" sobre el logo
-                      // (estilo Disney+), solo si el contenido es reciente.
-                      if (newBadgeLabel != null) ...[
-                        _NewBadge(label: newBadgeLabel),
-                        SizedBox(height: 10 * s),
-                      ],
-                      // El hover solo se detecta sobre el logo/título: el
-                      // MouseRegion envuelve al AnimatedSlide (fuera) para que su
-                      // área no se mueva al deslizarse y no parpadee.
-                      if (widget.hoverReveal)
-                        MouseRegion(
-                          onEnter: (_) => _setHovered(true),
-                          onExit: (_) => _setHovered(false),
-                          child: _buildLogoSlide(constraints, isTv),
-                        )
-                      else
-                        _buildLogoSlide(constraints, isTv),
-                      // Descripción revelada al pasar el ratón (desktop). En TV
-                      // se oculta: era la que desbordaba 167px con altura
-                      // reducida y no aporta en mando a distancia.
-                      if (!isTv)
-                        Flexible(
-                          fit: FlexFit.loose,
-                          child: AnimatedSlide(
-                            offset: _reveal && _hovered
-                                ? Offset.zero
-                                : const Offset(0, 0.15),
-                            duration: const Duration(milliseconds: 450),
-                            curve: Curves.easeOutCubic,
-                            child: AnimatedOpacity(
-                              opacity: _reveal && _hovered ? 1 : 0,
+                // En TV el bloque va centrado verticalmente (no pegado abajo);
+                // en móvil/desktop se ancla abajo-izquierda.
+                alignment: isTv ? Alignment.centerLeft : Alignment.bottomLeft,
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: isTv ? Alignment.centerLeft : Alignment.bottomLeft,
+                  child: SizedBox(
+                    width:
+                        constraints.maxWidth -
+                        (isTv ? 60 : 70) -
+                        (isTv ? 16 : 28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Pastilla "Nueva película"/"Nueva serie" sobre el logo
+                        // (estilo Disney+), solo si el contenido es reciente.
+                        if (newBadgeLabel != null) ...[
+                          _NewBadge(label: newBadgeLabel, scale: ui),
+                          SizedBox(height: 10 * s),
+                        ],
+                        // El hover solo se detecta sobre el logo/título: el
+                        // MouseRegion envuelve al AnimatedSlide (fuera) para que su
+                        // área no se mueva al deslizarse y no parpadee.
+                        if (widget.hoverReveal)
+                          MouseRegion(
+                            onEnter: (_) => _setHovered(true),
+                            onExit: (_) => _setHovered(false),
+                            child: _buildLogoSlide(constraints, ui),
+                          )
+                        else
+                          _buildLogoSlide(constraints, ui),
+                        // Descripción revelada al pasar el ratón (desktop). En TV
+                        // se oculta: era la que desbordaba 167px con altura
+                        // reducida y no aporta en mando a distancia.
+                        if (!isTv)
+                          Flexible(
+                            fit: FlexFit.loose,
+                            child: AnimatedSlide(
+                              offset: _reveal && _hovered
+                                  ? Offset.zero
+                                  : const Offset(0, 0.15),
                               duration: const Duration(milliseconds: 450),
-                              curve: Curves.easeOut,
-                              child: _reveal && _hovered
-                                  ? Padding(
-                                      padding: EdgeInsets.only(top: 1 * s),
-                                      child: ConstrainedBox(
-                                        constraints: BoxConstraints(
-                                          maxWidth: constraints.maxWidth * 0.4,
-                                        ),
-                                        child: Text(
-                                          item.overview!,
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            color:
-                                                skin?.textSecondary ??
-                                                Colors.white70,
-                                            fontSize: 13 * s,
-                                            height: 1.3,
+                              curve: Curves.easeOutCubic,
+                              child: AnimatedOpacity(
+                                opacity: _reveal && _hovered ? 1 : 0,
+                                duration: const Duration(milliseconds: 450),
+                                curve: Curves.easeOut,
+                                child: _reveal && _hovered
+                                    ? Padding(
+                                        padding: EdgeInsets.only(top: 1 * s),
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxWidth:
+                                                constraints.maxWidth * 0.4,
+                                          ),
+                                          child: Text(
+                                            item.overview!,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                              color:
+                                                  skin?.textSecondary ??
+                                                  Colors.white70,
+                                              fontSize: 13 * s,
+                                              height: 1.3,
+                                            ),
                                           ),
                                         ),
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
                             ),
                           ),
-                        ),
-                      if (widget.showActions) ...[
-                        SizedBox(height: 12 * s),
-                        _ActionButtons(
-                          scale: s,
-                          showTrailer: showTrailer,
-                          onTrailer: _openTrailer,
-                          onWatch: _openPlayer,
-                          onDetails: _openDetails,
-                          watchLabel: AppLocalizations.of(context)!.watchNow,
-                          favoritesTooltip: AppLocalizations.of(
-                            context,
-                          )!.addToFavorites,
-                          detailsTooltip: AppLocalizations.of(context)!.details,
-                          trailerTooltip: AppLocalizations.of(
-                            context,
-                          )!.watchTrailer,
-                          tvFocusNodes: widget.actionFocusNodes,
-                        ),
+                        if (widget.showActions) ...[
+                          SizedBox(height: 12 * s),
+                          _ActionButtons(
+                            scale: s,
+                            showTrailer: showTrailer,
+                            onTrailer: _openTrailer,
+                            onWatch: _openPlayer,
+                            onDetails: _openDetails,
+                            watchLabel: AppLocalizations.of(context)!.watchNow,
+                            favoritesTooltip: AppLocalizations.of(
+                              context,
+                            )!.addToFavorites,
+                            detailsTooltip: AppLocalizations.of(
+                              context,
+                            )!.details,
+                            trailerTooltip: AppLocalizations.of(
+                              context,
+                            )!.watchTrailer,
+                            tvFocusNodes: widget.actionFocusNodes,
+                          ),
+                        ],
+                        if (widget.showIncludedBadge) ...[
+                          SizedBox(height: 10 * s),
+                          IncludedBadge(
+                            scale: s / 1.1,
+                            label: AppLocalizations.of(
+                              context,
+                            )!.includedWithJellyfin,
+                          ),
+                        ],
+                        // Hueco escalable entre el logo y la meta inferior.
+                        SizedBox(height: logoMetaGap),
+                        // Meta inferior: edad/año • géneros (inlineMeta) o
+                        // rating/año/géneros, más la sinopsis si aplica.
+                        // Meta en línea estilo Disney+: insignia de edad oscura +
+                        // año • géneros, sin nota de estrellas.
+                        if (widget.inlineMeta && _hasInlineMeta)
+                          _buildInlineMeta()
+                        else if (!widget.inlineMeta &&
+                            (rating != null || showYear || showGenres))
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (rating != null) ...[
+                                  const Icon(
+                                    Icons.star_rounded,
+                                    color: Color(0xFFF5C518),
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    rating.toStringAsFixed(1),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                ],
+                                if (showYear)
+                                  Text(
+                                    '$year',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                if (showGenres) ...[
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    l10n == null
+                                        ? genres.take(3).join(' · ')
+                                        : localizeGenres(
+                                            genres.take(3),
+                                            l10n,
+                                          ).join(' · '),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        if (!isTv &&
+                            !widget.hoverReveal &&
+                            !widget.inlineMeta &&
+                            (item.overview ?? '').isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              item.overview!,
+                              maxLines: 3,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: (skin?.textSecondary ?? Colors.white70),
+                                fontSize: 14,
+                                height: 1.3,
+                              ),
+                            ),
+                          ),
                       ],
-                      if (widget.showIncludedBadge) ...[
-                        SizedBox(height: 10 * s),
-                        IncludedBadge(
-                          scale: s / 1.1,
-                          label: AppLocalizations.of(
-                            context,
-                          )!.includedWithJellyfin,
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-            // Fila inferior. Disney (inlineMeta) la sube para acercarla
-            // al logo; Prime y el resto la mantienen abajo del todo.
-            Positioned(
-              left: isTv ? 60 : 68,
-              right: isTv ? 16 : 28,
-              bottom: metaBottom,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Meta en línea estilo Disney+: insignia de edad oscura +
-                  // año • géneros, sin nota de estrellas.
-                  if (widget.inlineMeta && _hasInlineMeta)
-                    _buildInlineMeta()
-                  else if (!widget.inlineMeta &&
-                      (rating != null || showYear || showGenres))
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (rating != null) ...[
-                            const Icon(
-                              Icons.star_rounded,
-                              color: Color(0xFFF5C518),
-                              size: 18,
-                            ),
-                            const SizedBox(width: 4),
-                            Text(
-                              rating.toStringAsFixed(1),
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                          ],
-                          if (showYear)
-                            Text(
-                              '$year',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          if (showGenres) ...[
-                            const SizedBox(width: 12),
-                            Text(
-                              l10n == null
-                                  ? genres.take(3).join(' · ')
-                                  : localizeGenres(
-                                      genres.take(3),
-                                      l10n,
-                                    ).join(' · '),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  if (!isTv &&
-                      !widget.hoverReveal &&
-                      !widget.inlineMeta &&
-                      (item.overview ?? '').isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        item.overview!,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: (skin?.textSecondary ?? Colors.white70),
-                          fontSize: 14,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                ],
               ),
             ),
             // Edad recomendada del contenido, abajo a la derecha.
@@ -2124,23 +2107,27 @@ class _SliderArrow extends StatelessWidget {
 /// Pastilla blanca "Nueva película"/"Nueva serie" sobre el logo
 /// (estilo Disney+).
 class _NewBadge extends StatelessWidget {
-  const _NewBadge({required this.label});
+  const _NewBadge({required this.label, this.scale = 1.0});
 
   final String label;
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: 12 * scale,
+        vertical: 6 * scale,
+      ),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(4 * scale),
       ),
       child: Text(
         label,
-        style: const TextStyle(
+        style: TextStyle(
           color: Colors.black,
-          fontSize: 13,
+          fontSize: 13 * scale,
           fontWeight: FontWeight.w600,
         ),
       ),

@@ -143,10 +143,7 @@ class JukeboxNowPlayingPanel extends ConsumerWidget {
                     _HoverArtistMarquee(
                       key: ValueKey(artist.isNotEmpty ? artist : '�?"'),
                       text: artist.isNotEmpty ? artist : '�?"',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 11 * s,
-                      ),
+                      style: TextStyle(color: Colors.white, fontSize: 11 * s),
                       enabled: skin?.titleMarqueeOnHover ?? false,
                     ),
                     SizedBox(height: 6 * s),
@@ -291,7 +288,14 @@ void _showVolumeDialog(BuildContext context, WidgetRef ref, Color accent) {
     context: context,
     builder: (context) => AlertDialog(
       backgroundColor: const Color(0xFF1E1E2E),
-      title: Text(l10n.volume, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
+      title: Text(
+        l10n.volume,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
       content: Consumer(
         builder: (context, ref, _) {
           final v = ref.watch(appVolumeProvider);
@@ -299,7 +303,8 @@ void _showVolumeDialog(BuildContext context, WidgetRef ref, Color accent) {
           return VolumeSliderRow(
             volume: v,
             muted: muted,
-            onChanged: (nv) => ref.read(appVolumeProvider.notifier).setVolume(nv),
+            onChanged: (nv) =>
+                ref.read(appVolumeProvider.notifier).setVolume(nv),
             onToggleMute: () {
               final cur = ref.read(appVolumeProvider);
               if (cur <= 0.5) {
@@ -318,7 +323,10 @@ void _showVolumeDialog(BuildContext context, WidgetRef ref, Color accent) {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(MaterialLocalizations.of(context).closeButtonLabel, style: const TextStyle(color: Colors.white70)),
+          child: Text(
+            MaterialLocalizations.of(context).closeButtonLabel,
+            style: const TextStyle(color: Colors.white70),
+          ),
         ),
       ],
     ),

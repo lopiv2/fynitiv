@@ -972,6 +972,34 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     return byLanguage;
   }
 
+  /// Detiene la reproducción y deja la pista cargada en "stop" (posición 0),
+  /// sin cerrar el reproductor.
+  void _stopAudio() {
+    final hasSoloud = ref.read(soloudMusicProvider).hasItem;
+    if (hasSoloud) {
+      final notifier = ref.read(soloudMusicProvider.notifier);
+      notifier.pause();
+      notifier.seek(Duration.zero);
+      return;
+    }
+    // Fallback legacy / media_kit local.
+    try {
+      _player.pause();
+    } catch (_) {}
+    try {
+      _player.seek(Duration.zero);
+    } catch (_) {}
+    try {
+      ref.read(musicPlayerProvider.notifier).stop();
+    } catch (_) {}
+    if (mounted) {
+      setState(() {
+        _position = Duration.zero;
+        _playing = false;
+      });
+    }
+  }
+
   void _close() {
     if (_fullscreen) {
       AppWindow.setFullscreen(false);
@@ -1104,6 +1132,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       onSkipBackward: () =>
                           _seekBy(const Duration(seconds: -10)),
                       onSkipForward: () => _seekBy(const Duration(seconds: 10)),
+                      onStop: _stopAudio,
                       volume: hasSoloud ? soloudState.volume : _volume,
                       onVolumeChanged: (v) {
                         if (_isAudio && hasSoloud) {
@@ -2260,6 +2289,7 @@ class _AudioCover extends ConsumerStatefulWidget {
     this.onSeekEnd,
     this.onSkipBackward,
     this.onSkipForward,
+    this.onStop,
     this.volume = 100,
     this.onVolumeChanged,
     this.onToggleFullscreen,
@@ -2287,6 +2317,7 @@ class _AudioCover extends ConsumerStatefulWidget {
   final ValueChanged<Duration>? onSeekEnd;
   final VoidCallback? onSkipBackward;
   final VoidCallback? onSkipForward;
+  final VoidCallback? onStop;
   final double volume;
   final ValueChanged<double>? onVolumeChanged;
   final VoidCallback? onToggleFullscreen;
@@ -2606,6 +2637,11 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     ),
                     const SizedBox(width: 10),
                     _CoverDarkButton(
+                      icon: Icons.stop_rounded,
+                      onTap: widget.onStop,
+                    ),
+                    const SizedBox(width: 10),
+                    _CoverDarkButton(
                       icon: Icons.skip_next_rounded,
                       onTap: widget.onSkipForward,
                     ),
@@ -2849,6 +2885,11 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     _CoverPlayButton(
                       playing: widget.playing,
                       onTap: widget.onTogglePlay,
+                    ),
+                    const SizedBox(width: 10),
+                    _CoverDarkButton(
+                      icon: Icons.stop_rounded,
+                      onTap: widget.onStop,
                     ),
                     const SizedBox(width: 10),
                     _CoverDarkButton(
@@ -3214,6 +3255,11 @@ class _AudioCoverState extends ConsumerState<_AudioCover> {
                     _CoverPlayButton(
                       playing: widget.playing,
                       onTap: widget.onTogglePlay,
+                    ),
+                    const SizedBox(width: 10),
+                    _CoverDarkButton(
+                      icon: Icons.stop_rounded,
+                      onTap: widget.onStop,
                     ),
                     const SizedBox(width: 10),
                     _CoverDarkButton(

@@ -1214,6 +1214,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String get genreAdult => 'Adult';
 
   @override
+  String get moodSectionTitle => 'What are you in the mood for?';
+
+  @override
+  String get moodAction => 'Action & adrenaline';
+
+  @override
+  String get moodComedy => 'Laughs';
+
+  @override
+  String get moodDrama => 'Drama & emotion';
+
+  @override
+  String get moodHorror => 'Horror & chills';
+
+  @override
+  String get moodSciFi => 'Sci-Fi';
+
+  @override
+  String get moodThriller => 'Mystery & suspense';
+
+  @override
+  String get moodRelax => 'Relaxed & family';
+
+  @override
+  String get moodAdventure => 'Epic adventure';
+
+  @override
+  String get moodLoading => 'Finding something for you...';
+
+  @override
+  String get moodNoResults => 'No titles found for this mood.';
+
+  @override
   String get noTracks => 'No tracks';
 
   @override

@@ -81,7 +81,7 @@ double uiScaleFor(
   Size screen, {
   double refWidth = 1600,
   double refHeight = 900,
-  double min = 0.6,
+  double min = 0.5,
   double max = 1.0,
 }) {
   final byWidth = screen.width / refWidth;

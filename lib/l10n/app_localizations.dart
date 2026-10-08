@@ -2402,6 +2402,72 @@ abstract class AppLocalizations {
   /// **'Adult'**
   String get genreAdult;
 
+  /// No description provided for @moodSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'What are you in the mood for?'**
+  String get moodSectionTitle;
+
+  /// No description provided for @moodAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Action & adrenaline'**
+  String get moodAction;
+
+  /// No description provided for @moodComedy.
+  ///
+  /// In en, this message translates to:
+  /// **'Laughs'**
+  String get moodComedy;
+
+  /// No description provided for @moodDrama.
+  ///
+  /// In en, this message translates to:
+  /// **'Drama & emotion'**
+  String get moodDrama;
+
+  /// No description provided for @moodHorror.
+  ///
+  /// In en, this message translates to:
+  /// **'Horror & chills'**
+  String get moodHorror;
+
+  /// No description provided for @moodSciFi.
+  ///
+  /// In en, this message translates to:
+  /// **'Sci-Fi'**
+  String get moodSciFi;
+
+  /// No description provided for @moodThriller.
+  ///
+  /// In en, this message translates to:
+  /// **'Mystery & suspense'**
+  String get moodThriller;
+
+  /// No description provided for @moodRelax.
+  ///
+  /// In en, this message translates to:
+  /// **'Relaxed & family'**
+  String get moodRelax;
+
+  /// No description provided for @moodAdventure.
+  ///
+  /// In en, this message translates to:
+  /// **'Epic adventure'**
+  String get moodAdventure;
+
+  /// No description provided for @moodLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Finding something for you...'**
+  String get moodLoading;
+
+  /// No description provided for @moodNoResults.
+  ///
+  /// In en, this message translates to:
+  /// **'No titles found for this mood.'**
+  String get moodNoResults;
+
   /// No description provided for @noTracks.
   ///
   /// In en, this message translates to:
