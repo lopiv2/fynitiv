@@ -7,6 +7,7 @@ import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../l10n/genre_localizer.dart';
 import '../../library/application/image_url.dart';
 import '../../player/application/playback_provider.dart';
 import '../application/music_player_provider.dart';
@@ -87,7 +88,13 @@ class _PlaylistJellyfinView extends ConsumerWidget {
           final minutes = totalMs > 0 ? '${_formatMs(totalMs).split(':').first}m' : '';
           final year = pl?.productionYear?.toString() ?? '';
           final rating = pl?.communityRating != null ? '★ ${pl!.communityRating!.toStringAsFixed(1)}' : '';
-          final genre = pl?.genres?.firstOrNull ?? (list.isNotEmpty ? list.first.genres?.firstOrNull ?? 'Dance-Pop' : 'Dance-Pop');
+          final genre = localizeGenre(
+            pl?.genres?.firstOrNull ??
+                (list.isNotEmpty
+                    ? list.first.genres?.firstOrNull ?? 'Dance-Pop'
+                    : 'Dance-Pop'),
+            l10n,
+          );
 
           return SingleChildScrollView(
             child: Padding(

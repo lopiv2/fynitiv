@@ -1127,6 +1127,93 @@ class AppLocalizationsEn extends AppLocalizations {
   String get genre => 'Genre';
 
   @override
+  String get genreAction => 'Action';
+
+  @override
+  String get genreAdventure => 'Adventure';
+
+  @override
+  String get genreActionAdventure => 'Action & Adventure';
+
+  @override
+  String get genreAnimation => 'Animation';
+
+  @override
+  String get genreAnime => 'Anime';
+
+  @override
+  String get genreComedy => 'Comedy';
+
+  @override
+  String get genreCrime => 'Crime';
+
+  @override
+  String get genreDocumentary => 'Documentary';
+
+  @override
+  String get genreDrama => 'Drama';
+
+  @override
+  String get genreFamily => 'Family';
+
+  @override
+  String get genreFantasy => 'Fantasy';
+
+  @override
+  String get genreHistory => 'History';
+
+  @override
+  String get genreHorror => 'Horror';
+
+  @override
+  String get genreKids => 'Kids';
+
+  @override
+  String get genreMusic => 'Music';
+
+  @override
+  String get genreMystery => 'Mystery';
+
+  @override
+  String get genreNews => 'News';
+
+  @override
+  String get genreReality => 'Reality';
+
+  @override
+  String get genreRomance => 'Romance';
+
+  @override
+  String get genreScienceFiction => 'Science Fiction';
+
+  @override
+  String get genreSciFiFantasy => 'Sci-Fi & Fantasy';
+
+  @override
+  String get genreSoap => 'Soap';
+
+  @override
+  String get genreTalkShow => 'Talk Show';
+
+  @override
+  String get genreThriller => 'Thriller';
+
+  @override
+  String get genreTvMovie => 'TV Movie';
+
+  @override
+  String get genreWar => 'War';
+
+  @override
+  String get genreWarPolitics => 'War & Politics';
+
+  @override
+  String get genreWestern => 'Western';
+
+  @override
+  String get genreAdult => 'Adult';
+
+  @override
   String get noTracks => 'No tracks';
 
   @override

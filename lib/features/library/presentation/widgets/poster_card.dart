@@ -12,6 +12,7 @@ import '../../../../core/widgets/hover_play_card.dart';
 import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/marquee_text.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../l10n/genre_localizer.dart';
 import '../../application/image_url.dart';
 import 'poster_fallback.dart';
 
@@ -612,7 +613,10 @@ class _MetaLine extends StatelessWidget {
     };
     final parts = <String>[];
     if (!hideYear && year != null) parts.add('$year');
-    final genreText = genres.take(3).join(', ');
+    final l10n = AppLocalizations.of(context);
+    final genreText = l10n == null
+        ? genres.take(3).join(', ')
+        : localizeGenres(genres.take(3), l10n).join(', ');
     if (genreText.isNotEmpty) parts.add(genreText);
     if (parts.isEmpty && ageRating.isEmpty) {
       if (fallback == null || fallback!.isEmpty) {

@@ -6,6 +6,7 @@
 /// ([ScrollTitle]); el resto de cabeceras de sección usan [kSectionTitleFontSize].
 library;
 
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../navigation/platform_mode.dart';
@@ -68,6 +69,25 @@ int carouselVisibleCount(double viewportWidth) {
   if (viewportWidth < 1000) return 3;
   if (viewportWidth < 1400) return 4;
   return 6;
+}
+
+/// Factor de escala de elementos de UI según el tamaño de pantalla del
+/// dispositivo ([MediaQuery.sizeOf]). Combina ancho y alto respecto a una
+/// referencia (1600×900) y toma el menor de los ratios para no deformar;
+/// acotado a [min]..[max]. Sirve para dimensionar logos, offsets o
+/// tipografía de forma proporcional a la resolución sin depender de la
+/// plataforma.
+double uiScaleFor(
+  Size screen, {
+  double refWidth = 1600,
+  double refHeight = 900,
+  double min = 0.6,
+  double max = 1.0,
+}) {
+  final byWidth = screen.width / refWidth;
+  final byHeight = screen.height / refHeight;
+  final ratio = byWidth < byHeight ? byWidth : byHeight;
+  return ratio.clamp(min, max);
 }
 
 /// Ancho de tarjeta para que quepan [count] visibles (o las que toquen

@@ -12,6 +12,7 @@ import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../l10n/genre_localizer.dart';
 import '../../library/application/image_url.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/poster_card.dart';
@@ -370,7 +371,10 @@ class _JellyfinDefaultAlbumView extends ConsumerWidget {
           final rating = albumItem?.communityRating != null
               ? '★ ${albumItem!.communityRating!.toStringAsFixed(1)}'
               : '';
-          final genre = albumItem?.genres?.firstOrNull ?? 'Dance-Pop';
+          final genre = localizeGenre(
+            albumItem?.genres?.firstOrNull ?? 'Dance-Pop',
+            l10n,
+          );
 
           return SingleChildScrollView(
             child: Padding(

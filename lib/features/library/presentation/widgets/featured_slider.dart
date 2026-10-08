@@ -9,6 +9,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import 'package:flutter/services.dart';
 
+import '../../../../core/constants/ui_constants.dart';
 import '../../../../core/navigation/platform_mode.dart';
 import '../../../../core/navigation/tv_focus_nodes.dart';
 import '../../../../core/skin/skin.dart';
@@ -22,8 +23,14 @@ import '../../../../core/widgets/scale_button.dart';
 import '../../../../core/widgets/scroll_title.dart';
 import '../../../../core/widgets/watch_now_button.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../l10n/genre_localizer.dart';
 import '../../application/image_url.dart';
 import '../../application/library_providers.dart';
+
+/// Factor de reducción del logo del banner en TV. El banner es mucho más ancho
+/// que en móvil/desktop, por lo que el logo a tamaño de skin domina la
+/// composición; se reduce para que quede acorde a la plataforma.
+const double _kTvLogoScale = 0.72;
 
 /// Carrusel de banners horizontales genérico (estilo Disney+/Prime).
 ///
@@ -1165,6 +1172,10 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   Widget _buildInlineMeta() {
     final year = widget.item.productionYear;
     final genres = widget.item.genres ?? const <String>[];
+    final l10n = AppLocalizations.of(context);
+    final genreText = l10n == null
+        ? genres.take(3).join(', ')
+        : localizeGenres(genres.take(3), l10n).join(', ');
     return Padding(
       padding: const EdgeInsets.only(top: 6),
       child: Row(
@@ -1178,7 +1189,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             child: Text(
               [
                 if (year != null) '$year',
-                if (genres.isNotEmpty) genres.take(3).join(', '),
+                if (genreText.isNotEmpty) genreText,
               ].join(' • '),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
@@ -1205,7 +1216,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     }
   }
 
-  Widget _titleText({double? fontSize}) {
+  Widget _titleText({double? fontSize, double? scale}) {
     final skin = ref.read(skinControllerProvider).value;
     return Text(
       widget.item.name ?? '',
@@ -1213,7 +1224,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
         color: skin?.textPrimary ?? Colors.white,
-        fontSize: (fontSize ?? 32) * widget.contentScale,
+        fontSize: (fontSize ?? 32) * (scale ?? widget.contentScale),
         fontWeight: FontWeight.bold,
         shadows: const [
           Shadow(blurRadius: 8, color: Colors.black54, offset: Offset(0, 1)),
@@ -1386,8 +1397,12 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     }
   }
 
-  Widget _buildLogoSlide(BoxConstraints constraints) {
-    final s = widget.contentScale;
+  Widget _buildLogoSlide(BoxConstraints constraints, bool isTv) {
+    // Tamaño del logo según el tamaño de pantalla (MediaQuery) y la
+    // plataforma: en TV se reduce además para que no domine el banner.
+    final ui = uiScaleFor(MediaQuery.sizeOf(context));
+    final tvFactor = isTv ? _kTvLogoScale : 1.0;
+    final s = widget.contentScale * ui * tvFactor;
     final logoUrl = _logoUrl;
     return AnimatedSlide(
       offset: _reveal && _hovered ? const Offset(0, -0.12) : Offset.zero,
@@ -1407,7 +1422,8 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                   SizedBox(height: 6 * s),
                 ],
                 SizedBox(
-                  width: constraints.maxWidth * widget.logoWidthFactor,
+                  width:
+                      constraints.maxWidth * widget.logoWidthFactor * tvFactor,
                   child: ConstrainedBox(
                     constraints: BoxConstraints(
                       maxHeight: widget.logoMaxHeight * s,
@@ -1418,15 +1434,18 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                         logoUrl,
                         fit: BoxFit.contain,
                         loadingBuilder: (context, child, progress) =>
-                            progress == null ? child : _titleText(fontSize: 20),
-                        errorBuilder: (_, _, _) => _titleText(fontSize: 20),
+                            progress == null
+                            ? child
+                            : _titleText(fontSize: 20, scale: s),
+                        errorBuilder: (_, _, _) =>
+                            _titleText(fontSize: 20, scale: s),
                       ),
                     ),
                   ),
                 ),
               ],
             )
-          : _titleText(),
+          : _titleText(scale: s),
     );
   }
 
@@ -1447,6 +1466,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
 
     final year = item.productionYear;
     final genres = item.genres ?? const <String>[];
+    final l10n = AppLocalizations.of(context);
     final rating = item.communityRating;
     final isTv =
         (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
@@ -1454,7 +1474,31 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     // En TV se quitó la descripción (causaba overflow 167px) y se puede
     // aumentar la altura del slider. Escala menor en TV para que la columna
     // (logo+botones+badge) quepa en 316px sin overflow de 6px.
-    final s = widget.contentScale * (isTv ? 0.82 : 1.5);
+    final s = widget.contentScale * (isTv ? 0.22 : 1.5);
+    // Offset vertical de la zona del logo/meta, proporcional a la altura de
+    // pantalla (MediaQuery) para adaptarse a móvil/tablet sin valores fijos.
+    final mq = MediaQuery.sizeOf(context);
+    final screenInset = (mq.height * 0.08).clamp(0.0, 140.0);
+    final ui = uiScaleFor(mq);
+    final metaBottom = widget.inlineMeta
+        ? (isTv ? 40.0 : screenInset)
+        : (isTv ? 8.0 : 34.0);
+    // Hueco escalable entre el logo y el bloque inferior (edad/año • géneros).
+    final logoMetaGap = (28.0 * ui).clamp(16.0, 40.0);
+    // Alto aproximado de la fila de meta (inline: edad • año • géneros;
+    // normal: rating • año • géneros).
+    final metaRowHeight = widget.inlineMeta ? 30.0 : 26.0;
+    // Algunos skins (sin inlineMeta ni hoverReveal) añaden la sinopsis (~3
+    // líneas a 14px) bajo la meta; se reserva también su alto.
+    final showOverviewStatic =
+        !isTv &&
+        !widget.hoverReveal &&
+        !widget.inlineMeta &&
+        (item.overview ?? '').isNotEmpty;
+    final overviewReserve = showOverviewStatic ? 66.0 : 0.0;
+    // El logo se ancla por encima de todo el bloque inferior + un hueco.
+    final logoBottom =
+        metaBottom + metaRowHeight + overviewReserve + logoMetaGap;
     final backdropAlignment = (skin?.topBarFloating ?? false)
         ? const Alignment(0, -0.75)
         : const Alignment(0, -0.75);
@@ -1556,8 +1600,8 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             // hacia arriba únicamente el logo/título (con el logo de Jellyfin).
             Positioned(
               left: isTv ? 60 : 70,
-              top: isTv ? 80 : 134,
-              bottom: isTv ? 24 : (widget.hoverReveal ? 80 : 130),
+              top: isTv ? 80.0 : screenInset,
+              bottom: logoBottom,
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: SingleChildScrollView(
@@ -1579,10 +1623,10 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                         MouseRegion(
                           onEnter: (_) => _setHovered(true),
                           onExit: (_) => _setHovered(false),
-                          child: _buildLogoSlide(constraints),
+                          child: _buildLogoSlide(constraints, isTv),
                         )
                       else
-                        _buildLogoSlide(constraints),
+                        _buildLogoSlide(constraints, isTv),
                       // Descripción revelada al pasar el ratón (desktop). En TV
                       // se oculta: era la que desbordaba 167px con altura
                       // reducida y no aporta en mando a distancia.
@@ -1662,7 +1706,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             Positioned(
               left: isTv ? 60 : 68,
               right: isTv ? 16 : 28,
-              bottom: widget.inlineMeta ? (isTv ? 40 : 130) : (isTv ? 8 : 34),
+              bottom: metaBottom,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
@@ -1707,7 +1751,12 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                           if (showGenres) ...[
                             const SizedBox(width: 12),
                             Text(
-                              genres.take(3).join(' · '),
+                              l10n == null
+                                  ? genres.take(3).join(' · ')
+                                  : localizeGenres(
+                                      genres.take(3),
+                                      l10n,
+                                    ).join(' · '),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(

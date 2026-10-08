@@ -14,6 +14,7 @@ import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/marquee_text.dart';
 import '../../../../core/widgets/prime_card_badge.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../l10n/genre_localizer.dart';
 import '../../application/image_url.dart';
 import 'poster_fallback.dart';
 
@@ -258,9 +259,12 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
       if (!widget.hideYear && widget.item.productionYear != null) {
         parts.add('${widget.item.productionYear}');
       }
-      final genreText = (widget.item.genres ?? const <String>[])
-          .take(3)
-          .join(', ');
+      final genreText = l10n == null
+          ? (widget.item.genres ?? const <String>[]).take(3).join(', ')
+          : localizeGenres(
+              (widget.item.genres ?? const <String>[]).take(3),
+              l10n,
+            ).join(', ');
       if (genreText.isNotEmpty) parts.add(genreText);
       if (parts.isNotEmpty) subtitle = parts.join(' • ');
     } else {
@@ -818,7 +822,10 @@ class _MetaLine extends StatelessWidget {
     };
     final parts = <String>[];
     if (!hideYear && year != null) parts.add('$year');
-    final genreText = genres.take(3).join(', ');
+    final l10n = AppLocalizations.of(context);
+    final genreText = l10n == null
+        ? genres.take(3).join(', ')
+        : localizeGenres(genres.take(3), l10n).join(', ');
     if (genreText.isNotEmpty) parts.add(genreText);
     if (parts.isEmpty && ageRating.isEmpty) {
       if (fallback == null || fallback!.isEmpty) {

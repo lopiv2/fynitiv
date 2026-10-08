@@ -16,6 +16,7 @@ import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/included_badge.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../../l10n/genre_localizer.dart';
 import '../../player/application/playback_provider.dart';
 import '../../downloads/application/download_manager_provider.dart';
 import '../application/image_url.dart';
@@ -678,6 +679,7 @@ class _AdditionalInformation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final details = _InfoCard(
       title: item.name ?? '',
       child: Column(
@@ -687,7 +689,7 @@ class _AdditionalInformation extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             children: [
-              for (final genre in genres) _LinkText(text: genre),
+              for (final genre in genres) _LinkText(text: localizeGenre(genre, l10n)),
               if (item.officialRating != null)
                 _InfoValue(text: item.officialRating!),
               if (item.productionYear != null)
@@ -713,7 +715,6 @@ class _AdditionalInformation extends StatelessWidget {
         ],
       ),
     );
-    final l10n = AppLocalizations.of(context)!;
     final credits = _InfoCard(
       title: l10n.creatorsAndCast,
       child: Column(
@@ -1169,6 +1170,7 @@ class _DetailDescription extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1189,7 +1191,7 @@ class _DetailDescription extends StatelessWidget {
           spacing: 10,
           runSpacing: 6,
           children: [
-            for (final genre in genres) _DetailMeta(text: genre),
+            for (final genre in genres) _DetailMeta(text: localizeGenre(genre, l10n)),
             if (item.officialRating != null)
               _DetailMeta(text: item.officialRating!),
             if (item.productionYear != null)
@@ -1521,7 +1523,7 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
     final metaParts = <String>[
       if (year != null) '$year',
       if (seasons.isNotEmpty) l10n.seriesSeasons(seasons.length),
-      ...widget.genres.take(2),
+      ...localizeGenres(widget.genres.take(2), l10n),
     ];
 
     return Column(

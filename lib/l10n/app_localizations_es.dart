@@ -1129,6 +1129,93 @@ class AppLocalizationsEs extends AppLocalizations {
   String get genre => 'Género';
 
   @override
+  String get genreAction => 'Acción';
+
+  @override
+  String get genreAdventure => 'Aventura';
+
+  @override
+  String get genreActionAdventure => 'Acción y aventura';
+
+  @override
+  String get genreAnimation => 'Animación';
+
+  @override
+  String get genreAnime => 'Anime';
+
+  @override
+  String get genreComedy => 'Comedia';
+
+  @override
+  String get genreCrime => 'Crimen';
+
+  @override
+  String get genreDocumentary => 'Documental';
+
+  @override
+  String get genreDrama => 'Drama';
+
+  @override
+  String get genreFamily => 'Familia';
+
+  @override
+  String get genreFantasy => 'Fantasía';
+
+  @override
+  String get genreHistory => 'Historia';
+
+  @override
+  String get genreHorror => 'Terror';
+
+  @override
+  String get genreKids => 'Infantil';
+
+  @override
+  String get genreMusic => 'Música';
+
+  @override
+  String get genreMystery => 'Misterio';
+
+  @override
+  String get genreNews => 'Noticias';
+
+  @override
+  String get genreReality => 'Telerrealidad';
+
+  @override
+  String get genreRomance => 'Romance';
+
+  @override
+  String get genreScienceFiction => 'Ciencia ficción';
+
+  @override
+  String get genreSciFiFantasy => 'Ciencia ficción y fantasía';
+
+  @override
+  String get genreSoap => 'Telenovela';
+
+  @override
+  String get genreTalkShow => 'Programa de entrevistas';
+
+  @override
+  String get genreThriller => 'Suspense';
+
+  @override
+  String get genreTvMovie => 'Película de TV';
+
+  @override
+  String get genreWar => 'Guerra';
+
+  @override
+  String get genreWarPolitics => 'Guerra y política';
+
+  @override
+  String get genreWestern => 'Western';
+
+  @override
+  String get genreAdult => 'Adultos';
+
+  @override
   String get noTracks => 'Sin pistas';
 
   @override
