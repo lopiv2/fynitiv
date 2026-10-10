@@ -2456,6 +2456,246 @@ abstract class AppLocalizations {
   /// **'Epic adventure'**
   String get moodAdventure;
 
+  /// No description provided for @moodAction2.
+  ///
+  /// In en, this message translates to:
+  /// **'High-octane action'**
+  String get moodAction2;
+
+  /// No description provided for @moodAction3.
+  ///
+  /// In en, this message translates to:
+  /// **'Non-stop thrills'**
+  String get moodAction3;
+
+  /// No description provided for @moodAction4.
+  ///
+  /// In en, this message translates to:
+  /// **'Chases and close calls'**
+  String get moodAction4;
+
+  /// No description provided for @moodAction5.
+  ///
+  /// In en, this message translates to:
+  /// **'Heroes in action'**
+  String get moodAction5;
+
+  /// No description provided for @moodAction6.
+  ///
+  /// In en, this message translates to:
+  /// **'Straight into the action'**
+  String get moodAction6;
+
+  /// No description provided for @moodComedy2.
+  ///
+  /// In en, this message translates to:
+  /// **'Feel-good laughs'**
+  String get moodComedy2;
+
+  /// No description provided for @moodComedy3.
+  ///
+  /// In en, this message translates to:
+  /// **'Time for a giggle'**
+  String get moodComedy3;
+
+  /// No description provided for @moodComedy4.
+  ///
+  /// In en, this message translates to:
+  /// **'Lighten the mood'**
+  String get moodComedy4;
+
+  /// No description provided for @moodComedy5.
+  ///
+  /// In en, this message translates to:
+  /// **'Comedy to share'**
+  String get moodComedy5;
+
+  /// No description provided for @moodComedy6.
+  ///
+  /// In en, this message translates to:
+  /// **'A little silliness'**
+  String get moodComedy6;
+
+  /// No description provided for @moodDrama2.
+  ///
+  /// In en, this message translates to:
+  /// **'Stories that move you'**
+  String get moodDrama2;
+
+  /// No description provided for @moodDrama3.
+  ///
+  /// In en, this message translates to:
+  /// **'Big feelings'**
+  String get moodDrama3;
+
+  /// No description provided for @moodDrama4.
+  ///
+  /// In en, this message translates to:
+  /// **'Love, loss and life'**
+  String get moodDrama4;
+
+  /// No description provided for @moodDrama5.
+  ///
+  /// In en, this message translates to:
+  /// **'Lives turned upside down'**
+  String get moodDrama5;
+
+  /// No description provided for @moodDrama6.
+  ///
+  /// In en, this message translates to:
+  /// **'Powerful performances'**
+  String get moodDrama6;
+
+  /// No description provided for @moodHorror2.
+  ///
+  /// In en, this message translates to:
+  /// **'Dare to watch?'**
+  String get moodHorror2;
+
+  /// No description provided for @moodHorror3.
+  ///
+  /// In en, this message translates to:
+  /// **'A night of scares'**
+  String get moodHorror3;
+
+  /// No description provided for @moodHorror4.
+  ///
+  /// In en, this message translates to:
+  /// **'Something in the shadows'**
+  String get moodHorror4;
+
+  /// No description provided for @moodHorror5.
+  ///
+  /// In en, this message translates to:
+  /// **'Fear after dark'**
+  String get moodHorror5;
+
+  /// No description provided for @moodHorror6.
+  ///
+  /// In en, this message translates to:
+  /// **'Spine-tingling stories'**
+  String get moodHorror6;
+
+  /// No description provided for @moodSciFi2.
+  ///
+  /// In en, this message translates to:
+  /// **'Beyond the stars'**
+  String get moodSciFi2;
+
+  /// No description provided for @moodSciFi3.
+  ///
+  /// In en, this message translates to:
+  /// **'Into the unknown'**
+  String get moodSciFi3;
+
+  /// No description provided for @moodSciFi4.
+  ///
+  /// In en, this message translates to:
+  /// **'Futures imagined'**
+  String get moodSciFi4;
+
+  /// No description provided for @moodSciFi5.
+  ///
+  /// In en, this message translates to:
+  /// **'Other worlds await'**
+  String get moodSciFi5;
+
+  /// No description provided for @moodSciFi6.
+  ///
+  /// In en, this message translates to:
+  /// **'Time to defy reality'**
+  String get moodSciFi6;
+
+  /// No description provided for @moodThriller2.
+  ///
+  /// In en, this message translates to:
+  /// **'One clue changes everything'**
+  String get moodThriller2;
+
+  /// No description provided for @moodThriller3.
+  ///
+  /// In en, this message translates to:
+  /// **'Secrets and twists'**
+  String get moodThriller3;
+
+  /// No description provided for @moodThriller4.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep guessing'**
+  String get moodThriller4;
+
+  /// No description provided for @moodThriller5.
+  ///
+  /// In en, this message translates to:
+  /// **'Edge-of-your-seat stories'**
+  String get moodThriller5;
+
+  /// No description provided for @moodThriller6.
+  ///
+  /// In en, this message translates to:
+  /// **'Nothing is as it seems'**
+  String get moodThriller6;
+
+  /// No description provided for @moodRelax2.
+  ///
+  /// In en, this message translates to:
+  /// **'Settle in together'**
+  String get moodRelax2;
+
+  /// No description provided for @moodRelax3.
+  ///
+  /// In en, this message translates to:
+  /// **'A gentle escape'**
+  String get moodRelax3;
+
+  /// No description provided for @moodRelax4.
+  ///
+  /// In en, this message translates to:
+  /// **'Feel-good viewing'**
+  String get moodRelax4;
+
+  /// No description provided for @moodRelax5.
+  ///
+  /// In en, this message translates to:
+  /// **'Easygoing stories'**
+  String get moodRelax5;
+
+  /// No description provided for @moodRelax6.
+  ///
+  /// In en, this message translates to:
+  /// **'Cozy moments'**
+  String get moodRelax6;
+
+  /// No description provided for @moodAdventure2.
+  ///
+  /// In en, this message translates to:
+  /// **'Worlds to explore'**
+  String get moodAdventure2;
+
+  /// No description provided for @moodAdventure3.
+  ///
+  /// In en, this message translates to:
+  /// **'The journey starts here'**
+  String get moodAdventure3;
+
+  /// No description provided for @moodAdventure4.
+  ///
+  /// In en, this message translates to:
+  /// **'Quests worth taking'**
+  String get moodAdventure4;
+
+  /// No description provided for @moodAdventure5.
+  ///
+  /// In en, this message translates to:
+  /// **'Into the wild'**
+  String get moodAdventure5;
+
+  /// No description provided for @moodAdventure6.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover the extraordinary'**
+  String get moodAdventure6;
+
   /// No description provided for @moodLoading.
   ///
   /// In en, this message translates to:

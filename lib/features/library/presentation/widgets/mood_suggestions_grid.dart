@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:ui';
+import 'dart:math';
 
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -13,6 +14,11 @@ import '../../../../l10n/app_localizations.dart';
 import '../../application/library_providers.dart';
 import '../../application/mood_providers.dart';
 import '../../domain/mood_suggestion.dart';
+
+String _phraseForMood(AppLocalizations l10n, MoodKey key, int seed) {
+  final phrases = moodPhrases(l10n, key);
+  return phrases[Random(seed).nextInt(phrases.length)];
+}
 
 /// Grid de sugerencias por estado de ánimo (sin scroll lateral).
 ///
@@ -27,6 +33,40 @@ class MoodSuggestionsGrid extends ConsumerStatefulWidget {
 }
 
 class _MoodSuggestionsGridState extends ConsumerState<MoodSuggestionsGrid> {
+  GoRouter? _router;
+  bool _wasOnHome = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _listenToRoute());
+  }
+
+  void _listenToRoute() {
+    if (!mounted) return;
+    _router = GoRouter.of(context);
+    _wasOnHome = _currentPath == '/home';
+    _router!.routerDelegate.addListener(_onRouteChanged);
+  }
+
+  String get _currentPath =>
+      _router?.routeInformationProvider.value.uri.path ?? '';
+
+  void _onRouteChanged() {
+    if (!mounted) return;
+    final isOnHome = _currentPath == '/home';
+    if (!_wasOnHome && isOnHome) {
+      ref.read(moodRefreshProvider.notifier).refresh();
+    }
+    _wasOnHome = isOnHome;
+  }
+
+  @override
+  void dispose() {
+    _router?.routerDelegate.removeListener(_onRouteChanged);
+    super.dispose();
+  }
+
   Future<void> _openRandom(MoodSuggestion mood) async {
     final l10n = AppLocalizations.of(context)!;
     final client = ref.read(jellyfinClientProvider);
@@ -68,6 +108,9 @@ class _MoodSuggestionsGridState extends ConsumerState<MoodSuggestionsGrid> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final seed = ref.watch(moodRefreshProvider);
+    final Map<MoodKey, String?> backdrops =
+        ref.watch(moodBackdropsProvider).value ?? const <MoodKey, String?>{};
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
       child: Column(
@@ -89,11 +132,12 @@ class _MoodSuggestionsGridState extends ConsumerState<MoodSuggestionsGrid> {
                   alignment: WrapAlignment.center,
                   runSpacing: spacing,
                   children: [
-                    for (final mood in kMoodSuggestions)
+                    for (final (index, mood) in kMoodSuggestions.indexed)
                       _MoodButton(
                         mood: mood,
                         width: buttonWidth,
-                        label: moodLabel(l10n, mood.key),
+                        label: _phraseForMood(l10n, mood.key, seed + index),
+                        backdropUrl: backdrops[mood.key],
                         onTap: () => _openRandom(mood),
                       ),
                   ],
@@ -112,12 +156,14 @@ class _MoodButton extends StatelessWidget {
     required this.mood,
     required this.width,
     required this.label,
+    required this.backdropUrl,
     required this.onTap,
   });
 
   final MoodSuggestion mood;
   final double width;
   final String label;
+  final String? backdropUrl;
   final VoidCallback onTap;
 
   @override
@@ -131,6 +177,16 @@ class _MoodButton extends StatelessWidget {
         Color.lerp(base, Colors.white, 0.20)!.withValues(alpha: 0.85),
         base.withValues(alpha: 0.85),
         Color.lerp(base, Colors.black, 0.40)!.withValues(alpha: 0.85),
+      ],
+      stops: const [0.0, 0.45, 1.0],
+    );
+    final tint = LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        Color.lerp(base, Colors.white, 0.20)!.withValues(alpha: 0.56),
+        base.withValues(alpha: 0.48),
+        Color.lerp(base, Colors.black, 0.40)!.withValues(alpha: 0.58),
       ],
       stops: const [0.0, 0.45, 1.0],
     );
@@ -154,11 +210,21 @@ class _MoodButton extends StatelessWidget {
           children: [
             // Fondo degradado según el mood.
             DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
-            // Glassmorphism: desenfoque del fondo + velo translúcido.
-            BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-              child: ColoredBox(color: Colors.white.withValues(alpha: 0.06)),
-            ),
+            if (backdropUrl != null)
+              Positioned.fill(
+                child: CachedNetworkImage(
+                  imageUrl: backdropUrl!,
+                  fit: BoxFit.cover,
+                  memCacheWidth: 800,
+                  maxWidthDiskCache: 800,
+                  fadeInDuration: const Duration(milliseconds: 250),
+                  useOldImageOnUrlChange: true,
+                  placeholder: (_, _) => const SizedBox.shrink(),
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                ),
+              ),
+            // El tinte conserva el color de cada mood y deja ver el backdrop.
+            DecoratedBox(decoration: BoxDecoration(gradient: tint)),
             // Degradado inferior para legibilidad del texto.
             const DecoratedBox(
               decoration: BoxDecoration(

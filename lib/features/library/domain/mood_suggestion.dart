@@ -16,16 +16,72 @@ enum MoodKey {
   adventure,
 }
 
-/// Etiqueta localizada de un estado de ánimo.
-String moodLabel(AppLocalizations l10n, MoodKey key) => switch (key) {
-  MoodKey.action => l10n.moodAction,
-  MoodKey.comedy => l10n.moodComedy,
-  MoodKey.drama => l10n.moodDrama,
-  MoodKey.horror => l10n.moodHorror,
-  MoodKey.sciFi => l10n.moodSciFi,
-  MoodKey.thriller => l10n.moodThriller,
-  MoodKey.relax => l10n.moodRelax,
-  MoodKey.adventure => l10n.moodAdventure,
+/// Frases localizadas para presentar cada estado de ánimo.
+List<String> moodPhrases(AppLocalizations l10n, MoodKey key) => switch (key) {
+  MoodKey.action => [
+    l10n.moodAction,
+    l10n.moodAction2,
+    l10n.moodAction3,
+    l10n.moodAction4,
+    l10n.moodAction5,
+    l10n.moodAction6,
+  ],
+  MoodKey.comedy => [
+    l10n.moodComedy,
+    l10n.moodComedy2,
+    l10n.moodComedy3,
+    l10n.moodComedy4,
+    l10n.moodComedy5,
+    l10n.moodComedy6,
+  ],
+  MoodKey.drama => [
+    l10n.moodDrama,
+    l10n.moodDrama2,
+    l10n.moodDrama3,
+    l10n.moodDrama4,
+    l10n.moodDrama5,
+    l10n.moodDrama6,
+  ],
+  MoodKey.horror => [
+    l10n.moodHorror,
+    l10n.moodHorror2,
+    l10n.moodHorror3,
+    l10n.moodHorror4,
+    l10n.moodHorror5,
+    l10n.moodHorror6,
+  ],
+  MoodKey.sciFi => [
+    l10n.moodSciFi,
+    l10n.moodSciFi2,
+    l10n.moodSciFi3,
+    l10n.moodSciFi4,
+    l10n.moodSciFi5,
+    l10n.moodSciFi6,
+  ],
+  MoodKey.thriller => [
+    l10n.moodThriller,
+    l10n.moodThriller2,
+    l10n.moodThriller3,
+    l10n.moodThriller4,
+    l10n.moodThriller5,
+    l10n.moodThriller6,
+  ],
+  MoodKey.relax => [
+    l10n.moodRelax,
+    l10n.moodRelax2,
+    l10n.moodRelax3,
+    l10n.moodRelax4,
+    l10n.moodRelax5,
+    l10n.moodRelax6,
+  ],
+  MoodKey.adventure => [
+    l10n.moodAdventure,
+    l10n.moodAdventure2,
+    l10n.moodAdventure3,
+    l10n.moodAdventure4,
+    l10n.moodAdventure5,
+    l10n.moodAdventure6,
+  ],
 };
 
 /// Definición de un botón de sugerencia por estado de ánimo.

@@ -12,22 +12,7 @@ import '../../application/library_providers.dart';
 
 /// Fondo panorámico de la tarjeta Disney: backdrop, thumb o primary.
 String? _libraryBgUrl(String serverUrl, BaseItemDto view) {
-  if ((view.backdropImageTags ?? const []).isNotEmpty) {
-    return itemBackdropUrl(serverUrl, view, maxWidth: 800);
-  }
-  bool hasTag(Map<String, String>? tags, String type) {
-    if (tags == null) return false;
-    return tags.keys.any((k) => k.toLowerCase() == type);
-  }
-
-  final tags = view.imageTags;
-  if (hasTag(tags, ImageType.thumb.name)) {
-    return itemThumbUrl(serverUrl, view, maxWidth: 800);
-  }
-  if (hasTag(tags, ImageType.primary.name)) {
-    return itemImageUrl(serverUrl, view, maxWidth: 600);
-  }
-  return null;
+  return bestLandscapeImageUrl(serverUrl, view);
 }
 
 /// Icono según el tipo de colección (mismo criterio que la sidebar).

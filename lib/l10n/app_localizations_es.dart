@@ -1243,6 +1243,126 @@ class AppLocalizationsEs extends AppLocalizations {
   String get moodAdventure => 'Aventura épica';
 
   @override
+  String get moodAction2 => 'Acción a toda velocidad';
+
+  @override
+  String get moodAction3 => 'Emoción sin pausa';
+
+  @override
+  String get moodAction4 => 'Persecuciones al límite';
+
+  @override
+  String get moodAction5 => 'Héroes en acción';
+
+  @override
+  String get moodAction6 => 'Directos a la acción';
+
+  @override
+  String get moodComedy2 => 'Risas que sientan bien';
+
+  @override
+  String get moodComedy3 => 'Un buen rato para reír';
+
+  @override
+  String get moodComedy4 => 'Dale alegría al día';
+
+  @override
+  String get moodComedy5 => 'Comedia para compartir';
+
+  @override
+  String get moodComedy6 => 'Un poco de locura';
+
+  @override
+  String get moodDrama2 => 'Historias que emocionan';
+
+  @override
+  String get moodDrama3 => 'Sentimientos a flor de piel';
+
+  @override
+  String get moodDrama4 => 'Amor, pérdidas y vida';
+
+  @override
+  String get moodDrama5 => 'Vidas que dan un giro';
+
+  @override
+  String get moodDrama6 => 'Interpretaciones inolvidables';
+
+  @override
+  String get moodHorror2 => '¿Te atreves a verla?';
+
+  @override
+  String get moodHorror3 => 'Una noche de miedo';
+
+  @override
+  String get moodHorror4 => 'Algo acecha en la sombra';
+
+  @override
+  String get moodHorror5 => 'Miedo después del anochecer';
+
+  @override
+  String get moodHorror6 => 'Historias que ponen los pelos de punta';
+
+  @override
+  String get moodSciFi2 => 'Más allá de las estrellas';
+
+  @override
+  String get moodSciFi3 => 'Hacia lo desconocido';
+
+  @override
+  String get moodSciFi4 => 'Futuros por imaginar';
+
+  @override
+  String get moodSciFi5 => 'Otros mundos te esperan';
+
+  @override
+  String get moodSciFi6 => 'Desafía la realidad';
+
+  @override
+  String get moodThriller2 => 'Una pista lo cambia todo';
+
+  @override
+  String get moodThriller3 => 'Secretos y giros inesperados';
+
+  @override
+  String get moodThriller4 => 'Adivina qué ocurrirá';
+
+  @override
+  String get moodThriller5 => 'Historias que te mantienen en vilo';
+
+  @override
+  String get moodThriller6 => 'Nada es lo que parece';
+
+  @override
+  String get moodRelax2 => 'Un plan para disfrutar juntos';
+
+  @override
+  String get moodRelax3 => 'Una escapada tranquila';
+
+  @override
+  String get moodRelax4 => 'Historias que sientan bien';
+
+  @override
+  String get moodRelax5 => 'Relatos para desconectar';
+
+  @override
+  String get moodRelax6 => 'Momentos acogedores';
+
+  @override
+  String get moodAdventure2 => 'Muchos mundos por explorar';
+
+  @override
+  String get moodAdventure3 => 'El viaje empieza aquí';
+
+  @override
+  String get moodAdventure4 => 'Aventuras que merecen la pena';
+
+  @override
+  String get moodAdventure5 => 'Rumbo a lo desconocido';
+
+  @override
+  String get moodAdventure6 => 'Descubre lo extraordinario';
+
+  @override
   String get moodLoading => 'Buscando algo para ti...';
 
   @override

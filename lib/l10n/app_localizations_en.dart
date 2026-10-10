@@ -1241,6 +1241,126 @@ class AppLocalizationsEn extends AppLocalizations {
   String get moodAdventure => 'Epic adventure';
 
   @override
+  String get moodAction2 => 'High-octane action';
+
+  @override
+  String get moodAction3 => 'Non-stop thrills';
+
+  @override
+  String get moodAction4 => 'Chases and close calls';
+
+  @override
+  String get moodAction5 => 'Heroes in action';
+
+  @override
+  String get moodAction6 => 'Straight into the action';
+
+  @override
+  String get moodComedy2 => 'Feel-good laughs';
+
+  @override
+  String get moodComedy3 => 'Time for a giggle';
+
+  @override
+  String get moodComedy4 => 'Lighten the mood';
+
+  @override
+  String get moodComedy5 => 'Comedy to share';
+
+  @override
+  String get moodComedy6 => 'A little silliness';
+
+  @override
+  String get moodDrama2 => 'Stories that move you';
+
+  @override
+  String get moodDrama3 => 'Big feelings';
+
+  @override
+  String get moodDrama4 => 'Love, loss and life';
+
+  @override
+  String get moodDrama5 => 'Lives turned upside down';
+
+  @override
+  String get moodDrama6 => 'Powerful performances';
+
+  @override
+  String get moodHorror2 => 'Dare to watch?';
+
+  @override
+  String get moodHorror3 => 'A night of scares';
+
+  @override
+  String get moodHorror4 => 'Something in the shadows';
+
+  @override
+  String get moodHorror5 => 'Fear after dark';
+
+  @override
+  String get moodHorror6 => 'Spine-tingling stories';
+
+  @override
+  String get moodSciFi2 => 'Beyond the stars';
+
+  @override
+  String get moodSciFi3 => 'Into the unknown';
+
+  @override
+  String get moodSciFi4 => 'Futures imagined';
+
+  @override
+  String get moodSciFi5 => 'Other worlds await';
+
+  @override
+  String get moodSciFi6 => 'Time to defy reality';
+
+  @override
+  String get moodThriller2 => 'One clue changes everything';
+
+  @override
+  String get moodThriller3 => 'Secrets and twists';
+
+  @override
+  String get moodThriller4 => 'Keep guessing';
+
+  @override
+  String get moodThriller5 => 'Edge-of-your-seat stories';
+
+  @override
+  String get moodThriller6 => 'Nothing is as it seems';
+
+  @override
+  String get moodRelax2 => 'Settle in together';
+
+  @override
+  String get moodRelax3 => 'A gentle escape';
+
+  @override
+  String get moodRelax4 => 'Feel-good viewing';
+
+  @override
+  String get moodRelax5 => 'Easygoing stories';
+
+  @override
+  String get moodRelax6 => 'Cozy moments';
+
+  @override
+  String get moodAdventure2 => 'Worlds to explore';
+
+  @override
+  String get moodAdventure3 => 'The journey starts here';
+
+  @override
+  String get moodAdventure4 => 'Quests worth taking';
+
+  @override
+  String get moodAdventure5 => 'Into the wild';
+
+  @override
+  String get moodAdventure6 => 'Discover the extraordinary';
+
+  @override
   String get moodLoading => 'Finding something for you...';
 
   @override

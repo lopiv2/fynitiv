@@ -16,11 +16,7 @@ String? _imageTag(BaseItemDto item, String typeName) {
 
 /// Construye la URL de la imagen primaria de un item:
 /// {server}/Items/{id}/Images/Primary?tag={tag}
-String itemImageUrl(
-  String serverUrl,
-  BaseItemDto item, {
-  int maxWidth = 300,
-}) {
+String itemImageUrl(String serverUrl, BaseItemDto item, {int maxWidth = 300}) {
   final tag = _imageTag(item, ImageType.primary.name) ?? '';
   return '$serverUrl/Items/${item.id}/Images/Primary'
       '?maxWidth=$maxWidth${tag.isNotEmpty ? '&tag=$tag' : ''}';
@@ -42,11 +38,7 @@ String itemBackdropUrl(
 /// URL del logo de un item, con respaldo al logo del padre (ej. la serie de
 /// un episodio vía `parentLogoItemId`). Devuelve `null` si ni el item ni su
 /// padre tienen logo, para no pedir una imagen que devuelve 404.
-String? itemLogoUrl(
-  String serverUrl,
-  BaseItemDto item, {
-  int maxWidth = 600,
-}) {
+String? itemLogoUrl(String serverUrl, BaseItemDto item, {int maxWidth = 600}) {
   final ownTag = _imageTag(item, ImageType.logo.name);
   if (ownTag != null) {
     return '$serverUrl/Items/${item.id}/Images/Logo'
@@ -66,12 +58,31 @@ String? itemLogoUrl(
 
 /// URL de la imagen de miniatura (Thumb) de un item. Es la imagen de tarjeta
 /// panorámica que prefiere el skin estilo Prime en lugar del fondo (Backdrop).
-String itemThumbUrl(
-  String serverUrl,
-  BaseItemDto item, {
-  int maxWidth = 1920,
-}) {
+String itemThumbUrl(String serverUrl, BaseItemDto item, {int maxWidth = 1920}) {
   final tag = _imageTag(item, ImageType.thumb.name) ?? '';
   return '$serverUrl/Items/${item.id}/Images/Thumb'
       '?maxWidth=$maxWidth${tag.isNotEmpty ? '&tag=$tag' : ''}';
+}
+
+/// Devuelve la mejor imagen panorámica disponible (backdrop → thumb → primary).
+String? bestLandscapeImageUrl(
+  String serverUrl,
+  BaseItemDto item, {
+  int maxWidth = 800,
+  int primaryMaxWidth = 600,
+}) {
+  if ((item.backdropImageTags ?? const []).isNotEmpty) {
+    return itemBackdropUrl(serverUrl, item, maxWidth: maxWidth);
+  }
+
+  final imageTags = item.imageTags;
+  if (imageTags == null) return null;
+  final imageTypes = imageTags.keys.map((type) => type.toLowerCase()).toSet();
+  if (imageTypes.contains(ImageType.thumb.name)) {
+    return itemThumbUrl(serverUrl, item, maxWidth: maxWidth);
+  }
+  if (imageTypes.contains(ImageType.primary.name)) {
+    return itemImageUrl(serverUrl, item, maxWidth: primaryMaxWidth);
+  }
+  return null;
 }
