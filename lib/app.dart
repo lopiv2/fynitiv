@@ -6,8 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/constants/app_constants.dart';
 import 'core/debug/device_simulator_host.dart';
 import 'core/i18n/locale_provider.dart';
-import 'core/skin/skin_controller.dart';
-import 'core/skin/skin_presets.dart';
+import 'core/skin/effective_skin_provider.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'l10n/app_localizations.dart';
@@ -22,11 +21,11 @@ class FynitivApp extends ConsumerWidget {
     final locale = ref.watch(localeProvider).value ?? const Locale('es');
     final themeMode =
         ref.watch(themeModeProvider).value ?? ThemeMode.system;
-    final skin = ref.watch(skinControllerProvider).value;
+    final skin = ref.watch(effectiveSkinProvider);
     return MaterialApp.router(
       title: AppConstants.appName,
-      theme: AppTheme.fromSkin(skin ?? SkinPresets.jellyfinDefault),
-      darkTheme: AppTheme.fromSkin(skin ?? SkinPresets.jellyfinDefault),
+      theme: AppTheme.fromSkin(skin),
+      darkTheme: AppTheme.fromSkin(skin),
       themeMode: themeMode,
       locale: locale,
       supportedLocales: supportedLocales,

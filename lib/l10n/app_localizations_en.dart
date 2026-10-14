@@ -234,6 +234,35 @@ class AppLocalizationsEn extends AppLocalizations {
   String get themeDark => 'Dark';
 
   @override
+  String get seasonalSuggestions => 'Seasonal suggestions';
+
+  @override
+  String get seasonalSuggestionsHint =>
+      'Show Home recommendations related to the time of year.';
+
+  @override
+  String get seasonalTheme => 'Seasonal theme';
+
+  @override
+  String get seasonalThemeHint =>
+      'Tint the background, accent and primary color to the time of year.';
+
+  @override
+  String get seasonalThemeIntensity => 'Intensity';
+
+  @override
+  String get seasonalHalloween => 'Halloween picks';
+
+  @override
+  String get seasonalChristmas => 'Christmas picks';
+
+  @override
+  String get seasonalValentinesDay => 'Valentine\'s Day picks';
+
+  @override
+  String get seasonalEaster => 'Easter picks';
+
+  @override
   String get language => 'Language';
 
   @override

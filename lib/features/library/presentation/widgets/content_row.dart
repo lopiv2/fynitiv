@@ -55,6 +55,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.hoverScale,
     this.isNextPoster = false,
     this.hasNext = false,
+    this.cornerBadge,
   });
 
   final String title;
@@ -155,6 +156,10 @@ class ContentRow extends ConsumerStatefulWidget {
   /// Escala del hover/expansión de las tarjetas de esta fila.
   /// `null` => default (1.3 para HoverPlayCard, 1.04 para TV).
   final double? hoverScale;
+
+  /// Badge opcional superpuesto en la esquina de cada tarjeta (ej. icono
+  /// estacional). Se reenvía a [PosterCard]/[BackdropCard].
+  final Widget? cornerBadge;
 
   @override
   ConsumerState<ContentRow> createState() => _ContentRowState();
@@ -478,6 +483,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     onHoverChanged: (v) => _onCardHover(i, v),
                     onPointerSignal: _onPagePointerSignal,
                     overlayBelowEntry: _prepareArrowOverlayForHover,
+                    cornerBadge: widget.cornerBadge,
                   )
                 : PosterCard(
                     item: items[i],
@@ -511,6 +517,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     onHoverChanged: (v) => _onCardHover(i, v),
                     onPointerSignal: _onPagePointerSignal,
                     overlayBelowEntry: _prepareArrowOverlayForHover,
+                    cornerBadge: widget.cornerBadge,
                   ),
           ),
         ),

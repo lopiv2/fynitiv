@@ -6,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/security/pin_hasher.dart';
+import '../../../core/settings/seasonal_suggestions_controller.dart';
+import '../../../core/settings/seasonal_theme_controller.dart';
 import '../../../core/storage/session_storage.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
@@ -232,7 +234,84 @@ class _PreferencesPanel extends ConsumerWidget {
         _buildLanguage(context, l10n),
         const SizedBox(height: 24),
         _buildTheme(context, ref, l10n),
+        const SizedBox(height: 24),
+        _buildSeasonalSuggestions(ref, l10n),
+        const SizedBox(height: 24),
+        _buildSeasonalTheme(ref, l10n),
       ],
+    );
+  }
+
+  Widget _buildSeasonalTheme(WidgetRef ref, AppLocalizations l10n) {
+    final enabledState = ref.watch(seasonalThemeEnabledProvider);
+    final enabled = enabledState.value ?? true;
+    final intensityState = ref.watch(seasonalThemeIntensityProvider);
+    final intensity = intensityState.value ?? kSeasonalThemeDefaultIntensity;
+    return _SettingsCard(
+      title: l10n.seasonalTheme,
+      subtitle: l10n.seasonalThemeHint,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: Switch(
+              value: enabled,
+              onChanged: enabledState.isLoading
+                  ? null
+                  : (value) => ref
+                        .read(seasonalThemeEnabledProvider.notifier)
+                        .setEnabled(value),
+            ),
+          ),
+          if (enabled) ...[
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Text(
+                  l10n.seasonalThemeIntensity,
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+                Expanded(
+                  child: Slider(
+                    value: intensity.clamp(0.0, 1.0),
+                    divisions: 20,
+                    label: '${(intensity * 100).round()}%',
+                    onChanged: intensityState.isLoading
+                        ? null
+                        : (value) => ref
+                              .read(seasonalThemeIntensityProvider.notifier)
+                              .setIntensity(value),
+                  ),
+                ),
+                Text(
+                  '${(intensity * 100).round()}%',
+                  style: const TextStyle(color: Colors.white70, fontSize: 13),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSeasonalSuggestions(WidgetRef ref, AppLocalizations l10n) {
+    final state = ref.watch(seasonalSuggestionsEnabledProvider);
+    return _SettingsCard(
+      title: l10n.seasonalSuggestions,
+      subtitle: l10n.seasonalSuggestionsHint,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Switch(
+          value: state.value ?? true,
+          onChanged: state.isLoading
+              ? null
+              : (enabled) => ref
+                    .read(seasonalSuggestionsEnabledProvider.notifier)
+                    .setEnabled(enabled),
+        ),
+      ),
     );
   }
 

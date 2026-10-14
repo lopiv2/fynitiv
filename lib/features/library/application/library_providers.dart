@@ -1893,33 +1893,23 @@ final jellyfinThemeAudioProvider =
   final serverUrl = ref.watch(authServerUrlProvider);
   final itemId = item.id;
   if (client == null || userId == null || serverUrl == null || itemId == null || itemId.isEmpty) {
-    debugPrint('[Theme] Jellyfin skip (sin cliente/usuario/url/id) item=${item.name}');
     return null;
   }
   try {
-    debugPrint(
-      '[Theme] Jellyfin ThemeSongs request item=${item.name} id=$itemId type=${item.type}',
-    );
     final res = await client
         .getLibraryApi()
         .getThemeSongs(itemId: itemId, userId: userId, inheritFromParent: true)
         .timeout(const Duration(seconds: 8));
     final songs = res.data?.items ?? const <BaseItemDto>[];
-    debugPrint(
-      '[Theme] Jellyfin ThemeSongs response item=${item.name} count=${songs.length}',
-    );
     final first = songs.firstOrNull;
     final themeId = first?.id;
     if (themeId == null || themeId.isEmpty) {
-      debugPrint('[Theme] Jellyfin sin themes item=${item.name}');
       return null;
     }
-    debugPrint('[Theme] Jellyfin HIT item=${item.name} themeId=$themeId');
     final token = await ref.read(sessionStorageProvider).readToken();
     final apiKey = (token == null || token.isEmpty) ? '' : '&api_key=$token';
     return '$serverUrl/Audio/$themeId/stream?static=true$apiKey';
-  } catch (error) {
-    debugPrint('[Theme] Jellyfin ThemeSongs failed for ${item.id}: $error');
+  } catch (_) {
     return null;
   }
 });
@@ -1929,20 +1919,15 @@ final jellyfinThemeAudioProvider =
 final itemThemeProvider =
     FutureProvider.family<ItemTheme?, BaseItemDto>((ref, item) async {
   ref.cacheFor(_kLibraryCache);
-  debugPrint('[Theme] resolve start item=${item.name} type=${item.type}');
   try {
     final jellyfinUrl = await ref.watch(jellyfinThemeAudioProvider(item).future);
     if (jellyfinUrl != null && jellyfinUrl.isNotEmpty) {
-      debugPrint('[Theme] resolve -> jellyfin item=${item.name}');
       return ItemTheme(
         streamUrl: jellyfinUrl,
         source: ItemThemeSource.jellyfin,
       );
     }
-  } catch (error) {
-    debugPrint('[Theme] resolve jellyfin error item=${item.name}: $error');
-  }
-  debugPrint('[Theme] resolve -> null (sin theme.mp3) item=${item.name}');
+  } catch (_) {}
   return null;
 });
 

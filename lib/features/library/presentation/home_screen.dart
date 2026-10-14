@@ -15,6 +15,7 @@ import '../application/library_providers.dart';
 import 'widgets/content_row.dart';
 import 'widgets/featured_slider.dart';
 import 'widgets/mood_suggestions_grid.dart';
+import 'widgets/seasonal_suggestions_row.dart';
 
 /// Dashboard de la app: filas de contenido tipo Prime/Disney.
 class HomeScreen extends ConsumerWidget {
@@ -254,6 +255,7 @@ class HomeScreen extends ConsumerWidget {
         if (showBanner && (latestBanner.value?.isNotEmpty ?? false))
           buildFeaturedSlider(),
         const MoodSuggestionsGrid(),
+        const SeasonalSuggestionsRow(),
         if ((skin?.showContinueRow ?? true) && (resume.value ?? []).isNotEmpty)
           buildContinueRow(),
         if (nextUpFiltered.isNotEmpty) buildUpNextRow(),
@@ -484,6 +486,7 @@ class HomeScreen extends ConsumerWidget {
             customBackdrops.add(isBack);
             break;
           case LayoutSectionType.featuredSlider:
+          case LayoutSectionType.seasonal:
             break;
         }
       }
@@ -501,6 +504,9 @@ class HomeScreen extends ConsumerWidget {
               out.add(buildFeaturedSlider());
             }
             out.add(const MoodSuggestionsGrid());
+            break;
+          case LayoutSectionType.seasonal:
+            out.add(SeasonalSuggestionsRow(scroll: section.scroll));
             break;
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;

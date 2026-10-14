@@ -47,6 +47,7 @@ class PosterCard extends ConsumerStatefulWidget {
     this.onHoverChanged,
     this.onPointerSignal,
     this.overlayBelowEntry,
+    this.cornerBadge,
   });
 
   final BaseItemDto item;
@@ -76,6 +77,10 @@ class PosterCard extends ConsumerStatefulWidget {
   final ValueChanged<bool>? onHoverChanged;
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final OverlayEntry? Function()? overlayBelowEntry;
+
+  /// Badge opcional sobre la esquina superior izquierda de la imagen (ej.
+  /// icono estacional). No interactivo.
+  final Widget? cornerBadge;
 
   @override
   ConsumerState<PosterCard> createState() => _PosterCardState();
@@ -378,6 +383,12 @@ class _PosterCardState extends ConsumerState<PosterCard> {
                         ),
                       ),
                     ),
+                  if (widget.cornerBadge != null)
+                    Positioned(
+                      top: 6,
+                      left: 6,
+                      child: widget.cornerBadge!,
+                    ),
                   if (widget.showStackLogo && logoUrl != null)
                     Positioned(
                       left: 8,
@@ -514,35 +525,44 @@ class _PosterCardState extends ConsumerState<PosterCard> {
           ],
           if (!widget.hideTitle)
             marqueeEnabled
-                ? MarqueeText(
-                    text: cardTitle,
-                    style: TextStyle(
-                      color: titleColor,
-                      fontSize: 14,
-                      fontWeight: titleWeight,
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 2.0),
+                    child: MarqueeText(
+                      text: cardTitle,
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 14,
+                        fontWeight: titleWeight,
+                      ),
+                      isHovered: isImageHovered,
+                      enabled: true,
                     ),
-                    isHovered: _isHovered,
-                    enabled: true,
                   )
-                : Text(
-                    cardTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: titleColor,
-                      fontSize: 13,
-                      fontWeight: titleWeight,
+                : Padding(
+                    padding: const EdgeInsets.only(left: 2.0),
+                    child: Text(
+                      cardTitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: titleColor,
+                        fontSize: 13,
+                        fontWeight: titleWeight,
+                      ),
                     ),
                   ),
           if (subtitle != null) ...[
             const SizedBox(height: 2),
-            Text(
-              subtitle,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: skin?.textSecondary ?? Colors.white70,
-                fontSize: 11,
+            Padding(
+              padding: const EdgeInsets.only(left: 2.0),
+              child: Text(
+                subtitle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: skin?.textSecondary ?? Colors.white70,
+                  fontSize: 11,
+                ),
               ),
             ),
           ],

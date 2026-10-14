@@ -78,6 +78,26 @@ abstract final class SkinPresets {
     itemSpacing: 20,
     homeLayout: [
       LayoutSection.featuredSlider(),
+      LayoutSection.seasonal(
+        HomeScroll(
+          titleKey: HomeScrollTitle.seasonal,
+          genres: [],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          showSeeMore: false,
+          showHoverOverlay: false,
+          showPlayIcon: false,
+          metaOverlay: true,
+          bottomVignette: true,
+          bottomVignetteHeight: 200,
+          bottomVignetteOpacity: 0.8,
+          metaAlignment: RowMetaAlign.center,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+          hideTitle: true,
+          hideYear: true,
+        ),
+      ),
       LayoutSection.continueWatching(
         HomeScroll(
           titleKey: HomeScrollTitle.continueWatching,
@@ -89,6 +109,7 @@ abstract final class SkinPresets {
           highlightTitleOnHover: true,
         ),
       ),
+      LayoutSection.nextUp(),
       LayoutSection.newReleases(),
       LayoutSection.custom(
         HomeScroll(
@@ -119,7 +140,6 @@ abstract final class SkinPresets {
         ),
       ),
       LayoutSection.recent(),
-      LayoutSection.nextUp(),
     ],
     vodLayout: [
       LayoutSection.featuredSlider(),
@@ -146,6 +166,26 @@ abstract final class SkinPresets {
           showHoverOverlay: false,
           showPlayIcon: true,
           highlightTitleOnHover: true,
+        ),
+      ),
+      LayoutSection.seasonal(
+        HomeScroll(
+          titleKey: HomeScrollTitle.seasonal,
+          genres: [],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          showSeeMore: false,
+          showHoverOverlay: false,
+          showPlayIcon: false,
+          metaOverlay: true,
+          bottomVignette: true,
+          bottomVignetteHeight: 200,
+          bottomVignetteOpacity: 0.8,
+          metaAlignment: RowMetaAlign.center,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+          hideTitle: true,
+          hideYear: true,
         ),
       ),
       LayoutSection.newReleases(

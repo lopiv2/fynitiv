@@ -210,9 +210,12 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
             SizedBox(height: topPadding),
             LibraryPageHeader(
               title: headerTitle,
-              // Sin pila de navegación (se llega con `go`), el atrás por
-              // defecto caería a /home. Vuelve al grid de Biblioteca.
-              onBack: () => context.go('/library'),
+              // Si se llegó con `push` (p. ej. "Ver más" desde Inicio) hay
+              // pila: vuelve a la pantalla anterior. Si se entró con `go`
+              // (sin pila), cae al grid de Biblioteca.
+              onBack: () => context.canPop()
+                  ? context.pop()
+                  : context.go('/library'),
             ),
             // Fila de filtros: categorías, orden, paginación (solo Películas/Series
             // muestran categorías, pero se muestra genérico para cualquier biblioteca)

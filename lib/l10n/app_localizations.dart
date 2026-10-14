@@ -530,6 +530,60 @@ abstract class AppLocalizations {
   /// **'Dark'**
   String get themeDark;
 
+  /// No description provided for @seasonalSuggestions.
+  ///
+  /// In en, this message translates to:
+  /// **'Seasonal suggestions'**
+  String get seasonalSuggestions;
+
+  /// No description provided for @seasonalSuggestionsHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Show Home recommendations related to the time of year.'**
+  String get seasonalSuggestionsHint;
+
+  /// No description provided for @seasonalTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Seasonal theme'**
+  String get seasonalTheme;
+
+  /// No description provided for @seasonalThemeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tint the background, accent and primary color to the time of year.'**
+  String get seasonalThemeHint;
+
+  /// No description provided for @seasonalThemeIntensity.
+  ///
+  /// In en, this message translates to:
+  /// **'Intensity'**
+  String get seasonalThemeIntensity;
+
+  /// No description provided for @seasonalHalloween.
+  ///
+  /// In en, this message translates to:
+  /// **'Halloween picks'**
+  String get seasonalHalloween;
+
+  /// No description provided for @seasonalChristmas.
+  ///
+  /// In en, this message translates to:
+  /// **'Christmas picks'**
+  String get seasonalChristmas;
+
+  /// No description provided for @seasonalValentinesDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Valentine\'s Day picks'**
+  String get seasonalValentinesDay;
+
+  /// No description provided for @seasonalEaster.
+  ///
+  /// In en, this message translates to:
+  /// **'Easter picks'**
+  String get seasonalEaster;
+
   /// No description provided for @language.
   ///
   /// In en, this message translates to:

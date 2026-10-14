@@ -19,6 +19,8 @@ import 'home_scroll.dart';
 /// - library: expande a una fila por cada biblioteca (título = nombre de la
 ///   vista, orden por nombre o por `scroll.sort`).
 /// - custom: fila filtrada por géneros/tipos definida en [HomeScroll].
+/// - seasonal: fila de sugerencias estacionales (aparece solo en fechas
+///   temáticas y si la preferencia está activa; vacía el resto del año).
 enum LayoutSectionType {
   featuredSlider,
   continueWatching,
@@ -27,6 +29,7 @@ enum LayoutSectionType {
   newReleases,
   library,
   custom,
+  seasonal,
 }
 
 /// Sección ordenable de Home y VOD.
@@ -87,6 +90,13 @@ class LayoutSection {
   const LayoutSection.custom(HomeScroll scroll)
     : this._(LayoutSectionType.custom, scroll);
 
+  /// Bloque de sugerencias estacionales (Halloween, Navidad…). Solo se muestra
+  /// cuando hay una temática de calendario activa, la preferencia está activa
+  /// y hay resultados; en el resto de fechas no ocupa espacio. La config
+  /// ([scroll]) define el aspecto de las tarjetas (poster/backdrop, meta, etc.).
+  const LayoutSection.seasonal([HomeScroll? scroll])
+    : this._(LayoutSectionType.seasonal, scroll);
+
   final LayoutSectionType type;
 
   /// Config por fila: para `custom` es obligatorio; para built-ins es opcional y
@@ -143,6 +153,8 @@ class LayoutSection {
         return LayoutSection.custom(
           s ?? HomeScroll.fromJson({'titleKey': 'custom', 'genres': []}),
         );
+      case LayoutSectionType.seasonal:
+        return LayoutSection.seasonal(s);
     }
   }
 

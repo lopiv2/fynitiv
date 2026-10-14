@@ -1,9 +1,7 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:media_kit/media_kit.dart';
 
-import 'soloud_initializer.dart';
 import 'soloud_single_player.dart';
 
 /// Player singleton para themes/OST de items Jellyfin (solo detalle).
@@ -51,13 +49,7 @@ class ItemThemePlayer {
   /// Intenta SoLoud primero y cae a MediaKit si no arranca.
   Future<void> play(String url, {bool inDetail = false}) async {
     _ensureInit();
-    debugPrint(
-      '[Theme] player.play inDetail=$inDetail muted=$_muted '
-      'soloudInit=${SoloudInitializer.isInitialized} '
-      'url=${_short(url)}',
-    );
     if (url.isEmpty || _muted) {
-      debugPrint('[Theme] player.play ABORTADO (vacío/mute)');
       if (inDetail) _inDetail = true;
       return;
     }
@@ -70,44 +62,19 @@ class ItemThemePlayer {
       await _stopFallback();
       await _player.playUrl(url, volume: 0.35);
       if (session != _session) {
-        debugPrint('[Theme] player.play tardío abortado (sesión $session caducada)');
         await _player.stop();
         return;
       }
       if (_player.state == SoloudSingleState.playing) {
-        debugPrint('[Theme] player.play OK via SoLoud');
         return;
       }
-      debugPrint(
-        '[Theme] SoLoud no arrancó (state=${_player.state}), fallback MediaKit',
-      );
       await _playFallback(url, session);
-    } catch (error) {
-      debugPrint('[Theme] player.play ERROR: $error');
+    } catch (_) {
       if (session == _session) {
         _currentUrl = null;
         _currentController.add(null);
       }
     }
-  }
-
-  void _scheduleDiag(Player p, int session) {
-    // Diagnóstico diferido: si position no avanza, mpv no renderiza;
-    // si avanza sin oírse, es mezcla/salida del sistema.
-    Future.delayed(const Duration(seconds: 3), () {
-      if (session != _session) return;
-      try {
-        final st = p.state;
-        debugPrint(
-          '[Theme] MediaKit diag playing=${st.playing} '
-          'pos=${st.position} dur=${st.duration} vol=${st.volume} '
-          'audio=${st.audioParams} completed=${st.completed} '
-          'playlistMode=${st.playlistMode}',
-        );
-      } catch (error) {
-        debugPrint('[Theme] MediaKit diag error: $error');
-      }
-    });
   }
 
   Future<void> _playFallback(String url, int session) async {
@@ -132,10 +99,7 @@ class ItemThemePlayer {
       try {
         await p.setVolume(35);
       } catch (_) {}
-      debugPrint('[Theme] player.play OK via MediaKit playing=${p.state.playing}');
-      _scheduleDiag(p, session);
-    } catch (error) {
-      debugPrint('[Theme] MediaKit fallback ERROR: $error');
+    } catch (_) {
       if (session == _session) {
         _currentUrl = null;
         _currentController.add(null);
@@ -151,9 +115,6 @@ class ItemThemePlayer {
     } catch (_) {}
   }
 
-  static String _short(String url) =>
-      url.length > 90 ? '${url.substring(0, 90)}…' : url;
-
   /// Preview de hover: no pisa el theme de un detalle abierto.
   Future<void> playPreview(String url) async {
     if (_inDetail) return;
@@ -168,7 +129,6 @@ class ItemThemePlayer {
   }
 
   Future<void> stop() async {
-    debugPrint('[Theme] player.stop (inDetail=$_inDetail)');
     _session++;
     _inDetail = false;
     _currentUrl = null;
@@ -193,7 +153,6 @@ class ItemThemePlayer {
 
   Future<void> setMuted(bool muted) async {
     _ensureInit();
-    debugPrint('[Theme] player.setMuted $muted');
     _muted = muted;
     _session++;
     if (muted) {
@@ -229,7 +188,6 @@ class ItemThemePlayer {
       final fb = _fallback;
       if (fb != null && _player.state != SoloudSingleState.playing) {
         await fb.play();
-        debugPrint('[Theme] resume via MediaKit');
         return;
       }
       if (_player.state == SoloudSingleState.idle ||

@@ -51,6 +51,7 @@ class BackdropCard extends ConsumerStatefulWidget {
     this.onHoverChanged,
     this.onPointerSignal,
     this.overlayBelowEntry,
+    this.cornerBadge,
   });
 
   final BaseItemDto item;
@@ -85,6 +86,10 @@ class BackdropCard extends ConsumerStatefulWidget {
   final ValueChanged<bool>? onHoverChanged;
   final ValueChanged<PointerSignalEvent>? onPointerSignal;
   final OverlayEntry? Function()? overlayBelowEntry;
+
+  /// Badge opcional sobre la esquina superior izquierda de la imagen (ej.
+  /// icono estacional). No interactivo.
+  final Widget? cornerBadge;
 
   @override
   ConsumerState<BackdropCard> createState() => _BackdropCardState();
@@ -518,6 +523,12 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
                         ),
                       ),
                     ),
+                  ),
+                if (widget.cornerBadge != null)
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: widget.cornerBadge!,
                   ),
                 if (widget.showStackLogo && logoUrl != null)
                   Positioned(

@@ -14,6 +14,7 @@ import '../../../l10n/app_localizations.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/content_row.dart';
 import '../../library/presentation/widgets/featured_slider.dart';
+import '../../library/presentation/widgets/seasonal_suggestions_row.dart';
 
 /// VOD (Video On Demand): dashboard de películas y series a la carta, con el
 /// mismo diseño que el home (banner + filas) usando los valores del skin.
@@ -471,6 +472,7 @@ class VodScreen extends ConsumerWidget {
             customBackdrops.add(isBack);
             break;
           case LayoutSectionType.featuredSlider:
+          case LayoutSectionType.seasonal:
             break;
         }
       }
@@ -486,6 +488,9 @@ class VodScreen extends ConsumerWidget {
             if (showBanner && (latestBanner.value?.isNotEmpty ?? false)) {
               out.add(buildFeaturedSliderVod());
             }
+            break;
+          case LayoutSectionType.seasonal:
+            out.add(SeasonalSuggestionsRow(scroll: section.scroll));
             break;
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;

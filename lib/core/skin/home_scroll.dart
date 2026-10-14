@@ -26,6 +26,7 @@ enum HomeScrollTitle {
   nextUp,
   newReleases,
   library,
+  seasonal,
 
   /// Comodín para claves libres (se muestra tal cual).
   custom,
@@ -100,6 +101,9 @@ enum HomeScrollTitle {
         return l10n.horror;
       case HomeScrollTitle.superHero:
         return l10n.superHero;
+      case HomeScrollTitle.seasonal:
+        // TODO: Handle this case.
+        throw UnimplementedError();
     }
   }
 }

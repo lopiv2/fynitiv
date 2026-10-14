@@ -84,22 +84,16 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
   /// Autoplay del theme en el detalle (solo Jellyfin: theme.mp3).
   /// Silencioso si no hay theme; toma propiedad frente al hover.
   void _maybeStartTheme(ItemTheme? theme) {
-    debugPrint(
-      '[Theme] detalle "${widget.item.name}" theme=${theme == null ? 'null' : '${theme.source}'} started=$_themeStarted',
-    );
     if (_themeStarted) return;
     final url = theme?.streamUrl;
     if (url == null || url.isEmpty) {
-      debugPrint('[Theme] detalle sin theme "${widget.item.name}"');
       return;
     }
     if (ItemThemePlayer.instance.isPlayingUrl(url)) {
-      debugPrint('[Theme] detalle ya sonando');
       _themeStarted = true;
       return;
     }
     _themeStarted = true;
-    debugPrint('[Theme] detalle play source=${theme?.source}');
     ItemThemePlayer.instance.play(url, inDetail: true);
   }
 
