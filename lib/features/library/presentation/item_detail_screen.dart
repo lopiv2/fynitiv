@@ -15,6 +15,7 @@ import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/hover_play_glyph.dart';
 import '../../../core/widgets/included_badge.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
@@ -2209,34 +2210,17 @@ class _EpisodeHoverThumb extends StatelessWidget {
             ),
           ),
         if (hovered)
-          const ColoredBox(
-            color: Color(0x59000000),
-            child: Center(child: _HoverPlayIcon()),
+          ColoredBox(
+            color: const Color(0x59000000),
+            child: Center(
+              child: HoverPlayGlyph(
+                style: prime
+                    ? HoverPlayGlyphStyle.prime
+                    : HoverPlayGlyphStyle.outline,
+              ),
+            ),
           ),
       ],
-    );
-  }
-}
-
-/// Círculo blanco con play central, como el overlay de las filas.
-class _HoverPlayIcon extends StatelessWidget {
-  const _HoverPlayIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 1.5),
-      ),
-      child: const Icon(
-        Icons.play_arrow_rounded,
-        color: Colors.white,
-        size: 32,
-      ),
     );
   }
 }

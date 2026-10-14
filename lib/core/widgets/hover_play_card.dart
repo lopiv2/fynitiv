@@ -5,6 +5,7 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
 import 'age_rating_badge.dart';
+import 'hover_play_glyph.dart';
 import 'included_badge.dart';
 import 'marquee_text.dart';
 import 'round_icon_button.dart';
@@ -47,6 +48,7 @@ class HoverPlayCard extends StatefulWidget {
     this.overlayBelowEntry,
     this.showHoverDarkening = true,
     this.showPlayIcon = true,
+    this.playGlyphStyle = HoverPlayGlyphStyle.prime,
     this.hoverScale,
     this.resume = false,
     this.ageRating,
@@ -104,6 +106,10 @@ class HoverPlayCard extends StatefulWidget {
   /// (solo aplica cuando `showExtension` es `false`).
   /// Independiente de [showHoverDarkening].
   final bool showPlayIcon;
+
+  /// Estilo del glyph de play del overlay (`prime` = círculo blanco actual).
+  /// Permite que cada skin elija `outline` sin duplicar el botón.
+  final HoverPlayGlyphStyle playGlyphStyle;
 
   /// Escala de expansión al hacer hover cuando `showExtension` es true.
   /// `null` => usa `kCardExpandScale` (1.3). `1.0` => sin escalado, solo panel.
@@ -348,6 +354,7 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
                       child: _PlayOverlay(
                         darkening: widget.showHoverDarkening,
                         showPlayIcon: widget.showPlayIcon,
+                        glyphStyle: widget.playGlyphStyle,
                       ),
                     ),
                   ),
@@ -532,10 +539,15 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
 /// Capa de hover: oscurecido (alpha) y/o botón circular de play centrado.
 /// Ambos son independientes: puede haber play sin oscurecer y viceversa.
 class _PlayOverlay extends StatelessWidget {
-  const _PlayOverlay({this.darkening = true, this.showPlayIcon = true});
+  const _PlayOverlay({
+    this.darkening = true,
+    this.showPlayIcon = true,
+    this.glyphStyle = HoverPlayGlyphStyle.prime,
+  });
 
   final bool darkening;
   final bool showPlayIcon;
+  final HoverPlayGlyphStyle glyphStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -545,24 +557,19 @@ class _PlayOverlay extends StatelessWidget {
           : Colors.transparent,
       child: showPlayIcon
           ? Padding(
-            padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 60.0),
-            child: Center(
-                child: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 1.5),
-                  ),
-                  child: const Icon(
-                    Icons.play_arrow_rounded,
-                    color: Colors.black,
-                    size: 32,
-                  ),
+              padding: const EdgeInsets.fromLTRB(8.0, 8.0, 8.0, 60.0),
+              child: Center(
+                child: HoverPlayGlyph(
+                  style: glyphStyle,
+                  size: 48,
+                  iconColor: glyphStyle == HoverPlayGlyphStyle.prime
+                      ? Colors.black
+                      : null,
+                  borderColor: Colors.white,
+                  borderWidth: 1.5,
                 ),
               ),
-          )
+            )
           : const SizedBox.shrink(),
     );
   }

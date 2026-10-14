@@ -16,10 +16,21 @@ class HoverPlayGlyph extends StatelessWidget {
     super.key,
     this.style = HoverPlayGlyphStyle.outline,
     this.size = 52,
+    this.backgroundColor,
+    this.iconColor,
+    this.borderColor,
+    this.borderWidth,
   });
 
   final HoverPlayGlyphStyle style;
   final double size;
+
+  /// Overrides opcionales para preservar el visual de cada tarjeta
+  /// sin duplicar el `Container`+`Icon`. Nulos = colores del [style].
+  final Color? backgroundColor;
+  final Color? iconColor;
+  final Color? borderColor;
+  final double? borderWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +41,16 @@ class HoverPlayGlyph extends StatelessWidget {
           width: size,
           height: size,
           decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.55),
+            color: backgroundColor ?? Colors.black.withValues(alpha: 0.55),
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 1.5),
+            border: Border.all(
+              color: borderColor ?? Colors.white,
+              width: borderWidth ?? 1.5,
+            ),
           ),
           child: Icon(
             Icons.play_arrow_rounded,
-            color: Colors.white,
+            color: iconColor ?? Colors.white,
             size: iconSize,
           ),
         );
@@ -44,13 +58,19 @@ class HoverPlayGlyph extends StatelessWidget {
         return Container(
           width: size,
           height: size,
-          decoration: const BoxDecoration(
-            color: Colors.white,
+          decoration: BoxDecoration(
+            color: backgroundColor ?? Colors.white,
             shape: BoxShape.circle,
+            border: borderColor == null && borderWidth == null
+                ? null
+                : Border.all(
+                    color: borderColor ?? Colors.white,
+                    width: borderWidth ?? 1.5,
+                  ),
           ),
           child: Icon(
             Icons.play_arrow_rounded,
-            color: const Color(0xFF5A5A5A),
+            color: iconColor ?? const Color(0xFF5A5A5A),
             size: iconSize,
           ),
         );
