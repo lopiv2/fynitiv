@@ -6,6 +6,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../l10n/app_localizations.dart';
 import 'age_rating_badge.dart';
 import 'included_badge.dart';
+import 'marquee_text.dart';
 import 'round_icon_button.dart';
 import 'watch_now_button.dart';
 
@@ -36,6 +37,7 @@ class HoverPlayCard extends StatefulWidget {
     required this.title,
     this.subtitle,
     required this.onPlay,
+    this.onCardTap,
     this.onImageTap,
     this.showExtension = false,
     this.onTrailer,
@@ -51,6 +53,7 @@ class HoverPlayCard extends StatefulWidget {
     this.year,
     this.runTimeTicks,
     this.overview,
+    this.titleMarquee = false,
   });
 
   /// Contenido de la tarjeta (imagen, texto, etc.).
@@ -62,8 +65,11 @@ class HoverPlayCard extends StatefulWidget {
   /// Artista / subtítulo para canciones (se muestra bajo el título en el panel).
   final String? subtitle;
 
-  /// Acción al pulsar reproducir (o la tarjeta).
+  /// Acción del botón "Ver ahora"/"Reanudar" del panel (y del play del overlay).
   final VoidCallback onPlay;
+
+  /// Acción al pulsar el cuerpo de la tarjeta. Si es `null`, usa [onPlay].
+  final VoidCallback? onCardTap;
 
   /// Accion al pulsar la imagen de la hovercard. Si no se proporciona, usa
   /// la misma accion de reproduccion.
@@ -118,6 +124,10 @@ class HoverPlayCard extends StatefulWidget {
 
   /// Sinopsis / descripción del contenido.
   final String? overview;
+
+  /// Aplica marquee al título del panel de hover si desborda (según la
+  /// preferencia `titleMarqueeOnHover` del skin).
+  final bool titleMarquee;
 
   @override
   State<HoverPlayCard> createState() => _HoverPlayCardState();
@@ -255,6 +265,7 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
             runTimeTicks: widget.runTimeTicks,
             overview: widget.overview,
             hoverScale: widget.hoverScale,
+            titleMarquee: widget.titleMarquee,
             onPointerSignal: widget.onPointerSignal ?? _pagePointerSignal,
             onEnter: () => _hideTimer?.cancel(),
             onExit: _scheduleHide,
@@ -322,7 +333,7 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
         onEnter: (_) => _setHovered(true),
         onExit: (_) => _scheduleHide(),
         child: GestureDetector(
-          onTap: widget.onPlay,
+          onTap: widget.onCardTap ?? widget.onPlay,
           child: KeyedSubtree(
             key: _cardKey,
             child: Stack(
@@ -375,6 +386,7 @@ class _ExpandedHoverCard extends StatefulWidget {
     this.runTimeTicks,
     this.overview,
     this.hoverScale,
+    this.titleMarquee = false,
   });
 
   final Offset origin;
@@ -396,6 +408,7 @@ class _ExpandedHoverCard extends StatefulWidget {
   final int? runTimeTicks;
   final String? overview;
   final double? hoverScale;
+  final bool titleMarquee;
 
   @override
   State<_ExpandedHoverCard> createState() => _ExpandedHoverCardState();
@@ -502,6 +515,7 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
                             year: widget.year,
                             runTimeTicks: widget.runTimeTicks,
                             overview: widget.overview,
+                            titleMarquee: widget.titleMarquee,
                           )
                         : const SizedBox(width: double.infinity, height: 0),
                   ),
@@ -570,6 +584,7 @@ class _HoverPanel extends StatelessWidget {
     this.year,
     this.runTimeTicks,
     this.overview,
+    this.titleMarquee = false,
   });
 
   final String title;
@@ -577,6 +592,9 @@ class _HoverPanel extends StatelessWidget {
   final VoidCallback onPlay;
   final VoidCallback? onTrailer;
   final VoidCallback? onFavorites;
+
+  /// Aplica marquee al título si desborda (preferencia del skin).
+  final bool titleMarquee;
 
   /// Muestra "Reanudar" en el botón si el elemento es de "Continuar viendo".
   final bool resume;
@@ -602,16 +620,28 @@ class _HoverPanel extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 23,
-                  fontWeight: FontWeight.w600,
+              if (titleMarquee)
+                MarqueeText(
+                  text: title,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  isHovered: true,
+                  enabled: true,
+                )
+              else
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 23,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
               if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
                 const SizedBox(height: 2),
                 Text(

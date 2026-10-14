@@ -1408,7 +1408,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                 if (widget.showJellyfinLogo) ...[
                   Image.asset(
                     'assets/images/jellyfin-logo.png',
-                    height: 20 * s,
+                    height: 30 * s,
                     fit: BoxFit.contain,
                   ),
                   SizedBox(height: 6 * s),
@@ -1618,42 +1618,44 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                         // Descripción revelada al pasar el ratón (desktop). En TV
                         // se oculta: era la que desbordaba 167px con altura
                         // reducida y no aporta en mando a distancia.
-                        if (!isTv)
+                        // La descripción reserva su espacio SIEMPRE que el
+                        // reveal esté activo (aunque esté invisible). Así la
+                        // columna no cambia de alto al mostrarse/ocultarse y el
+                        // logo (y su MouseRegion) no se desplazan: sin bucle de
+                        // enter/exit, el reveal solo responde al logo.
+                        if (!isTv && _reveal)
                           Flexible(
                             fit: FlexFit.loose,
                             child: AnimatedSlide(
-                              offset: _reveal && _hovered
+                              offset: _hovered
                                   ? Offset.zero
                                   : const Offset(0, 0.15),
                               duration: const Duration(milliseconds: 450),
                               curve: Curves.easeOutCubic,
                               child: AnimatedOpacity(
-                                opacity: _reveal && _hovered ? 1 : 0,
+                                opacity: _hovered ? 1 : 0,
                                 duration: const Duration(milliseconds: 450),
                                 curve: Curves.easeOut,
-                                child: _reveal && _hovered
-                                    ? Padding(
-                                        padding: EdgeInsets.only(top: 1 * s),
-                                        child: ConstrainedBox(
-                                          constraints: BoxConstraints(
-                                            maxWidth:
-                                                constraints.maxWidth * 0.4,
-                                          ),
-                                          child: Text(
-                                            item.overview!,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                            style: TextStyle(
-                                              color:
-                                                  skin?.textSecondary ??
-                                                  Colors.white70,
-                                              fontSize: 13 * s,
-                                              height: 1.3,
-                                            ),
-                                          ),
-                                        ),
-                                      )
-                                    : const SizedBox.shrink(),
+                                child: Padding(
+                                  padding: EdgeInsets.only(top: 1 * s),
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      maxWidth: constraints.maxWidth * 0.4,
+                                    ),
+                                    child: Text(
+                                      item.overview!,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        color:
+                                            skin?.textSecondary ??
+                                            Colors.white70,
+                                        fontSize: 13 * s,
+                                        height: 1.3,
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                           ),

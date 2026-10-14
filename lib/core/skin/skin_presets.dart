@@ -365,16 +365,48 @@ abstract final class SkinPresets {
     cardHoverExtension: true,
     topBarFloating: false,
     showCardBadge: true,
-    homeScrolls: [
-      HomeScroll(
-        titleKey: HomeScrollTitle.actionMovies,
-        genres: [JellyGenre.action],
-        cardType: HomeScrollCardType.backdrop,
+    // Layout de Inicio y VOD con la misma estructura; se mantiene el estilo de
+    // las filas Prime (backdrop + hover extendido) en los scrolls propios.
+    homeLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.seasonal(),
+      LayoutSection.continueWatching(),
+      LayoutSection.nextUp(),
+      LayoutSection.recent(),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.actionMovies,
+          genres: [JellyGenre.action],
+          cardType: HomeScrollCardType.backdrop,
+        ),
       ),
-      HomeScroll(
-        titleKey: HomeScrollTitle.familyMovies,
-        genres: [JellyGenre.animation, JellyGenre.family, JellyGenre.kids],
-        cardType: HomeScrollCardType.backdrop,
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.familyMovies,
+          genres: [JellyGenre.animation, JellyGenre.family, JellyGenre.kids],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+    ],
+    vodLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.seasonal(),
+      LayoutSection.continueWatching(),
+      LayoutSection.nextUp(),
+      LayoutSection.recent(),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.actionMovies,
+          genres: [JellyGenre.action],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.familyMovies,
+          genres: [JellyGenre.animation, JellyGenre.family, JellyGenre.kids],
+          cardType: HomeScrollCardType.backdrop,
+        ),
       ),
     ],
   );

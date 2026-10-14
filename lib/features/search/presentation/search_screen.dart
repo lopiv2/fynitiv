@@ -6,9 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/backdrop_card.dart';
@@ -228,13 +230,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final serverUrl = ref.watch(authServerUrlProvider);
     final query = _term.trim();
     final results = ref.watch(searchHintsProvider(query));
+    // Bajo la barra superior del skin (p. ej. Prime anclada) el contenido se
+    // superpone; se reserva el alto de esa barra igual que en las bibliotecas.
+    final skin = ref.watch(skinControllerProvider).value;
+    final topPadding = libraryPageTopPadding(context, skin);
 
     return Scaffold(
       body: DashboardBackground(
         child: Column(
           children: [
+            SizedBox(height: topPadding),
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
               child: TextSelectionTheme(
                 data: const TextSelectionThemeData(
                   // Azul corporativo (igual que hovers/LED): el texto blanco

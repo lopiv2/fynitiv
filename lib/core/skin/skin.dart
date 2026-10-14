@@ -1,6 +1,5 @@
 import 'package:material_ui/material_ui.dart';
 
-import 'home_scroll.dart';
 import 'layout_section.dart';
 
 /// Posición de la barra lateral en el dashboard.
@@ -104,11 +103,10 @@ class Skin {
     this.sidebarCollapsible = true,
     this.fontFamily,
     this.cardHoverExtension = false,
-    this.homeScrolls = const [],
     // --- Layouts ordenables por skin (array de arriba a abajo) ---
     // Si están vacíos se usa el orden legado para no romper presets existentes.
-    // Home: FeaturedSlider → ContinueWatching → NextUp → Recent → custom HomeScrolls.
-    // VOD: FeaturedSlider → ContinueWatching → NewReleases → Library per view → custom.
+    // Home: FeaturedSlider → ContinueWatching → NextUp → Recent.
+    // VOD: FeaturedSlider → ContinueWatching → NewReleases → Library per view.
     // Para personalizar, define el array en el orden que quieras que aparezca.
     // Ej. Disney: [featuredSlider, continueWatching, newReleases, custom(Action), custom(Family)]
     // Cada elemento `LayoutSection` puede ser built-in o `custom(HomeScroll(...))`
@@ -320,16 +318,8 @@ class Skin {
   /// elemento con el nombre y un botón de reproducir.
   final bool cardHoverExtension;
 
-  /// Filas de contenido extra (scrolls) configuradas por este skin, con sus
-  /// filtros (géneros/tipos). Se muestran bajo las filas de la biblioteca.
-  /// @Deprecated: usar `homeLayout`/`vodLayout` con `LayoutSection.custom`.
-  /// Se mantiene por compatibilidad: si `homeLayout`/`vodLayout` están vacíos se usa este
-  /// array en el orden legado (detrás de Recent). Si `homeLayout`/`vodLayout` no está vacío,
-  /// este campo se ignora por completo para evitar duplicados.
-  final List<HomeScroll> homeScrolls;
-
   /// Layout ordenable del Home: array de secciones de arriba a abajo.
-  /// Vacío = orden legado (FeaturedSlider → ContinueWatching → NextUp → Recent → homeScrolls).
+  /// Vacío = orden legado (FeaturedSlider → ContinueWatching → NextUp → Recent).
   /// Lleno = se respeta exactamente el orden dado, permitiendo intercalar built-ins
   /// y customs (poster/backdrop, viñeta, etc.) de forma máxima personalizable por skin.
   /// Cada `LayoutSection` puede ser built-in o `custom(HomeScroll)` con su propio poster/backdrop.
@@ -337,9 +327,9 @@ class Skin {
   final List<LayoutSection> homeLayout;
 
   /// Layout ordenable de VOD: array de secciones de arriba a abajo.
-  /// Vacío = orden legado VOD (FeaturedSlider → ContinueWatching → NewReleases → Library per view → homeScrolls).
+  /// Vacío = orden legado VOD (FeaturedSlider → ContinueWatching → NewReleases → Library per view).
   /// Lleno = orden custom. `library`/`recent` expanden a una fila por biblioteca,
-  /// `custom` a un HomeScroll filtrado. Si `vodLayout` no está vacío, `homeScrolls` se ignora en VOD.
+  /// `custom` a un HomeScroll filtrado.
   final List<LayoutSection> vodLayout;
 
   /// Cuando el título del elemento hace overflow, lo desplaza horizontalmente
@@ -426,7 +416,6 @@ class Skin {
     bool? sidebarCollapsible,
     String? fontFamily,
     bool? cardHoverExtension,
-    List<HomeScroll>? homeScrolls,
     List<LayoutSection>? homeLayout,
     List<LayoutSection>? vodLayout,
     bool? titleMarqueeOnHover,
@@ -513,7 +502,6 @@ class Skin {
       sidebarCollapsible: sidebarCollapsible ?? this.sidebarCollapsible,
       fontFamily: fontFamily ?? this.fontFamily,
       cardHoverExtension: cardHoverExtension ?? this.cardHoverExtension,
-      homeScrolls: homeScrolls ?? this.homeScrolls,
       homeLayout: homeLayout ?? this.homeLayout,
       vodLayout: vodLayout ?? this.vodLayout,
       titleMarqueeOnHover: titleMarqueeOnHover ?? this.titleMarqueeOnHover,
@@ -626,11 +614,6 @@ class Skin {
       sidebarCollapsible: json['sidebarCollapsible'] as bool? ?? true,
       fontFamily: json['fontFamily'] as String?,
       cardHoverExtension: json['cardHoverExtension'] as bool? ?? false,
-      homeScrolls:
-          (json['homeScrolls'] as List?)
-              ?.map((e) => HomeScroll.fromJson(e as Map<String, dynamic>))
-              .toList() ??
-          const [],
       homeLayout:
           (json['homeLayout'] as List?)
               ?.map((e) => LayoutSection.fromJson(e as Map<String, dynamic>))
@@ -718,7 +701,6 @@ class Skin {
     'sidebarCollapsible': sidebarCollapsible,
     if (fontFamily != null) 'fontFamily': fontFamily,
     'cardHoverExtension': cardHoverExtension,
-    'homeScrolls': homeScrolls.map((s) => s.toJson()).toList(),
     'homeLayout': homeLayout.map((s) => s.toJson()).toList(),
     'vodLayout': vodLayout.map((s) => s.toJson()).toList(),
     'titleMarqueeOnHover': titleMarqueeOnHover,

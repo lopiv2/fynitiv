@@ -54,7 +54,7 @@ class SeasonalPalette {
 /// Ruta del asset (webp) del badge de la temática (esquina de las tarjetas).
 String seasonalBadgeAsset(SeasonalEvent event) => switch (event) {
   SeasonalEvent.halloween => 'assets/images/seasonal/halloween.webp',
-  SeasonalEvent.christmas => 'assets/images/seasonal/christmas.webp',
+  SeasonalEvent.christmas => 'assets/images/seasonal/tree.webp',
   SeasonalEvent.valentinesDay => 'assets/images/seasonal/valentines.webp',
   SeasonalEvent.easter => 'assets/images/seasonal/easter.webp',
 };

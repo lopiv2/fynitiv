@@ -6,6 +6,20 @@ import '../../l10n/app_localizations.dart';
 /// Solo backdrop + umbral ≥ 7. Siempre blanco (widget se encarga).
 /// Retorna null si no aplica.
 String? resolvePrimeBadge(BaseItemDto item, AppLocalizations l10n) {
+  // El badge Prime es para vídeo (películas/series). Música, libros, etc. no
+  // lo llevan: sus items suelen ir sin géneros/rating y acababan saliendo como
+  // "TENDENCIAS" casi todos.
+  switch (item.type) {
+    case BaseItemKind.movie:
+    case BaseItemKind.series:
+    case BaseItemKind.episode:
+    case BaseItemKind.season:
+    case BaseItemKind.video:
+      break;
+    default:
+      return null;
+  }
+
   final genres = (item.genres ?? [])
       .map((g) => g.trim().toLowerCase())
       .where((g) => g.isNotEmpty)

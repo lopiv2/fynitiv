@@ -750,7 +750,14 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
       child: HoverPlayCard(
         title: cardTitle,
         subtitle: subtitle,
-        onPlay: widget.onTap ?? () {},
+        // En Prime, "Ver ahora" abre el detalle; "Reanudar" (con progreso)
+        // reproduce. El tap de la tarjeta no cambia.
+        onPlay:
+            (skin?.id == 'amazon_prime' &&
+                (widget.item.userData?.playbackPositionTicks ?? 0) <= 0)
+            ? (widget.onImageTap ?? widget.onTap ?? () {})
+            : (widget.onTap ?? () {}),
+        onCardTap: widget.onTap,
         onImageTap: widget.onImageTap,
         showExtension: showExtension,
         showHoverDarkening: widget.showHoverOverlay,
@@ -767,6 +774,7 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
         year: widget.item.productionYear,
         runTimeTicks: widget.item.runTimeTicks,
         overview: widget.item.overview,
+        titleMarquee: marqueeEnabled,
         child: cardContent,
       ),
     );

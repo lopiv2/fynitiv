@@ -89,17 +89,6 @@ class HomeScreen extends ConsumerWidget {
         visibleBackdrops.add(useBackdrop);
       }
     }
-    for (final scroll in skin?.homeScrolls ?? const <HomeScroll>[]) {
-      final items =
-          ref.watch(homeScrollItemsProvider(scroll)).value ?? const [];
-      if (items.isEmpty) continue;
-      final isBack = scroll.cardType == HomeScrollCardType.backdrop
-          ? true
-          : scroll.cardType == HomeScrollCardType.poster
-          ? false
-          : useBackdrop;
-      visibleBackdrops.add(isBack);
-    }
     int rowCursor = 0;
     bool isNextPosterFor(bool currentIsBackdrop) {
       if (rowCursor >= visibleBackdrops.length) return false;
@@ -317,87 +306,6 @@ class HomeScreen extends ConsumerWidget {
                 return w;
               },
             ),
-        for (final scroll in skin?.homeScrolls ?? const <HomeScroll>[])
-          Builder(
-            builder: (context) {
-              final items =
-                  ref.watch(homeScrollItemsProvider(scroll)).value ?? const [];
-              if (items.isEmpty) return const SizedBox.shrink();
-              final isBack = scroll.cardType == HomeScrollCardType.backdrop
-                  ? true
-                  : scroll.cardType == HomeScrollCardType.poster
-                  ? false
-                  : useBackdrop;
-              final isNextPoster = isNextPosterFor(isBack);
-              final w = ContentRow(
-                title: _scrollTitle(l10n, scroll.titleKey),
-                items: items,
-                serverUrl: serverUrl,
-                height: rowHeight,
-                cardWidth: cardWidth,
-                itemSpacing: skin?.itemSpacing,
-                useBackdrop: isBack,
-                cardLogo: skin?.cardLogo,
-                showBottomVignette: scroll.bottomVignette,
-                showMetaOverlay: scroll.metaOverlay,
-                imageSource: scroll.imageSource,
-                showNewBadge: scroll.showNewBadge,
-                showStackLogo: scroll.showLogo,
-                logoPosition: scroll.logoPosition,
-                metaAlignment: scroll.metaAlignment,
-                logoSize: scroll.logoSize,
-                hideTitle: scroll.hideTitle,
-                hideYear: scroll.hideYear,
-                showHoverOverlay: scroll.showHoverOverlay,
-                showPlayIcon: scroll.showPlayIcon,
-                highlightTitleOnHover: scroll.highlightTitleOnHover,
-                cardBorderRadius: scroll.cardBorderRadius,
-                hoverScale: scroll.hoverScale,
-                bottomVignetteHeight: scroll.bottomVignetteHeight,
-                bottomVignetteOpacity: scroll.bottomVignetteOpacity,
-                isNextPoster: isNextPoster,
-                hasNext: rowCursor < visibleBackdrops.length - 1,
-                onSeeMore: scroll.showSeeMore
-                    ? () {
-                        final allViews = views.value ?? const <BaseItemDto>[];
-                        String targetViewId = '';
-                        for (final kind in scroll.types) {
-                          final mapped = _collectionTypeForKind(kind);
-                          final match = allViews
-                              .where((v) => v.collectionType == mapped)
-                              .firstOrNull;
-                          if (match?.id != null) {
-                            targetViewId = match!.id!;
-                            break;
-                          }
-                        }
-                        targetViewId = targetViewId.isEmpty
-                            ? (allViews
-                                      .where(
-                                        (v) =>
-                                            v.collectionType ==
-                                            CollectionType.movies,
-                                      )
-                                      .firstOrNull
-                                      ?.id ??
-                                  allViews.firstOrNull?.id ??
-                                  '')
-                            : targetViewId;
-                        if (targetViewId.isEmpty) {
-                          context.push('/movies');
-                          return;
-                        }
-                        context.push('/library/$targetViewId', extra: scroll);
-                      }
-                    : null,
-                onItemTap: tapFor(scroll),
-                onItemImageTap: (item) =>
-                    context.push('/home/details/${item.id}', extra: item),
-              );
-              rowCursor++;
-              return w;
-            },
-          ),
         const SizedBox(height: 24),
       ];
     }

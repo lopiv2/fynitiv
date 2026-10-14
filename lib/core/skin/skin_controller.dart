@@ -43,19 +43,6 @@ class SkinController extends AsyncNotifier<Skin> {
             !map.containsKey('showCardBadge')) {
           skin = skin.copyWith(showCardBadge: true);
         }
-        // Los skins guardados antes de añadir las filas extra no las traen.
-        // Si el skin coincide con un preset, se heredan sus scrolls para que
-        // la customización no pierda las filas definidas en el preset.
-        if (skin.homeScrolls.isEmpty) {
-          final preset = SkinPresets.all
-              .where((s) => s.id == skin.id)
-              .firstOrNull;
-          if (preset != null && preset.homeScrolls.isNotEmpty) {
-            return await _withMarquee(
-              skin.copyWith(homeScrolls: preset.homeScrolls),
-            );
-          }
-        }
         // Migración: skins custom guardados antes de que `newReleases` tuviera
         // `showLogo:true` (vodLayout con logo de película/serie). Si el preset
         // actual tiene `LayoutSection.newReleases` con `showLogo:true` y el

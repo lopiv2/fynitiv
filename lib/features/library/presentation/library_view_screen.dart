@@ -353,6 +353,10 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                         itemBuilder: (context, i) {
                           final item = items[i];
                           final scroll = widget.scroll;
+                          // Las series abren el detalle tanto al tocar la tarjeta
+                          // como con "Ver ahora": la reproducción se elige dentro
+                          // (temporadas/capítulos), igual que en otras secciones.
+                          final isSeries = item.type == BaseItemKind.series;
                           if (useBackdrop) {
                             return BackdropCard(
                               item: item,
@@ -383,10 +387,15 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                                   scroll?.highlightTitleOnHover ?? false,
                               cardBorderRadius: scroll?.cardBorderRadius,
                               hoverScale: scroll?.hoverScale,
-                              onTap: () => context.push(
-                                '/player/${item.id}',
-                                extra: item,
-                              ),
+                              onTap: isSeries
+                                  ? () => context.push(
+                                      '/home/details/${item.id}',
+                                      extra: item,
+                                    )
+                                  : () => context.push(
+                                      '/player/${item.id}',
+                                      extra: item,
+                                    ),
                               onImageTap: () => context.push(
                                 '/home/details/${item.id}',
                                 extra: item,
@@ -417,10 +426,18 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                             hideYear: scroll?.hideYear ?? false,
                             showHoverOverlay:
                                 scroll?.showHoverOverlay ?? true,
+                            showPlayIcon: scroll?.showPlayIcon ?? true,
                             cardBorderRadius: scroll?.cardBorderRadius,
                             hoverScale: scroll?.hoverScale,
-                            onTap: () =>
-                                context.push('/player/${item.id}', extra: item),
+                            onTap: isSeries
+                                ? () => context.push(
+                                    '/home/details/${item.id}',
+                                    extra: item,
+                                  )
+                                : () => context.push(
+                                    '/player/${item.id}',
+                                    extra: item,
+                                  ),
                             onImageTap: () => context.push(
                               '/home/details/${item.id}',
                               extra: item,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:media_kit/media_kit.dart';
@@ -15,6 +16,7 @@ import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/included_badge.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/genre_localizer.dart';
 import '../../player/application/playback_provider.dart';
@@ -261,8 +263,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
     });
   }
 
-  List<String> _streamLabels(MediaStreamType type) {
-    return (item.mediaStreams ?? const <MediaStream>[])
+  List<String> _streamLabels(BaseItemDto source, MediaStreamType type) {
+    return (source.mediaStreams ?? const <MediaStream>[])
         .where((stream) => stream.type == type)
         .map((stream) => stream.displayTitle ?? stream.language ?? '')
         .where((label) => label.isNotEmpty)
@@ -285,32 +287,61 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
     ref.read(itemThemeProvider(item)).whenData(_maybeStartTheme);
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
+    final skin = ref.watch(skinControllerProvider).value;
+    // Si el item abierto es un episodio/temporada, se resuelve su serie para
+    // mostrar el detalle de serie (temporadas + capítulos), igual que al abrir
+    // la serie desde la biblioteca. Así TODAS las vistas de detalle de serie en
+    // Prime muestran las temporadas (y su desplegable).
+    final seriesIdForBody = item.type == BaseItemKind.series
+        ? item.id
+        : item.seriesId;
+    final seriesItem = (seriesIdForBody == null || seriesIdForBody.isEmpty)
+        ? null
+        : (seriesIdForBody == item.id
+              ? item
+              : (ref.watch(itemDetailProvider(seriesIdForBody)).value ??
+                    BaseItemDto(
+                      id: seriesIdForBody,
+                      name: item.seriesName,
+                      type: BaseItemKind.series,
+                    )));
+    // Detalle de serie con episodios (temporadas + tabs): Disney y Prime.
+    final isSeriesDetail =
+        seriesItem != null &&
+        (skin?.id == 'disney_plus' || skin?.id == 'amazon_prime');
+    // El cuerpo (y sus datos) usan la serie cuando corresponde.
+    final bodyItem = isSeriesDetail ? seriesItem : item;
+
     final imageUrl = serverUrl == null
         ? null
-        : itemBackdropUrl(serverUrl, item, maxWidth: 1800);
+        : itemBackdropUrl(serverUrl, bodyItem, maxWidth: 1800);
     final logoUrl = serverUrl == null
         ? null
-        : itemLogoUrl(serverUrl, item, maxWidth: 700);
-    final overview = (item.overview ?? '').trim();
-    final genres = item.genres?.take(2).toList() ?? const <String>[];
-    final imdbRating = item.communityRating;
-    final people = item.people ?? const <BaseItemPerson>[];
+        : itemLogoUrl(serverUrl, bodyItem, maxWidth: 700);
+    final overview = (bodyItem.overview ?? '').trim();
+    final genres = bodyItem.genres?.take(2).toList() ?? const <String>[];
+    final imdbRating = bodyItem.communityRating;
+    final people = bodyItem.people ?? const <BaseItemPerson>[];
     final studios =
-        item.studios
+        bodyItem.studios
             ?.map((studio) => studio.name ?? '')
             .where((name) => name.isNotEmpty)
             .toList() ??
         const <String>[];
-    final audioLanguages = _streamLabels(MediaStreamType.audio);
-    final subtitleLanguages = _streamLabels(MediaStreamType.subtitle);
-    final related = ref.watch(similarItemsProvider(item));
+    final audioLanguages = _streamLabels(bodyItem, MediaStreamType.audio);
+    final subtitleLanguages = _streamLabels(
+      bodyItem,
+      MediaStreamType.subtitle,
+    );
+    final related = ref.watch(similarItemsProvider(bodyItem));
     final isFavorite = _isFavorite ?? item.userData?.isFavorite ?? false;
     final wideScreen = MediaQuery.sizeOf(context).width >= 760;
-    // Detalle de serie estilo Disney (solo ese skin; el resto mantiene Prime).
-    // Más adelante se hará modular por pantalla como HomeScroll.
-    final skin = ref.watch(skinControllerProvider).value;
-    final isDisneySeries =
-        item.type == BaseItemKind.series && skin?.id == 'disney_plus';
+    // Alto a reservar arriba dentro del SafeArea para no quedar bajo la barra
+    // superior del skin (p. ej. Prime anclada). Para barras laterales vale el
+    // mismo hueco que antes (8).
+    final topInset =
+        libraryPageTopPadding(context, skin) -
+        MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: const Color(0xFF02070D),
@@ -371,7 +402,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(28, 8, 24, 0),
+                        padding: EdgeInsets.fromLTRB(28, topInset, 24, 0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -392,9 +423,9 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           ],
                         ),
                       ),
-                      if (isDisneySeries)
+                      if (isSeriesDetail)
                         _DisneySeriesBody(
-                          item: item,
+                          item: seriesItem,
                           serverUrl: serverUrl,
                           logoUrl: logoUrl,
                           overview: overview,
@@ -1491,6 +1522,10 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
     final l10n = AppLocalizations.of(context)!;
     final compact = MediaQuery.sizeOf(context).width < 760;
     final seriesId = _series.id ?? '';
+    // La tarjeta de capítulo con barra de progreso/tiempo restante/meta es de
+    // Prime; en otros skins se mantiene la tarjeta básica.
+    final prime =
+        ref.watch(skinControllerProvider).value?.id == 'amazon_prime';
     final seasons =
         ref.watch(seriesSeasonsProvider(seriesId)).value ??
         const <BaseItemDto>[];
@@ -1511,6 +1546,9 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
     final seasonEpisodes = _episodesFor(allEpisodes, season);
     final verTarget = _verTarget(allEpisodes);
     final verIsResume = (verTarget?.userData?.playbackPositionTicks ?? 0) > 0;
+    // Sin episodios no hay "Ver ahora" ni pestañas de Episodios/Extras.
+    final hasEpisodes = allEpisodes.isNotEmpty;
+    final tab = (!hasEpisodes && (_tab == 0 || _tab == 2)) ? 1 : _tab;
 
     final rating = (_series.officialRating ?? '').trim();
     final year = _series.productionYear;
@@ -1594,13 +1632,15 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
           padding: const EdgeInsets.symmetric(horizontal: 36),
           child: Row(
             children: [
-              _VerButton(
-                label: verIsResume ? l10n.resume : l10n.watchNow,
-                onTap: verTarget == null
-                    ? _noop
-                    : () => _playEpisode(verTarget),
-              ),
-              const SizedBox(width: 12),
+              if (hasEpisodes) ...[
+                _VerButton(
+                  label: verIsResume ? l10n.resume : l10n.watchNow,
+                  onTap: verTarget == null
+                      ? _noop
+                      : () => _playEpisode(verTarget),
+                ),
+                const SizedBox(width: 12),
+              ],
               _DetailActionButton(
                 icon: widget.isFavorite ? Icons.check : Icons.add,
                 onTap: widget.onFavorite,
@@ -1616,27 +1656,31 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
             children: [
               Row(
                 children: [
-                  _SeriesTabButton(
-                    label: l10n.episodes.toUpperCase(),
-                    selected: _tab == 0,
-                    onTap: () => setState(() => _tab = 0),
-                  ),
-                  const SizedBox(width: 32),
+                  if (hasEpisodes) ...[
+                    _SeriesTabButton(
+                      label: l10n.episodes.toUpperCase(),
+                      selected: tab == 0,
+                      onTap: () => setState(() => _tab = 0),
+                    ),
+                    const SizedBox(width: 32),
+                  ],
                   _SeriesTabButton(
                     label: l10n.suggestions.toUpperCase(),
-                    selected: _tab == 1,
+                    selected: tab == 1,
                     onTap: () => setState(() => _tab = 1),
                   ),
                   const SizedBox(width: 32),
-                  _SeriesTabButton(
-                    label: l10n.extras.toUpperCase(),
-                    selected: _tab == 2,
-                    onTap: () => setState(() => _tab = 2),
-                  ),
-                  const SizedBox(width: 32),
+                  if (hasEpisodes) ...[
+                    _SeriesTabButton(
+                      label: l10n.extras.toUpperCase(),
+                      selected: tab == 2,
+                      onTap: () => setState(() => _tab = 2),
+                    ),
+                    const SizedBox(width: 32),
+                  ],
                   _SeriesTabButton(
                     label: l10n.details.toUpperCase(),
-                    selected: _tab == 3,
+                    selected: tab == 3,
                     onTap: () => setState(() => _tab = 3),
                   ),
                 ],
@@ -1647,7 +1691,7 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
           ),
         ),
         const SizedBox(height: 18),
-        if (_tab == 0)
+        if (tab == 0)
           _EpisodesTab(
             seasons: effectiveSeasons,
             season: season,
@@ -1656,10 +1700,11 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
                 allEpisodes.isEmpty &&
                 ref.watch(seriesEpisodesProvider(seriesId)).isLoading,
             l10n: l10n,
+            prime: prime,
             onSeasonChanged: (id) => setState(() => _seasonId = id),
             onEpisodeTap: _playEpisode,
           )
-        else if (_tab == 1)
+        else if (tab == 1)
           Padding(
             padding: const EdgeInsets.only(bottom: 24),
             child: _RelatedSection(
@@ -1667,12 +1712,13 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
               serverUrl: widget.serverUrl,
             ),
           )
-        else if (_tab == 2)
+        else if (tab == 2)
           _ExtrasTab(
             episodes: allEpisodes
                 .where((e) => e.parentIndexNumber == 0)
                 .toList(),
             l10n: l10n,
+            prime: prime,
             onEpisodeTap: _playEpisode,
           )
         else
@@ -1780,6 +1826,7 @@ class _EpisodesTab extends StatelessWidget {
     required this.episodes,
     required this.isLoading,
     required this.l10n,
+    required this.prime,
     required this.onSeasonChanged,
     required this.onEpisodeTap,
   });
@@ -1789,6 +1836,7 @@ class _EpisodesTab extends StatelessWidget {
   final List<BaseItemDto> episodes;
   final bool isLoading;
   final AppLocalizations l10n;
+  final bool prime;
   final ValueChanged<String?> onSeasonChanged;
   final void Function(BaseItemDto episode) onEpisodeTap;
 
@@ -1853,7 +1901,11 @@ class _EpisodesTab extends StatelessWidget {
           else
             // Wrap en vez de GridView: el alto lo marca el contenido (sin el
             // aire muerto del childAspectRatio fijo) y runSpacing 0 lo pega.
-            _EpisodeWrap(episodes: episodes, onEpisodeTap: onEpisodeTap),
+            _EpisodeWrap(
+              episodes: episodes,
+              prime: prime,
+              onEpisodeTap: onEpisodeTap,
+            ),
         ],
       ),
     );
@@ -1866,11 +1918,13 @@ class _ExtrasTab extends StatelessWidget {
   const _ExtrasTab({
     required this.episodes,
     required this.l10n,
+    required this.prime,
     required this.onEpisodeTap,
   });
 
   final List<BaseItemDto> episodes;
   final AppLocalizations l10n;
+  final bool prime;
   final void Function(BaseItemDto episode) onEpisodeTap;
 
   @override
@@ -1886,7 +1940,11 @@ class _ExtrasTab extends StatelessWidget {
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(36, 0, 36, 36),
-      child: _EpisodeWrap(episodes: episodes, onEpisodeTap: onEpisodeTap),
+      child: _EpisodeWrap(
+        episodes: episodes,
+        prime: prime,
+        onEpisodeTap: onEpisodeTap,
+      ),
     );
   }
 }
@@ -1894,9 +1952,14 @@ class _ExtrasTab extends StatelessWidget {
 /// Parrilla de capítulos sin alto fijo: cada tarjeta mide lo que su contenido
 /// y las filas quedan pegadas (runSpacing 0).
 class _EpisodeWrap extends StatelessWidget {
-  const _EpisodeWrap({required this.episodes, required this.onEpisodeTap});
+  const _EpisodeWrap({
+    required this.episodes,
+    required this.prime,
+    required this.onEpisodeTap,
+  });
 
   final List<BaseItemDto> episodes;
+  final bool prime;
   final void Function(BaseItemDto episode) onEpisodeTap;
 
   @override
@@ -1920,6 +1983,7 @@ class _EpisodeWrap extends StatelessWidget {
             child: _EpisodeCard(
               episode: episodes[i],
               index: episodes[i].indexNumber ?? (i + 1),
+              prime: prime,
               onTap: () => onEpisodeTap(episodes[i]),
             ),
           ),
@@ -1928,23 +1992,46 @@ class _EpisodeWrap extends StatelessWidget {
   }
 }
 
-/// Tarjeta de capítulo: miniatura 16:9, "N. Título", sinopsis y duración.
+/// Tarjeta de capítulo. En Prime muestra barra de progreso (visto/a medias),
+/// "tiempo restante" si está a medias y meta (edad/CC/duración/fecha). En el
+/// resto de skins mantiene la tarjeta básica.
 class _EpisodeCard extends StatelessWidget {
   const _EpisodeCard({
     required this.episode,
     required this.index,
+    required this.prime,
     required this.onTap,
   });
 
   final BaseItemDto episode;
   final int index;
+  final bool prime;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final overview = (episode.overview ?? '').trim();
     final ticks = episode.runTimeTicks;
-    final progress = episode.userData?.playedPercentage;
+    final userData = episode.userData;
+    final progress = userData?.playedPercentage ?? 0;
+    final played = userData?.played ?? false;
+    final partial = progress > 0 && !played;
+
+    // "Tiempo restante: X min" solo cuando está a medias.
+    String? remainingText;
+    final pos = userData?.playbackPositionTicks;
+    if (prime && partial && ticks != null && pos != null && pos > 0) {
+      final remaining = ticks - pos;
+      if (remaining > 0) {
+        final minutes = remaining ~/ 600000000;
+        remainingText = minutes < 1
+            ? l10n.timeRemainingLessThanAMinute
+            : l10n.timeRemaining(minutes);
+      }
+    }
+
+    final title = '$index. ${episode.name ?? ''}'.trim();
     // El tap lo gestiona el AppHover (evita doble navegación).
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1962,41 +2049,104 @@ class _EpisodeCard extends StatelessWidget {
               outlineHoveredWidth: 2,
             ),
             onTap: onTap,
-            child: _EpisodeHoverThumb(episode: episode, progress: progress),
+            child: _EpisodeHoverThumb(
+              episode: episode,
+              progress: progress,
+              prime: prime,
+              watched: played,
+              remainingText: remainingText,
+            ),
           ),
         ),
         const SizedBox(height: 8),
         Text(
-          '$index. ${episode.name ?? ''}'.trim().toUpperCase(),
+          prime ? title : title.toUpperCase(),
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 14,
+            fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
         ),
         if (overview.isNotEmpty) ...[
-          const SizedBox(height: 4),
+          const SizedBox(height: 16),
           Text(
             overview,
-            maxLines: 3,
+            maxLines: prime ? 2 : 3,
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white70,
-              fontSize: 13,
+              fontSize: 16,
               height: 1.3,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
-        if (ticks != null) ...[
-          const SizedBox(height: 4),
+        const SizedBox(height: 8),
+        if (prime)
+          _EpisodePrimeMeta(episode: episode, l10n: l10n)
+        else if (ticks != null)
           Text(
             '(${_formatDuration(ticks)})',
             style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
-        ],
       ],
+    );
+  }
+}
+
+/// Meta de un capítulo estilo Prime: edad + CC + duración + fecha.
+class _EpisodePrimeMeta extends StatelessWidget {
+  const _EpisodePrimeMeta({required this.episode, required this.l10n});
+
+  final BaseItemDto episode;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context) {
+    final age = (episode.officialRating ?? '').trim();
+    final ticks = episode.runTimeTicks;
+    final hasCC = (episode.mediaStreams ?? const <MediaStream>[]).any(
+      (s) => s.type == MediaStreamType.subtitle,
+    );
+    final date = episode.premiereDate;
+    final children = <Widget>[
+      if (age.isNotEmpty)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+          decoration: BoxDecoration(
+            color: const Color(0xFF3A3A42),
+            borderRadius: BorderRadius.circular(3),
+          ),
+          child: Text(
+            age,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      if (hasCC)
+        const Icon(Icons.subtitles_outlined, size: 16, color: Colors.white70),
+      if (ticks != null)
+        Text(
+          _formatDuration(ticks),
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+      if (date != null)
+        Text(
+          DateFormat.yMMMd(l10n.localeName).format(date.toLocal()),
+          style: const TextStyle(color: Colors.white70, fontSize: 12),
+        ),
+    ];
+    if (children.isEmpty) return const SizedBox.shrink();
+    return Wrap(
+      spacing: 8,
+      runSpacing: 4,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: children,
     );
   }
 }
@@ -2004,29 +2154,58 @@ class _EpisodeCard extends StatelessWidget {
 /// Contenido hover de la miniatura: imagen + progreso y, al hover/foco,
 /// oscurecido con icono de play (lee [AppHoverScope] del AppHover padre).
 class _EpisodeHoverThumb extends StatelessWidget {
-  const _EpisodeHoverThumb({required this.episode, required this.progress});
+  const _EpisodeHoverThumb({
+    required this.episode,
+    required this.progress,
+    required this.prime,
+    required this.watched,
+    this.remainingText,
+  });
 
   final BaseItemDto episode;
-  final double? progress;
+  final double progress;
+  final bool prime;
+  final bool watched;
+  final String? remainingText;
 
   @override
   Widget build(BuildContext context) {
     final hovered = AppHoverScope.of(context)?.hovered ?? false;
-    final watched = progress ?? 0;
+    // Visto → barra completa; a medias → progreso real.
+    final value = watched ? 1.0 : (progress / 100).clamp(0.0, 1.0);
+    final showBar = watched || progress > 0;
     return Stack(
       fit: StackFit.expand,
       children: [
         _ThumbImage(episode: episode),
-        if (watched > 0)
+        if (showBar)
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: LinearProgressIndicator(
-              value: (watched / 100).clamp(0.0, 1.0),
+              value: value,
               minHeight: 4,
               backgroundColor: Colors.black38,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.redAccent),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                prime ? Colors.white : Colors.redAccent,
+              ),
+            ),
+          ),
+        if (prime && remainingText != null)
+          Positioned(
+            right: 8,
+            bottom: 10,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.75),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                remainingText!,
+                style: const TextStyle(color: Colors.white, fontSize: 12),
+              ),
             ),
           ),
         if (hovered)

@@ -525,7 +525,13 @@ final seriesEpisodesProvider =
     includeItemTypes: [BaseItemKind.episode],
     sortBy: [ItemSortBy.parentIndexNumber, ItemSortBy.indexNumber],
     sortOrder: [SortOrder.ascending, SortOrder.ascending],
-    fields: [ItemFields.primaryImageAspectRatio, ItemFields.overview],
+    // mediaStreams: lo usa la tarjeta de capítulo (icono CC). premiereDate y
+    // officialRating vienen por defecto en el DTO.
+    fields: [
+      ItemFields.primaryImageAspectRatio,
+      ItemFields.overview,
+      ItemFields.mediaStreams,
+    ],
     enableImageTypes: [
       ImageType.primary,
       ImageType.thumb,

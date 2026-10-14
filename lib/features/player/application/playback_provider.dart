@@ -77,7 +77,11 @@ final playbackSessionProvider = FutureProvider.family<PlaybackSession?, String>(
         .getUserLibraryApi()
         .getItem(itemId: itemId, userId: userId);
     itemName = detail.data?.name ?? '';
-    start = _durationFromTicks(detail.data?.userData?.playbackPositionTicks);
+    final userData = detail.data?.userData;
+    // Si ya está visto, empieza desde el principio; si está a medias, reanuda.
+    start = (userData?.played ?? false)
+        ? null
+        : _durationFromTicks(userData?.playbackPositionTicks);
   } catch (_) {
     // No crítico: nombre y reanudación quedan vacíos.
   }
