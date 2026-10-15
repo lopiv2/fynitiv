@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/skin/skin_controller.dart';
 import '../../../core/skin/skin_scope.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -37,6 +38,9 @@ class _EReaderScreenState extends ConsumerState<EReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // El padding superior debe seguir el skin global que dibuja la barra del
+    // shell (p. ej. Prime, barra superior solapada), no el skin fijo del lector.
+    final globalSkin = ref.watch(skinControllerProvider).value;
     final serverUrl = ref.watch(authServerUrlProvider);
     final latest =
         ref.watch(eReaderLatestBooksProvider).value ?? const <BaseItemDto>[];
@@ -59,7 +63,7 @@ class _EReaderScreenState extends ConsumerState<EReaderScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(height: libraryPageTopPadding(context, eReaderSkin)),
+              SizedBox(height: libraryPageTopPadding(context, globalSkin)),
               Expanded(
                 child: FocusTraversalGroup(
                   policy: ReadingOrderTraversalPolicy(),

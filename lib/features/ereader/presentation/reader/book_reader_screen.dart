@@ -8,7 +8,9 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:pdfrx/pdfrx.dart';
 
+import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/app_loader.dart';
+import '../../../../core/widgets/library_page_header.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../library/application/library_providers.dart';
 import '../../data/book_format.dart';
@@ -78,6 +80,8 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
       case 'epub':
         return EpubView(file: file);
       case 'cbz':
+      case 'cbr':
+      case 'rar':
         return ComicView(file: file);
       default:
         return Center(
@@ -92,32 +96,42 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // El lector vive dentro del shell, así que hay que reservar el alto de la
+    // barra superior cuando el skin global la dibuja solapada (p. ej. Prime).
+    final skin = ref.watch(skinControllerProvider).value;
+    final barTop =
+        libraryPageTopPadding(context, skin) -
+        MediaQuery.of(context).padding.top;
     return Scaffold(
       backgroundColor: const Color(0xFF0B0B0F),
       body: SafeArea(
         child: Column(
           children: [
-            Row(
-              children: [
-                IconButton(
-                  tooltip: l10n.back,
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  onPressed: () => context.pop(),
-                ),
-                Expanded(
-                  child: Text(
-                    widget.item.name ?? '',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+            SizedBox(height: barTop),
+            Padding(
+              padding: const EdgeInsets.only(left: 8, right: 8),
+              child: Row(
+                children: [
+                  IconButton(
+                    tooltip: l10n.back,
+                    icon: const Icon(Icons.arrow_back, color: Colors.white),
+                    onPressed: () => context.pop(),
+                  ),
+                  Expanded(
+                    child: Text(
+                      widget.item.name ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-              ],
+                  const SizedBox(width: 12),
+                ],
+              ),
             ),
             Expanded(child: _body()),
           ],

@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:real_page_flip/real_page_flip.dart';
 
+import '../../../../core/settings/reader_page_flip_controller.dart';
 import '../../../../l10n/app_localizations.dart';
 
 /// Ancho mínimo a partir del cual el lector muestra dos páginas enfrentadas.
@@ -14,6 +17,10 @@ const EdgeInsets kReaderPagePadding = EdgeInsets.symmetric(
   horizontal: 28,
   vertical: 20,
 );
+
+/// Color de fondo del lector, usado también como reverso del papel en el
+/// efecto de pasar hoja.
+const Color kReaderPaperBackColor = Color(0xFF0B0B0F);
 
 /// Tamaño disponible para una sola página del lector dado el área total.
 ///
@@ -29,11 +36,15 @@ Size readerPageSize(Size available, {required bool twoUp}) {
 
 /// Lector paginado genérico tipo libro.
 ///
-/// Muestra las páginas de [pageBuilder] en un `PageView`. En pantallas anchas
+/// Muestra las páginas de [pageBuilder]. En pantallas anchas
 /// (>= [kReaderTwoUpBreakpoint]) presenta dos páginas enfrentadas (izquierda y
 /// derecha) y en estrechas una sola. Incluye flechas laterales para avanzar y
 /// retroceder, contador de páginas y soporte de teclado/D-pad (flechas).
-class SpreadReader extends StatefulWidget {
+///
+/// Cuando la preferencia `readerPageFlipEnabledProvider` está activa, el paso
+/// de página usa una animación realista de hoja curvándose (`real_page_flip`);
+/// desactivada, se comporta como un `PageView` deslizante.
+class SpreadReader extends ConsumerStatefulWidget {
   const SpreadReader({
     super.key,
     required this.pageCount,
@@ -55,36 +66,42 @@ class SpreadReader extends StatefulWidget {
   final ValueChanged<int>? onIndexChanged;
 
   @override
-  State<SpreadReader> createState() => _SpreadReaderState();
+  ConsumerState<SpreadReader> createState() => _SpreadReaderState();
 }
 
-class _SpreadReaderState extends State<SpreadReader> {
-  late final PageController _controller;
+class _SpreadReaderState extends ConsumerState<SpreadReader> {
+  PageController? _pager;
+  final PageFlipController _flip = PageFlipController();
   int _step = 0;
   bool _twoUp = false;
+  bool _flipEnabled = true;
 
   int _stepsFor(bool twoUp) =>
       twoUp ? (widget.pageCount / 2).ceil() : widget.pageCount;
 
   int get _firstPage => _twoUp ? _step * 2 : _step;
 
+  PageController _ensurePager() => _pager ??= PageController(initialPage: _step);
+
   @override
   void initState() {
     super.initState();
     _step = widget.initialIndex >= 0 ? widget.initialIndex : 0;
-    _controller = PageController(initialPage: _step);
   }
 
   @override
   void didUpdateWidget(SpreadReader oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.pageCount != oldWidget.pageCount) {
+    // El motor de curl gestiona por sí solo los cambios de número de páginas;
+    // el PageView hay que recolocarlo a mano.
+    if (widget.pageCount != oldWidget.pageCount && !_flipEnabled) {
       final steps = _stepsFor(_twoUp);
       if (_step >= steps) {
         _step = steps > 0 ? steps - 1 : 0;
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted && _controller.hasClients) {
-            _controller.jumpToPage(_step);
+          final pager = _pager;
+          if (mounted && pager != null && pager.hasClients) {
+            pager.jumpToPage(_step);
           }
         });
       }
@@ -93,14 +110,22 @@ class _SpreadReaderState extends State<SpreadReader> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _pager?.dispose();
     super.dispose();
   }
 
-  void _goTo(int step, int steps) {
+  void _goTo(int step, int steps, {required bool flip}) {
+    if (flip) {
+      if (step > _step) {
+        _flip.nextPage();
+      } else if (step < _step) {
+        _flip.previousPage();
+      }
+      return;
+    }
     final target = step < 0 ? 0 : (step >= steps ? steps - 1 : step);
     if (target == _step) return;
-    _controller.animateToPage(
+    _pager?.animateToPage(
       target,
       duration: const Duration(milliseconds: 260),
       curve: Curves.easeOutCubic,
@@ -110,6 +135,7 @@ class _SpreadReaderState extends State<SpreadReader> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    _flipEnabled = ref.watch(readerPageFlipEnabledProvider).value ?? true;
     return LayoutBuilder(
       builder: (context, constraints) {
         final twoUp = constraints.maxWidth >= kReaderTwoUpBreakpoint;
@@ -121,78 +147,80 @@ class _SpreadReaderState extends State<SpreadReader> {
           final newStep = rawStep >= steps ? steps - 1 : rawStep;
           if (newStep != _step) {
             _step = newStep;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted && _controller.hasClients) {
-                _controller.jumpToPage(newStep);
-              }
-            });
+            if (!_flipEnabled) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                final pager = _pager;
+                if (mounted && pager != null && pager.hasClients) {
+                  pager.jumpToPage(newStep);
+                }
+              });
+            }
           }
         }
 
-        return ScrollConfiguration(
-          behavior: const _ReaderScrollBehavior(),
-          child: CallbackShortcuts(
-            bindings: {
-              const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
-                  _goTo(_step - 1, steps),
-              const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
-                  _goTo(_step + 1, steps),
-            },
-            child: Focus(
-              autofocus: true,
-              child: Stack(
-                children: [
-                  PageView.builder(
-                    controller: _controller,
-                    itemCount: steps,
-                    onPageChanged: (i) {
-                      setState(() => _step = i);
-                      widget.onIndexChanged?.call(_firstPage);
-                    },
-                    itemBuilder: (context, i) =>
-                        _buildSpread(context, i, twoUp),
-                  ),
-                  _arrow(
-                    alignment: Alignment.centerLeft,
-                    icon: Icons.chevron_left,
-                    tooltip: l10n.eReaderPreviousPage,
-                    enabled: _step > 0,
-                    onTap: () => _goTo(_step - 1, steps),
-                  ),
-                  _arrow(
-                    alignment: Alignment.centerRight,
-                    icon: Icons.chevron_right,
-                    tooltip: l10n.eReaderNextPage,
-                    enabled: _step < steps - 1,
-                    onTap: () => _goTo(_step + 1, steps),
-                  ),
-                  Positioned(
-                    right: 16,
-                    bottom: 12,
-                    child: IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Colors.black54,
-                          borderRadius: BorderRadius.circular(12),
+        // Si pasamos al modo curl, el PageController deja de usarse.
+        if (_flipEnabled && _pager != null) {
+          final old = _pager!;
+          _pager = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+        }
+
+        final pager = (_flipEnabled && steps > 0)
+            ? _buildFlip(context, twoUp, steps, l10n)
+            : _buildPlain(context, twoUp, steps);
+
+        return CallbackShortcuts(
+          bindings: {
+            const SingleActivator(LogicalKeyboardKey.arrowLeft): () =>
+                _goTo(_step - 1, steps, flip: _flipEnabled),
+            const SingleActivator(LogicalKeyboardKey.arrowRight): () =>
+                _goTo(_step + 1, steps, flip: _flipEnabled),
+          },
+          child: Focus(
+            autofocus: true,
+            child: Stack(
+              children: [
+                pager,
+                _arrow(
+                  alignment: Alignment.centerLeft,
+                  icon: Icons.chevron_left,
+                  tooltip: l10n.eReaderPreviousPage,
+                  enabled: _step > 0,
+                  onTap: () => _goTo(_step - 1, steps, flip: _flipEnabled),
+                ),
+                _arrow(
+                  alignment: Alignment.centerRight,
+                  icon: Icons.chevron_right,
+                  tooltip: l10n.eReaderNextPage,
+                  enabled: _step < steps - 1,
+                  onTap: () => _goTo(_step + 1, steps, flip: _flipEnabled),
+                ),
+                Positioned(
+                  right: 16,
+                  bottom: 12,
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
                         ),
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          child: Text(
-                            _counter(l10n),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                            ),
+                        child: Text(
+                          _counter(l10n),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
                           ),
                         ),
                       ),
                     ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         );
@@ -200,8 +228,55 @@ class _SpreadReaderState extends State<SpreadReader> {
     );
   }
 
+  Widget _buildPlain(BuildContext context, bool twoUp, int steps) {
+    return ScrollConfiguration(
+      behavior: const _ReaderScrollBehavior(),
+      child: PageView.builder(
+        controller: _ensurePager(),
+        itemCount: steps,
+        onPageChanged: (i) {
+          setState(() => _step = i);
+          widget.onIndexChanged?.call(_firstPage);
+        },
+        itemBuilder: (context, i) => _buildSpread(context, i, twoUp),
+      ),
+    );
+  }
+
+  Widget _buildFlip(
+    BuildContext context,
+    bool twoUp,
+    int steps,
+    AppLocalizations l10n,
+  ) {
+    return PageFlipWidget(
+      controller: _flip,
+      itemCount: steps,
+      initialIndex: _step,
+      spreadMode: twoUp
+          ? PageFlipSpreadMode.doubleSpread
+          : PageFlipSpreadMode.single,
+      config: PageFlipConfig(
+        enableSound: false,
+        enableHaptics: false,
+        // Los giros programáticos (flechas/D-pad) deben animarse con el curl.
+        skipTapAnimation: false,
+        backgroundColor: kReaderPaperBackColor,
+        semanticBuilder: (page, total) => l10n.pageOf(page, total),
+        edgeTapPreviousLabel: l10n.eReaderPreviousPage,
+        edgeTapNextLabel: l10n.eReaderNextPage,
+      ),
+      onPageChanged: (i) {
+        setState(() => _step = i);
+        widget.onIndexChanged?.call(_firstPage);
+      },
+      itemBuilder: (context, i) => _buildSpread(context, i, twoUp),
+    );
+  }
+
   Widget _buildSpread(BuildContext context, int i, bool twoUp) {
     if (!twoUp) {
+      if (i < 0 || i >= widget.pageCount) return const SizedBox.shrink();
       return widget.pageBuilder(context, i);
     }
     final left = i * 2;

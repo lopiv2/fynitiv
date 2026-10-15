@@ -11,6 +11,7 @@ import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/hover_play_glyph.dart';
 import '../../../core/widgets/included_badge.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/genre_localizer.dart';
 import '../../downloads/application/download_manager_provider.dart';
@@ -182,6 +183,12 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     final skin = ref.watch(skinControllerProvider).value;
     final isDisneySeries =
         item.type == BaseItemKind.series && skin?.id == 'disney_plus';
+    // El detalle vive dentro del shell: reserva el alto de la barra superior
+    // cuando el skin global la dibuja solapada (p. ej. Prime). El SafeArea ya
+    // cubre el inset del sistema, así que se descuenta.
+    final barTop =
+        libraryPageTopPadding(context, skin) -
+        MediaQuery.of(context).padding.top;
 
     return Scaffold(
       backgroundColor: const Color(0xFF02070D),
@@ -225,6 +232,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      SizedBox(height: barTop),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(28, 8, 24, 0),
                         child: Row(

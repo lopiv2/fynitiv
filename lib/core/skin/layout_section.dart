@@ -3,6 +3,15 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 
 import 'home_scroll.dart';
 
+/// Fuente de datos de la fila "Novedades" (TMDB).
+enum TmdbNoveltySource {
+  /// Lo más popular de la semana (películas + series).
+  trending,
+
+  /// Estrenos/emisiones próximas (movie/upcoming + tv/on_the_air).
+  upcoming,
+}
+
 /// Tipo de sección configurable para Home y VOD (unificado).
 /// Cada valor representa un bloque que aparece en el dashboard.
 /// El orden en el array `Skin.homeLayout` / `Skin.vodLayout` define el orden
@@ -30,6 +39,7 @@ enum LayoutSectionType {
   library,
   custom,
   seasonal,
+  novedades,
 }
 
 /// Sección ordenable de Home y VOD.
@@ -47,7 +57,12 @@ enum LayoutSectionType {
 /// Para Prime puedes poner `continueWatching` primero y luego `featuredSlider`,
 /// o intercalar `recent`/`library` donde quieras.
 class LayoutSection {
-  const LayoutSection._(this.type, this.scroll, [this.collections]);
+  const LayoutSection._(
+    this.type,
+    this.scroll, [
+    this.collections,
+    this.noveltySource,
+  ]);
 
   /// Bloque Featured Slider (banner).
   const LayoutSection.featuredSlider([HomeScroll? scroll])
@@ -97,6 +112,14 @@ class LayoutSection {
   const LayoutSection.seasonal([HomeScroll? scroll])
     : this._(LayoutSectionType.seasonal, scroll);
 
+  /// Fila de Novedades (TMDB). Requiere que el usuario haya configurado su API
+  /// key de TMDB en Preferencias; sin key no se muestra. [source] elige entre
+  /// popular de la semana ([TmdbNoveltySource.trending]) o estrenos próximos
+  /// ([TmdbNoveltySource.upcoming]).
+  const LayoutSection.novedades([
+    TmdbNoveltySource source = TmdbNoveltySource.trending,
+  ]) : this._(LayoutSectionType.novedades, null, null, source);
+
   final LayoutSectionType type;
 
   /// Config por fila: para `custom` es obligatorio; para built-ins es opcional y
@@ -106,6 +129,9 @@ class LayoutSection {
 
   /// Bibliotecas a las que aplica (solo `recent`/`library`). `null`/vacío = todas.
   final Set<CollectionType>? collections;
+
+  /// Fuente de la fila `novedades` (solo ese tipo).
+  final TmdbNoveltySource? noveltySource;
 
   /// Comprueba si una vista entra en esta sección según [collections].
   bool matchesView(CollectionType? collectionType) {
@@ -119,6 +145,7 @@ class LayoutSection {
     if (collections != null && collections!.isNotEmpty) {
       map['collections'] = collections!.map((c) => c.name).toList();
     }
+    if (noveltySource != null) map['noveltySource'] = noveltySource!.name;
     return map;
   }
 
@@ -136,6 +163,9 @@ class LayoutSection {
     final coll = (collections == null || collections.isEmpty)
         ? null
         : collections;
+    final novelty = TmdbNoveltySource.values.asNameMap()[
+        json['noveltySource'] as String? ?? ''
+    ];
     switch (t) {
       case LayoutSectionType.featuredSlider:
         return LayoutSection.featuredSlider(s);
@@ -155,6 +185,8 @@ class LayoutSection {
         );
       case LayoutSectionType.seasonal:
         return LayoutSection.seasonal(s);
+      case LayoutSectionType.novedades:
+        return LayoutSection.novedades(novelty ?? TmdbNoveltySource.trending);
     }
   }
 
@@ -163,12 +195,14 @@ class LayoutSection {
       other is LayoutSection &&
       other.type == type &&
       other.scroll == scroll &&
+      other.noveltySource == noveltySource &&
       setEquals(other.collections, collections);
 
   @override
   int get hashCode => Object.hash(
     type,
     scroll,
+    noveltySource,
     collections == null
         ? null
         : Object.hashAll(

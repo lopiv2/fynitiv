@@ -10,6 +10,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/audio/item_theme_player.dart';
+import '../../../core/settings/tmdb_key_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
@@ -20,6 +21,8 @@ import '../../../core/widgets/included_badge.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/genre_localizer.dart';
+import '../../discover/domain/tmdb_models.dart';
+import '../../discover/presentation/where_to_watch.dart';
 import '../../player/application/playback_provider.dart';
 import '../../downloads/application/download_manager_provider.dart';
 import '../application/image_url.dart';
@@ -1063,7 +1066,7 @@ class _TrailerPanel extends StatelessWidget {
   }
 }
 
-class _DetailActions extends StatelessWidget {
+class _DetailActions extends ConsumerWidget {
   const _DetailActions({
     required this.item,
     required this.l10n,
@@ -1083,7 +1086,7 @@ class _DetailActions extends StatelessWidget {
   final VoidCallback onDownload;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1111,8 +1114,26 @@ class _DetailActions extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        // Los libros/cómics no se reproducen; el lector llegará más adelante.
-        if (item.type != BaseItemKind.book) ...[
+        // Item sin media (Radarr/Sonarr): en lugar de reproducir, mostramos
+        // dónde verlo (TMDB), si el usuario ha configurado su key.
+        if (_isNotPlayable(item) &&
+            _tmdbIdOf(item) != null &&
+            ref.watch(tmdbHasKeyProvider)) ...[
+          Text(
+            l10n.whereToWatch,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          WhereToWatchSection(
+            tmdb: (mediaType: _tmdbTypeOf(item), id: _tmdbIdOf(item)!),
+          ),
+          const SizedBox(height: 14),
+        ] else if (item.type != BaseItemKind.book) ...[
+          // Los libros/cómics no se reproducen; el lector tiene su propio flujo.
           _WideDetailButton(
             label: l10n.watchNow,
             icon: Icons.play_arrow,
@@ -2248,3 +2269,27 @@ class _ThumbImage extends ConsumerWidget {
     );
   }
 }
+
+/// `true` si el item no tiene media reproducible (p. ej. placeholder de
+/// Radarr/Sonarr: `LocationType.virtual` o sin `MediaSources`).
+bool _isNotPlayable(BaseItemDto item) {
+  if (item.locationType == LocationType.virtual) return true;
+  final sources = item.mediaSources;
+  return sources != null && sources.isEmpty;
+}
+
+/// Id de TMDB del item (desde `ProviderIds`).
+int? _tmdbIdOf(BaseItemDto item) {
+  final ids = item.providerIds;
+  if (ids == null) return null;
+  for (final entry in ids.entries) {
+    if (entry.key.toLowerCase() == 'tmdb') {
+      return int.tryParse(entry.value);
+    }
+  }
+  return null;
+}
+
+/// Tipo TMDB del item (serie → tv, resto → movie).
+TmdbMediaType _tmdbTypeOf(BaseItemDto item) =>
+    item.type == BaseItemKind.series ? TmdbMediaType.tv : TmdbMediaType.movie;

@@ -9,6 +9,8 @@ import '../features/household/application/household_provider.dart';
 import '../features/household/domain/household.dart';
 import '../features/household/presentation/household_wizard_screen.dart';
 import '../core/skin/home_scroll.dart';
+import '../features/discover/domain/tmdb_models.dart';
+import '../features/discover/presentation/tmdb_detail_screen.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/item_detail_screen.dart';
 import '../features/library/presentation/libraries_screen.dart';
@@ -99,6 +101,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/radio/all', builder: (_, _) => const RadioAllScreen()),
       // Todas las películas del servidor (grid con desplazamiento infinito).
       GoRoute(path: '/movies', builder: (_, _) => const AllMoviesScreen()),
+      // Ficha externa de TMDB (contenido no presente en la biblioteca).
+      GoRoute(
+        path: '/discover/:mediaType/:id',
+        builder: (context, state) => TmdbDetailScreen(
+          mediaType:
+              TmdbMediaType.fromString(state.pathParameters['mediaType']) ??
+              TmdbMediaType.movie,
+          id: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+        ),
+      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             HomeShell(navigationShell: navigationShell),

@@ -742,6 +742,54 @@ class AppLocalizationsEs extends AppLocalizations {
   String get eReaderFileSize => 'Tamaño';
 
   @override
+  String get readerPageFlip => 'Animación de pasar página';
+
+  @override
+  String get readerPageFlipHint =>
+      'Pasa las páginas del lector con un efecto realista de hoja curvándose.';
+
+  @override
+  String get whereToWatch => 'Dónde ver';
+
+  @override
+  String get viewOnTmdb => 'Ver en TMDB';
+
+  @override
+  String get tmdbApiKey => 'API key de TMDB';
+
+  @override
+  String get tmdbApiKeyHint =>
+      'Opcional. Introduce tu propia API key gratuita de TMDB para activar la fila de Novedades y Dónde ver. Se guarda solo en este dispositivo.';
+
+  @override
+  String get tmdbApiKeyExample => 'Pega tu API key de TMDB (v3 o v4)';
+
+  @override
+  String get tmdbAttribution =>
+      'Este producto usa la API de TMDB pero no está respaldado ni certificado por TMDB. Datos de streaming proporcionados por JustWatch.';
+
+  @override
+  String get tmdbPoweredBy => 'Datos de TMDB';
+
+  @override
+  String get watchFlatrate => 'Suscripción';
+
+  @override
+  String get watchFree => 'Gratis';
+
+  @override
+  String get watchAds => 'Con anuncios';
+
+  @override
+  String get watchRent => 'Alquiler';
+
+  @override
+  String get watchBuy => 'Compra';
+
+  @override
+  String get watchNoProviders => 'No disponible en streaming en tu región.';
+
+  @override
   String get albums => 'Álbumes';
 
   @override

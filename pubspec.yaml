@@ -100,6 +100,10 @@ dependencies:
   pdfrx: ^2.6.5
   xml: ^6.6.1
   path: ^1.9.1
+  real_page_flip: ^3.1.2
+  # Decodificación CBR (RAR) en Dart puro. Soporta RAR4 (store/normal); los CBR
+  # con filtros RarVM o RAR5-comprimidos no se descomprimen (aviso en el lector).
+  another_rar: ^0.1.0
 dev_dependencies:
   flutter_test:
     sdk: flutter

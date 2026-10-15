@@ -1520,6 +1520,96 @@ abstract class AppLocalizations {
   /// **'Size'**
   String get eReaderFileSize;
 
+  /// No description provided for @readerPageFlip.
+  ///
+  /// In en, this message translates to:
+  /// **'Page turn animation'**
+  String get readerPageFlip;
+
+  /// No description provided for @readerPageFlipHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn pages in the reader with a realistic curling-page effect.'**
+  String get readerPageFlipHint;
+
+  /// No description provided for @whereToWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Where to watch'**
+  String get whereToWatch;
+
+  /// No description provided for @viewOnTmdb.
+  ///
+  /// In en, this message translates to:
+  /// **'View on TMDB'**
+  String get viewOnTmdb;
+
+  /// No description provided for @tmdbApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'TMDB API key'**
+  String get tmdbApiKey;
+
+  /// No description provided for @tmdbApiKeyHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional. Enter your own free TMDB API key to enable the New releases row and Where to watch. Stored only on this device.'**
+  String get tmdbApiKeyHint;
+
+  /// No description provided for @tmdbApiKeyExample.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste your TMDB API key (v3 or v4)'**
+  String get tmdbApiKeyExample;
+
+  /// No description provided for @tmdbAttribution.
+  ///
+  /// In en, this message translates to:
+  /// **'This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming data provided by JustWatch.'**
+  String get tmdbAttribution;
+
+  /// No description provided for @tmdbPoweredBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Data from TMDB'**
+  String get tmdbPoweredBy;
+
+  /// No description provided for @watchFlatrate.
+  ///
+  /// In en, this message translates to:
+  /// **'Streaming'**
+  String get watchFlatrate;
+
+  /// No description provided for @watchFree.
+  ///
+  /// In en, this message translates to:
+  /// **'Free'**
+  String get watchFree;
+
+  /// No description provided for @watchAds.
+  ///
+  /// In en, this message translates to:
+  /// **'With ads'**
+  String get watchAds;
+
+  /// No description provided for @watchRent.
+  ///
+  /// In en, this message translates to:
+  /// **'Rent'**
+  String get watchRent;
+
+  /// No description provided for @watchBuy.
+  ///
+  /// In en, this message translates to:
+  /// **'Buy'**
+  String get watchBuy;
+
+  /// No description provided for @watchNoProviders.
+  ///
+  /// In en, this message translates to:
+  /// **'Not available on streaming in your region.'**
+  String get watchNoProviders;
+
   /// No description provided for @albums.
   ///
   /// In en, this message translates to:

@@ -8,18 +8,23 @@ const Set<String> _knownBookFormats = {
   'cb7',
   'cbt',
   'cbr',
+  'rar',
 };
 
-/// Formato de un libro/cómic a partir de `Container` o de la extensión de la
-/// ruta del fichero (la extensión gana cuando el container no es conocido).
+/// Formato de un libro/cómic a partir de la extensión real de la ruta del
+/// fichero o, si no hay ruta, del `Container` de Jellyfin.
+///
+/// La extensión del fichero manda cuando es un formato conocido: es lo que de
+/// verdad se descarga. El `Container` de Jellyfin puede no coincidir (p. ej.
+/// reportar `cbr`/`zip` para un `.cbz`), lo que rompía el dispatch del lector.
 String bookFormatOf(BaseItemDto item) {
   final container = (item.container ?? '')
       .trim()
       .toLowerCase()
       .replaceFirst('.', '');
   final ext = p.extension(item.path ?? '').replaceFirst('.', '').toLowerCase();
-  if (_knownBookFormats.contains(container)) return container;
   if (_knownBookFormats.contains(ext)) return ext;
+  if (_knownBookFormats.contains(container)) return container;
   return container.isNotEmpty ? container : ext;
 }
 

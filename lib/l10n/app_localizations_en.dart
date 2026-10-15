@@ -742,6 +742,54 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eReaderFileSize => 'Size';
 
   @override
+  String get readerPageFlip => 'Page turn animation';
+
+  @override
+  String get readerPageFlipHint =>
+      'Turn pages in the reader with a realistic curling-page effect.';
+
+  @override
+  String get whereToWatch => 'Where to watch';
+
+  @override
+  String get viewOnTmdb => 'View on TMDB';
+
+  @override
+  String get tmdbApiKey => 'TMDB API key';
+
+  @override
+  String get tmdbApiKeyHint =>
+      'Optional. Enter your own free TMDB API key to enable the New releases row and Where to watch. Stored only on this device.';
+
+  @override
+  String get tmdbApiKeyExample => 'Paste your TMDB API key (v3 or v4)';
+
+  @override
+  String get tmdbAttribution =>
+      'This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming data provided by JustWatch.';
+
+  @override
+  String get tmdbPoweredBy => 'Data from TMDB';
+
+  @override
+  String get watchFlatrate => 'Streaming';
+
+  @override
+  String get watchFree => 'Free';
+
+  @override
+  String get watchAds => 'With ads';
+
+  @override
+  String get watchRent => 'Rent';
+
+  @override
+  String get watchBuy => 'Buy';
+
+  @override
+  String get watchNoProviders => 'Not available on streaming in your region.';
+
+  @override
   String get albums => 'Albums';
 
   @override
