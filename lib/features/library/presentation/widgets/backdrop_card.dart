@@ -13,6 +13,7 @@ import '../../../../core/widgets/hover_play_card.dart';
 import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/marquee_text.dart';
 import '../../../../core/widgets/prime_card_badge.dart';
+import '../../../../core/widgets/provider_logo_strip.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../l10n/genre_localizer.dart';
 import '../../application/image_url.dart';
@@ -28,6 +29,7 @@ class BackdropCard extends ConsumerStatefulWidget {
     this.onTap,
     this.onImageTap,
     this.cardLogo,
+    this.cornerLogos,
     this.hoverExtension = false,
     this.useSeriesPoster = false,
     this.showBottomVignette = false,
@@ -52,13 +54,28 @@ class BackdropCard extends ConsumerStatefulWidget {
     this.onPointerSignal,
     this.overlayBelowEntry,
     this.cornerBadge,
+    this.imageUrl,
+    this.showHoverIncludedBadge = true,
+    this.hoverActionLabel,
   });
 
   final BaseItemDto item;
   final String? serverUrl;
+
+  /// Muestra "Se incluye con Jellyfin" en el panel de hover (Prime). Se pone a
+  /// `false` para contenido externo (Seerr), que no está en la biblioteca.
+  final bool showHoverIncludedBadge;
+
+  /// Texto del botón principal del hover. `null` = "Reanudar"/"Ver ahora".
+  final String? hoverActionLabel;
+
+  /// URL de imagen explícita (contenido externo, p. ej. TMDB). Si se indica,
+  /// se usa en lugar de resolver la imagen desde Jellyfin.
+  final String? imageUrl;
   final VoidCallback? onTap;
   final VoidCallback? onImageTap;
   final String? cardLogo;
+  final List<String>? cornerLogos;
   final bool hoverExtension;
   final bool useSeriesPoster;
   final bool showBottomVignette;
@@ -153,7 +170,9 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
     String? fallbackPrimaryUrl;
     String? fallbackBackdropUrl;
     String? fallbackThumbUrl;
-    if (widget.useSeriesPoster &&
+    if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
+      displayUrl = widget.imageUrl;
+    } else if (widget.useSeriesPoster &&
         widget.item.type == BaseItemKind.episode &&
         widget.item.seriesId != null &&
         widget.item.seriesId!.isNotEmpty &&
@@ -639,6 +658,14 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
                     ),
                   ),
                 if (!widget.showMetaOverlay &&
+                    widget.cornerLogos != null &&
+                    widget.cornerLogos!.isNotEmpty)
+                  Positioned(
+                    right: 10,
+                    bottom: 10,
+                    child: ProviderLogoStrip(urls: widget.cornerLogos!),
+                  )
+                else if (!widget.showMetaOverlay &&
                     widget.cardLogo != null &&
                     widget.cardLogo!.isNotEmpty)
                   Positioned(
@@ -762,6 +789,8 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
         showExtension: showExtension,
         showHoverDarkening: widget.showHoverOverlay,
         showPlayIcon: widget.showPlayIcon,
+        showIncludedBadge: widget.showHoverIncludedBadge,
+        hoverActionLabel: widget.hoverActionLabel,
         hoverScale: widget.hoverScale,
         onHoverChanged: (v) {
           _setHovered(v);

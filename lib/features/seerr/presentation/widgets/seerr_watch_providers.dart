@@ -1,77 +1,66 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../../core/widgets/app_hover.dart';
-import '../../../core/widgets/app_loader.dart';
-import '../../../l10n/app_localizations.dart';
-import '../application/tmdb_providers.dart';
-import '../data/tmdb_api.dart';
-import '../domain/tmdb_models.dart';
+import '../../../../core/widgets/app_hover.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../domain/seerr_models.dart';
 
-/// "Dónde ver": proveedores de streaming/alquiler/compra de un título TMDB en
-/// la región del usuario (datos de JustWatch vía TMDB).
-class WhereToWatchSection extends ConsumerWidget {
-  const WhereToWatchSection({super.key, required this.tmdb});
+/// "Dónde ver" para un título de Seerr: plataformas donde se emite (región del
+/// usuario), agrupadas por tipo, con los datos que ya devuelve Seerr.
+class SeerrWatchProvidersView extends StatelessWidget {
+  const SeerrWatchProvidersView({
+    super.key,
+    required this.providers,
+    this.showAttribution = true,
+  });
 
-  final TmdbRef tmdb;
+  final List<SeerrWatchProvider> providers;
+  final bool showAttribution;
 
-  static const _order = ['flatrate', 'free', 'ads', 'rent', 'buy'];
+  static const _order = ['flatrate', 'buy'];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final availability = ref.watch(tmdbWatchProvidersProvider(tmdb));
-    return availability.when(
-      data: (a) {
-        if (a.isEmpty) {
-          return Text(
-            l10n.watchNoProviders,
-            style: const TextStyle(color: Colors.white54, fontSize: 14),
-          );
-        }
-        final groups = <String, List<TmdbProvider>>{};
-        for (final p in a.providers) {
-          groups.putIfAbsent(p.type, () => []).add(p);
-        }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            for (final type in _order)
-              if ((groups[type] ?? const []).isNotEmpty) ...[
-                Text(
-                  _typeLabel(l10n, type),
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: [
-                    for (final p in groups[type]!) _ProviderChip(provider: p),
-                  ],
-                ),
-                const SizedBox(height: 14),
-              ],
-            Text(
-              l10n.tmdbAttribution,
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
-            ),
-          ],
-        );
-      },
-      loading: () => const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12),
-        child: Center(child: AppLoader()),
-      ),
-      error: (_, _) => Text(
+    if (providers.isEmpty) {
+      return Text(
         l10n.watchNoProviders,
         style: const TextStyle(color: Colors.white54, fontSize: 14),
-      ),
+      );
+    }
+    final groups = <String, List<SeerrWatchProvider>>{};
+    for (final p in providers) {
+      groups.putIfAbsent(p.type, () => []).add(p);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final type in _order)
+          if ((groups[type] ?? const []).isNotEmpty) ...[
+            Text(
+              _typeLabel(l10n, type),
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (final p in groups[type]!) _ProviderChip(provider: p),
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
+        if (showAttribution)
+          Text(
+            l10n.tmdbAttribution,
+            style: const TextStyle(color: Colors.white38, fontSize: 11),
+          ),
+      ],
     );
   }
 
@@ -96,11 +85,11 @@ class WhereToWatchSection extends ConsumerWidget {
 class _ProviderChip extends StatelessWidget {
   const _ProviderChip({required this.provider});
 
-  final TmdbProvider provider;
+  final SeerrWatchProvider provider;
 
   @override
   Widget build(BuildContext context) {
-    final logo = TmdbImages.logo(provider.logoPath);
+    final logo = provider.logoUrl();
     return AppHover(
       onTap: _open,
       effect: AppHoverEffect.scale,

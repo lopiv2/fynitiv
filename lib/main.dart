@@ -6,6 +6,8 @@ import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'app.dart';
 import 'core/audio/hover_sound_player.dart';
 import 'core/audio/soloud_initializer.dart';
@@ -30,6 +32,13 @@ void _configEasyLoading() {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = FynitivHttpOverrides();
+  // Preferencia de certificados TLS no válidos (autofirmados). Se aplica antes
+  // de cualquier petición (Jellyfin, imágenes, Seerr…).
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    FynitivHttpOverrides.allowBadCertificates =
+        prefs.getBool('app.allow_bad_certificates') ?? true;
+  } catch (_) {}
   MediaKit.ensureInitialized();
   _configEasyLoading();
   // SoLoud para música (con fallback a MediaKit si falla)

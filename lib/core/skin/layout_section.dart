@@ -3,13 +3,23 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 
 import 'home_scroll.dart';
 
-/// Fuente de datos de la fila "Novedades" (TMDB).
-enum TmdbNoveltySource {
-  /// Lo más popular de la semana (películas + series).
+/// Categoría de descubrimiento de Seerr (pestaña "Descubrir"). Cada valor se
+/// resuelve contra la API de Seerr.
+enum SeerrDiscoverCategory {
+  /// Tendencias (películas + series).
   trending,
 
-  /// Estrenos/emisiones próximas (movie/upcoming + tv/on_the_air).
-  upcoming,
+  /// Películas populares.
+  popularMovies,
+
+  /// Próximas películas (estrenos).
+  upcomingMovies,
+
+  /// Series populares.
+  popularTv,
+
+  /// Próximas series.
+  upcomingTv,
 }
 
 /// Tipo de sección configurable para Home y VOD (unificado).
@@ -39,7 +49,11 @@ enum LayoutSectionType {
   library,
   custom,
   seasonal,
-  novedades,
+  upcoming,
+
+  /// Fila de descubrimiento de Seerr (pestaña "Descubrir"). La categoría va en
+  /// [LayoutSection.seerrCategory].
+  seerrDiscover,
 }
 
 /// Sección ordenable de Home y VOD.
@@ -61,7 +75,7 @@ class LayoutSection {
     this.type,
     this.scroll, [
     this.collections,
-    this.noveltySource,
+    this.seerrCategory,
   ]);
 
   /// Bloque Featured Slider (banner).
@@ -112,13 +126,17 @@ class LayoutSection {
   const LayoutSection.seasonal([HomeScroll? scroll])
     : this._(LayoutSectionType.seasonal, scroll);
 
-  /// Fila de Novedades (TMDB). Requiere que el usuario haya configurado su API
-  /// key de TMDB en Preferencias; sin key no se muestra. [source] elige entre
-  /// popular de la semana ([TmdbNoveltySource.trending]) o estrenos próximos
-  /// ([TmdbNoveltySource.upcoming]).
-  const LayoutSection.novedades([
-    TmdbNoveltySource source = TmdbNoveltySource.trending,
-  ]) : this._(LayoutSectionType.novedades, null, null, source);
+  /// Fila "Próximamente": placeholders `.disc` de Jellyfin (`IsPlaceHolder`).
+  /// Solo se muestra si el servidor tiene contenido sin media (stubs).
+  const LayoutSection.upcoming([HomeScroll? scroll])
+    : this._(LayoutSectionType.upcoming, scroll);
+
+  /// Fila de descubrimiento de Seerr (pestaña "Descubrir"). Define la
+  /// [category] a consultar; la apariencia se toma del skin o de [scroll].
+  const LayoutSection.seerrDiscover(
+    SeerrDiscoverCategory category, [
+    HomeScroll? scroll,
+  ]) : this._(LayoutSectionType.seerrDiscover, scroll, null, category);
 
   final LayoutSectionType type;
 
@@ -130,8 +148,8 @@ class LayoutSection {
   /// Bibliotecas a las que aplica (solo `recent`/`library`). `null`/vacío = todas.
   final Set<CollectionType>? collections;
 
-  /// Fuente de la fila `novedades` (solo ese tipo).
-  final TmdbNoveltySource? noveltySource;
+  /// Categoría de descubrimiento de Seerr (solo `seerrDiscover`).
+  final SeerrDiscoverCategory? seerrCategory;
 
   /// Comprueba si una vista entra en esta sección según [collections].
   bool matchesView(CollectionType? collectionType) {
@@ -145,7 +163,7 @@ class LayoutSection {
     if (collections != null && collections!.isNotEmpty) {
       map['collections'] = collections!.map((c) => c.name).toList();
     }
-    if (noveltySource != null) map['noveltySource'] = noveltySource!.name;
+    if (seerrCategory != null) map['seerrCategory'] = seerrCategory!.name;
     return map;
   }
 
@@ -163,9 +181,8 @@ class LayoutSection {
     final coll = (collections == null || collections.isEmpty)
         ? null
         : collections;
-    final novelty = TmdbNoveltySource.values.asNameMap()[
-        json['noveltySource'] as String? ?? ''
-    ];
+    final seerrCategory = SeerrDiscoverCategory.values.asNameMap()[
+        json['seerrCategory'] as String? ?? ''];
     switch (t) {
       case LayoutSectionType.featuredSlider:
         return LayoutSection.featuredSlider(s);
@@ -185,8 +202,13 @@ class LayoutSection {
         );
       case LayoutSectionType.seasonal:
         return LayoutSection.seasonal(s);
-      case LayoutSectionType.novedades:
-        return LayoutSection.novedades(novelty ?? TmdbNoveltySource.trending);
+      case LayoutSectionType.upcoming:
+        return LayoutSection.upcoming(s);
+      case LayoutSectionType.seerrDiscover:
+        return LayoutSection.seerrDiscover(
+          seerrCategory ?? SeerrDiscoverCategory.trending,
+          s,
+        );
     }
   }
 
@@ -195,14 +217,14 @@ class LayoutSection {
       other is LayoutSection &&
       other.type == type &&
       other.scroll == scroll &&
-      other.noveltySource == noveltySource &&
+      other.seerrCategory == seerrCategory &&
       setEquals(other.collections, collections);
 
   @override
   int get hashCode => Object.hash(
     type,
     scroll,
-    noveltySource,
+    seerrCategory,
     collections == null
         ? null
         : Object.hashAll(

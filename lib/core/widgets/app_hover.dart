@@ -9,6 +9,10 @@ import '../settings/button_sound_controller.dart';
 /// Efecto de hover universal.
 enum AppHoverEffect {
   none,
+
+  /// Invierte los colores del hijo al hacer hover/foco (blanco↔negro),
+  /// útil para botones donde el estado seleccionado se marca por contraste.
+  invert,
   scale,
   highlight,
   highlightWithScale,
@@ -19,6 +23,22 @@ enum AppHoverEffect {
   led,
   scaleHighlightOutlineLed,
 }
+
+/// Filtro de color identidad (sin cambio).
+const List<double> _kIdentityMatrix = <double>[
+  1, 0, 0, 0, 0, //
+  0, 1, 0, 0, 0, //
+  0, 0, 1, 0, 0, //
+  0, 0, 0, 1, 0, //
+];
+
+/// Filtro de color que invierte los canales RGB (blanco↔negro).
+const List<double> _kInvertMatrix = <double>[
+  -1, 0, 0, 0, 255, //
+  0, -1, 0, 0, 255, //
+  0, 0, -1, 0, 255, //
+  0, 0, 0, 1, 0, //
+];
 
 class AppHoverConfig {
   const AppHoverConfig({
@@ -306,6 +326,7 @@ class _AppHoverState extends ConsumerState<AppHover> {
         widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
     final isLed = widget.effect == AppHoverEffect.led ||
         widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
+    final isInvert = widget.effect == AppHoverEffect.invert;
     final highlightColor = _active && isHighlight ? widget.config.highlightHovered : widget.config.highlightNormal;
     final outlineColor = _active && isOutline ? widget.config.outlineHoveredColor : widget.config.outlineColor;
     final outlineWidth = _active && isOutline ? widget.config.outlineHoveredWidth : widget.config.outlineWidth;
@@ -338,6 +359,16 @@ class _AppHoverState extends ConsumerState<AppHover> {
               ),
             )),
     );
+
+    // Inversión de colores (estado seleccionado/hover), reutilizable.
+    if (isInvert) {
+      content = ColorFiltered(
+        colorFilter: ColorFilter.matrix(
+          _active ? _kInvertMatrix : _kIdentityMatrix,
+        ),
+        child: content,
+      );
+    }
 
     // LED glow solo por detrás como sombra difusa (neón por plataforma).
     // Más glow por abajo que por arriba: offset Y positivo y blur mayor hacia abajo.

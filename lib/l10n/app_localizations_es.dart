@@ -752,24 +752,8 @@ class AppLocalizationsEs extends AppLocalizations {
   String get whereToWatch => 'Dónde ver';
 
   @override
-  String get viewOnTmdb => 'Ver en TMDB';
-
-  @override
-  String get tmdbApiKey => 'API key de TMDB';
-
-  @override
-  String get tmdbApiKeyHint =>
-      'Opcional. Introduce tu propia API key gratuita de TMDB para activar la fila de Novedades y Dónde ver. Se guarda solo en este dispositivo.';
-
-  @override
-  String get tmdbApiKeyExample => 'Pega tu API key de TMDB (v3 o v4)';
-
-  @override
   String get tmdbAttribution =>
       'Este producto usa la API de TMDB pero no está respaldado ni certificado por TMDB. Datos de streaming proporcionados por JustWatch.';
-
-  @override
-  String get tmdbPoweredBy => 'Datos de TMDB';
 
   @override
   String get watchFlatrate => 'Suscripción';
@@ -788,6 +772,129 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get watchNoProviders => 'No disponible en streaming en tu región.';
+
+  @override
+  String get comingSoon => 'Próximamente';
+
+  @override
+  String get seerrNotConfigured =>
+      'Conecta con tu servidor Seerr para descubrir y pedir contenido.';
+
+  @override
+  String get seerrServerUrl => 'URL del servidor Seerr';
+
+  @override
+  String get seerrQuickConnect => 'Conectar con Quick Connect';
+
+  @override
+  String get seerrQuickConnectHint =>
+      'Abre Jellyfin, ve a Quick Connect e introduce este código:';
+
+  @override
+  String get seerrQuickConnectWaiting => 'Esperando autorización…';
+
+  @override
+  String get seerrQuickConnectFailed => 'Quick Connect falló.';
+
+  @override
+  String get seerrConnectionFailed =>
+      'No se pudo conectar con Seerr. Revisa la URL (p. ej. http://host:5055).';
+
+  @override
+  String get seerrCertError =>
+      'El certificado TLS no es válido. Activa «Aceptar certificados no válidos» en Preferencias.';
+
+  @override
+  String get seerrNetworkError =>
+      'No se pudo conectar con Seerr (red/DNS). Revisa la URL y que el dominio resuelva.';
+
+  @override
+  String get seerrUnauthorized =>
+      'Seerr devolvió 401/403. La API requiere autenticación (¿proxy con auth delante?) o Quick Connect está deshabilitado.';
+
+  @override
+  String get seerrNotFound =>
+      'No se encontró el endpoint de Quick Connect en Seerr (¿versión antigua?).';
+
+  @override
+  String get seerrInLibrary => 'En tu biblioteca';
+
+  @override
+  String get seerrComingSoonInLibrary => 'Próximamente en tu biblioteca';
+
+  @override
+  String get allowBadCertificates => 'Aceptar certificados no válidos';
+
+  @override
+  String get allowBadCertificatesHint =>
+      'Permite certificados TLS autofirmados o no confiables (habituales en servidores caseros: Jellyfin, Seerr, ROMm…).';
+
+  @override
+  String get seerrApiKey => 'API key';
+
+  @override
+  String get seerrUseApiKey => 'Usar API key';
+
+  @override
+  String get seerrApiKeyRequired => 'Introduce una API key.';
+
+  @override
+  String get seerrInvalidUrl =>
+      'Introduce una URL de servidor válida (http/https).';
+
+  @override
+  String get seerrUpcomingTab => 'Descubrir';
+
+  @override
+  String get seerrTrending => 'Tendencias';
+
+  @override
+  String get seerrPopularMovies => 'Películas populares';
+
+  @override
+  String get seerrUpcomingMovies => 'Próximas películas';
+
+  @override
+  String get seerrPopularTv => 'Series populares';
+
+  @override
+  String get seerrUpcomingTv => 'Próximas series';
+
+  @override
+  String get seerrSearchTab => 'Buscar';
+
+  @override
+  String get seerrRequestsTab => 'Peticiones';
+
+  @override
+  String get seerrRequest => 'Solicitar';
+
+  @override
+  String get seerrRequestSuccess => 'Petición enviada';
+
+  @override
+  String get seerrRequestError => 'No se pudo enviar la petición';
+
+  @override
+  String get seerrStatusRequested => 'Solicitada';
+
+  @override
+  String get seerrStatusAvailable => 'Disponible';
+
+  @override
+  String get seerrStatusPartial => 'Disponibilidad parcial';
+
+  @override
+  String get seerrStatusProcessing => 'Procesando';
+
+  @override
+  String get seerrStatusPending => 'Pendiente';
+
+  @override
+  String get seerrStatusApproved => 'Aprobada';
+
+  @override
+  String get seerrStatusDeclined => 'Rechazada';
 
   @override
   String get albums => 'Álbumes';

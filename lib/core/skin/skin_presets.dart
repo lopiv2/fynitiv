@@ -5,6 +5,15 @@ import 'home_scroll.dart';
 import 'layout_section.dart';
 import 'skin.dart';
 
+/// Secciones de descubrimiento de Seerr por defecto (pestaña "Descubrir").
+const List<LayoutSection> _seerrDiscoverAll = [
+  LayoutSection.seerrDiscover(SeerrDiscoverCategory.trending),
+  LayoutSection.seerrDiscover(SeerrDiscoverCategory.popularMovies),
+  LayoutSection.seerrDiscover(SeerrDiscoverCategory.upcomingMovies),
+  LayoutSection.seerrDiscover(SeerrDiscoverCategory.popularTv),
+  LayoutSection.seerrDiscover(SeerrDiscoverCategory.upcomingTv),
+];
+
 /// Skins predefinidos.
 abstract final class SkinPresets {
   /// Estilo actual: oscuro azul/púrpura.
@@ -188,6 +197,7 @@ abstract final class SkinPresets {
           hideYear: true,
         ),
       ),
+      LayoutSection.upcoming(),
       LayoutSection.newReleases(
         HomeScroll(
           titleKey: HomeScrollTitle.newReleases,
@@ -312,6 +322,7 @@ abstract final class SkinPresets {
         ),
       ),
     ],
+    seerrLayout: _seerrDiscoverAll,
   );
 
   /// Estilo Amazon Prime (azul oscuro casi negro, acento celeste "Prime").
@@ -409,6 +420,7 @@ abstract final class SkinPresets {
         ),
       ),
     ],
+    seerrLayout: _seerrDiscoverAll,
   );
 
   /// Estilo Movistar+ (oscuro, acento naranja/rojo).

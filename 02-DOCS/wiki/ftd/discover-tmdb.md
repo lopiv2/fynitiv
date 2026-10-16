@@ -49,6 +49,12 @@ Radarr/Sonarr), mostrando proveedores de streaming sin depender de JustWatch dir
     `tmdbPoweredBy`, `watchFlatrate|Free|Ads|Rent|Buy`, `watchNoProviders`).
   - `flutter gen-l10n` OK; `flutter analyze` → `No issues found!`.
 
+## REMOVED (2026-10) — sustituido por Seerr
+- Esta feature (BYO-key de TMDB, fila Novedades, ficha `/discover/...` y "Dónde ver" con la
+  key propia) se **eliminó**: Seerr ya entrega fichas y `watchProviders` de la región sin
+  key en la app. Ver `seerr-integracion.md` → "Eliminada la capa TMDB de la app (BYO-key)".
+- Nota histórica: el modelo BYO-key se eligió porque embeber la key la expone (revocación +
+  ToS) y el límite de TMDB es por IP, no por key.
+
 ## Next
-Probar con una key TMDB real: fila Novedades (trending/estrenos), ficha externa y
-"Dónde ver" en un item virtual. Verificar que sin key todo queda oculto.
+(n/a — feature retirada)

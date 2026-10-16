@@ -11,10 +11,10 @@ import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../discover/presentation/novedades_row.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/content_row.dart';
 import '../../library/presentation/widgets/featured_slider.dart';
+import '../../library/presentation/widgets/jellyfin_upcoming_row.dart';
 import '../../library/presentation/widgets/seasonal_suggestions_row.dart';
 
 /// VOD (Video On Demand): dashboard de películas y series a la carta, con el
@@ -381,7 +381,8 @@ class VodScreen extends ConsumerWidget {
             break;
           case LayoutSectionType.featuredSlider:
           case LayoutSectionType.seasonal:
-          case LayoutSectionType.novedades:
+          case LayoutSectionType.upcoming:
+          case LayoutSectionType.seerrDiscover:
             break;
         }
       }
@@ -401,12 +402,11 @@ class VodScreen extends ConsumerWidget {
           case LayoutSectionType.seasonal:
             out.add(SeasonalSuggestionsRow(scroll: section.scroll));
             break;
-          case LayoutSectionType.novedades:
-            out.add(
-              NovedadesRow(
-                source: section.noveltySource ?? TmdbNoveltySource.trending,
-              ),
-            );
+          case LayoutSectionType.upcoming:
+            out.add(JellyfinUpcomingRow(scroll: section.scroll));
+            break;
+          case LayoutSectionType.seerrDiscover:
+            // Las secciones de Seerr solo aplican en su propia pantalla.
             break;
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;

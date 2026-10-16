@@ -12,6 +12,7 @@ import '../../../../core/skin/skin_scope.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/horizontal_scroll_behavior.dart';
 import '../../../../core/widgets/scroll_title.dart';
+import '../../application/library_providers.dart';
 import 'backdrop_card.dart';
 import 'poster_card.dart';
 
@@ -32,6 +33,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.useBackdrop = false,
     this.useSeriesPoster = false,
     this.cardLogo,
+    this.cardLogoFor,
     this.onItemTap,
     this.onItemImageTap,
     this.onSeeMore,
@@ -56,11 +58,34 @@ class ContentRow extends ConsumerStatefulWidget {
     this.isNextPoster = false,
     this.hasNext = false,
     this.cornerBadge,
+    this.excludePlaceholders = true,
+    this.imageUrlFor,
+    this.showHoverIncludedBadge = true,
+    this.hoverActionLabel,
+    this.cornerLogosFor,
   });
 
   final String title;
   final List<BaseItemDto> items;
   final String? serverUrl;
+
+  /// Excluye stubs/placeholders (`.disc` de Radarr/Sonarr) de la fila. Se
+  /// desactiva en "Próximamente", que es donde deben verse.
+  final bool excludePlaceholders;
+
+  /// URL de imagen explícita por item (contenido externo, p. ej. TMDB).
+  final String? Function(BaseItemDto item)? imageUrlFor;
+
+  /// Muestra "Se incluye con Jellyfin" en el panel de hover de las tarjetas.
+  /// Se pone a `false` en filas de contenido externo (Seerr).
+  final bool showHoverIncludedBadge;
+
+  /// Texto del botón principal del hover de las tarjetas. `null` = por defecto
+  /// ("Reanudar"/"Ver ahora"). Permite p. ej. "Solicitar" en Seerr.
+  final String? hoverActionLabel;
+
+  /// Logos de plataformas por item, para la esquina de la tarjeta.
+  final List<String> Function(BaseItemDto item)? cornerLogosFor;
 
   /// Alto de la fila.
   final double height;
@@ -81,6 +106,9 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Logotipo superpuesto abajo a la derecha de cada tarjeta (asset o ruta).
   final String? cardLogo;
+
+  /// Logo de tarjeta calculado por item, para contenido externo.
+  final String? Function(BaseItemDto item)? cardLogoFor;
 
   /// Se invoca al pulsar una tarjeta de la fila.
   final void Function(BaseItemDto item)? onItemTap;
@@ -423,11 +451,16 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     );
   }
 
+  /// Items de la fila, excluyendo stubs/placeholders salvo que se pida lo
+  /// contrario (fila "Próximamente").
+  List<BaseItemDto> get _items =>
+      widget.excludePlaceholders ? excludePlaceholders(widget.items) : widget.items;
+
   /// Construye las tarjetas en un único [Stack] horizontal. El orden de pintado
   /// se reordena para que la tarjeta con hover sea la última (y quede por
   /// encima de las vecinas al escalar con el [ScaleButton]).
   List<Widget> _buildStackedItems() {
-    final items = widget.items;
+    final items = _items;
     final indices = List<int>.generate(items.length, (i) => i);
     indices.sort((a, b) {
       if (a == _hoveredIndex) return 1;
@@ -454,7 +487,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                 ? BackdropCard(
                     item: items[i],
                     serverUrl: widget.serverUrl,
-                    cardLogo: widget.cardLogo,
+                    cardLogo:
+                        widget.cardLogoFor?.call(items[i]) ?? widget.cardLogo,
                     hoverExtension: true,
                     useSeriesPoster: widget.useSeriesPoster,
                     showBottomVignette: widget.showBottomVignette,
@@ -463,6 +497,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     showMetaOverlay: widget.showMetaOverlay,
                     metaAlignment: widget.metaAlignment,
                     imageSource: widget.imageSource ?? RowImageSource.thumb,
+                    imageUrl: widget.imageUrlFor?.call(items[i]),
+                    showHoverIncludedBadge: widget.showHoverIncludedBadge,
+                    hoverActionLabel: widget.hoverActionLabel,
+                    cornerLogos: widget.cornerLogosFor?.call(items[i]),
                     showNewBadge: widget.showNewBadge,
                     showStackLogo: widget.showStackLogo,
                     logoPosition: widget.logoPosition,
@@ -488,7 +526,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                 : PosterCard(
                     item: items[i],
                     serverUrl: widget.serverUrl,
-                    cardLogo: widget.cardLogo,
+                    cardLogo:
+                        widget.cardLogoFor?.call(items[i]) ?? widget.cardLogo,
                     hoverExtension: true,
                     useSeriesPoster: widget.useSeriesPoster,
                     showBottomVignette: widget.showBottomVignette,
@@ -497,6 +536,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     showMetaOverlay: widget.showMetaOverlay,
                     metaAlignment: widget.metaAlignment,
                     imageSource: widget.imageSource ?? RowImageSource.primary,
+                    imageUrl: widget.imageUrlFor?.call(items[i]),
+                    showHoverIncludedBadge: widget.showHoverIncludedBadge,
+                    hoverActionLabel: widget.hoverActionLabel,
+                    cornerLogos: widget.cornerLogosFor?.call(items[i]),
                     showNewBadge: widget.showNewBadge,
                     showStackLogo: widget.showStackLogo,
                     logoPosition: widget.logoPosition,
@@ -543,7 +586,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.items.isEmpty) return const SizedBox.shrink();
+    if (_items.isEmpty) return const SizedBox.shrink();
 
     // Separación vertical entre filas, definida por el skin.
     // Si este es backdrop y hay siguiente fila → doble spacing (backdrop→poster y backdrop→backdrop).
@@ -606,8 +649,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: SizedBox(
                             width:
-                                widget.items.length * _cardWidth +
-                                (widget.items.length - 1) * _spacing,
+                                _items.length * _cardWidth +
+                                (_items.length - 1) * _spacing,
                             height: _rowHeight,
                             child: Stack(
                               clipBehavior: Clip.none,

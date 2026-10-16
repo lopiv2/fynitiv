@@ -11,10 +11,10 @@ import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
-import '../../discover/presentation/novedades_row.dart';
 import '../application/library_providers.dart';
 import 'widgets/content_row.dart';
 import 'widgets/featured_slider.dart';
+import 'widgets/jellyfin_upcoming_row.dart';
 import 'widgets/mood_suggestions_grid.dart';
 import 'widgets/seasonal_suggestions_row.dart';
 
@@ -396,7 +396,8 @@ class HomeScreen extends ConsumerWidget {
             break;
           case LayoutSectionType.featuredSlider:
           case LayoutSectionType.seasonal:
-          case LayoutSectionType.novedades:
+          case LayoutSectionType.upcoming:
+          case LayoutSectionType.seerrDiscover:
             break;
         }
       }
@@ -418,12 +419,11 @@ class HomeScreen extends ConsumerWidget {
           case LayoutSectionType.seasonal:
             out.add(SeasonalSuggestionsRow(scroll: section.scroll));
             break;
-          case LayoutSectionType.novedades:
-            out.add(
-              NovedadesRow(
-                source: section.noveltySource ?? TmdbNoveltySource.trending,
-              ),
-            );
+          case LayoutSectionType.upcoming:
+            out.add(JellyfinUpcomingRow(scroll: section.scroll));
+            break;
+          case LayoutSectionType.seerrDiscover:
+            // Las secciones de Seerr solo aplican en su propia pantalla.
             break;
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;

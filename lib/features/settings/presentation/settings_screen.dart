@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
-import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -9,9 +8,9 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/di/providers.dart';
 import '../../../core/security/pin_hasher.dart';
+import '../../../core/settings/allow_bad_certificates_controller.dart';
 import '../../../core/settings/reader_page_flip_controller.dart';
 import '../../../core/settings/seasonal_suggestions_controller.dart';
-import '../../../core/settings/tmdb_key_controller.dart';
 import '../../../core/settings/seasonal_theme_controller.dart';
 import '../../../core/storage/session_storage.dart';
 import '../../../core/skin/skin_controller.dart';
@@ -246,16 +245,27 @@ class _PreferencesPanel extends ConsumerWidget {
         const SizedBox(height: 24),
         _buildReaderPageFlip(ref, l10n),
         const SizedBox(height: 24),
-        _buildTmdbKey(ref, l10n),
+        _buildAllowBadCertificates(ref, l10n),
       ],
     );
   }
 
-  Widget _buildTmdbKey(WidgetRef ref, AppLocalizations l10n) {
+  Widget _buildAllowBadCertificates(WidgetRef ref, AppLocalizations l10n) {
+    final state = ref.watch(allowBadCertificatesProvider);
     return _SettingsCard(
-      title: l10n.tmdbApiKey,
-      subtitle: l10n.tmdbApiKeyHint,
-      child: const _TmdbKeyField(),
+      title: l10n.allowBadCertificates,
+      subtitle: l10n.allowBadCertificatesHint,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Switch(
+          value: state.value ?? true,
+          onChanged: state.isLoading
+              ? null
+              : (enabled) => ref
+                    .read(allowBadCertificatesProvider.notifier)
+                    .setEnabled(enabled),
+        ),
+      ),
     );
   }
 
@@ -388,99 +398,6 @@ class _PreferencesPanel extends ConsumerWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-/// Campo para la API key de TMDB del usuario (BYO-key).
-class _TmdbKeyField extends ConsumerStatefulWidget {
-  const _TmdbKeyField();
-
-  @override
-  ConsumerState<_TmdbKeyField> createState() => _TmdbKeyFieldState();
-}
-
-class _TmdbKeyFieldState extends ConsumerState<_TmdbKeyField> {
-  late final TextEditingController _controller;
-  late String _saved;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _saved = ref.read(tmdbKeyProvider).value ?? '';
-    _controller = TextEditingController(text: _saved);
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _save() async {
-    final l10n = AppLocalizations.of(context)!;
-    setState(() => _saving = true);
-    final value = _controller.text.trim();
-    await ref.read(tmdbKeyProvider.notifier).setKey(value);
-    if (!mounted) return;
-    setState(() {
-      _saved = value;
-      _saving = false;
-      _controller.text = value;
-    });
-    unawaited(
-      EasyLoading.showSuccess(
-        l10n.save,
-        maskType: EasyLoadingMaskType.none,
-        dismissOnTap: true,
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final dirty = _controller.text.trim() != _saved;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextField(
-          controller: _controller,
-          style: const TextStyle(color: Colors.white),
-          decoration: InputDecoration(
-            hintText: l10n.tmdbApiKeyExample,
-            hintStyle: const TextStyle(color: Colors.white38),
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(
-              Icons.vpn_key_outlined,
-              color: Colors.white70,
-            ),
-            suffixIcon: IconButton(
-              tooltip: l10n.clearFilter,
-              icon: const Icon(Icons.clear, color: Colors.white38),
-              onPressed: () => setState(() => _controller.clear()),
-            ),
-          ),
-          onChanged: (_) => setState(() {}),
-          onSubmitted: (_) => _save(),
-        ),
-        const SizedBox(height: 8),
-        Align(
-          alignment: Alignment.centerRight,
-          child: FilledButton.icon(
-            onPressed: (_saving || !dirty) ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: AppLoader(size: 16),
-                  )
-                : const Icon(Icons.save_outlined),
-            label: Text(l10n.save),
-          ),
-        ),
-      ],
     );
   }
 }

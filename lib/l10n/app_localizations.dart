@@ -1538,41 +1538,11 @@ abstract class AppLocalizations {
   /// **'Where to watch'**
   String get whereToWatch;
 
-  /// No description provided for @viewOnTmdb.
-  ///
-  /// In en, this message translates to:
-  /// **'View on TMDB'**
-  String get viewOnTmdb;
-
-  /// No description provided for @tmdbApiKey.
-  ///
-  /// In en, this message translates to:
-  /// **'TMDB API key'**
-  String get tmdbApiKey;
-
-  /// No description provided for @tmdbApiKeyHint.
-  ///
-  /// In en, this message translates to:
-  /// **'Optional. Enter your own free TMDB API key to enable the New releases row and Where to watch. Stored only on this device.'**
-  String get tmdbApiKeyHint;
-
-  /// No description provided for @tmdbApiKeyExample.
-  ///
-  /// In en, this message translates to:
-  /// **'Paste your TMDB API key (v3 or v4)'**
-  String get tmdbApiKeyExample;
-
   /// No description provided for @tmdbAttribution.
   ///
   /// In en, this message translates to:
   /// **'This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming data provided by JustWatch.'**
   String get tmdbAttribution;
-
-  /// No description provided for @tmdbPoweredBy.
-  ///
-  /// In en, this message translates to:
-  /// **'Data from TMDB'**
-  String get tmdbPoweredBy;
 
   /// No description provided for @watchFlatrate.
   ///
@@ -1609,6 +1579,234 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Not available on streaming in your region.'**
   String get watchNoProviders;
+
+  /// No description provided for @comingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon'**
+  String get comingSoon;
+
+  /// No description provided for @seerrNotConfigured.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect to your Seerr server to discover and request content.'**
+  String get seerrNotConfigured;
+
+  /// No description provided for @seerrServerUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Seerr server URL'**
+  String get seerrServerUrl;
+
+  /// No description provided for @seerrQuickConnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect with Quick Connect'**
+  String get seerrQuickConnect;
+
+  /// No description provided for @seerrQuickConnectHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Jellyfin, go to Quick Connect and enter this code:'**
+  String get seerrQuickConnectHint;
+
+  /// No description provided for @seerrQuickConnectWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for authorization…'**
+  String get seerrQuickConnectWaiting;
+
+  /// No description provided for @seerrQuickConnectFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Connect failed.'**
+  String get seerrQuickConnectFailed;
+
+  /// No description provided for @seerrConnectionFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not connect to Seerr. Check the URL (e.g. http://host:5055).'**
+  String get seerrConnectionFailed;
+
+  /// No description provided for @seerrCertError.
+  ///
+  /// In en, this message translates to:
+  /// **'The TLS certificate is not valid. Enable \"Accept invalid certificates\" in Preferences.'**
+  String get seerrCertError;
+
+  /// No description provided for @seerrNetworkError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach Seerr (network/DNS). Check the URL and that the domain resolves.'**
+  String get seerrNetworkError;
+
+  /// No description provided for @seerrUnauthorized.
+  ///
+  /// In en, this message translates to:
+  /// **'Seerr returned 401/403. The API requires authentication (proxy with auth?) or Quick Connect is disabled.'**
+  String get seerrUnauthorized;
+
+  /// No description provided for @seerrNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Quick Connect endpoint not found on Seerr (old version?).'**
+  String get seerrNotFound;
+
+  /// No description provided for @seerrInLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'In your library'**
+  String get seerrInLibrary;
+
+  /// No description provided for @seerrComingSoonInLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming soon to your library'**
+  String get seerrComingSoonInLibrary;
+
+  /// No description provided for @allowBadCertificates.
+  ///
+  /// In en, this message translates to:
+  /// **'Accept invalid certificates'**
+  String get allowBadCertificates;
+
+  /// No description provided for @allowBadCertificatesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Allow self-signed or untrusted TLS certificates (common on home servers: Jellyfin, Seerr, ROMm…).'**
+  String get allowBadCertificatesHint;
+
+  /// No description provided for @seerrApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'API key'**
+  String get seerrApiKey;
+
+  /// No description provided for @seerrUseApiKey.
+  ///
+  /// In en, this message translates to:
+  /// **'Use API key'**
+  String get seerrUseApiKey;
+
+  /// No description provided for @seerrApiKeyRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter an API key.'**
+  String get seerrApiKeyRequired;
+
+  /// No description provided for @seerrInvalidUrl.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a valid server URL (http/https).'**
+  String get seerrInvalidUrl;
+
+  /// No description provided for @seerrUpcomingTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Discover'**
+  String get seerrUpcomingTab;
+
+  /// No description provided for @seerrTrending.
+  ///
+  /// In en, this message translates to:
+  /// **'Trending'**
+  String get seerrTrending;
+
+  /// No description provided for @seerrPopularMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular movies'**
+  String get seerrPopularMovies;
+
+  /// No description provided for @seerrUpcomingMovies.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming movies'**
+  String get seerrUpcomingMovies;
+
+  /// No description provided for @seerrPopularTv.
+  ///
+  /// In en, this message translates to:
+  /// **'Popular series'**
+  String get seerrPopularTv;
+
+  /// No description provided for @seerrUpcomingTv.
+  ///
+  /// In en, this message translates to:
+  /// **'Upcoming series'**
+  String get seerrUpcomingTv;
+
+  /// No description provided for @seerrSearchTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Search'**
+  String get seerrSearchTab;
+
+  /// No description provided for @seerrRequestsTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Requests'**
+  String get seerrRequestsTab;
+
+  /// No description provided for @seerrRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Request'**
+  String get seerrRequest;
+
+  /// No description provided for @seerrRequestSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Request sent'**
+  String get seerrRequestSuccess;
+
+  /// No description provided for @seerrRequestError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not send the request'**
+  String get seerrRequestError;
+
+  /// No description provided for @seerrStatusRequested.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested'**
+  String get seerrStatusRequested;
+
+  /// No description provided for @seerrStatusAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Available'**
+  String get seerrStatusAvailable;
+
+  /// No description provided for @seerrStatusPartial.
+  ///
+  /// In en, this message translates to:
+  /// **'Partially available'**
+  String get seerrStatusPartial;
+
+  /// No description provided for @seerrStatusProcessing.
+  ///
+  /// In en, this message translates to:
+  /// **'Processing'**
+  String get seerrStatusProcessing;
+
+  /// No description provided for @seerrStatusPending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get seerrStatusPending;
+
+  /// No description provided for @seerrStatusApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'Approved'**
+  String get seerrStatusApproved;
+
+  /// No description provided for @seerrStatusDeclined.
+  ///
+  /// In en, this message translates to:
+  /// **'Declined'**
+  String get seerrStatusDeclined;
 
   /// No description provided for @albums.
   ///

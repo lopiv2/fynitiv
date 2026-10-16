@@ -288,6 +288,7 @@ class Sidebar extends ConsumerWidget {
                         iconSpacing: iconSpacing,
                         selectedColor: selectedColor,
                       ),
+                    seerrItem,
                   ],
                 ),
               ),

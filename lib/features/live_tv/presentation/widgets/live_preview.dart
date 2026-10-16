@@ -141,12 +141,12 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                     children: [
                       if (channel.logoUrl != null)
                         Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.only(right: 2),
                           child: ClipRRect(
                             borderRadius: BorderRadius.circular(4),
                             child: SizedBox(
                               width: 240,
-                              height: 110,
+                              height: 100,
                               child: Image.network(
                                 channel.logoUrl!,
                                 fit: BoxFit.contain,
@@ -156,6 +156,7 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                             ),
                           ),
                         ),
+                      SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -183,7 +184,7 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
+                      /*Expanded(
                         child: Text(
                           channel.name,
                           maxLines: 1,
@@ -194,7 +195,7 @@ class _LivePreviewState extends ConsumerState<LivePreview> {
                             fontWeight: FontWeight.w800,
                           ),
                         ),
-                      ),
+                      ),*/
                       //const SizedBox(height: 8),
                       Text(
                         program?.title ?? '',

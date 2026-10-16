@@ -48,6 +48,8 @@ class HoverPlayCard extends StatefulWidget {
     this.overlayBelowEntry,
     this.showHoverDarkening = true,
     this.showPlayIcon = true,
+    this.showIncludedBadge = true,
+    this.hoverActionLabel,
     this.playGlyphStyle = HoverPlayGlyphStyle.prime,
     this.hoverScale,
     this.resume = false,
@@ -106,6 +108,15 @@ class HoverPlayCard extends StatefulWidget {
   /// (solo aplica cuando `showExtension` es `false`).
   /// Independiente de [showHoverDarkening].
   final bool showPlayIcon;
+
+  /// Muestra el badge "Se incluye con Jellyfin" en el panel de hover. Se pone
+  /// a `false` para contenido externo (p. ej. Seerr), que no está en Jellyfin.
+  final bool showIncludedBadge;
+
+  /// Texto del botón principal del panel de hover. Si es `null`, se usa
+  /// "Reanudar" (con progreso) o "Ver ahora". Permite personalizarlo por fila
+  /// (p. ej. "Solicitar" en Seerr).
+  final String? hoverActionLabel;
 
   /// Estilo del glyph de play del overlay (`prime` = círculo blanco actual).
   /// Permite que cada skin elija `outline` sin duplicar el botón.
@@ -272,6 +283,8 @@ class _HoverPlayCardState extends State<HoverPlayCard> {
             overview: widget.overview,
             hoverScale: widget.hoverScale,
             titleMarquee: widget.titleMarquee,
+            showIncludedBadge: widget.showIncludedBadge,
+            hoverActionLabel: widget.hoverActionLabel,
             onPointerSignal: widget.onPointerSignal ?? _pagePointerSignal,
             onEnter: () => _hideTimer?.cancel(),
             onExit: _scheduleHide,
@@ -394,6 +407,8 @@ class _ExpandedHoverCard extends StatefulWidget {
     this.overview,
     this.hoverScale,
     this.titleMarquee = false,
+    this.showIncludedBadge = true,
+    this.hoverActionLabel,
   });
 
   final Offset origin;
@@ -416,6 +431,8 @@ class _ExpandedHoverCard extends StatefulWidget {
   final String? overview;
   final double? hoverScale;
   final bool titleMarquee;
+  final bool showIncludedBadge;
+  final String? hoverActionLabel;
 
   @override
   State<_ExpandedHoverCard> createState() => _ExpandedHoverCardState();
@@ -523,6 +540,8 @@ class _ExpandedHoverCardState extends State<_ExpandedHoverCard> {
                             runTimeTicks: widget.runTimeTicks,
                             overview: widget.overview,
                             titleMarquee: widget.titleMarquee,
+                            showIncludedBadge: widget.showIncludedBadge,
+                            hoverActionLabel: widget.hoverActionLabel,
                           )
                         : const SizedBox(width: double.infinity, height: 0),
                   ),
@@ -592,6 +611,8 @@ class _HoverPanel extends StatelessWidget {
     this.runTimeTicks,
     this.overview,
     this.titleMarquee = false,
+    this.showIncludedBadge = true,
+    this.hoverActionLabel,
   });
 
   final String title;
@@ -602,6 +623,12 @@ class _HoverPanel extends StatelessWidget {
 
   /// Aplica marquee al título si desborda (preferencia del skin).
   final bool titleMarquee;
+
+  /// Muestra el badge "Se incluye con Jellyfin" (contenido de la biblioteca).
+  final bool showIncludedBadge;
+
+  /// Texto del botón principal; si es `null`, "Reanudar"/"Ver ahora".
+  final String? hoverActionLabel;
 
   /// Muestra "Reanudar" en el botón si el elemento es de "Continuar viendo".
   final bool resume;
@@ -649,27 +676,18 @@ class _HoverPanel extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-              if (subtitle != null && subtitle!.trim().isNotEmpty) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w400,
-                  ),
-                ),
-              ],
               const SizedBox(height: 4),
-              IncludedBadge(label: l10n.includedWithJellyfin, scale: 0.9),
-              const SizedBox(height: 8),
+              if (showIncludedBadge) ...[
+                IncludedBadge(label: l10n.includedWithJellyfin, scale: 0.9),
+                const SizedBox(height: 8),
+              ],
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   WatchNowButton(
-                    label: resume ? l10n.resume : l10n.watchNow,
+                    label:
+                        hoverActionLabel ??
+                        (resume ? l10n.resume : l10n.watchNow),
                     onTap: onPlay,
                   ),
                   const SizedBox(width: 10),

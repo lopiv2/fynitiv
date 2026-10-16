@@ -752,24 +752,8 @@ class AppLocalizationsEn extends AppLocalizations {
   String get whereToWatch => 'Where to watch';
 
   @override
-  String get viewOnTmdb => 'View on TMDB';
-
-  @override
-  String get tmdbApiKey => 'TMDB API key';
-
-  @override
-  String get tmdbApiKeyHint =>
-      'Optional. Enter your own free TMDB API key to enable the New releases row and Where to watch. Stored only on this device.';
-
-  @override
-  String get tmdbApiKeyExample => 'Paste your TMDB API key (v3 or v4)';
-
-  @override
   String get tmdbAttribution =>
       'This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming data provided by JustWatch.';
-
-  @override
-  String get tmdbPoweredBy => 'Data from TMDB';
 
   @override
   String get watchFlatrate => 'Streaming';
@@ -788,6 +772,128 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get watchNoProviders => 'Not available on streaming in your region.';
+
+  @override
+  String get comingSoon => 'Coming soon';
+
+  @override
+  String get seerrNotConfigured =>
+      'Connect to your Seerr server to discover and request content.';
+
+  @override
+  String get seerrServerUrl => 'Seerr server URL';
+
+  @override
+  String get seerrQuickConnect => 'Connect with Quick Connect';
+
+  @override
+  String get seerrQuickConnectHint =>
+      'Open Jellyfin, go to Quick Connect and enter this code:';
+
+  @override
+  String get seerrQuickConnectWaiting => 'Waiting for authorization…';
+
+  @override
+  String get seerrQuickConnectFailed => 'Quick Connect failed.';
+
+  @override
+  String get seerrConnectionFailed =>
+      'Could not connect to Seerr. Check the URL (e.g. http://host:5055).';
+
+  @override
+  String get seerrCertError =>
+      'The TLS certificate is not valid. Enable \"Accept invalid certificates\" in Preferences.';
+
+  @override
+  String get seerrNetworkError =>
+      'Could not reach Seerr (network/DNS). Check the URL and that the domain resolves.';
+
+  @override
+  String get seerrUnauthorized =>
+      'Seerr returned 401/403. The API requires authentication (proxy with auth?) or Quick Connect is disabled.';
+
+  @override
+  String get seerrNotFound =>
+      'Quick Connect endpoint not found on Seerr (old version?).';
+
+  @override
+  String get seerrInLibrary => 'In your library';
+
+  @override
+  String get seerrComingSoonInLibrary => 'Coming soon to your library';
+
+  @override
+  String get allowBadCertificates => 'Accept invalid certificates';
+
+  @override
+  String get allowBadCertificatesHint =>
+      'Allow self-signed or untrusted TLS certificates (common on home servers: Jellyfin, Seerr, ROMm…).';
+
+  @override
+  String get seerrApiKey => 'API key';
+
+  @override
+  String get seerrUseApiKey => 'Use API key';
+
+  @override
+  String get seerrApiKeyRequired => 'Enter an API key.';
+
+  @override
+  String get seerrInvalidUrl => 'Enter a valid server URL (http/https).';
+
+  @override
+  String get seerrUpcomingTab => 'Discover';
+
+  @override
+  String get seerrTrending => 'Trending';
+
+  @override
+  String get seerrPopularMovies => 'Popular movies';
+
+  @override
+  String get seerrUpcomingMovies => 'Upcoming movies';
+
+  @override
+  String get seerrPopularTv => 'Popular series';
+
+  @override
+  String get seerrUpcomingTv => 'Upcoming series';
+
+  @override
+  String get seerrSearchTab => 'Search';
+
+  @override
+  String get seerrRequestsTab => 'Requests';
+
+  @override
+  String get seerrRequest => 'Request';
+
+  @override
+  String get seerrRequestSuccess => 'Request sent';
+
+  @override
+  String get seerrRequestError => 'Could not send the request';
+
+  @override
+  String get seerrStatusRequested => 'Requested';
+
+  @override
+  String get seerrStatusAvailable => 'Available';
+
+  @override
+  String get seerrStatusPartial => 'Partially available';
+
+  @override
+  String get seerrStatusProcessing => 'Processing';
+
+  @override
+  String get seerrStatusPending => 'Pending';
+
+  @override
+  String get seerrStatusApproved => 'Approved';
+
+  @override
+  String get seerrStatusDeclined => 'Declined';
 
   @override
   String get albums => 'Albums';

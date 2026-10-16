@@ -9,8 +9,6 @@ import '../features/household/application/household_provider.dart';
 import '../features/household/domain/household.dart';
 import '../features/household/presentation/household_wizard_screen.dart';
 import '../core/skin/home_scroll.dart';
-import '../features/discover/domain/tmdb_models.dart';
-import '../features/discover/presentation/tmdb_detail_screen.dart';
 import '../features/library/presentation/home_screen.dart';
 import '../features/library/presentation/item_detail_screen.dart';
 import '../features/library/presentation/libraries_screen.dart';
@@ -33,6 +31,8 @@ import '../features/games/presentation/games_screen.dart';
 import '../features/games/presentation/jukebox_screen.dart';
 import '../features/player/presentation/player_screen.dart';
 import '../features/search/presentation/search_screen.dart';
+import '../features/seerr/domain/seerr_models.dart';
+import '../features/seerr/presentation/seerr_detail_screen.dart';
 import '../features/seerr/presentation/seerr_screen.dart';
 import '../features/vod/presentation/vod_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
@@ -101,16 +101,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/radio/all', builder: (_, _) => const RadioAllScreen()),
       // Todas las películas del servidor (grid con desplazamiento infinito).
       GoRoute(path: '/movies', builder: (_, _) => const AllMoviesScreen()),
-      // Ficha externa de TMDB (contenido no presente en la biblioteca).
-      GoRoute(
-        path: '/discover/:mediaType/:id',
-        builder: (context, state) => TmdbDetailScreen(
-          mediaType:
-              TmdbMediaType.fromString(state.pathParameters['mediaType']) ??
-              TmdbMediaType.movie,
-          id: int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
-        ),
-      ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>
             HomeShell(navigationShell: navigationShell),
@@ -137,7 +127,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: '/library',
                 builder: (_, _) => const LibrariesScreen(),
               ),
-              GoRoute(path: '/seerr', builder: (_, _) => const SeerrScreen()),
+              GoRoute(
+                path: '/seerr',
+                builder: (_, _) => const SeerrScreen(),
+                routes: [
+                  GoRoute(
+                    path: ':mediaType/:id',
+                    builder: (context, state) => SeerrDetailScreen(
+                      mediaType:
+                          SeerrMediaType.fromString(
+                            state.pathParameters['mediaType'],
+                          ) ??
+                          SeerrMediaType.movie,
+                      tmdbId:
+                          int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+                    ),
+                  ),
+                ],
+              ),
               GoRoute(
                 path: '/library/:viewId',
                 builder: (context, state) {

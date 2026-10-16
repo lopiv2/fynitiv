@@ -113,6 +113,7 @@ class Skin {
     // con poster/backdrop, viñeta, etc. configurables por scroll y reutilizables en cualquier skin.
     this.homeLayout = const [],
     this.vodLayout = const [],
+    this.seerrLayout = const [],
     this.titleMarqueeOnHover = false,
     this.topBarFloating = false,
     this.showCardBadge = false,
@@ -332,6 +333,11 @@ class Skin {
   /// `custom` a un HomeScroll filtrado.
   final List<LayoutSection> vodLayout;
 
+  /// Layout ordenable de la pestaña "Descubrir" de Seerr: array de secciones
+  /// `LayoutSection.seerrDiscover(category)` de arriba a abajo. Vacío = orden
+  /// por defecto (tendencias + populares + próximos).
+  final List<LayoutSection> seerrLayout;
+
   /// Cuando el título del elemento hace overflow, lo desplaza horizontalmente
   /// en bucle al hacer hover (estilo Jellyfin Android TV). Solo si está activo.
   final bool titleMarqueeOnHover;
@@ -418,6 +424,7 @@ class Skin {
     bool? cardHoverExtension,
     List<LayoutSection>? homeLayout,
     List<LayoutSection>? vodLayout,
+    List<LayoutSection>? seerrLayout,
     bool? titleMarqueeOnHover,
     bool? topBarFloating,
     bool? showCardBadge,
@@ -504,6 +511,7 @@ class Skin {
       cardHoverExtension: cardHoverExtension ?? this.cardHoverExtension,
       homeLayout: homeLayout ?? this.homeLayout,
       vodLayout: vodLayout ?? this.vodLayout,
+      seerrLayout: seerrLayout ?? this.seerrLayout,
       titleMarqueeOnHover: titleMarqueeOnHover ?? this.titleMarqueeOnHover,
       topBarFloating: topBarFloating ?? this.topBarFloating,
       showCardBadge: showCardBadge ?? this.showCardBadge,
@@ -624,6 +632,11 @@ class Skin {
               ?.map((e) => LayoutSection.fromJson(e as Map<String, dynamic>))
               .toList() ??
           const [],
+      seerrLayout:
+          (json['seerrLayout'] as List?)
+              ?.map((e) => LayoutSection.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
       titleMarqueeOnHover: json['titleMarqueeOnHover'] as bool? ?? false,
       topBarFloating: json['topBarFloating'] as bool? ?? false,
       showCardBadge: json['showCardBadge'] as bool? ?? false,
@@ -703,6 +716,7 @@ class Skin {
     'cardHoverExtension': cardHoverExtension,
     'homeLayout': homeLayout.map((s) => s.toJson()).toList(),
     'vodLayout': vodLayout.map((s) => s.toJson()).toList(),
+    'seerrLayout': seerrLayout.map((s) => s.toJson()).toList(),
     'titleMarqueeOnHover': titleMarqueeOnHover,
     'topBarFloating': topBarFloating,
     'showCardBadge': showCardBadge,

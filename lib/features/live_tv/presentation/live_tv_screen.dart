@@ -2,8 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_tab_bar.dart';
+import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../radio/presentation/radio_screen.dart';
 import '../application/live_state.dart';
@@ -56,6 +58,7 @@ class _LiveTvScreenState extends ConsumerState<LiveTvScreen>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final skin = ref.watch(skinControllerProvider).value;
     final isRadioTab = _tabController.index == 1;
     final headerTitle = isRadioTab ? l10n.liveTvTabRadio : l10n.liveTvTabTv;
 
@@ -63,6 +66,9 @@ class _LiveTvScreenState extends ConsumerState<LiveTvScreen>
       body: DashboardBackground(
         child: Column(
           children: [
+            // Reserva el alto de la barra superior del skin (p. ej. Prime) para
+            // que no se solape con la cabecera de Live TV / Radio.
+            SizedBox(height: libraryPageTopPadding(context, skin)),
             // Header con título dinámico + tabs centrados + controles
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 14, 16, 6),

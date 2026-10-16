@@ -33,6 +33,22 @@ final authServerUrlProvider = Provider<String?>(
   (ref) => ref.watch(authControllerProvider).serverUrl,
 );
 
+/// `true` si el item es un stub/placeholder (`.disc` de Radarr/Sonarr): no
+/// tiene archivo multimedia real, así que no debe aparecer en las filas
+/// normales, solo en la sección "Próximamente".
+bool isPlaceholderItem(BaseItemDto item) {
+  if (item.isPlaceHolder == true) return true;
+  final path = item.path?.toLowerCase() ?? '';
+  if (path.endsWith('.disc')) return true;
+  final sources = item.mediaSources;
+  return sources != null &&
+      sources.any((s) => s.type == MediaSourceType.placeholder);
+}
+
+/// Excluye stubs/placeholders de una lista de items.
+List<BaseItemDto> excludePlaceholders(List<BaseItemDto> items) =>
+    items.where((e) => !isPlaceholderItem(e)).toList();
+
 /// Cliente Jellyfin con token del usuario autenticado.
 final jellyfinClientProvider = Provider<JellyfinDart?>(
   (ref) => ref.watch(authControllerProvider.notifier).client,
@@ -248,7 +264,8 @@ final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((
     ],
     enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.logo],
   );
-  return res.data?.items ?? [];
+  // El banner no debe mostrar stubs/placeholders (`.disc`).
+  return excludePlaceholders(res.data?.items ?? []);
 });
 
 /// Mapeo compartido de [HomeScrollSort] a orden de la API de Jellyfin.
@@ -299,6 +316,8 @@ BaseItemDto seriesDetailTarget(BaseItemDto item) {
 /// episodio (seriesId) colapse con su serie y temporada aunque vengan con
 /// campos distintos.
 List<BaseItemDto> collapseSeriesDuplicates(List<BaseItemDto> items) {
+  // Los stubs/placeholders (`.disc`) solo deben verse en "Próximamente".
+  items = excludePlaceholders(items);
   var hasSerial = false;
   for (final e in items) {
     if (e.type == BaseItemKind.episode ||
@@ -799,7 +818,8 @@ final vodLatestBannerProvider = FutureProvider<List<BaseItemDto>>((ref) async {
     ],
     enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.logo],
   );
-  return res.data?.items ?? [];
+  // El banner no debe mostrar stubs/placeholders (`.disc`).
+  return excludePlaceholders(res.data?.items ?? []);
 });
 
 /// "Continuar viendo" de VOD (películas y episodios: lo retomable de una
@@ -862,6 +882,60 @@ final vodNextUpProvider = FutureProvider<List<BaseItemDto>>((ref) async {
       return pct <= 0 && ticks <= 0;
     }).toList();
   } catch (_) {
+    return const [];
+  }
+});
+
+/// Fila "Próximamente": items de Jellyfin que son placeholders (.disc de
+/// Radarr/Sonarr), detectados por `IsPlaceHolder`, extensión `.disc` o media
+/// source de tipo Placeholder.
+///
+/// Se ordena por `dateCreated` desc (los stubs se crean al añadirlos a
+/// Radarr/Sonarr, así que aparecen al principio del recorte) y el resultado se
+/// reordena por fecha de estreno ascendente.
+final jellyfinUpcomingProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+  ref.cacheFor(_kLibraryCache);
+  final client = ref.watch(jellyfinClientProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  if (client == null || userId == null) return const [];
+  try {
+    final res = await client.getItemsApi().getItems(
+      userId: userId,
+      recursive: true,
+      includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+      sortBy: [ItemSortBy.dateCreated],
+      sortOrder: [SortOrder.descending],
+      limit: 200,
+      fields: [
+        ItemFields.primaryImageAspectRatio,
+        ItemFields.overview,
+        ItemFields.genres,
+        ItemFields.providerIds,
+        ItemFields.mediaSources,
+        ItemFields.path,
+      ],
+      enableImageTypes: [
+        ImageType.primary,
+        ImageType.thumb,
+        ImageType.backdrop,
+        ImageType.logo,
+      ],
+      enableUserData: true,
+    );
+    final items = res.data?.items ?? const <BaseItemDto>[];
+    final placeholders = items.where(isPlaceholderItem).toList();
+    // Reordenar por fecha de estreno ascendente (sin fecha al final).
+    placeholders.sort((a, b) {
+      final da = a.premiereDate;
+      final db = b.premiereDate;
+      if (da == null && db == null) return 0;
+      if (da == null) return 1;
+      if (db == null) return -1;
+      return da.compareTo(db);
+    });
+    return placeholders;
+  } catch (e) {
+    debugPrint('[Upcoming] error: $e');
     return const [];
   }
 });
@@ -988,7 +1062,8 @@ final libraryFilteredPageProvider =
     ],
     enableTotalRecordCount: true,
   );
-  return res.data?.items ?? [];
+  // Los stubs/placeholders (`.disc`) solo se muestran en "Próximamente".
+  return excludePlaceholders(res.data?.items ?? []);
 });
 
 /// Total genérico para [LibraryFilteredArgs] (para paginación).

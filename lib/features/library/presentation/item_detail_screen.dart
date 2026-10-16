@@ -10,7 +10,6 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/audio/item_theme_player.dart';
-import '../../../core/settings/tmdb_key_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
@@ -21,9 +20,11 @@ import '../../../core/widgets/included_badge.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/genre_localizer.dart';
-import '../../discover/domain/tmdb_models.dart';
-import '../../discover/presentation/where_to_watch.dart';
 import '../../player/application/playback_provider.dart';
+import '../../seerr/application/seerr_controller.dart';
+import '../../seerr/application/seerr_providers.dart';
+import '../../seerr/domain/seerr_models.dart';
+import '../../seerr/presentation/widgets/seerr_watch_providers.dart';
 import '../../downloads/application/download_manager_provider.dart';
 import '../application/image_url.dart';
 import '../application/library_providers.dart';
@@ -31,9 +32,22 @@ import 'widgets/content_row.dart';
 
 /// Pantalla de informacion con composicion inspirada en Prime Video.
 class ItemDetailScreen extends ConsumerStatefulWidget {
-  const ItemDetailScreen({super.key, required this.item});
+  const ItemDetailScreen({
+    super.key,
+    required this.item,
+    this.backdropUrl,
+    this.seerrMedia,
+  });
 
   final BaseItemDto item;
+
+  /// Backdrop alternativo (contenido externo, p. ej. TMDB/Seerr). Si se indica,
+  /// se usa en lugar del backdrop de Jellyfin.
+  final String? backdropUrl;
+
+  /// Ficha de Seerr asociada (plataformas donde se emite, etc.). Si viene, la
+  /// ficha muestra "Solicitar" + proveedores de Seerr.
+  final SeerrMedia? seerrMedia;
 
   @override
   ConsumerState<ItemDetailScreen> createState() => _ItemDetailScreenState();
@@ -316,9 +330,11 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
     // El cuerpo (y sus datos) usan la serie cuando corresponde.
     final bodyItem = isSeriesDetail ? seriesItem : item;
 
-    final imageUrl = serverUrl == null
-        ? null
-        : itemBackdropUrl(serverUrl, bodyItem, maxWidth: 1800);
+    final imageUrl =
+        widget.backdropUrl ??
+        (serverUrl == null
+            ? null
+            : itemBackdropUrl(serverUrl, bodyItem, maxWidth: 1800));
     final logoUrl = serverUrl == null
         ? null
         : itemLogoUrl(serverUrl, bodyItem, maxWidth: 700);
@@ -440,9 +456,15 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           people: people,
                           studios: studios,
                           audioLanguages: audioLanguages,
-                          subtitleLanguages: subtitleLanguages,
-                          imdbRating: imdbRating,
-                        )
+                           subtitleLanguages: subtitleLanguages,
+                           imdbRating: imdbRating,
+                           seerrMedia: widget.seerrMedia,
+                           relatedKey: _relatedKey,
+                           detailsKey: _detailsKey,
+                           detailsSelected: _detailsSelected,
+                           onShowRelated: _showRelated,
+                           onShowDetails: _showDetails,
+                         )
                       else ...[
                         Padding(
                           padding: const EdgeInsets.fromLTRB(36, 24, 36, 0),
@@ -485,11 +507,12 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                       ),
                                     ),
                                   ),
-                                  onTrailer: _openTrailer,
-                                  onFavorite: _toggleFavorite,
-                                  onDownload: _downloadItem,
-                                )
-                              : Row(
+                                   onTrailer: _openTrailer,
+                                   onFavorite: _toggleFavorite,
+                                   onDownload: _downloadItem,
+                                   seerrMedia: widget.seerrMedia,
+                                 )
+                               : Row(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     SizedBox(
@@ -514,6 +537,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                         onTrailer: _openTrailer,
                                         onFavorite: _toggleFavorite,
                                         onDownload: _downloadItem,
+                                        seerrMedia: widget.seerrMedia,
                                       ),
                                     ),
                                     const SizedBox(width: 26),
@@ -1066,7 +1090,7 @@ class _TrailerPanel extends StatelessWidget {
   }
 }
 
-class _DetailActions extends ConsumerWidget {
+class _DetailActions extends ConsumerStatefulWidget {
   const _DetailActions({
     required this.item,
     required this.l10n,
@@ -1075,6 +1099,7 @@ class _DetailActions extends ConsumerWidget {
     required this.onTrailer,
     required this.onFavorite,
     required this.onDownload,
+    this.seerrMedia,
   });
 
   final BaseItemDto item;
@@ -1084,53 +1109,183 @@ class _DetailActions extends ConsumerWidget {
   final VoidCallback onTrailer;
   final VoidCallback onFavorite;
   final VoidCallback onDownload;
+  final SeerrMedia? seerrMedia;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_DetailActions> createState() => _DetailActionsState();
+}
+
+class _DetailActionsState extends ConsumerState<_DetailActions> {
+  bool _sending = false;
+
+  BaseItemDto get item => widget.item;
+  AppLocalizations get l10n => widget.l10n;
+  bool get isFavorite => widget.isFavorite;
+  bool get downloading => widget.downloading;
+  VoidCallback get onTrailer => widget.onTrailer;
+  VoidCallback get onFavorite => widget.onFavorite;
+  VoidCallback get onDownload => widget.onDownload;
+
+  /// Acciones para un título de Seerr: "Solicitar" (estilo del botón de
+  /// reproducir, en azul claro) o chip "En tu biblioteca".
+  Widget _buildSeerrActions(
+    BuildContext context,
+    (SeerrMediaType, int) seerrRef,
+  ) {
+    final type = seerrRef.$1;
+    final tmdbId = seerrRef.$2;
+    final kind = type == SeerrMediaType.movie
+        ? BaseItemKind.movie
+        : BaseItemKind.series;
+    final libraryStatus =
+        ref
+            .watch(
+              seerrLibraryStatusProvider(
+                (kind: kind, tmdbId: tmdbId, title: item.name ?? ''),
+              ),
+            )
+            .value ??
+        SeerrLibraryStatus.none;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          children: [
-            _DetailActionButton(
-              icon: Icons.play_circle_outline,
-              tooltip: l10n.watchTrailer,
-              onTap: onTrailer,
+        if (libraryStatus == SeerrLibraryStatus.available)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Chip(label: Text(l10n.seerrInLibrary)),
+          )
+        else if (libraryStatus == SeerrLibraryStatus.placeholder)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Chip(label: Text(l10n.seerrComingSoonInLibrary)),
+          )
+        else
+          _WideDetailButton(
+            label: l10n.seerrRequest,
+            icon: Icons.add,
+            background: const Color(0xFF7FD4FF),
+            foreground: Colors.black,
+            onTap: _sending ? () {} : () => _requestSeerr(type, tmdbId),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _showMoreOptions() async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: const Color(0xFF11161B),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.whereToWatch,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.cancel,
+                      onPressed: () => Navigator.of(dialogContext).pop(),
+                      icon: const Icon(Icons.close, color: Colors.white70),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SeerrWatchProvidersView(
+                  providers: widget.seerrMedia?.watchProviders ?? const [],
+                ),
+              ],
             ),
-            const SizedBox(width: 12),
-            _DetailActionButton(
-              icon: isFavorite ? Icons.favorite : Icons.add,
-              tooltip: isFavorite
-                  ? l10n.removeFromFavorites
-                  : l10n.addToFavorites,
-              onTap: onFavorite,
-            ),
-            const SizedBox(width: 12),
-            _DetailActionButton(
-              icon: Icons.download_outlined,
-              tooltip: l10n.download,
-              onTap: downloading ? () {} : onDownload,
-            ),
-          ],
+          ),
         ),
-        const SizedBox(height: 16),
-        // Item sin media (Radarr/Sonarr): en lugar de reproducir, mostramos
-        // dónde verlo (TMDB), si el usuario ha configurado su key.
-        if (_isNotPlayable(item) &&
-            _tmdbIdOf(item) != null &&
-            ref.watch(tmdbHasKeyProvider)) ...[
-          Text(
-            l10n.whereToWatch,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+      ),
+    );
+  }
+
+  Future<void> _requestSeerr(SeerrMediaType type, int tmdbId) async {
+    final api = ref.read(seerrApiProvider);
+    if (api == null) return;
+    setState(() => _sending = true);
+    try {
+      final ok = await api.createRequest(type: type, mediaId: tmdbId);
+      if (!mounted) return;
+      unawaited(
+        ok
+            ? EasyLoading.showSuccess(
+                l10n.seerrRequestSuccess,
+                maskType: EasyLoadingMaskType.none,
+                dismissOnTap: true,
+              )
+            : EasyLoading.showError(
+                l10n.seerrRequestError,
+                maskType: EasyLoadingMaskType.none,
+                dismissOnTap: true,
+              ),
+      );
+    } catch (_) {
+      if (mounted) {
+        unawaited(
+          EasyLoading.showError(
+            l10n.seerrRequestError,
+            maskType: EasyLoadingMaskType.none,
+            dismissOnTap: true,
           ),
-          const SizedBox(height: 10),
-          WhereToWatchSection(
-            tmdb: (mediaType: _tmdbTypeOf(item), id: _tmdbIdOf(item)!),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final seerrRef = _seerrRefOf(item);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Trailer/favorito/descarga solo aplican a contenido de la biblioteca.
+        if (seerrRef == null) ...[
+          Row(
+            children: [
+              _DetailActionButton(
+                icon: Icons.play_circle_outline,
+                tooltip: l10n.watchTrailer,
+                onTap: onTrailer,
+              ),
+              const SizedBox(width: 12),
+              _DetailActionButton(
+                icon: isFavorite ? Icons.favorite : Icons.add,
+                tooltip: isFavorite
+                    ? l10n.removeFromFavorites
+                    : l10n.addToFavorites,
+                onTap: onFavorite,
+              ),
+              const SizedBox(width: 12),
+              _DetailActionButton(
+                icon: Icons.download_outlined,
+                tooltip: l10n.download,
+                onTap: downloading ? () {} : onDownload,
+              ),
+            ],
           ),
+          const SizedBox(height: 16),
+        ],
+        // Título de Seerr: "Solicitar" + "Dónde ver".
+        if (seerrRef != null) ...[
+          _buildSeerrActions(context, seerrRef),
           const SizedBox(height: 14),
         ] else if (item.type != BaseItemKind.book) ...[
           // Los libros/cómics no se reproducen; el lector tiene su propio flujo.
@@ -1147,14 +1302,21 @@ class _DetailActions extends ConsumerWidget {
           onTap: () => showAdFreeEasterEggDialog(context),
         ),
         const SizedBox(height: 14),
-        _WideDetailButton(label: l10n.moreOptionsToEnjoy, onTap: _noop),
-        const SizedBox(height: 14),
-        IncludedBadge(label: l10n.includedWithJellyfin, fontSize: 14),
-        const SizedBox(height: 8),
-        Text(
-          l10n.termsApply,
-          style: const TextStyle(color: Colors.white60, fontSize: 13),
+        _WideDetailButton(
+          label: l10n.moreOptionsToEnjoy,
+          onTap: seerrRef == null ? _noop : _showMoreOptions,
         ),
+        // "Se incluye con Jellyfin"/términos solo para contenido de la
+        // biblioteca; en títulos de Seerr (no están en la biblioteca) no aplica.
+        if (seerrRef == null) ...[
+          const SizedBox(height: 14),
+          IncludedBadge(label: l10n.includedWithJellyfin, fontSize: 14),
+          const SizedBox(height: 8),
+          Text(
+            l10n.termsApply,
+            style: const TextStyle(color: Colors.white60, fontSize: 13),
+          ),
+        ],
       ],
     );
   }
@@ -1171,6 +1333,7 @@ class _CompactDetailBody extends StatelessWidget {
     required this.onTrailer,
     required this.onFavorite,
     required this.onDownload,
+    this.seerrMedia,
   });
 
   final BaseItemDto item;
@@ -1182,6 +1345,7 @@ class _CompactDetailBody extends StatelessWidget {
   final VoidCallback onTrailer;
   final VoidCallback onFavorite;
   final VoidCallback onDownload;
+  final SeerrMedia? seerrMedia;
 
   @override
   Widget build(BuildContext context) {
@@ -1196,6 +1360,7 @@ class _CompactDetailBody extends StatelessWidget {
           onTrailer: onTrailer,
           onFavorite: onFavorite,
           onDownload: onDownload,
+          seerrMedia: seerrMedia,
         ),
         const SizedBox(height: 24),
         _DetailDescription(item: item, overview: overview, genres: genres),
@@ -1364,6 +1529,8 @@ class _WideDetailButton extends StatelessWidget {
     required this.onTap,
     this.icon,
     this.primary = false,
+    this.background,
+    this.foreground,
   });
 
   final String label;
@@ -1371,32 +1538,43 @@ class _WideDetailButton extends StatelessWidget {
   final IconData? icon;
   final bool primary;
 
+  /// Color de fondo explícito (p. ej. azul claro del botón "Solicitar").
+  final Color? background;
+
+  /// Color de texto/icono explícito.
+  final Color? foreground;
+
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    final bg = background ?? (primary ? Colors.white : const Color(0xFF363B43));
+    final fg = foreground ?? (primary ? Colors.black : Colors.white);
+    return AppHover(
       onTap: onTap,
+      effect: AppHoverEffect.invert,
+      config: AppHoverConfig(
+        borderRadius: BorderRadius.circular(7),
+        highlightNormal: Colors.transparent,
+        highlightHovered: Colors.transparent,
+      ),
+      playSoundOnHover: true,
       child: Container(
         height: 62,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: primary ? Colors.white : const Color(0xFF363B43),
+          color: bg,
           borderRadius: BorderRadius.circular(7),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (icon != null) ...[
-              Icon(
-                icon,
-                color: primary ? Colors.black : Colors.white,
-                size: 28,
-              ),
+              Icon(icon, color: fg, size: 28),
               const SizedBox(width: 10),
             ],
             Text(
               label,
               style: TextStyle(
-                color: primary ? Colors.black : Colors.white,
+                color: fg,
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
               ),
@@ -1482,6 +1660,12 @@ class _DisneySeriesBody extends ConsumerStatefulWidget {
     required this.audioLanguages,
     required this.subtitleLanguages,
     required this.imdbRating,
+    this.seerrMedia,
+    required this.relatedKey,
+    required this.detailsKey,
+    required this.detailsSelected,
+    required this.onShowRelated,
+    required this.onShowDetails,
   });
 
   final BaseItemDto item;
@@ -1497,13 +1681,19 @@ class _DisneySeriesBody extends ConsumerStatefulWidget {
   final List<String> audioLanguages;
   final List<String> subtitleLanguages;
   final double? imdbRating;
+  final SeerrMedia? seerrMedia;
+  final GlobalKey relatedKey;
+  final GlobalKey detailsKey;
+  final bool detailsSelected;
+  final VoidCallback onShowRelated;
+  final VoidCallback onShowDetails;
 
   @override
   ConsumerState<_DisneySeriesBody> createState() => _DisneySeriesBodyState();
 }
 
 class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
-  /// 0 = Episodios, 1 = Sugerencias, 2 = Extras, 3 = Detalles.
+  /// 0 = Episodios, 1 = Sugerencias, 2 = Extras.
   int _tab = 0;
   String? _seasonId;
 
@@ -1650,26 +1840,44 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
           ),
         ],
         const SizedBox(height: 18),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 36),
-          child: Row(
-            children: [
-              if (hasEpisodes) ...[
-                _VerButton(
-                  label: verIsResume ? l10n.resume : l10n.watchNow,
-                  onTap: verTarget == null
-                      ? _noop
-                      : () => _playEpisode(verTarget),
-                ),
-                const SizedBox(width: 12),
-              ],
-              _DetailActionButton(
-                icon: widget.isFavorite ? Icons.check : Icons.add,
-                onTap: widget.onFavorite,
+        if (widget.seerrMedia != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: SizedBox(
+              width: compact ? double.infinity : 350,
+              child: _DetailActions(
+                item: _series,
+                l10n: l10n,
+                isFavorite: widget.isFavorite,
+                downloading: false,
+                onTrailer: _noop,
+                onFavorite: widget.onFavorite,
+                onDownload: _noop,
+                seerrMedia: widget.seerrMedia,
               ),
-            ],
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: Row(
+              children: [
+                if (hasEpisodes) ...[
+                  _VerButton(
+                    label: verIsResume ? l10n.resume : l10n.watchNow,
+                    onTap: verTarget == null
+                        ? _noop
+                        : () => _playEpisode(verTarget),
+                  ),
+                  const SizedBox(width: 12),
+                ],
+                _DetailActionButton(
+                  icon: widget.isFavorite ? Icons.check : Icons.add,
+                  onTap: widget.onFavorite,
+                ),
+              ],
+            ),
           ),
-        ),
         const SizedBox(height: 26),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 36),
@@ -1688,22 +1896,25 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
                   ],
                   _SeriesTabButton(
                     label: l10n.suggestions.toUpperCase(),
-                    selected: tab == 1,
-                    onTap: () => setState(() => _tab = 1),
+                    selected: tab == 1 && !widget.detailsSelected,
+                    onTap: () {
+                      setState(() => _tab = 1);
+                      widget.onShowRelated();
+                    },
                   ),
-                  const SizedBox(width: 32),
                   if (hasEpisodes) ...[
+                    const SizedBox(width: 32),
                     _SeriesTabButton(
                       label: l10n.extras.toUpperCase(),
                       selected: tab == 2,
                       onTap: () => setState(() => _tab = 2),
                     ),
-                    const SizedBox(width: 32),
                   ],
+                  const SizedBox(width: 32),
                   _SeriesTabButton(
                     label: l10n.details.toUpperCase(),
-                    selected: tab == 3,
-                    onTap: () => setState(() => _tab = 3),
+                    selected: widget.detailsSelected,
+                    onTap: widget.onShowDetails,
                   ),
                 ],
               ),
@@ -1728,6 +1939,7 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
           )
         else if (tab == 1)
           Padding(
+            key: widget.relatedKey,
             padding: const EdgeInsets.only(bottom: 24),
             child: _RelatedSection(
               items: widget.related.take(10).toList(),
@@ -1739,25 +1951,25 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
             episodes: allEpisodes
                 .where((e) => e.parentIndexNumber == 0)
                 .toList(),
-            l10n: l10n,
+             l10n: l10n,
             prime: prime,
             onEpisodeTap: _playEpisode,
-          )
-        else
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 36),
-            child: _AdditionalInformation(
-              item: _series,
-              overview: widget.overview,
-              genres: widget.genres,
-              compact: compact,
-              imdbRating: widget.imdbRating,
-              people: widget.people,
-              studios: widget.studios,
-              audioLanguages: widget.audioLanguages,
-              subtitleLanguages: widget.subtitleLanguages,
-            ),
           ),
+        Padding(
+          key: widget.detailsKey,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 36),
+          child: _AdditionalInformation(
+            item: _series,
+            overview: widget.overview,
+            genres: widget.genres,
+            compact: compact,
+            imdbRating: widget.imdbRating,
+            people: widget.people,
+            studios: widget.studios,
+            audioLanguages: widget.audioLanguages,
+            subtitleLanguages: widget.subtitleLanguages,
+          ),
+        ),
       ],
     );
   }
@@ -2270,26 +2482,14 @@ class _ThumbImage extends ConsumerWidget {
   }
 }
 
-/// `true` si el item no tiene media reproducible (p. ej. placeholder de
-/// Radarr/Sonarr: `LocationType.virtual` o sin `MediaSources`).
-bool _isNotPlayable(BaseItemDto item) {
-  if (item.locationType == LocationType.virtual) return true;
-  final sources = item.mediaSources;
-  return sources != null && sources.isEmpty;
+/// Referencia Seerr de un item marcado con id `seerr:<type>:<tmdbId>`.
+(SeerrMediaType, int)? _seerrRefOf(BaseItemDto item) {
+  final id = item.id ?? '';
+  if (!id.startsWith('seerr:')) return null;
+  final parts = id.split(':');
+  if (parts.length != 3) return null;
+  final type = SeerrMediaType.fromString(parts[1]);
+  final tmdb = int.tryParse(parts[2]);
+  if (type == null || tmdb == null) return null;
+  return (type, tmdb);
 }
-
-/// Id de TMDB del item (desde `ProviderIds`).
-int? _tmdbIdOf(BaseItemDto item) {
-  final ids = item.providerIds;
-  if (ids == null) return null;
-  for (final entry in ids.entries) {
-    if (entry.key.toLowerCase() == 'tmdb') {
-      return int.tryParse(entry.value);
-    }
-  }
-  return null;
-}
-
-/// Tipo TMDB del item (serie → tv, resto → movie).
-TmdbMediaType _tmdbTypeOf(BaseItemDto item) =>
-    item.type == BaseItemKind.series ? TmdbMediaType.tv : TmdbMediaType.movie;
