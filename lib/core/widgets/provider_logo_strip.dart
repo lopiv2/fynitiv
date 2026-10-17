@@ -2,9 +2,11 @@ import 'package:material_ui/material_ui.dart';
 
 /// Logos de proveedores mostrados en la esquina de una tarjeta.
 class ProviderLogoStrip extends StatelessWidget {
-  const ProviderLogoStrip({super.key, required this.urls, this.height = 20});
+  const ProviderLogoStrip({super.key, required this.urls, this.height = 36});
 
   final List<String> urls;
+
+  /// Alto (y ancho) de cada logo.
   final double height;
 
   @override

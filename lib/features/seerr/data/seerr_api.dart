@@ -10,6 +10,18 @@ enum SeerrErrorKind {
   certificate,
   network,
   unauthorized,
+
+  /// 403: sin permiso de petición, cuota agotada o título en la lista negra.
+  forbidden,
+
+  /// 409: ya existe una petición para ese título.
+  duplicate,
+
+  /// 202: no quedan temporadas nuevas que pedir.
+  noSeasons,
+
+  /// 403 de la protección CSRF de Seerr.
+  csrf,
   notFound,
   http,
   response,
@@ -64,7 +76,19 @@ class SeerrApi {
            receiveTimeout: const Duration(seconds: 12),
            validateStatus: (s) => s != null && s < 500,
          ),
-       );
+       ) {
+    _seedCookies(credential);
+    // Seerr rota `connect.sid` y, con la protección CSRF activa, manda el par
+    // `_csrf`/`XSRF-TOKEN` en cada respuesta: hay que devolverlo en los POST.
+    _dio.interceptors.add(
+      InterceptorsWrapper(
+        onResponse: (res, handler) {
+          _absorbSetCookie(res.headers['set-cookie']);
+          handler.next(res);
+        },
+      ),
+    );
+  }
 
   final String baseUrl;
   final String? credential; // connect.sid=...
@@ -73,6 +97,53 @@ class SeerrApi {
   final String? basicAuth;
   final String? apiKey;
   final Dio _dio;
+
+  /// Bote de cookies del servidor (`connect.sid`, `_csrf`, `XSRF-TOKEN`…): se
+  /// envían en cada petición y se actualizan con lo que devuelva Seerr.
+  final Map<String, String> _cookies = {};
+
+  /// Siembra el bote desde la credencial guardada (`connect.sid=s%3A…`).
+  void _seedCookies(String? raw) {
+    if (raw == null || raw.isEmpty) return;
+    for (final part in raw.split(';')) {
+      final eq = part.indexOf('=');
+      if (eq <= 0) continue;
+      final name = part.substring(0, eq).trim();
+      final value = part.substring(eq + 1).trim();
+      if (name.isNotEmpty && value.isNotEmpty) _cookies[name] = value;
+    }
+  }
+
+  /// Acumula las cookies de `set-cookie` (Dio puede plegar varias en una).
+  void _absorbSetCookie(List<String>? values) {
+    if (values == null) return;
+    for (final value in values) {
+      for (final raw in value.split(RegExp(r',(?=\s*[A-Za-z0-9_-]+=)'))) {
+        final pair = raw.split(';').first.trim();
+        final eq = pair.indexOf('=');
+        if (eq <= 0) continue;
+        final name = pair.substring(0, eq).trim();
+        final cookie = pair.substring(eq + 1).trim();
+        if (name.isNotEmpty && cookie.isNotEmpty) _cookies[name] = cookie;
+      }
+    }
+  }
+
+  /// Token CSRF que exige Seerr (cabecera `X-XSRF-TOKEN`) cuando la
+  /// protección CSRF está activa.
+  String? get _xsrfToken {
+    final raw = _cookies['XSRF-TOKEN'];
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return Uri.decodeComponent(raw);
+    } catch (_) {
+      // El valor ya venía decodificado.
+      return raw;
+    }
+  }
+
+  static bool _isSafeMethod(String method) =>
+      method == 'GET' || method == 'HEAD' || method == 'OPTIONS';
 
   /// Separa el `user:pass` de la URL (basic-auth de proxy); devuelve
   /// (urlSinCredenciales, userInfo|null).
@@ -99,7 +170,7 @@ class SeerrApi {
 
   /// Interpreta la respuesta como JSON (Map), tolerando servidores que no
   /// fijan `application/json` (Dio devuelve String) y lanzando un error legible.
-  Map<String, dynamic> _asMap(Response<Object> res) {
+  Map<String, dynamic> _asMap(Response<dynamic> res) {
     final data = res.data;
     if (data is Map) return data.cast<String, dynamic>();
     if (data is String && data.trim().isNotEmpty) {
@@ -143,6 +214,18 @@ class SeerrApi {
         kind: SeerrErrorKind.network,
       );
     }
+    // 5xx (validados como error por `validateStatus`): es un fallo del
+    // servidor, no de la conexión.
+    if (e.type == DioExceptionType.badResponse) {
+      final status = e.response?.statusCode;
+      return SeerrException(
+        e.response == null
+            ? 'Server error'
+            : _messageOf(e.response!),
+        statusCode: status,
+        kind: SeerrErrorKind.http,
+      );
+    }
     return SeerrException(
       'Connection error: ${e.message ?? e.type.name}',
       kind: SeerrErrorKind.network,
@@ -152,7 +235,7 @@ class SeerrApi {
   /// Comprueba la conectividad con Seerr (`/status`), lanzando un error legible.
   Future<void> assertReachable() async {
     try {
-      final res = await _dio.get<Object>('/status', options: _options);
+      final res = await _dio.get<Object>('/status', options: _options('GET'));
       if (res.statusCode != 200) {
         throw SeerrException(
           'Seerr responded HTTP ${res.statusCode} on /status',
@@ -165,7 +248,10 @@ class SeerrApi {
     }
   }
 
-  Options get _options {
+  /// Cabeceras de una petición. [jsonBody] marca los cuerpos JSON: sin él,
+  /// Dio serializaría el `Map` como `application/x-www-form-urlencoded` y el
+  /// validador OpenAPI de Seerr rechazaría el POST (su API es JSON).
+  Options _options(String method, {bool jsonBody = false}) {
     final headers = <String, String>{'Accept': 'application/json'};
     // Basic-auth del proxy (si la URL traía user:pass).
     if (basicAuth != null && basicAuth!.isNotEmpty) {
@@ -173,15 +259,28 @@ class SeerrApi {
           'Basic ${base64Encode(utf8.encode(basicAuth!))}';
     }
     if (apiKey != null && apiKey!.isNotEmpty) headers['X-Api-Key'] = apiKey!;
-    if (credential != null && credential!.isNotEmpty) {
-      headers['Cookie'] = credential!;
+    if (_cookies.isNotEmpty) {
+      headers['Cookie'] = _cookies.entries
+          .map((entry) => '${entry.key}=${entry.value}')
+          .join('; ');
+    } else if (credential != null && credential!.trim().isNotEmpty) {
+      // Credencial sin formato de cookie (`name=value`): se envía tal cual.
+      headers['Cookie'] = credential!.trim();
     }
-    return Options(headers: headers);
+    // Protección CSRF de Seerr: token obligatorio en métodos no seguros.
+    final token = _xsrfToken;
+    if (token != null && !_isSafeMethod(method)) {
+      headers['X-XSRF-TOKEN'] = token;
+    }
+    return Options(
+      headers: headers,
+      contentType: jsonBody ? Headers.jsonContentType : null,
+    );
   }
 
   Future<bool> checkStatus() async {
     try {
-      final res = await _dio.get<Object>('/status', options: _options);
+      final res = await _dio.get<Object>('/status', options: _options('GET'));
       return res.statusCode == 200;
     } catch (_) {
       return false;
@@ -193,7 +292,7 @@ class SeerrApi {
     try {
       res = await _dio.post<Object>(
         '/auth/jellyfin/quickconnect/initiate',
-        options: _options,
+        options: _options('POST'),
       );
     } on DioException catch (e) {
       throw _classify(e);
@@ -221,7 +320,7 @@ class SeerrApi {
       final res = await _dio.get<Object>(
         '/auth/jellyfin/quickconnect/check',
         queryParameters: {'secret': secret},
-        options: _options,
+        options: _options('GET'),
       );
       if (res.statusCode != 200) return false;
       final data = res.data;
@@ -237,7 +336,7 @@ class SeerrApi {
       final res = await _dio.post<Object>(
         '/auth/jellyfin/quickconnect/authenticate',
         data: {'secret': secret},
-        options: _options,
+        options: _options('POST', jsonBody: true),
       );
       if (res.statusCode != 200) return null;
       return _sessionCookie(res);
@@ -253,7 +352,7 @@ class SeerrApi {
   }) async {
     final res = await _dio.get<Object>(
       '/${type.value}/$tmdbId',
-      options: _options,
+      options: _options('GET'),
     );
     return SeerrMedia.fromDetailJson(
       (res.data as Map).cast<String, dynamic>(),
@@ -271,7 +370,7 @@ class SeerrApi {
       SeerrDiscoverCategory.popularTv => '/discover/tv',
       SeerrDiscoverCategory.upcomingTv => '/discover/tv/upcoming',
     };
-    final res = await _dio.get<Object>(path, options: _options);
+    final res = await _dio.get<Object>(path, options: _options('GET'));
     if (res.statusCode != 200) return const [];
     return _mediaList(res.data);
   }
@@ -280,38 +379,90 @@ class SeerrApi {
     final res = await _dio.get<Object>(
       '/search',
       queryParameters: {'query': query, 'page': page},
-      options: _options,
+      options: _options('GET'),
     );
     return _mediaList(res.data);
   }
 
-  Future<bool> createRequest({
+  /// Crea una petición en Seerr. Lanza [SeerrException] con el motivo real que
+  /// devuelve el servidor (permiso, cuota, duplicada, CSRF…) para poder
+  /// mostrarlo, en lugar de devolver un booleano sin contexto.
+  Future<void> createRequest({
     required SeerrMediaType type,
     required int mediaId,
     List<int>? seasons,
   }) async {
-    final res = await _dio.post<Object>(
-      '/request',
-      data: {
-        'mediaType': type.value,
-        'mediaId': mediaId,
-        // En series Seerr exige `seasons`; sin selección pedimos todas.
-        if (type == SeerrMediaType.tv)
-          'seasons': (seasons != null && seasons.isNotEmpty) ? seasons : 'all'
-        else if (seasons != null && seasons.isNotEmpty)
-          'seasons': seasons,
-      },
-      options: _options,
-    );
+    // Con la protección CSRF activa, el token llega en la primera respuesta
+    // (`XSRF-TOKEN`). Si el POST es lo primero que hace este cliente, se pide
+    // antes un /status para obtenerlo.
+    if (_xsrfToken == null) {
+      try {
+        await _dio.get<Object>('/status', options: _options('GET'));
+      } catch (_) {}
+    }
+    Response<Object> res;
+    try {
+      res = await _dio.post<Object>(
+        '/request',
+        data: {
+          'mediaType': type.value,
+          'mediaId': mediaId,
+          // En series Seerr exige `seasons`; sin selección pedimos todas.
+          if (type == SeerrMediaType.tv)
+            'seasons': (seasons != null && seasons.isNotEmpty) ? seasons : 'all'
+          else if (seasons != null && seasons.isNotEmpty)
+            'seasons': seasons,
+        },
+        options: _options('POST', jsonBody: true),
+      );
+    } on DioException catch (e) {
+      throw _classify(e);
+    }
     final code = res.statusCode ?? 0;
-    return code >= 200 && code < 300;
+    if (code == 200 || code == 201) return;
+    throw SeerrException(
+      _messageOf(res),
+      statusCode: code,
+      kind: _requestErrorKind(code, res),
+    );
+  }
+
+  /// Traduce el estado de un `POST /request` a un tipo de error concreto.
+  SeerrErrorKind _requestErrorKind(int code, Response<Object> res) {
+    switch (code) {
+      case 202:
+        // Seerr: `NoSeasonsAvailableError` (ya están pedidas o disponibles).
+        return SeerrErrorKind.noSeasons;
+      case 401:
+        return SeerrErrorKind.unauthorized;
+      case 403:
+        return _messageOf(res).toLowerCase().contains('csrf')
+            ? SeerrErrorKind.csrf
+            : SeerrErrorKind.forbidden;
+      case 409:
+        return SeerrErrorKind.duplicate;
+      default:
+        return SeerrErrorKind.http;
+    }
+  }
+
+  /// Mensaje de error de Seerr (`{ message, errors }`) con respaldo legible.
+  String _messageOf(Response<dynamic> res) {
+    try {
+      final map = _asMap(res);
+      final message = map['message'] ?? map['error'];
+      if (message is String && message.trim().isNotEmpty) {
+        return message.trim();
+      }
+    } catch (_) {}
+    return 'Seerr HTTP ${res.statusCode}';
   }
 
   Future<List<SeerrRequest>> requests({int take = 20}) async {
     final res = await _dio.get<Object>(
       '/request',
       queryParameters: {'take': take, 'sort': 'added'},
-      options: _options,
+      options: _options('GET'),
     );
     if (res.statusCode != 200) return const [];
     final data = res.data;

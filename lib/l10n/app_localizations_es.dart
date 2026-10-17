@@ -876,6 +876,26 @@ class AppLocalizationsEs extends AppLocalizations {
   String get seerrRequestError => 'No se pudo enviar la petición';
 
   @override
+  String get seerrRequestAlreadyRequested =>
+      'Ese título ya estaba solicitado en Seerr.';
+
+  @override
+  String get seerrRequestNoSeasons =>
+      'No hay temporadas nuevas que solicitar (ya pedidas o disponibles).';
+
+  @override
+  String get seerrRequestQuota =>
+      'Has alcanzado tu límite de peticiones en Seerr.';
+
+  @override
+  String get seerrRequestForbidden =>
+      'La cuenta de Seerr no tiene permiso para solicitar este título.';
+
+  @override
+  String get seerrRequestCsrf =>
+      'Seerr rechazó la petición (protección CSRF). Desactiva «Enable CSRF Protection» en Seerr (Ajustes → General).';
+
+  @override
   String get seerrStatusRequested => 'Solicitada';
 
   @override

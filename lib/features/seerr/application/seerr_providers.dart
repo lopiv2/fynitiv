@@ -46,6 +46,28 @@ BaseItemDto seerrMediaToBaseItem(SeerrMedia m) => BaseItemDto(
   locationType: LocationType.virtual,
 );
 
+/// Mapea una petición de Seerr a `BaseItemDto` para reutilizar las tarjetas de
+/// la app. Se re-clava el id por petición (una serie puede pedirse por
+/// temporadas, repitiendo `tmdbId`) y se enriquece con la ficha de TMDB cuando
+/// ya está disponible.
+BaseItemDto seerrRequestToBaseItem(SeerrRequest r, {SeerrMedia? media}) =>
+    seerrMediaToBaseItem(media ?? seerrRequestToMedia(r)).copyWith(
+      id: 'seerr-request-${r.id}',
+    );
+
+/// `SeerrMedia` de respaldo a partir de los datos propios de la petición,
+/// mientras llega la ficha de TMDB (la lista de peticiones de Seerr no siempre
+/// trae carátula).
+SeerrMedia seerrRequestToMedia(SeerrRequest r) {
+  final title = (r.title ?? '').trim();
+  return SeerrMedia(
+    tmdbId: r.tmdbId,
+    mediaType: r.mediaType,
+    title: title.isEmpty ? 'TMDB ${r.tmdbId}' : title,
+    posterPath: r.posterPath,
+  );
+}
+
 /// Lista de descubrimiento de Seerr por categoría (tendencias, populares,
 /// próximos…).
 final seerrDiscoverProvider =

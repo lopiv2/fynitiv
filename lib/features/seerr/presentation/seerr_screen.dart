@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -17,9 +18,11 @@ import '../application/seerr_controller.dart';
 import '../application/seerr_providers.dart';
 import '../data/seerr_api.dart';
 
-import '../../library/presentation/widgets/poster_card.dart';
 import '../domain/seerr_models.dart';
+import 'widgets/seerr_content_row.dart';
 import 'widgets/seerr_media_row.dart';
+import 'widgets/seerr_poster_grid.dart';
+import 'widgets/seerr_request_status_badge.dart';
 
 /// Seerr: descubrimiento y peticiones de contenido (TMDB vía Seerr).
 class SeerrScreen extends ConsumerStatefulWidget {
@@ -80,7 +83,14 @@ class _SeerrScreenState extends ConsumerState<SeerrScreen> {
           padding: const EdgeInsets.only(top: 4, bottom: 4),
           child: AppTabBar(
             index: _tab.index,
-            onChanged: (i) => setState(() => _tab = _SeerrTab.values[i]),
+            onChanged: (i) {
+              setState(() => _tab = _SeerrTab.values[i]);
+              // La lista de peticiones puede haber cambiado fuera de la app
+              // (web de Seerr, aprobación…): se refresca al abrir la pestaña.
+              if (_tab == _SeerrTab.requests) {
+                ref.invalidate(seerrRequestsProvider);
+              }
+            },
             items: [
               AppTabItem(
                 label: l10n.seerrUpcomingTab,
@@ -227,36 +237,25 @@ class _MediaGrid extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final skin = ref.watch(skinControllerProvider).value;
-    return GridView.builder(
-      padding: const EdgeInsets.all(24),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 170,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 0.5,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, i) {
-        final m = items[i];
-        final metadata = ref
-            .watch(
-              seerrCardMetadataProvider(
-                (mediaType: m.mediaType, tmdbId: m.tmdbId, title: m.title),
-              ),
-            )
-            .value;
-        final providerLogos = <String>[
-          for (final logo in (metadata?.providers ?? const [])
-              .map((provider) => provider.logoUrl())
-              .whereType<String>())
-            logo,
-        ];
-        return PosterCard(
+    final entries = <SeerrPosterGridEntry>[];
+    for (final m in items) {
+      final metadata = ref
+          .watch(
+            seerrCardMetadataProvider(
+              (mediaType: m.mediaType, tmdbId: m.tmdbId, title: m.title),
+            ),
+          )
+          .value;
+      final providerLogos = <String>[
+        for (final logo in (metadata?.providers ?? const [])
+            .map((provider) => provider.logoUrl())
+            .whereType<String>())
+          logo,
+      ];
+      entries.add(
+        SeerrPosterGridEntry(
           item: seerrMediaToBaseItem(m),
-          serverUrl: null,
           imageUrl: m.posterUrl(),
-          showPlayIcon: false,
-          showHoverIncludedBadge: false,
           hoverActionLabel: l10n.seerrRequest,
           cardLogo: providerLogos.isEmpty &&
                   metadata?.libraryStatus == SeerrLibraryStatus.available
@@ -264,9 +263,10 @@ class _MediaGrid extends ConsumerWidget {
               : null,
           cornerLogos: providerLogos,
           onTap: () => context.push('/seerr/${m.mediaType.value}/${m.tmdbId}'),
-        );
-      },
-    );
+        ),
+      );
+    }
+    return SeerrPosterGrid(entries: entries);
   }
 }
 
@@ -276,6 +276,7 @@ class _RequestsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final skin = ref.watch(skinControllerProvider).value;
     final requests = ref.watch(seerrRequestsProvider);
     return requests.when(
       data: (items) {
@@ -287,29 +288,81 @@ class _RequestsTab extends ConsumerWidget {
             ),
           );
         }
-        return ListView.separated(
-          padding: const EdgeInsets.all(24),
-          itemCount: items.length,
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemBuilder: (context, i) {
-            final r = items[i];
-            return ListTile(
-              leading: const Icon(Icons.movie_outlined, color: Colors.white70),
-              title: Text(
-                r.title != null && r.title!.isNotEmpty
-                    ? r.title!
-                    : 'TMDB ${r.tmdbId}',
-                style: const TextStyle(color: Colors.white),
-              ),
-              subtitle: Text(
-                _requestStatusLabel(l10n, r),
-                style: const TextStyle(color: Colors.white54),
-              ),
-              onTap: () => context.push(
-                '/seerr/${r.mediaType.value}/${r.tmdbId}',
-              ),
-            );
-          },
+        // La lista de /request no trae carátula fiable: se enriquece cada
+        // petición con su ficha de TMDB y, mientras llega, se muestra lo que
+        // la propia petición aporta.
+        final cards = <_RequestCard>[];
+        final useBackdrop = seerrUseBackdrop(skin);
+        for (final r in items) {
+          final detail = ref
+              .watch(
+                seerrDetailProvider((mediaType: r.mediaType, tmdbId: r.tmdbId)),
+              )
+              .value;
+          final media = detail ?? seerrRequestToMedia(r);
+          final metadata = ref
+              .watch(
+                seerrCardMetadataProvider((
+                  mediaType: media.mediaType,
+                  tmdbId: media.tmdbId,
+                  title: media.title,
+                )),
+              )
+              .value;
+          final providerLogos = <String>[
+            for (final logo in (metadata?.providers ?? const [])
+                .map((provider) => provider.logoUrl())
+                .whereType<String>())
+              logo,
+          ];
+          // El título ya está en la biblioteca: la petición está cumplida.
+          final inLibrary =
+              metadata?.libraryStatus == SeerrLibraryStatus.available;
+          cards.add(
+            _RequestCard(
+              request: r,
+              media: media,
+              item: seerrRequestToBaseItem(r, media: media),
+              imageUrl: useBackdrop ? media.backdropUrl() : media.posterUrl(),
+              inLibrary: inLibrary,
+              providerLogos: providerLogos,
+              cardLogo: providerLogos.isEmpty && inLibrary
+                  ? skin?.cardLogo ?? 'assets/images/jellyfin.png'
+                  : null,
+            ),
+          );
+        }
+        final byId = {for (final c in cards) c.item.id ?? '': c};
+        return ListView(
+          padding: const EdgeInsets.only(bottom: 32),
+          children: [
+            SeerrContentRow(
+              title: l10n.seerrRequestsTab,
+              items: [for (final c in cards) c.item],
+              hoverActionLabel: l10n.details,
+              onItemTap: (it) {
+                final c = byId[it.id];
+                if (c == null) return;
+                context.push(
+                  '/seerr/${c.media.mediaType.value}/${c.media.tmdbId}',
+                );
+              },
+              imageUrlFor: (it) => byId[it.id]?.imageUrl,
+              cardLogoFor: (it) => byId[it.id]?.cardLogo,
+              cornerLogosFor: (it) => byId[it.id]?.providerLogos ?? const [],
+              cornerBadgeFor: (it) {
+                final c = byId[it.id];
+                if (c == null) return null;
+                return SeerrRequestStatusBadge(
+                  label: c.inLibrary
+                      ? l10n.seerrStatusAvailable
+                      : _requestStatusLabel(l10n, c.request.status),
+                  status: c.request.status,
+                  inLibrary: c.inLibrary,
+                );
+              },
+            ),
+          ],
         );
       },
       loading: () => const Center(child: AppLoader()),
@@ -323,8 +376,37 @@ class _RequestsTab extends ConsumerWidget {
   }
 }
 
-String _requestStatusLabel(AppLocalizations l10n, SeerrRequest r) {
-  switch (r.status) {
+/// Petición + ficha de TMDB (o respaldo) + datos de tarjeta ya resueltos.
+class _RequestCard {
+  const _RequestCard({
+    required this.request,
+    required this.media,
+    required this.item,
+    required this.providerLogos,
+    this.imageUrl,
+    this.cardLogo,
+    this.inLibrary = false,
+  });
+
+  final SeerrRequest request;
+  final SeerrMedia media;
+  final BaseItemDto item;
+
+  /// Imagen de la tarjeta (póster o backdrop de TMDB, según el skin).
+  final String? imageUrl;
+
+  /// Logos de plataformas (TMDB) del título.
+  final List<String> providerLogos;
+
+  /// Logo de "En tu biblioteca", si el título ya está en Jellyfin.
+  final String? cardLogo;
+
+  /// El título ya está disponible en la biblioteca Jellyfin.
+  final bool inLibrary;
+}
+
+String _requestStatusLabel(AppLocalizations l10n, int status) {
+  switch (status) {
     case 1:
       return l10n.seerrStatusPending;
     case 2:
@@ -418,6 +500,12 @@ class _SetupPanelState extends ConsumerState<_SetupPanel> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    // `FilledButton`/`OutlinedButton` derivan su color de `colorScheme.primary`
+    // (sobrescrito con `skin.primary`). Con skins de primario oscuro (p. ej.
+    // Disney+) el texto queda invisible; se fija el color explícitamente.
+    final accent =
+        ref.watch(skinControllerProvider).value?.accent ??
+        Theme.of(context).colorScheme.primary;
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -446,6 +534,10 @@ class _SetupPanelState extends ConsumerState<_SetupPanel> {
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: _quickConnect,
+                style: FilledButton.styleFrom(
+                  backgroundColor: accent,
+                  foregroundColor: Colors.white,
+                ),
                 icon: const Icon(Icons.qr_code_2),
                 label: Text(l10n.seerrQuickConnect),
               ),
@@ -470,6 +562,10 @@ class _SetupPanelState extends ConsumerState<_SetupPanel> {
                 alignment: Alignment.centerRight,
                 child: OutlinedButton(
                   onPressed: _saveApiKey,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white70,
+                    side: const BorderSide(color: Colors.white24),
+                  ),
                   child: Text(l10n.seerrUseApiKey),
                 ),
               ),
@@ -546,6 +642,10 @@ class _QuickConnectDialogState extends ConsumerState<_QuickConnectDialog> {
         return l10n.seerrUnauthorized;
       case SeerrErrorKind.notFound:
         return l10n.seerrNotFound;
+      case SeerrErrorKind.forbidden:
+      case SeerrErrorKind.duplicate:
+      case SeerrErrorKind.noSeasons:
+      case SeerrErrorKind.csrf:
       case SeerrErrorKind.http:
       case SeerrErrorKind.response:
       case SeerrErrorKind.unknown:

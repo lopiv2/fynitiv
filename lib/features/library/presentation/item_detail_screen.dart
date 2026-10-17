@@ -23,6 +23,7 @@ import '../../../l10n/genre_localizer.dart';
 import '../../player/application/playback_provider.dart';
 import '../../seerr/application/seerr_controller.dart';
 import '../../seerr/application/seerr_providers.dart';
+import '../../seerr/data/seerr_api.dart';
 import '../../seerr/domain/seerr_models.dart';
 import '../../seerr/presentation/widgets/seerr_watch_providers.dart';
 import '../../downloads/application/download_manager_provider.dart';
@@ -1127,7 +1128,8 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
   VoidCallback get onDownload => widget.onDownload;
 
   /// Acciones para un título de Seerr: "Solicitar" (estilo del botón de
-  /// reproducir, en azul claro) o chip "En tu biblioteca".
+  /// reproducir, en azul claro), chip de estado si la petición ya existe, o
+  /// chip "En tu biblioteca".
   Widget _buildSeerrActions(
     BuildContext context,
     (SeerrMediaType, int) seerrRef,
@@ -1146,6 +1148,15 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
             )
             .value ??
         SeerrLibraryStatus.none;
+    // Estado de la petición según Seerr (`mediaInfo.status`), para que tras
+    // solicitar se vea el estado en vez del botón otra vez.
+    final requestLabel = switch (widget.seerrMedia?.status) {
+      SeerrMediaStatus.pending => l10n.seerrStatusRequested,
+      SeerrMediaStatus.processing => l10n.seerrStatusProcessing,
+      SeerrMediaStatus.partiallyAvailable => l10n.seerrStatusPartial,
+      SeerrMediaStatus.available => l10n.seerrStatusAvailable,
+      _ => null,
+    };
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -1158,6 +1169,14 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
           Align(
             alignment: Alignment.centerLeft,
             child: Chip(label: Text(l10n.seerrComingSoonInLibrary)),
+          )
+        else if (requestLabel != null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Chip(
+              avatar: const Icon(Icons.check, size: 18),
+              label: Text(requestLabel),
+            ),
           )
         else
           _WideDetailButton(
@@ -1220,17 +1239,34 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
     if (api == null) return;
     setState(() => _sending = true);
     try {
-      final ok = await api.createRequest(type: type, mediaId: tmdbId);
+      await api.createRequest(type: type, mediaId: tmdbId);
       if (!mounted) return;
+      _refreshSeerrState(type, tmdbId);
       unawaited(
-        ok
-            ? EasyLoading.showSuccess(
-                l10n.seerrRequestSuccess,
+        EasyLoading.showSuccess(
+          l10n.seerrRequestSuccess,
+          maskType: EasyLoadingMaskType.none,
+          dismissOnTap: true,
+        ),
+      );
+    } on SeerrException catch (e) {
+      if (!mounted) return;
+      // Seerr responde con el motivo real (permiso, cuota, duplicada…): se
+      // muestra traducido en lugar de un error genérico.
+      final text = _seerrRequestErrorText(l10n, e);
+      final alreadyDone =
+          e.kind == SeerrErrorKind.duplicate ||
+          e.kind == SeerrErrorKind.noSeasons;
+      if (alreadyDone) _refreshSeerrState(type, tmdbId);
+      unawaited(
+        alreadyDone
+            ? EasyLoading.showInfo(
+                text,
                 maskType: EasyLoadingMaskType.none,
                 dismissOnTap: true,
               )
             : EasyLoading.showError(
-                l10n.seerrRequestError,
+                text,
                 maskType: EasyLoadingMaskType.none,
                 dismissOnTap: true,
               ),
@@ -1247,6 +1283,59 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
       }
     } finally {
       if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  /// Refresca ficha, metadatos, estado en biblioteca y lista de peticiones para
+  /// que la solicitud se refleje sin reiniciar la app.
+  void _refreshSeerrState(SeerrMediaType type, int tmdbId) {
+    final title = item.name ?? '';
+    ref.invalidate(
+      seerrDetailProvider((mediaType: type, tmdbId: tmdbId)),
+    );
+    ref.invalidate(
+      seerrCardMetadataProvider((
+        mediaType: type,
+        tmdbId: tmdbId,
+        title: title,
+      )),
+    );
+    ref.invalidate(
+      seerrLibraryStatusProvider((
+        kind: type == SeerrMediaType.movie
+            ? BaseItemKind.movie
+            : BaseItemKind.series,
+        tmdbId: tmdbId,
+        title: title,
+      )),
+    );
+    ref.invalidate(seerrRequestsProvider);
+  }
+
+  /// Motivo del rechazo de Seerr traducido (permiso, cuota, duplicada, CSRF…).
+  String _seerrRequestErrorText(AppLocalizations l10n, SeerrException e) {
+    switch (e.kind) {
+      case SeerrErrorKind.duplicate:
+        return l10n.seerrRequestAlreadyRequested;
+      case SeerrErrorKind.noSeasons:
+        return l10n.seerrRequestNoSeasons;
+      case SeerrErrorKind.forbidden:
+        return e.message.toLowerCase().contains('quota')
+            ? l10n.seerrRequestQuota
+            : l10n.seerrRequestForbidden;
+      case SeerrErrorKind.csrf:
+        return l10n.seerrRequestCsrf;
+      case SeerrErrorKind.certificate:
+        return l10n.seerrCertError;
+      case SeerrErrorKind.network:
+        return l10n.seerrNetworkError;
+      case SeerrErrorKind.unauthorized:
+        return l10n.seerrUnauthorized;
+      case SeerrErrorKind.notFound:
+      case SeerrErrorKind.http:
+      case SeerrErrorKind.response:
+      case SeerrErrorKind.unknown:
+        return l10n.seerrRequestError;
     }
   }
 

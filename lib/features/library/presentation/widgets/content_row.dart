@@ -58,6 +58,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.isNextPoster = false,
     this.hasNext = false,
     this.cornerBadge,
+    this.cornerBadgeFor,
     this.excludePlaceholders = true,
     this.imageUrlFor,
     this.showHoverIncludedBadge = true,
@@ -188,6 +189,10 @@ class ContentRow extends ConsumerStatefulWidget {
   /// Badge opcional superpuesto en la esquina de cada tarjeta (ej. icono
   /// estacional). Se reenvía a [PosterCard]/[BackdropCard].
   final Widget? cornerBadge;
+
+  /// Badge por item, para contenido externo (p. ej. estado de una petición de
+  /// Seerr). Tiene prioridad sobre [cornerBadge].
+  final Widget? Function(BaseItemDto item)? cornerBadgeFor;
 
   @override
   ConsumerState<ContentRow> createState() => _ContentRowState();
@@ -521,7 +526,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     onHoverChanged: (v) => _onCardHover(i, v),
                     onPointerSignal: _onPagePointerSignal,
                     overlayBelowEntry: _prepareArrowOverlayForHover,
-                    cornerBadge: widget.cornerBadge,
+                    cornerBadge:
+                        widget.cornerBadgeFor?.call(items[i]) ??
+                        widget.cornerBadge,
                   )
                 : PosterCard(
                     item: items[i],
@@ -560,7 +567,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     onHoverChanged: (v) => _onCardHover(i, v),
                     onPointerSignal: _onPagePointerSignal,
                     overlayBelowEntry: _prepareArrowOverlayForHover,
-                    cornerBadge: widget.cornerBadge,
+                    cornerBadge:
+                        widget.cornerBadgeFor?.call(items[i]) ??
+                        widget.cornerBadge,
                   ),
           ),
         ),

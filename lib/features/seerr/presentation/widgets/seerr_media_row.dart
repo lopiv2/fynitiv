@@ -5,18 +5,16 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../core/constants/ui_constants.dart';
 import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/layout_section.dart';
-import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../../../l10n/app_localizations.dart';
-import '../../../library/application/library_providers.dart';
-import '../../../library/presentation/widgets/content_row.dart';
 import '../../application/seerr_providers.dart';
 import '../../domain/seerr_models.dart';
+import 'seerr_content_row.dart';
 
-/// Fila de descubrimiento de Seerr reutilizando el [ContentRow] del resto de la
-/// app (mismo look/hover/tamaños del skin). Los items de TMDB se mapean a
-/// `BaseItemDto` y su imagen se resuelve con una URL explícita (TMDB).
+/// Fila de descubrimiento de Seerr: delega en [SeerrContentRow] (mismo look,
+/// hover, foco y tamaños del skin que el resto de scrolls). Los items de TMDB
+/// se mapean a `BaseItemDto` y su imagen se resuelve con una URL de TMDB.
 class SeerrMediaRow extends ConsumerWidget {
   const SeerrMediaRow({
     super.key,
@@ -35,15 +33,12 @@ class SeerrMediaRow extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final items = ref.watch(seerrDiscoverProvider(category));
     final skin = ref.watch(skinControllerProvider).value;
-    final serverUrl = ref.watch(authServerUrlProvider);
-    final scale = skin?.homeCardScale ?? 1.0;
     final cfg = scroll;
     final useBackdrop = cfg?.cardType == HomeScrollCardType.backdrop
         ? true
         : cfg?.cardType == HomeScrollCardType.poster
         ? false
-        : (skin?.cardImageType ?? CardImageType.poster) ==
-              CardImageType.backdrop;
+        : seerrUseBackdrop(skin);
     final title = _title(l10n, category);
 
     return items.when(
@@ -70,42 +65,30 @@ class SeerrMediaRow extends ConsumerWidget {
           for (final v in values)
             seerrMediaId(v): useBackdrop ? v.backdropUrl() : v.posterUrl(),
         };
-        return Padding(
-          padding: const EdgeInsets.only(top: kBetweenSectionsGap),
-          child: ContentRow(
-            title: title,
-            items: values.map(seerrMediaToBaseItem).toList(),
-            serverUrl: serverUrl,
-            height: (skin?.homeRowHeight ?? 270) * scale,
-            cardWidth: (skin?.homeCardWidth ?? 150) * scale,
-            itemSpacing: skin?.itemSpacing,
-            useBackdrop: useBackdrop,
-            cardLogo: null,
-            cardLogoFor: (it) {
-              final data = metadata[it.id];
-              final hasProviderLogo = data?.providers.any(
-                    (provider) => provider.logoUrl() != null,
-                  ) ??
-                  false;
-              return hasProviderLogo ||
-                      data?.libraryStatus != SeerrLibraryStatus.available
-                  ? null
-                  : skin?.cardLogo ?? 'assets/images/jellyfin.png';
-            },
-            showPlayIcon: false,
-            showHoverIncludedBadge: false,
-            hoverActionLabel: l10n.seerrRequest,
-            excludePlaceholders: false,
-            imageUrlFor: (it) => urls[it.id],
-            cornerLogosFor: (it) => [
-              for (final logo in (metadata[it.id]?.providers ?? const [])
-                  .map((provider) => provider.logoUrl())
-                  .whereType<String>())
-                logo,
-            ],
-            onItemTap: (it) => _open(context, byId[it.id]),
-            onItemImageTap: (it) => _open(context, byId[it.id]),
-          ),
+        return SeerrContentRow(
+          title: title,
+          items: values.map(seerrMediaToBaseItem).toList(),
+          useBackdrop: useBackdrop,
+          hoverActionLabel: l10n.seerrRequest,
+          onItemTap: (it) => _open(context, byId[it.id]),
+          imageUrlFor: (it) => urls[it.id],
+          cardLogoFor: (it) {
+            final data = metadata[it.id];
+            final hasProviderLogo = data?.providers.any(
+                  (provider) => provider.logoUrl() != null,
+                ) ??
+                false;
+            return hasProviderLogo ||
+                    data?.libraryStatus != SeerrLibraryStatus.available
+                ? null
+                : skin?.cardLogo ?? 'assets/images/jellyfin.png';
+          },
+          cornerLogosFor: (it) => [
+            for (final logo in (metadata[it.id]?.providers ?? const [])
+                .map((provider) => provider.logoUrl())
+                .whereType<String>())
+              logo,
+          ],
         );
       },
       loading: () => Padding(
