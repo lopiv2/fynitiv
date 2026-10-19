@@ -87,6 +87,8 @@
   "seasonalDebugLabel": "Season:",
   "seasonalDebugAuto": "Auto (calendar)",
   "seasonalDebugNone": "No theme",
+  "seasonalContent": "Seasonal content",
+  "seasonalContentHint": "Pick the seasonal theme shown on Home and the skin without waiting for the calendar.",
   "language": "Language",
   "currentHome": "Current home",
   "version": "Version",

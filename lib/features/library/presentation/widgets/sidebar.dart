@@ -81,7 +81,9 @@ class Sidebar extends ConsumerWidget {
         iconSpacing: iconSpacing,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 0 && activeViewId == null,
-        focusNode: isTv && currentIndex == 0 && activeViewId == null ? tvInicioFocusNode : null,
+        // Nodo global para que el featured slider pueda subir a la barra
+        // superior desde Inicio o VOD (no solo cuando Inicio está activo).
+        focusNode: tvInicioFocusNode,
         onTap: () => _goBranch(context, ref, 0),
       ),
       _NavItem(

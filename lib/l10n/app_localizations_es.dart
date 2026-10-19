@@ -273,6 +273,13 @@ class AppLocalizationsEs extends AppLocalizations {
   String get seasonalDebugNone => 'Sin tema';
 
   @override
+  String get seasonalContent => 'Contenido estacional';
+
+  @override
+  String get seasonalContentHint =>
+      'Elige la temática estacional de Inicio y del skin sin esperar al calendario.';
+
+  @override
   String get language => 'Idioma';
 
   @override

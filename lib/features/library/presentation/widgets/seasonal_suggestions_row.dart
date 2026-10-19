@@ -31,13 +31,10 @@ class SeasonalSuggestionsRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // El override de debug (barra superior) anula el ajuste de sugerencias
-    // mientras está activo.
-    final forced = ref.watch(seasonalEventOverrideActiveProvider);
-    if (!forced) {
-      final enabled = ref.watch(seasonalSuggestionsEnabledProvider).value ?? true;
-      if (!enabled) return const SizedBox.shrink();
-    }
+    // La estación elegida manualmente (Apariencia o barra de debug) sustituye
+    // a la del calendario, pero el interruptor de sugerencias sigue mandando.
+    final enabled = ref.watch(seasonalSuggestionsEnabledProvider).value ?? true;
+    if (!enabled) return const SizedBox.shrink();
 
     final event = ref.watch(activeSeasonalEventProvider);
     if (event == null) return const SizedBox.shrink();

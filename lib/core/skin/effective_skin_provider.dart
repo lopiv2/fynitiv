@@ -14,16 +14,13 @@ import 'skin_presets.dart';
 /// acento y primario). En caso contrario devuelve el skin sin tocar. Nunca
 /// modifica el skin persistido del usuario.
 ///
-/// El override de debug (barra superior) anula el ajuste "Tema estacional"
-/// mientras está activo, para poder previsualizar cualquier estación.
+/// La estación elegida manualmente (Apariencia o barra de debug) sustituye a la
+/// del calendario, pero el interruptor "Tema estacional" sigue mandando.
 final effectiveSkinProvider = Provider<Skin>((ref) {
   final base =
       ref.watch(skinControllerProvider).value ?? SkinPresets.jellyfinDefault;
-  final forced = ref.watch(seasonalEventOverrideActiveProvider);
-  if (!forced) {
-    final enabled = ref.watch(seasonalThemeEnabledProvider).value ?? true;
-    if (!enabled) return base;
-  }
+  final enabled = ref.watch(seasonalThemeEnabledProvider).value ?? true;
+  if (!enabled) return base;
   final event = ref.watch(activeSeasonalEventProvider);
   if (event == null) return base;
   final intensity =

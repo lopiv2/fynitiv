@@ -20,7 +20,6 @@ class RadioGenreChips extends ConsumerWidget {
           return AppHover(
             effect: AppHoverEffect.scale,
             config: AppHoverConfig.scaleOnly(scale: 1.04, radius: BorderRadius.circular(12)),
-            playSoundOnHover: false,
             onTap: () => ref.read(radioSearchQueryProvider.notifier).set(RadioSearchQuery(tag: g.tag)),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14),

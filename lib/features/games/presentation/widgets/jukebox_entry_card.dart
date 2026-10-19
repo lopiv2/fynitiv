@@ -308,7 +308,6 @@ class JukeboxHeaderButton extends ConsumerWidget {
               highlightHovered: const Color(0xFF1E2633),
             ),
             onTap: () => context.push('/games/jukebox'),
-            playSoundOnHover: false,
             child: iconBox,
           ),
           if (isLedVisible)

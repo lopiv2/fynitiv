@@ -602,6 +602,18 @@ abstract class AppLocalizations {
   /// **'No theme'**
   String get seasonalDebugNone;
 
+  /// No description provided for @seasonalContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Seasonal content'**
+  String get seasonalContent;
+
+  /// No description provided for @seasonalContentHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick the seasonal theme shown on Home and the skin without waiting for the calendar.'**
+  String get seasonalContentHint;
+
   /// No description provided for @language.
   ///
   /// In en, this message translates to:

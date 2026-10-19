@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/seasonal/active_seasonal_event.dart';
 import '../../../../core/settings/cover3d_material.dart';
 import '../../../../core/settings/music_chart_source.dart';
 import '../../../../core/settings/music_chart_source_controller.dart';
@@ -16,6 +17,7 @@ import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/scale_button.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../library/domain/seasonal_suggestion.dart';
 
 /// Panel de Apariencia: presets + editor de skin.
 class AppearancePanel extends ConsumerStatefulWidget {
@@ -52,6 +54,7 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final active = ref.watch(skinControllerProvider).value;
+    final seasonalOverride = ref.watch(seasonalEventOverrideProvider);
     if (!_loaded && active != null) {
       _draft = active;
       _loaded = true;
@@ -103,6 +106,57 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                       },
                     ),
                 ],
+              ),
+              const SizedBox(height: 24),
+              // Contenido estacional: misma selección que la barra de debug.
+              Text(
+                l10n.seasonalContent,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: Text(l10n.seasonalDebugAuto),
+                    selected: seasonalOverride == SeasonalEventOverride.auto,
+                    onSelected: (_) => ref
+                        .read(seasonalEventOverrideProvider.notifier)
+                        .select(SeasonalEventOverride.auto),
+                  ),
+                  ChoiceChip(
+                    label: Text(l10n.seasonalDebugNone),
+                    selected: seasonalOverride == SeasonalEventOverride.none,
+                    onSelected: (_) => ref
+                        .read(seasonalEventOverrideProvider.notifier)
+                        .select(SeasonalEventOverride.none),
+                  ),
+                  for (final option in SeasonalEventOverride.values.where(
+                    (o) => seasonalEventOfOverride(o) != null,
+                  ))
+                    ChoiceChip(
+                      label: Text(
+                        seasonalEventTitle(
+                          l10n,
+                          seasonalEventOfOverride(option)!,
+                        ),
+                      ),
+                      selected: seasonalOverride == option,
+                      onSelected: (_) => ref
+                          .read(seasonalEventOverrideProvider.notifier)
+                          .select(option),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                l10n.seasonalContentHint,
+                style: const TextStyle(color: Colors.white38, fontSize: 11),
               ),
               const SizedBox(height: 24),
               // Estilos del Music Player (independiente del skin global).

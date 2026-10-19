@@ -292,9 +292,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
             event is KeyDownEvent &&
             event.logicalKey == LogicalKeyboardKey.arrowLeft) {
           ref.read(sidebarControllerProvider.notifier).expand();
-          return KeyEventResult.ignored;
         }
-        return KeyEventResult.ignored;
+        return _handleArrowNavigation(node, event, mode);
       },
       child: Scaffold(
         body: Column(
@@ -350,6 +349,77 @@ class _HomeShellState extends ConsumerState<HomeShell>
         }(),
       ),
     );
+  }
+
+  /// Navegación por flechas en TV y escritorio.
+  ///
+  /// Cada fila de contenido crea su propio [FocusTraversalGroup], así que al
+  /// llegar a su borde la flecha se quedaba sin destino y no se podía entrar en
+  /// la barra lateral (Disney+) ni salir de ella. Se intenta primero el grupo
+  /// actual (moverse dentro de la fila) y, si no hay candidato, se busca en el
+  /// grupo del shell (barras + contenido), que sí cruza esos límites.
+  ///
+  /// En móvil se dejan los gestos táctiles y el scroll por flechas del sistema.
+  KeyEventResult _handleArrowNavigation(
+    FocusNode node,
+    KeyEvent event,
+    PlatformMode mode,
+  ) {
+    if (mode == PlatformMode.mobile ||
+        (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
+      return KeyEventResult.ignored;
+    }
+    final direction = switch (event.logicalKey) {
+      LogicalKeyboardKey.arrowUp => TraversalDirection.up,
+      LogicalKeyboardKey.arrowDown => TraversalDirection.down,
+      LogicalKeyboardKey.arrowLeft => TraversalDirection.left,
+      LogicalKeyboardKey.arrowRight => TraversalDirection.right,
+      _ => null,
+    };
+    if (direction == null) return KeyEventResult.ignored;
+    final focus = FocusManager.instance.primaryFocus;
+    if (focus == null || focus == FocusManager.instance.rootScope) {
+      return KeyEventResult.ignored;
+    }
+    // Los campos de texto necesitan las flechas para mover el cursor.
+    if (focus.context?.findAncestorWidgetOfExactType<EditableText>() != null) {
+      return KeyEventResult.ignored;
+    }
+    // Primero el grupo más cercano (p. ej. la fila actual).
+    if (focus.focusInDirection(direction)) {
+      return KeyEventResult.handled;
+    }
+    // La barra superior solo se alcanza desde el elemento más alto de la
+    // pantalla (p. ej. el featured slider en Inicio/VOD). Si aún queda algo
+    // enfocable por encima, no se cruza al shell.
+    if (direction == TraversalDirection.up && _hasFocusableAbove(focus)) {
+      return KeyEventResult.ignored;
+    }
+    // Luego el grupo del shell, para cruzar de contenido a barra lateral y
+    // viceversa.
+    if (node.focusInDirection(direction)) {
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  /// True si dentro del mismo scope hay otro elemento enfocable por encima de
+  /// [focus]. Sirve para no saltar a la barra superior desde una fila inferior.
+  bool _hasFocusableAbove(FocusNode focus) {
+    final scope = focus.nearestScope;
+    if (scope == null) return false;
+    final top = focus.rect.top;
+    for (final node in scope.traversalDescendants) {
+      if (identical(node, focus) ||
+          !node.canRequestFocus ||
+          node.context == null) {
+        continue;
+      }
+      final rect = node.rect;
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      if (rect.bottom <= top + 0.5) return true;
+    }
+    return false;
   }
 
   bool _showSidebar(PlatformMode mode, SidebarState sidebar) {

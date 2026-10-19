@@ -103,7 +103,6 @@ class StationCard extends ConsumerWidget {
           outlineHoveredColor: Colors.white,
           outlineHoveredWidth: 1.5,
         ),
-        playSoundOnHover: false,
         onTap: handlePlay,
         child: Container(
         decoration: BoxDecoration(

@@ -634,7 +634,20 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
                       }
                       // Desde acciones o cualquier parte del slider, ↑ → isla
                       // + scroll total arriba para que el slider se vea como al entrar
-                      tvInicioFocusNode.requestFocus();
+                      if (tvInicioFocusNode.context != null) {
+                        tvInicioFocusNode.requestFocus();
+                      } else {
+                        // La barra no está montada (p. ej. sidebar colapsada):
+                        // subir desde los scopes padres.
+                        FocusNode? scope = node.parent;
+                        while (scope != null) {
+                          if (scope is FocusScopeNode &&
+                              scope.focusInDirection(TraversalDirection.up)) {
+                            break;
+                          }
+                          scope = scope.parent;
+                        }
+                      }
                       WidgetsBinding.instance.addPostFrameCallback((_) {
                         final ctx = node.context;
                         if (ctx == null) return;

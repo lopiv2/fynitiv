@@ -1,12 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'seasonal_event.dart';
 
-/// Override manual de la estación activa, usado solo desde la barra de debug.
+/// Clave de `SharedPreferences` con la temática estacional elegida.
+const kSeasonalEventOverrideStorageKey = 'jellyfin.seasonal_event_override';
+
+/// Selección manual de la temática estacional.
 ///
 /// `auto` (por defecto) usa la fecha real del dispositivo; el resto fuerza una
-/// temática concreta o su ausencia (`none`) para poder probar skins y
-/// presentaciones sin esperar al calendario.
+/// temática concreta o su ausencia (`none`) sin esperar al calendario. Se
+/// comparte entre Apariencia y la barra de debug.
 enum SeasonalEventOverride {
   auto,
   none,
@@ -26,13 +30,31 @@ SeasonalEvent? seasonalEventOfOverride(SeasonalEventOverride override) =>
       SeasonalEventOverride.auto || SeasonalEventOverride.none => null,
     };
 
-/// Selección manual del tema estacional (debug). No se persiste: arranca en
-/// [SeasonalEventOverride.auto] en cada ejecución.
+/// Convierte un nombre persistido en su override, con `auto` como fallback.
+SeasonalEventOverride seasonalEventOverrideFromName(String? name) =>
+    SeasonalEventOverride.values.asNameMap()[name] ??
+    SeasonalEventOverride.auto;
+
+/// Valor persistido leído en `main` antes de crear el `ProviderScope`.
+///
+/// Inyectarlo como override evita que la app arranque en `auto` y cambie de
+/// estación (splash, skin) un instante después de cargar las preferencias.
+final seasonalEventOverrideInitialProvider = Provider<SeasonalEventOverride>(
+  (ref) => SeasonalEventOverride.auto,
+);
+
+/// Selección manual del tema estacional (persistida).
 class SeasonalEventOverrideController extends Notifier<SeasonalEventOverride> {
   @override
-  SeasonalEventOverride build() => SeasonalEventOverride.auto;
+  SeasonalEventOverride build() =>
+      ref.watch(seasonalEventOverrideInitialProvider);
 
-  void select(SeasonalEventOverride value) => state = value;
+  Future<void> select(SeasonalEventOverride value) async {
+    if (state == value) return;
+    state = value;
+    final preferences = await SharedPreferences.getInstance();
+    await preferences.setString(kSeasonalEventOverrideStorageKey, value.name);
+  }
 }
 
 final seasonalEventOverrideProvider =
@@ -40,14 +62,7 @@ final seasonalEventOverrideProvider =
       SeasonalEventOverrideController.new,
     );
 
-/// True cuando la barra de debug está forzando una estación (o su ausencia),
-/// es decir, cuando el override debe anular los ajustes de Ajustes.
-final seasonalEventOverrideActiveProvider = Provider<bool>(
-  (ref) =>
-      ref.watch(seasonalEventOverrideProvider) != SeasonalEventOverride.auto,
-);
-
-/// Estación activa: el override de debug si lo hay, o la del calendario.
+/// Estación activa: la selección manual si la hay, o la del calendario.
 final activeSeasonalEventProvider = Provider<SeasonalEvent?>((ref) {
   final override = ref.watch(seasonalEventOverrideProvider);
   if (override == SeasonalEventOverride.auto) {

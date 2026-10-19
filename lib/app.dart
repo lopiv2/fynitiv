@@ -3,6 +3,7 @@ import 'package:flutter_easyloading/flutter_easyloading.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/audio/navigation_sound_listener.dart';
 import 'core/constants/app_constants.dart';
 import 'core/debug/device_simulator_host.dart';
 import 'core/i18n/locale_provider.dart';
@@ -38,19 +39,20 @@ class FynitivApp extends ConsumerWidget {
       // Sistema universal de notificaciones (toasts): no depende de
       // ScaffoldMessenger ni del contexto, ver AGENTS.md.
       builder: EasyLoading.init(
-        builder: (context, child) => DeviceSimulatorHost(
-          // Material de Flutter global: `material_ui` usa su PROPIO Material
-          // (tipo distinto), así que los widgets de Flutter (TextField, etc.) no
-          // encontraban un Material de su tipo y fallaban. Al envolver la app
-          // entera con el Material de Flutter, todos los widgets de Flutter
-          // tienen su ancestro Material sin envolver cada pantalla.
-          child: fm.Material(
-            type: fm.MaterialType.transparency,
-            child: child ?? const SizedBox.shrink(),
+        builder: (context, child) => NavigationSoundListener(
+          child: DeviceSimulatorHost(
+            // Material de Flutter global: `material_ui` usa su PROPIO Material
+            // (tipo distinto), así que los widgets de Flutter (TextField, etc.) no
+            // encontraban un Material de su tipo y fallaban. Al envolver la app
+            // entera con el Material de Flutter, todos los widgets de Flutter
+            // tienen su ancestro Material sin envolver cada pantalla.
+            child: fm.Material(
+              type: fm.MaterialType.transparency,
+              child: child ?? const SizedBox.shrink(),
+            ),
           ),
         ),
       ),
     );
   }
 }
-

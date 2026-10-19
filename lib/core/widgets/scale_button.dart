@@ -1,12 +1,17 @@
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
+
+import '../audio/hover_sound_player.dart';
+import '../constants/button_sounds.dart';
+import '../settings/button_sound_controller.dart';
 
 /// Botón con efecto de aumento al recibir foco o hover.
 ///
 /// Pensado para Android TV y escritorio: envuelve [child] y lo escala (1.0 →
 /// [selectedScale]) cuando está seleccionado/focusado, permitiendo activarlo
 /// con ratón, toque o teclado (Enter/OK).
-class ScaleButton extends StatefulWidget {
+class ScaleButton extends ConsumerStatefulWidget {
   const ScaleButton({
     super.key,
     required this.child,
@@ -48,10 +53,10 @@ class ScaleButton extends StatefulWidget {
   final FocusNode? focusNode;
 
   @override
-  State<ScaleButton> createState() => _ScaleButtonState();
+  ConsumerState<ScaleButton> createState() => _ScaleButtonState();
 }
 
-class _ScaleButtonState extends State<ScaleButton> {
+class _ScaleButtonState extends ConsumerState<ScaleButton> {
   bool _focused = false;
   bool _hovered = false;
   final FocusNode _internalNode = FocusNode();
@@ -106,6 +111,10 @@ class _ScaleButtonState extends State<ScaleButton> {
 
     void notifyHover(bool hovered) {
       setState(() => _hovered = hovered);
+      if (hovered) {
+        final asset = assetForButtonSoundKey(ref.read(buttonSoundKeyProvider));
+        if (asset.isNotEmpty) HoverSoundPlayer.instance.play(asset);
+      }
       if (widget.notifyHoverAsFocus) {
         widget.onFocusChange?.call(hovered);
       }

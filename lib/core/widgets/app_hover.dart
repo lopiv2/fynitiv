@@ -225,7 +225,7 @@ class AppHover extends ConsumerStatefulWidget {
     this.config = const AppHoverConfig(),
     this.trackFocus = true,
     this.cursor = SystemMouseCursors.click,
-    this.playSoundOnHover = false,
+    this.playSoundOnHover = true,
     this.focusNode,
     this.autofocus = false,
     this.onFocusChange,

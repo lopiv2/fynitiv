@@ -675,7 +675,6 @@ class _ViewToggle extends StatelessWidget {
           scale: isTv ? 1.08 : 1.04,
         ),
         onTap: onTap,
-        playSoundOnHover: false,
         child: Container(
           padding: EdgeInsets.symmetric(horizontal: hPad, vertical: vPad),
           decoration: BoxDecoration(
