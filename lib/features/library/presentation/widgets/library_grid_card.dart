@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/seasonal/active_seasonal_event.dart';
+import '../../../../core/seasonal/seasonal_event.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/skin/skin_scope.dart';
 import '../../../../core/widgets/app_hover.dart';
+import '../../../../core/widgets/snow_drip.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../application/image_url.dart';
 import '../../application/library_providers.dart';
@@ -126,6 +129,9 @@ class LibraryGridCard extends ConsumerWidget {
     final skin =
         SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
     final serverUrl = ref.watch(authServerUrlProvider);
+    final showSnow =
+        ref.watch(activeSeasonalEventProvider) == SeasonalEvent.christmas;
+    final snowSeed = (view.id ?? view.name ?? '').hashCode;
     final isDisney = skin?.id == 'disney_plus';
     final bgUrl = (isDisney && serverUrl != null)
         ? _libraryBgUrl(serverUrl, view)
@@ -144,19 +150,48 @@ class LibraryGridCard extends ConsumerWidget {
         outlineHoveredColor: Colors.white,
         outlineHoveredWidth: 1.8,
       ),
-      child: isDisney
-          ? _DisneyBody(
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          if (isDisney)
+            _DisneyBody(
               view: view,
               bgUrl: bgUrl,
               subtitle: effectiveSubtitle,
               selected: selected,
             )
-          : _ClassicBody(
+          else
+            _ClassicBody(
               view: view,
               icon: effectiveIcon,
               subtitle: effectiveSubtitle,
               selected: selected,
             ),
+          if (showSnow)
+            Positioned.fill(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Builder(
+                  builder: (context) {
+                    final hovered = AppHoverScope.of(context)?.hovered ?? false;
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween(begin: 0, end: hovered ? 1.0 : 0.0),
+                      duration: const Duration(milliseconds: 450),
+                      curve: Curves.easeOut,
+                      builder: (context, melt, _) => SnowCapOverlay(
+                        seed: snowSeed,
+                        melt: melt,
+                        depth: 0.08,
+                        dripMax: 0.10,
+                        drips: 4,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

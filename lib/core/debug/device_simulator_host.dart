@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../features/library/domain/seasonal_suggestion.dart';
+import '../../l10n/app_localizations.dart';
+import '../seasonal/active_seasonal_event.dart';
 import 'debug_device.dart';
 import 'dpad_overlay.dart';
 
@@ -75,6 +78,10 @@ class _DebugDeviceBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final select = ref.read(debugDeviceProvider.notifier).select;
     final dpadVisible = ref.watch(debugDpadVisibleProvider);
+    final seasonOverride = ref.watch(seasonalEventOverrideProvider);
+    final selectSeason =
+        ref.read(seasonalEventOverrideProvider.notifier).select;
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -97,12 +104,41 @@ class _DebugDeviceBar extends ConsumerWidget {
               child: Row(
                 children: [
                   for (final d in DebugDevice.values) ...[
-                    _DeviceChip(
+                    _DebugChip(
                       label: d.label,
                       selected: d == device,
                       onTap: () => select(d),
                     ),
                     const SizedBox(width: 6),
+                  ],
+                  const SizedBox(width: 6),
+                  _BarDivider(),
+                  const SizedBox(width: 12),
+                  Text(
+                    l10n.seasonalDebugLabel,
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+                  const SizedBox(width: 12),
+                  _DebugChip(
+                    label: l10n.seasonalDebugAuto,
+                    selected: seasonOverride == SeasonalEventOverride.auto,
+                    onTap: () => selectSeason(SeasonalEventOverride.auto),
+                  ),
+                  const SizedBox(width: 6),
+                  _DebugChip(
+                    label: l10n.seasonalDebugNone,
+                    selected: seasonOverride == SeasonalEventOverride.none,
+                    onTap: () => selectSeason(SeasonalEventOverride.none),
+                  ),
+                  for (final o in SeasonalEventOverride.values.where(
+                    (o) => seasonalEventOfOverride(o) != null,
+                  )) ...[
+                    const SizedBox(width: 6),
+                    _DebugChip(
+                      label: seasonalEventTitle(l10n, seasonalEventOfOverride(o)!),
+                      selected: seasonOverride == o,
+                      onTap: () => selectSeason(o),
+                    ),
                   ],
                 ],
               ),
@@ -145,8 +181,18 @@ class _DebugDeviceBar extends ConsumerWidget {
   }
 }
 
-class _DeviceChip extends StatelessWidget {
-  const _DeviceChip({
+/// Separador vertical fino entre grupos de chips de la barra de debug.
+class _BarDivider extends StatelessWidget {
+  const _BarDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(width: 1, height: 18, color: Colors.white24);
+  }
+}
+
+class _DebugChip extends StatelessWidget {
+  const _DebugChip({
     required this.label,
     required this.selected,
     required this.onTap,

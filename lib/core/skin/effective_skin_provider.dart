@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../seasonal/active_seasonal_event.dart';
 import '../seasonal/seasonal_event.dart';
 import '../settings/seasonal_theme_controller.dart';
 import 'skin.dart';
@@ -12,12 +13,18 @@ import 'skin_presets.dart';
 /// la intensidad es mayor que cero, devuelve una copia teñida del skin (fondo,
 /// acento y primario). En caso contrario devuelve el skin sin tocar. Nunca
 /// modifica el skin persistido del usuario.
+///
+/// El override de debug (barra superior) anula el ajuste "Tema estacional"
+/// mientras está activo, para poder previsualizar cualquier estación.
 final effectiveSkinProvider = Provider<Skin>((ref) {
   final base =
       ref.watch(skinControllerProvider).value ?? SkinPresets.jellyfinDefault;
-  final enabled = ref.watch(seasonalThemeEnabledProvider).value ?? true;
-  if (!enabled) return base;
-  final event = seasonalEventForDate(DateTime.now());
+  final forced = ref.watch(seasonalEventOverrideActiveProvider);
+  if (!forced) {
+    final enabled = ref.watch(seasonalThemeEnabledProvider).value ?? true;
+    if (!enabled) return base;
+  }
+  final event = ref.watch(activeSeasonalEventProvider);
   if (event == null) return base;
   final intensity =
       ref.watch(seasonalThemeIntensityProvider).value ??

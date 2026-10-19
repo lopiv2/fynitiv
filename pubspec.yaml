@@ -150,6 +150,9 @@ flutter:
     # Iconos de badge para las filas estacionales (Halloween, Navidad...)
     - assets/images/seasonal/
     - assets/audio/splash_reveal.mp3
+    # Audio de las presentaciones de splash por estación
+    - assets/audio/halloween_splash_reveal.mp3
+    - assets/audio/christmas_splash_reveal.mp3
     - assets/audio/fx/buttons/
     - assets/audio/themes/
     - assets/video/

@@ -5,9 +5,12 @@ import 'package:material_ui/material_ui.dart';
 import 'package:morphnext/morphnext.dart';
 
 import '../core/audio/soloud_single_player.dart';
+import '../core/seasonal/active_seasonal_event.dart';
 import '../core/widgets/language_selector.dart';
 import '../core/widgets/scale_button.dart';
+import '../core/widgets/snow_drip.dart';
 import '../features/auth/application/auth_controller.dart';
+import '../features/splash/presentation/presentations/splash_presentations.dart';
 
 /// Pantalla de bienvenida con el logo animado en 3D.
 ///
@@ -74,9 +77,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// Tamaño del icono que morfea sobre el tagline.
   static const double _iconSize = 52;
 
-  /// Color del icono y sombra para integrarlo con el tagline.
-  static const Color _iconColor = Colors.white;
-
   /// Curva del morph controlado: un ligero easeInOut sobre la ventana de 0.5s
   /// mantiene la sensación orgánica sin perder la sincronía exacta con el
   /// texto (termina justo en el umbral de la palabra).
@@ -88,27 +88,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     fontWeight: FontWeight.w800,
     letterSpacing: 8,
     shadows: [
-      Shadow(
-        color: Color(0x66000B33),
-        blurRadius: 12,
-        offset: Offset(0, 6),
-      ),
+      Shadow(color: Color(0x66000B33), blurRadius: 12, offset: Offset(0, 6)),
     ],
   );
 
   /// Color de cada palabra del tagline ("Watch.", "Read.", "Play.",
-  /// "Anything"), en la misma familia cromática que las letras del título
-  /// (plateado → azul #1CA0FD en el centro → morado #DB45FD), empezando
-  /// igual de claro/plateado que la "F" para la primera palabra.
-  static const List<Color> _taglineWordColors = [
-    Color(0xFFE9EEF6), // Watch.   — plateado/blanco, igual que la F
-    Color(0xFF1CA0FD), // Read.    — azul (centro del degradado del título)
-    Color(0xFFC13FFD), // Play.    — morado intermedio
-    Color(0xFFDB45FD), // Anything — morado final (igual que la V)
-  ];
+  /// "Anything") — definido por la presentación estacional activa.
 
   late final AnimationController _controller;
   late final SoloudSinglePlayer _audioPlayer;
+
+  /// Presentación estacional activa (se reevalúa en cada build).
+  late SplashPresentation _presentation;
 
   @override
   void initState() {
@@ -118,8 +109,11 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(seconds: 13),
     );
+    _presentation = splashPresentationFor(
+      ref.read(activeSeasonalEventProvider),
+    );
     _controller.forward();
-    _playLogo();
+    _playAudio();
   }
 
   @override
@@ -129,18 +123,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     super.dispose();
   }
 
-  /// Reproduce el audio logo de la splash.
-  Future<void> _playLogo() async {
+  /// Reproduce el audio de la presentación activa.
+  Future<void> _playAudio() async {
     await _audioPlayer.stop();
-    await _audioPlayer.playAsset('audio/splash_reveal.mp3');
+    await _audioPlayer.playAsset(_presentation.audioAsset);
   }
 
-  /// Reinicia la animación y el audio desde cero.
+  /// Reinicia la animación y el audio desde cero con la presentación actual.
   void _replay() {
     _controller
       ..reset()
       ..forward();
-    _playLogo();
+    _playAudio();
   }
 
   /// Resuelve la sesión y entra en la aplicación.
@@ -150,83 +144,121 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final event = ref.watch(activeSeasonalEventProvider);
+    _presentation = splashPresentationFor(event);
+
+    // Al cambiar la estación (calendario o selector de debug) se reinicia la
+    // presentación y suena el audio de la nueva estación.
+    ref.listen(activeSeasonalEventProvider, (previous, next) {
+      if (previous == next) return;
+      _presentation = splashPresentationFor(next);
+      _replay();
+    });
+
+    final presentation = _presentation;
     return Scaffold(
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          image: DecorationImage(
-            image: const AssetImage('assets/images/backgrounds/splash_back.png'),
-            fit: BoxFit.cover,
-            // Durante un hot reload Flutter re-resuelve los assets y puede
-            // fallar momentáneamente; se ignora para no romper la vista.
-            onError: (_, _) {},
-          ),
-        ),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: AnimatedBuilder(
-              animation: _controller,
-              builder: (context, _) {
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [_buildLetters(), _buildShineOverlay()],
-                      ),
-                    ),
-                    // Tagline que aparece al terminar el brillo: un icono que
-                    // morfea (TV → libro → mando → ∞) y las palabras que se
-                    // revelan de una en una. AnimatedSize suaviza el empuje.
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 700),
-                      curve: Curves.easeOutCubic,
-                      alignment: Alignment.topCenter,
-                      child: _taglineValue > 0
-                          ? Padding(
-                              padding: const EdgeInsets.only(top: 48),
-                              child: AnimatedSlide(
-                                offset: Offset(
-                                  0,
-                                  0.5 * (1 - _taglineValue),
-                                ),
-                                duration: const Duration(milliseconds: 700),
-                                curve: Curves.easeOutCubic,
-                                child: AnimatedOpacity(
-                                  opacity: _taglineValue,
-                                  duration: const Duration(
-                                    milliseconds: 700,
-                                  ),
-                                  curve: Curves.easeOut,
-                                  child: Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      _buildTaglineIcon(),
-                                      const SizedBox(height: 14),
-                                      _buildTaglineWords(),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )
-                          : const SizedBox.shrink(),
-                    ),
-                    const SizedBox(height: 72),
-                    _buildControls(),
-                    const SizedBox(height: 72),
-                    const LanguageSelector(),
-                    const SizedBox(height: 24),
-                    _buildDevBadge(),
-                  ],
-                );
-              },
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(presentation.backgroundAsset),
+                fit: BoxFit.cover,
+                // Durante un hot reload Flutter re-resuelve los assets y puede
+                // fallar momentáneamente; se ignora para no romper la vista.
+                onError: (_, _) {},
+              ),
             ),
           ),
-        ),
+          if (presentation.backgroundTint case final tint?)
+            Positioned.fill(
+              child: IgnorePointer(child: ColoredBox(color: tint)),
+            ),
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  // Capas de fondo de la estación (luna, niebla, imagen…).
+                  for (final effect in presentation.backgroundEffects)
+                    IgnorePointer(child: effect(context, _controller.value)),
+                  Center(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 32,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [_buildLetters(), _buildShineOverlay()],
+                            ),
+                          ),
+                          // Tagline que aparece al terminar el brillo: un icono
+                          // que morfea (TV → libro → mando → ∞) y las palabras
+                          // que se revelan de una en una. AnimatedSize suaviza
+                          // el empuje.
+                          AnimatedSize(
+                            duration: const Duration(milliseconds: 700),
+                            curve: Curves.easeOutCubic,
+                            alignment: Alignment.topCenter,
+                            child: _taglineValue > 0
+                                ? Padding(
+                                    padding: const EdgeInsets.only(top: 48),
+                                    child: AnimatedSlide(
+                                      offset: Offset(
+                                        0,
+                                        0.5 * (1 - _taglineValue),
+                                      ),
+                                      duration: const Duration(
+                                        milliseconds: 700,
+                                      ),
+                                      curve: Curves.easeOutCubic,
+                                      child: AnimatedOpacity(
+                                        opacity: _taglineValue,
+                                        duration: const Duration(
+                                          milliseconds: 700,
+                                        ),
+                                        curve: Curves.easeOut,
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            _buildTaglineIcon(),
+                                            const SizedBox(height: 14),
+                                            _buildTaglineWords(),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : const SizedBox.shrink(),
+                          ),
+                          const SizedBox(height: 72),
+                          _buildControls(),
+                          const SizedBox(height: 72),
+                          const LanguageSelector(),
+                          const SizedBox(height: 24),
+                          _buildDevBadge(),
+                        ],
+                      ),
+                    ),
+                  ),
+                  // Capas decorativas de la estación (p. ej. murciélagos).
+                  for (final effect in presentation.effects)
+                    IgnorePointer(child: effect(context, _controller.value)),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -240,53 +272,21 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           _LetterTile(
             letter: _title[i],
             angle: _letterAngle(i),
-            gradient: _letterGradient(i),
+            gradient: _presentation.letterGradient(i, _title.length),
+            extrusionDark: _presentation.extrusionDark,
+            extrusionLight: _presentation.extrusionLight,
+            glowColor: _presentation.glowColor,
+            flareAsset: _presentation.flareAsset,
+            snowEnabled: _presentation.id == 'christmas',
+            snowSeed: 1009 + i * 7919,
+            snowMelt:
+                0.5 + 0.18 * math.sin(_controller.value * 2 * math.pi * 1.5),
             glow: i == _title.length - 1 ? _endGlowValue : 0,
             flareOpacity: i == _title.length - 1 ? _flareOpacity : 0,
             flareScale: i == _title.length - 1 ? _flareScale : 0,
             flareRotation: i == _title.length - 1 ? _flareRotation : 0,
           ),
       ],
-    );
-  }
-
-  /// Color base de una letra de "FYNITIV": interpolado en tres tramos —
-  /// plateado/blanco (F) → azul #1CA0FD (mitad) → morado #DB45FD (V) — para
-  /// que la primera letra salga metálica/clara como en la referencia, en vez
-  /// de arrancar ya en azul puro.
-  static Color _letterColor(int index) {
-    final t = index / (_title.length - 1);
-    const colors = [
-      Color(0xFFE9EEF6), // F — plateado/blanco azulado
-      Color(0xFF1CA0FD), // mitad — azul
-      Color(0xFFDB45FD), // V — morado
-    ];
-    const stops = [0.0, 0.5, 1.0];
-    for (var i = 0; i < stops.length - 1; i++) {
-      if (t <= stops[i + 1]) {
-        final localT = ((t - stops[i]) / (stops[i + 1] - stops[i])).clamp(
-          0.0,
-          1.0,
-        );
-        return Color.lerp(colors[i], colors[i + 1], localT)!;
-      }
-    }
-    return colors.last;
-  }
-
-  /// Degradado vertical (abajo→arriba) de una letra de "FYNITIV": abajo una
-  /// versión oscura del color base, en medio una franja estrecha muy clara y
-  /// arriba el color base — que a su vez sigue el esquema de tres paradas de
-  /// [_letterColor] (plateado → azul → morado) según la posición de la letra.
-  static LinearGradient _letterGradient(int index) {
-    final base = _letterColor(index);
-    final dark = Color.lerp(base, Colors.black, 0.3)!;
-    final light = Color.lerp(base, Colors.white, 0.5)!;
-    return LinearGradient(
-      begin: Alignment.bottomCenter,
-      end: Alignment.topCenter,
-      colors: [dark, light, base, base],
-      stops: const [0.0, 0.42, 0.58, 1.0],
     );
   }
 
@@ -391,7 +391,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget _buildTaglineIcon() {
     final t = _controller.value;
     if (t < _f(_tMorph1Start)) {
-      return const Icon(_iconWatch, size: _iconSize, color: _iconColor);
+      return Icon(
+        _iconWatch,
+        size: _iconSize,
+        color: _presentation.iconColor,
+        shadows: _presentation.iconShadows,
+      );
     }
     if (t < _f(_tRead)) {
       return _morph(_iconWatch, _iconRead, _tMorph1Start, _tRead);
@@ -402,7 +407,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     if (t < _f(_tAnything)) {
       return _morph(_iconPlay, _iconAnything, _tMorph3Start, _tAnything);
     }
-    return const Icon(_iconAnything, size: _iconSize, color: _iconColor);
+    return Icon(
+      _iconAnything,
+      size: _iconSize,
+      color: _presentation.iconColor,
+      shadows: _presentation.iconShadows,
+    );
   }
 
   /// Morph controlado entre dos iconos a lo largo de la ventana [start]→[end].
@@ -417,7 +427,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       to: to,
       progress: AlwaysStoppedAnimation(_morphCurve.transform(raw)),
       size: _iconSize,
-      color: _iconColor,
+      color: _presentation.iconColor,
+      shadows: _presentation.iconShadows,
     );
   }
 
@@ -438,10 +449,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         children: [
           for (var i = 0; i < words.length; i++)
             AnimatedSlide(
-              offset: Offset(
-                0,
-                _controller.value >= _f(words[i].$2) ? 0 : 0.3,
-              ),
+              offset: Offset(0, _controller.value >= _f(words[i].$2) ? 0 : 0.3),
               duration: const Duration(milliseconds: 180),
               curve: Curves.easeOutCubic,
               child: AnimatedOpacity(
@@ -451,7 +459,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                 child: Text(
                   words[i].$1,
                   style: _taglineStyle.copyWith(
-                    color: _taglineWordColors[i],
+                    color: _presentation.taglineColor(i),
                   ),
                 ),
               ),
@@ -562,7 +570,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         ..reset()
         ..forward();
     });
-    _playLogo();
+    _playAudio();
   }
 }
 
@@ -572,6 +580,13 @@ class _LetterTile extends StatelessWidget {
   const _LetterTile({
     required this.letter,
     required this.angle,
+    required this.extrusionDark,
+    required this.extrusionLight,
+    required this.glowColor,
+    required this.flareAsset,
+    required this.snowEnabled,
+    required this.snowSeed,
+    required this.snowMelt,
     this.gradient,
     this.glow = 0,
     this.flareOpacity = 0,
@@ -581,6 +596,25 @@ class _LetterTile extends StatelessWidget {
 
   final String letter;
   final double angle;
+
+  /// Color de la capa de extrusión más profunda y más frontal.
+  final Color extrusionDark;
+  final Color extrusionLight;
+
+  /// Color del halo/glow final.
+  final Color glowColor;
+
+  /// Asset del destello (flare) final.
+  final String flareAsset;
+
+  /// Nieve derretida, activa solo para la presentación navideña.
+  final bool snowEnabled;
+
+  /// Semilla independiente para que cada glifo tenga chorretes propios.
+  final int snowSeed;
+
+  /// Fase sutil del deshielo, conducida por el clock común de la splash.
+  final double snowMelt;
 
   /// Degradado vertical de la cara frontal de la letra.
   final LinearGradient? gradient;
@@ -627,10 +661,8 @@ class _LetterTile extends StatelessWidget {
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(
-                                0xFFB06EFF,
-                              ).withValues(alpha: 0.55 * glow),
-                              const Color(0xFFB06EFF).withValues(alpha: 0.0),
+                              glowColor.withValues(alpha: 0.55 * glow),
+                              glowColor.withValues(alpha: 0.0),
                             ],
                           ),
                         ),
@@ -645,16 +677,42 @@ class _LetterTile extends StatelessWidget {
               Transform.translate(
                 offset: Offset(0, i * 4.4),
                 child: _face(
-                  color: Color.lerp(
-                    const Color(0xFF170A4D),
-                    const Color(0xFF4A2AA0),
-                    i / _depth,
-                  )!,
+                  color: Color.lerp(extrusionDark, extrusionLight, i / _depth)!,
                 ),
               ),
             // Cara frontal con el degradado vertical de la letra. Lleva
             // outline blanco.
             _face(gradient: gradient, outline: true),
+            if (snowEnabled)
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ClipPath(
+                    clipper: SnowDripClipper(
+                      seed: snowSeed,
+                      depth: 0.30,
+                      dripMax: 0.13,
+                      drips: 3,
+                      melt: snowMelt,
+                    ),
+                    child: Text(
+                      letter,
+                      style: TextStyle(
+                        color: const Color(0xFFF4FAFF),
+                        fontSize: 160,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 4,
+                        shadows: const [
+                          Shadow(
+                            color: Color(0xCC183451),
+                            blurRadius: 8,
+                            offset: Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             // Destello (flare) final sobre la letra.
             if (flareOpacity > 0)
               Positioned.fill(
@@ -669,7 +727,7 @@ class _LetterTile extends StatelessWidget {
                           padding: const EdgeInsets.only(left: 28, bottom: 20),
                           child: Center(
                             child: Image.asset(
-                              'assets/images/flares/flare_01.png',
+                              flareAsset,
                               width: 600,
                               fit: BoxFit.contain,
                             ),
@@ -688,11 +746,7 @@ class _LetterTile extends StatelessWidget {
 
   /// Dibuja la letra con un color sólido o un degradado y, opcionalmente, un
   /// outline blanco con un leve brillo que solo cubre la letra (no el relieve).
-  Widget _face({
-    Color? color,
-    LinearGradient? gradient,
-    bool outline = false,
-  }) {
+  Widget _face({Color? color, LinearGradient? gradient, bool outline = false}) {
     final filled = Text(
       letter,
       style: TextStyle(

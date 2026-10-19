@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../../core/seasonal/active_seasonal_event.dart';
+import '../../../../core/seasonal/seasonal_event.dart';
 import '../../../../core/skin/home_scroll.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/skin/skin_scope.dart';
@@ -14,6 +16,7 @@ import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/marquee_text.dart';
 import '../../../../core/widgets/prime_card_badge.dart';
 import '../../../../core/widgets/provider_logo_strip.dart';
+import '../../../../core/widgets/snow_drip.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../../l10n/genre_localizer.dart';
 import '../../application/image_url.dart';
@@ -338,10 +341,10 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
     // episodios el texto ya trae "S:E - nombre"; aquí solo se añade el badge.
     final subtitleAgeRating =
         (widget.item.type == BaseItemKind.movie ||
-                widget.item.type == BaseItemKind.series ||
-                widget.item.type == BaseItemKind.episode)
-            ? (widget.item.officialRating ?? '').trim()
-            : '';
+            widget.item.type == BaseItemKind.series ||
+            widget.item.type == BaseItemKind.episode)
+        ? (widget.item.officialRating ?? '').trim()
+        : '';
     bool isNew = false;
     if (widget.showNewBadge) {
       final now = DateTime.now();
@@ -447,6 +450,10 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
 
     final isImageHovered =
         _isHovered || (AppHoverScope.of(context)?.hovered ?? false);
+    // Nieve derretida solo en Navidad; semilla por item.
+    final showSnow =
+        ref.watch(activeSeasonalEventProvider) == SeasonalEvent.christmas;
+    final snowSeed = (widget.item.id ?? widget.item.name ?? '').hashCode;
 
     // Extremos del resaltado de título y subtítulo al hacer hover (solo si
     // el skin lo pide): en reposo van atenuados, en hover a plena intensidad.
@@ -486,196 +493,217 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
                   fit: StackFit.expand,
                   children: [
                     image,
-                if (widget.showBottomVignette)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: widget.bottomVignetteHeight,
-                    child: IgnorePointer(
-                      // Solo radio inferior: la viñeta muere en transparente
-                      // arriba y debe seguir la curva de la imagen abajo para
-                      // no "cortar" las esquinas con el borde del hover.
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.vertical(
-                          bottom: Radius.circular(radius * 2),
+                    if (showSnow)
+                      Positioned.fill(
+                        child: TweenAnimationBuilder<double>(
+                          tween: Tween(
+                            begin: 0,
+                            end: isImageHovered ? 1.0 : 0.0,
+                          ),
+                          duration: const Duration(milliseconds: 450),
+                          curve: Curves.easeOut,
+                          builder: (context, melt, _) =>
+                              SnowCapOverlay(seed: snowSeed, melt: melt),
                         ),
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.transparent,
-                                Colors.black.withValues(
-                                  alpha: widget.bottomVignetteOpacity.clamp(
-                                    0.0,
-                                    1.0,
-                                  ),
+                      ),
+                    if (widget.showBottomVignette)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: widget.bottomVignetteHeight,
+                        child: IgnorePointer(
+                          // Solo radio inferior: la viñeta muere en transparente
+                          // arriba y debe seguir la curva de la imagen abajo para
+                          // no "cortar" las esquinas con el borde del hover.
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.vertical(
+                              bottom: Radius.circular(radius * 2),
+                            ),
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  begin: Alignment.topCenter,
+                                  end: Alignment.bottomCenter,
+                                  colors: [
+                                    Colors.transparent,
+                                    Colors.black.withValues(
+                                      alpha: widget.bottomVignetteOpacity.clamp(
+                                        0.0,
+                                        1.0,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                if (newBadgeLabel != null)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        newBadgeLabel,
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 9,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ),
-                if (widget.cornerBadge != null)
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: widget.cornerBadge!,
-                  ),
-                if (widget.showStackLogo && logoUrl != null)
-                  Positioned(
-                    left: 8,
-                    right: 8,
-                    top: widget.logoPosition == RowLogoPosition.top ? 8 : null,
-                    bottom: widget.logoPosition == RowLogoPosition.bottom
-                        ? (widget.showMetaOverlay ? 32 : 8)
-                        : null,
-                    child: widget.logoPosition == RowLogoPosition.center
-                        ? Center(
-                            child: CachedNetworkImage(
-                              imageUrl: logoUrl,
-                              height: widget.logoSize ?? 36,
-                              fit: BoxFit.contain,
-                              fadeInDuration: const Duration(milliseconds: 150),
-                              useOldImageOnUrlChange: true,
-                              memCacheHeight: ((widget.logoSize ?? 36) * 3)
-                                  .toInt(),
-                              maxHeightDiskCache: ((widget.logoSize ?? 36) * 3)
-                                  .toInt(),
-                              errorBuilder: (_, _, _) =>
-                                  const SizedBox.shrink(),
-                              placeholder: (_, _) => const SizedBox.shrink(),
+                    if (newBadgeLabel != null)
+                      Positioned(
+                        top: 6,
+                        left: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            newBadgeLabel,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
                             ),
-                          )
-                        : CachedNetworkImage(
-                            imageUrl: logoUrl,
-                            height: widget.logoSize ?? 28,
-                            fit: BoxFit.contain,
-                            alignment: Alignment.center,
-                            fadeInDuration: const Duration(milliseconds: 150),
-                            useOldImageOnUrlChange: true,
-                            memCacheHeight: ((widget.logoSize ?? 28) * 3)
-                                .toInt(),
-                            maxHeightDiskCache: ((widget.logoSize ?? 28) * 3)
-                                .toInt(),
-                            errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                            placeholder: (_, _) => const SizedBox.shrink(),
-                          ),
-                  ),
-                if (widget.showMetaOverlay)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    height: 72,
-                    child: const IgnorePointer(
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [Colors.transparent, Color(0xCC000000)],
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                if (widget.showMetaOverlay)
-                  Positioned(
-                    left: 6,
-                    right: 6,
-                    bottom: 6,
-                    child: Column(
-                      crossAxisAlignment: switch (widget.metaAlignment) {
-                        RowMetaAlign.left => CrossAxisAlignment.start,
-                        RowMetaAlign.center => CrossAxisAlignment.center,
-                        RowMetaAlign.right => CrossAxisAlignment.end,
-                      },
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _MetaLine(
-                          ageRating: (widget.item.officialRating ?? '').trim(),
-                          year: widget.item.productionYear,
-                          genres: widget.item.genres ?? const <String>[],
-                          hideYear: widget.hideYear,
-                          fallback: subtitle,
-                          align: widget.metaAlignment,
+                    if (widget.cornerBadge != null)
+                      Positioned(top: 6, left: 6, child: widget.cornerBadge!),
+                    if (widget.showStackLogo && logoUrl != null)
+                      Positioned(
+                        left: 8,
+                        right: 8,
+                        top: widget.logoPosition == RowLogoPosition.top
+                            ? 8
+                            : null,
+                        bottom: widget.logoPosition == RowLogoPosition.bottom
+                            ? (widget.showMetaOverlay ? 32 : 8)
+                            : null,
+                        child: widget.logoPosition == RowLogoPosition.center
+                            ? Center(
+                                child: CachedNetworkImage(
+                                  imageUrl: logoUrl,
+                                  height: widget.logoSize ?? 36,
+                                  fit: BoxFit.contain,
+                                  fadeInDuration: const Duration(
+                                    milliseconds: 150,
+                                  ),
+                                  useOldImageOnUrlChange: true,
+                                  memCacheHeight: ((widget.logoSize ?? 36) * 3)
+                                      .toInt(),
+                                  maxHeightDiskCache:
+                                      ((widget.logoSize ?? 36) * 3).toInt(),
+                                  errorBuilder: (_, _, _) =>
+                                      const SizedBox.shrink(),
+                                  placeholder: (_, _) =>
+                                      const SizedBox.shrink(),
+                                ),
+                              )
+                            : CachedNetworkImage(
+                                imageUrl: logoUrl,
+                                height: widget.logoSize ?? 28,
+                                fit: BoxFit.contain,
+                                alignment: Alignment.center,
+                                fadeInDuration: const Duration(
+                                  milliseconds: 150,
+                                ),
+                                useOldImageOnUrlChange: true,
+                                memCacheHeight: ((widget.logoSize ?? 28) * 3)
+                                    .toInt(),
+                                maxHeightDiskCache:
+                                    ((widget.logoSize ?? 28) * 3).toInt(),
+                                errorBuilder: (_, _, _) =>
+                                    const SizedBox.shrink(),
+                                placeholder: (_, _) => const SizedBox.shrink(),
+                              ),
+                      ),
+                    if (widget.showMetaOverlay)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        height: 72,
+                        child: const IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [Colors.transparent, Color(0xCC000000)],
+                              ),
+                            ),
+                          ),
                         ),
-                      ],
-                    ),
-                  ),
-                if (badgeLabel != null)
-                  Positioned(
-                    top: 0,
-                    right: -2,
-                    child: PrimeCardBadge(label: badgeLabel),
-                  ),
-                if (progress != null && progress > 0)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    // La pista negra es a todo lo ancho: se recorta con el
-                    // mismo radio inferior de la imagen para que no deje
-                    // esquinas cuadradas sobre la curva del borde del hover.
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.vertical(
-                        bottom: Radius.circular(radius * 6),
                       ),
-                      child: LinearProgressIndicator(
-                        value: (progress / 100).clamp(0.0, 1.0),
-                        minHeight: 5,
-                        backgroundColor: Colors.black38,
-                        valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    if (widget.showMetaOverlay)
+                      Positioned(
+                        left: 6,
+                        right: 6,
+                        bottom: 6,
+                        child: Column(
+                          crossAxisAlignment: switch (widget.metaAlignment) {
+                            RowMetaAlign.left => CrossAxisAlignment.start,
+                            RowMetaAlign.center => CrossAxisAlignment.center,
+                            RowMetaAlign.right => CrossAxisAlignment.end,
+                          },
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _MetaLine(
+                              ageRating: (widget.item.officialRating ?? '')
+                                  .trim(),
+                              year: widget.item.productionYear,
+                              genres: widget.item.genres ?? const <String>[],
+                              hideYear: widget.hideYear,
+                              fallback: subtitle,
+                              align: widget.metaAlignment,
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
-                if (!widget.showMetaOverlay &&
-                    widget.cornerLogos != null &&
-                    widget.cornerLogos!.isNotEmpty)
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: ProviderLogoStrip(urls: widget.cornerLogos!),
-                  )
-                else if (!widget.showMetaOverlay &&
-                    widget.cardLogo != null &&
-                    widget.cardLogo!.isNotEmpty)
-                  Positioned(
-                    right: 10,
-                    bottom: 10,
-                    child: LogoImage(logo: widget.cardLogo!, height: logoSize),
-                  ),
-              ],
-            ),
-          ),
+                    if (badgeLabel != null)
+                      Positioned(
+                        top: 0,
+                        right: -2,
+                        child: PrimeCardBadge(label: badgeLabel),
+                      ),
+                    if (progress != null && progress > 0)
+                      Positioned(
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        // La pista negra es a todo lo ancho: se recorta con el
+                        // mismo radio inferior de la imagen para que no deje
+                        // esquinas cuadradas sobre la curva del borde del hover.
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.vertical(
+                            bottom: Radius.circular(radius * 6),
+                          ),
+                          child: LinearProgressIndicator(
+                            value: (progress / 100).clamp(0.0, 1.0),
+                            minHeight: 5,
+                            backgroundColor: Colors.black38,
+                            valueColor: AlwaysStoppedAnimation<Color>(accent),
+                          ),
+                        ),
+                      ),
+                    if (!widget.showMetaOverlay &&
+                        widget.cornerLogos != null &&
+                        widget.cornerLogos!.isNotEmpty)
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: ProviderLogoStrip(urls: widget.cornerLogos!),
+                      )
+                    else if (!widget.showMetaOverlay &&
+                        widget.cardLogo != null &&
+                        widget.cardLogo!.isNotEmpty)
+                      Positioned(
+                        right: 10,
+                        bottom: 10,
+                        child: LogoImage(
+                          logo: widget.cardLogo!,
+                          height: logoSize,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -745,9 +773,7 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
                       color: Color.lerp(
                         subtitleDimColor,
                         subtitleFullColor,
-                        Curves.easeOut.transform(
-                          _highlightController.value,
-                        ),
+                        Curves.easeOut.transform(_highlightController.value),
                       ),
                       fontSize: 10,
                     ),

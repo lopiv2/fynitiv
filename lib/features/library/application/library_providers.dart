@@ -251,6 +251,10 @@ final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((
   final res = await client.getItemsApi().getItems(
     userId: userId,
     recursive: true,
+    // Solo contenido multimedia real: sin este filtro la API devuelve también
+    // carpetas/colecciones (CollectionFolder, BoxSet, Season…) que aparecían
+    // como "novedades" vacías en el banner.
+    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
     sortBy: [ItemSortBy.dateCreated],
     sortOrder: [SortOrder.descending],
     limit: 10,

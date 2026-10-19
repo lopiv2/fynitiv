@@ -263,6 +263,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get seasonalEaster => 'Easter picks';
 
   @override
+  String get seasonalDebugLabel => 'Season:';
+
+  @override
+  String get seasonalDebugAuto => 'Auto (calendar)';
+
+  @override
+  String get seasonalDebugNone => 'No theme';
+
+  @override
   String get language => 'Language';
 
   @override

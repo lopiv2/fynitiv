@@ -4,6 +4,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/ui_constants.dart';
+import '../../../../core/seasonal/active_seasonal_event.dart';
 import '../../../../core/seasonal/seasonal_event.dart';
 import '../../../../core/settings/seasonal_suggestions_controller.dart';
 import '../../../../core/skin/home_scroll.dart';
@@ -30,10 +31,15 @@ class SeasonalSuggestionsRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(seasonalSuggestionsEnabledProvider).value ?? true;
-    if (!enabled) return const SizedBox.shrink();
+    // El override de debug (barra superior) anula el ajuste de sugerencias
+    // mientras está activo.
+    final forced = ref.watch(seasonalEventOverrideActiveProvider);
+    if (!forced) {
+      final enabled = ref.watch(seasonalSuggestionsEnabledProvider).value ?? true;
+      if (!enabled) return const SizedBox.shrink();
+    }
 
-    final event = seasonalEventForDate(DateTime.now());
+    final event = ref.watch(activeSeasonalEventProvider);
     if (event == null) return const SizedBox.shrink();
 
     final cfg = scroll;

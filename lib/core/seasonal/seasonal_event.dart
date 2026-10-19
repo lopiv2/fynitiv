@@ -43,12 +43,17 @@ class SeasonalPalette {
     required this.backgroundBottom,
     required this.accent,
     required this.primary,
+    this.strength = 1.0,
   });
 
   final Color backgroundTop;
   final Color backgroundBottom;
   final Color accent;
   final Color primary;
+
+  /// Multiplicador de la intensidad elegida por el usuario. Permite que una
+  /// temática tenga más presencia (p. ej. Navidad) sin tocar las demás.
+  final double strength;
 }
 
 /// Ruta del asset (webp) del badge de la temática (esquina de las tarjetas).
@@ -68,10 +73,14 @@ const Map<SeasonalEvent, SeasonalPalette> kSeasonalPalettes = {
     primary: Color(0xFF7E3FF2),
   ),
   SeasonalEvent.christmas: SeasonalPalette(
-    backgroundTop: Color(0xFF041E1A),
-    backgroundBottom: Color(0xFF7A0E12),
-    accent: Color(0xFFE53935),
-    primary: Color(0xFF1B8A4B),
+    // Verde bosque profundo → rojo profundo, con primario verde vivo y acento
+    // oro. Un refuerzo moderado permite reconocer Navidad sobre skins
+    // azules/morados sin sustituir por completo la identidad del skin.
+    backgroundTop: Color(0xFF0A2C22),
+    backgroundBottom: Color(0xFFB71C1C),
+    accent: Color(0xFFFFC107),
+    primary: Color(0xFF00C853),
+    strength: 1.5,
   ),
   SeasonalEvent.valentinesDay: SeasonalPalette(
     backgroundTop: Color(0xFF2A0A1E),
@@ -93,7 +102,8 @@ const Map<SeasonalEvent, SeasonalPalette> kSeasonalPalettes = {
 Skin tintSkinForSeason(Skin base, SeasonalEvent event, double intensity) {
   final palette = kSeasonalPalettes[event];
   if (palette == null || intensity <= 0) return base;
-  final t = intensity.clamp(0.0, 1.0);
+  // La fuerza propia de la temática multiplica la intensidad del usuario.
+  final t = (intensity * palette.strength).clamp(0.0, 1.0);
   Color mix(Color from, Color to) => Color.lerp(from, to, t)!;
   return base.copyWith(
     backgroundTop: mix(base.backgroundTop, palette.backgroundTop),

@@ -264,6 +264,15 @@ class AppLocalizationsEs extends AppLocalizations {
   String get seasonalEaster => 'Especial de Pascua';
 
   @override
+  String get seasonalDebugLabel => 'Estación:';
+
+  @override
+  String get seasonalDebugAuto => 'Auto (calendario)';
+
+  @override
+  String get seasonalDebugNone => 'Sin tema';
+
+  @override
   String get language => 'Idioma';
 
   @override

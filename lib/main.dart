@@ -46,7 +46,12 @@ void main() async {
   // Precalienta el logo de la splash (un solo fichero, se espera) y los
   // FX de hover en segundo plano para que arranquen sin delay de decode.
   try {
-    await HoverSoundPlayer.instance.preload(['audio/splash_reveal.mp3']);
+    await HoverSoundPlayer.instance.preload([
+      'audio/splash_reveal.mp3',
+      // Presentaciones estacionales (el cambio de estación suena sin delay).
+      'audio/halloween_splash_reveal.mp3',
+      'audio/christmas_splash_reveal.mp3',
+    ]);
   } catch (_) {}
   unawaited(
     HoverSoundPlayer.instance.preload([

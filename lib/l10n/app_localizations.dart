@@ -584,6 +584,24 @@ abstract class AppLocalizations {
   /// **'Easter picks'**
   String get seasonalEaster;
 
+  /// No description provided for @seasonalDebugLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Season:'**
+  String get seasonalDebugLabel;
+
+  /// No description provided for @seasonalDebugAuto.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto (calendar)'**
+  String get seasonalDebugAuto;
+
+  /// No description provided for @seasonalDebugNone.
+  ///
+  /// In en, this message translates to:
+  /// **'No theme'**
+  String get seasonalDebugNone;
+
   /// No description provided for @language.
   ///
   /// In en, this message translates to:
