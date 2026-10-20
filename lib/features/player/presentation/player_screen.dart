@@ -172,8 +172,55 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   int _trickLevel = 0;
   Timer? _trickTimer;
 
+  /// Velocidad de reproducción elegida por el usuario (1.0 = normal). Solo
+  /// vídeo: se resetea a 1x al abrir otro contenido.
+  double _playbackRate = 1.0;
+
   /// Volumen a restaurar al salir del modo (se mutea durante el trick-play).
   double _savedVolume = 100;
+
+  /// Foco del botón play/pausa del transporte: punto de entrada de la
+  /// navegación con mando/D-pad (Up/OK en raíz lo enfocan).
+  late final FocusNode _playFocus = FocusNode(debugLabel: 'player-play');
+
+  /// Modo navegación TV: true desde que se entra con Up/OK hasta salir con
+  /// Atrás o puntero. Mientras esté activo las flechas navegan (nunca seek) y
+  /// el auto-hide no oculta ni roba el foco.
+  bool _navMode = false;
+
+  /// Focos de navegación direccional del overlay de vídeo (atrás de la barra
+  /// superior, rebobinado y los dos sliders). Se usan como destinos explícitos
+  /// donde el traversal direccional no llega solo.
+  late final FocusNode _backFocus = FocusNode(debugLabel: 'player-back');
+  late final FocusNode _rewindFocus = FocusNode(debugLabel: 'player-rewind');
+  late final FocusNode _progressSliderFocus = FocusNode(
+    debugLabel: 'player-progress',
+  );
+  late final FocusNode _volumeSliderFocus = FocusNode(
+    debugLabel: 'player-volume',
+  );
+
+  /// Nodos no enfocables de los Slider internos: el foco de teclado/mando lo
+  /// tiene el wrapper ([_progressSliderFocus]/[_volumeSliderFocus]) para
+  /// controlar manualmente las flechas (Up/Down navegan en vez de ajustar).
+  /// El puntero/táctil no se ve afectado.
+  late final FocusNode _progressSliderKey = FocusNode(
+    canRequestFocus: false,
+    debugLabel: 'player-progress-key',
+  );
+  late final FocusNode _volumeSliderKey = FocusNode(
+    canRequestFocus: false,
+    debugLabel: 'player-volume-key',
+  );
+
+  /// El wrapper del slider de volumen tiene el foco (anillo visible).
+  bool _volumeSliderFocused = false;
+
+  /// Volumen acoplado: solo así ←/→ ajustan (Enter acopla/desacopla).
+  bool _volumeSliderEngaged = false;
+
+  /// El wrapper del slider de progreso tiene el foco (anillo visible).
+  bool _progressSliderFocused = false;
 
   /// Si estaba reproduciendo al entrar (para reanudar al salir con play).
   bool _trickResumePlaying = false;
@@ -386,6 +433,13 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _hideTimer?.cancel();
+    _playFocus.dispose();
+    _backFocus.dispose();
+    _rewindFocus.dispose();
+    _progressSliderFocus.dispose();
+    _volumeSliderFocus.dispose();
+    _progressSliderKey.dispose();
+    _volumeSliderKey.dispose();
     _exitTrickPlay();
     for (final sub in _subs) {
       sub.cancel();
@@ -419,6 +473,8 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   Future<void> _stopPlayer() async {
     if (_playerDisposed) return;
     _playerDisposed = true;
+    // Cada contenido empieza a 1x.
+    _playbackRate = 1.0;
     // Drenaje con gracia (ver `disposeMpvPlayer`): en Windows liberar
     // mpv pintando aborta el proceso. El dispose nativo puede fallar si
     // el engine se está cerrando (tolerado dentro del helper).
@@ -690,6 +746,48 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     if (mounted) setState(() {});
   }
 
+  /// Cambia la velocidad de reproducción del vídeo (0.5x…2.0x).
+  void _setPlaybackRate(double rate) {
+    final next = rate.clamp(0.5, 2.0).toDouble();
+    // Salir del trick-play restaura volumen y la velocidad anterior; después
+    // se aplica la nueva.
+    _exitTrickPlay();
+    setState(() => _playbackRate = next);
+    try {
+      _player.setRate(next);
+    } catch (_) {}
+    _showControls();
+  }
+
+  /// Fija el volumen por la vía correspondiente (SoLoud en audio, mpv + volumen
+  /// universal en vídeo). Misma lógica que el `onChanged` del slider en línea.
+  void _setVolume(double value) {
+    final next = value.clamp(0.0, 100.0);
+    // Tocar el volumen sale del trick-play (el modo lo tenía muteado; el
+    // gesto devuelve audio real).
+    _exitTrickPlay();
+    if (_isAudio && ref.read(soloudMusicProvider).hasItem) {
+      ref.read(soloudMusicProvider.notifier).setVolume(next);
+    } else {
+      setState(() => _volume = next);
+      _player.setVolume(next);
+      try {
+        ref.read(appVolumeProvider.notifier).setVolume(next);
+      } catch (_) {}
+    }
+  }
+
+  /// Ajuste relativo de volumen para el slider acoplado del mando (±5).
+  void _adjustVolumeBy(double delta) {
+    double current;
+    if (_isAudio && ref.read(soloudMusicProvider).hasItem) {
+      current = ref.read(soloudMusicProvider).volume;
+    } else {
+      current = _volume;
+    }
+    _setVolume(current + delta);
+  }
+
   void _enterTrickPlay() {
     _savedVolume = _volume;
     _trickResumePlaying = _playing;
@@ -738,7 +836,7 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     if (mounted) setState(() => _position = target);
   }
 
-  /// Sale del trick-play restaurando velocidad 1x y volumen. Sin setState:
+  /// Sale del trick-play restaurando la velocidad elegida y el volumen. Sin setState:
   /// lo hace quien llama.
   void _exitTrickPlay() {
     if (!_inTrickPlay) return;
@@ -747,7 +845,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
     _trickDir = 0;
     _trickLevel = 0;
     try {
-      _player.setRate(1.0);
+      // Restaura la velocidad elegida por el usuario, no 1x: si no, usar
+      // `<<`/`>>` borraría la velocidad de reproducción seleccionada.
+      _player.setRate(_playbackRate);
     } catch (_) {}
     try {
       _player.setVolume(_savedVolume);
@@ -791,7 +891,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   }
 
   /// Click sobre el video: muestra los controles y alterna play/pausa.
+  /// Es interacción por puntero: sale del modo navegación TV.
   void _handleTap() {
+    _navMode = false;
     _showControls();
     _togglePlay();
   }
@@ -799,9 +901,14 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   void _scheduleHide() {
     _hideTimer?.cancel();
     _hideTimer = Timer(const Duration(seconds: 3), () {
-      if (mounted && _playing && !_dragging) {
-        setState(() => _controlsVisible = false);
+      if (!mounted || !_playing || _dragging) return;
+      // En navegación TV no ocultar ni robar el foco: los controles deben
+      // seguir visibles mientras se navega. Se reintenta al rearmar.
+      if (_navMode || !_focus.hasPrimaryFocus) {
+        _scheduleHide();
+        return;
       }
+      setState(() => _controlsVisible = false);
     });
   }
 
@@ -814,21 +921,107 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
   KeyEventResult _onKey(FocusNode node, KeyEvent event) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
     // Con el foco en un control hijo, deja que el D-pad/Tab navegue entre
-    // controles en lugar de hacer seek.
+    // controles en lugar de hacer seek. Cualquier tecla rearma el auto-hide
+    // para no ocultar los controles mientras se navega con el mando.
     final onRoot = _focus.hasPrimaryFocus;
+    if (!onRoot) _showControls();
+    // Sliders con control manual (mando/TV): el foco lo tiene el wrapper (el
+    // Slider interno no es enfocable) para que Up/Down nunca lo consuman.
+    if (_progressSliderFocus.hasFocus) {
+      // En el slider de progreso Up/Down navegan (arriba = atrás, abajo =
+      // rebobinar) en lugar de adelantar/retrasar; ←/→ hacen seek ±10 s.
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.arrowUp:
+          _backFocus.requestFocus();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowDown:
+          _rewindFocus.requestFocus();
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowLeft:
+          _seekBy(const Duration(seconds: -10));
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowRight:
+          _seekBy(const Duration(seconds: 10));
+          return KeyEventResult.handled;
+        default:
+          break;
+      }
+    }
+    if (_volumeSliderFocus.hasFocus) {
+      switch (event.logicalKey) {
+        case LogicalKeyboardKey.select:
+        case LogicalKeyboardKey.enter:
+          // Enter acopla/desacopla el ajuste: solo acoplado ←/→ mueven volumen.
+          setState(() => _volumeSliderEngaged = !_volumeSliderEngaged);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowLeft:
+          if (!_volumeSliderEngaged) return KeyEventResult.ignored;
+          _adjustVolumeBy(-5);
+          return KeyEventResult.handled;
+        case LogicalKeyboardKey.arrowRight:
+          if (!_volumeSliderEngaged) return KeyEventResult.ignored;
+          _adjustVolumeBy(5);
+          return KeyEventResult.handled;
+        default:
+          break;
+      }
+      // Up/Down (y resto) con el slider de volumen navegan; al perder el foco
+      // se desacopla solo.
+    }
     switch (event.logicalKey) {
       case LogicalKeyboardKey.space:
         _togglePlay();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowRight:
+        // En navegación seguir el orden explícito (velocidad → silencio →
+        // volumen → subtítulos…), nunca la geometría de la fila.
+        if (_navMode) {
+          if (onRoot) {
+            _playFocus.requestFocus();
+            return KeyEventResult.handled;
+          }
+          FocusManager.instance.primaryFocus?.nextFocus();
+          return KeyEventResult.handled;
+        }
         if (!onRoot) return KeyEventResult.ignored;
         _seekBy(const Duration(seconds: 10));
         _showControls();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.arrowLeft:
+        if (_navMode) {
+          if (onRoot) {
+            _playFocus.requestFocus();
+            return KeyEventResult.handled;
+          }
+          FocusManager.instance.primaryFocus?.previousFocus();
+          return KeyEventResult.handled;
+        }
         if (!onRoot) return KeyEventResult.ignored;
         _seekBy(const Duration(seconds: -10));
         _showControls();
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.arrowUp:
+      case LogicalKeyboardKey.arrowDown:
+        // En raíz el traversal direccional no alcanza los controles (el foco
+        // ocupa toda la pantalla): Up/Down entran a navegación y enfocan
+        // play/pausa. Con foco dentro, navega el sistema. En modo navegación
+        // con foco perdido, se re-ancla en vez de dejar la pulsación muerta.
+        if (_navMode) {
+          if (onRoot) {
+            _playFocus.requestFocus();
+            return KeyEventResult.handled;
+          }
+          return KeyEventResult.ignored;
+        }
+        if (!onRoot) return KeyEventResult.ignored;
+        _enterControlNav();
+        return KeyEventResult.handled;
+      case LogicalKeyboardKey.select:
+      case LogicalKeyboardKey.enter:
+        // OK del mando (o Enter) en raíz: entra a navegación. Con foco en un
+        // botón, se ignora para que lo active su comportamiento nativo.
+        if (!onRoot) return KeyEventResult.ignored;
+        _enterControlNav();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyZ:
         _nudgeSubtitleDelay(
@@ -839,6 +1032,19 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         _nudgeSubtitleDelay(0.5);
         return KeyEventResult.handled;
       case LogicalKeyboardKey.escape:
+      case LogicalKeyboardKey.goBack:
+        // Con el volumen acoplado, Atrás primero lo desacopla (se queda el foco).
+        if (_volumeSliderEngaged) {
+          setState(() => _volumeSliderEngaged = false);
+          return KeyEventResult.handled;
+        }
+        // Con foco en un control, Atrás sale a la raíz (modo seek) sin cerrar.
+        // En raíz se mantiene lo actual: salir de pantalla completa o cerrar.
+        if (!onRoot) {
+          _navMode = false;
+          _focus.requestFocus();
+          return KeyEventResult.handled;
+        }
         if (_fullscreen) {
           _toggleFullscreen();
         } else {
@@ -847,6 +1053,19 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
+  }
+
+  /// Entra a navegación por controles (mando/D-pad): muestra el overlay y
+  /// enfoca play/pausa del transporte como punto de partida predecible.
+  void _enterControlNav() {
+    _navMode = true;
+    _showControls();
+    // El foco se pide tras el frame: _showControls programa el build y hasta
+    // entonces el ExcludeFocus del overlay oculto seguiría ignorando la
+    // petición (primera pulsación "muerta").
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _playFocus.requestFocus();
+    });
   }
 
   /// Ajuste fino del desfase de subtítulos desde teclado (`z`/`Z`/`x`).
@@ -1179,6 +1398,10 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                   onExit: (_) {
                     _hideTimer?.cancel();
                     if (_playing && mounted) {
+                      // El puntero toma el mando: sale del modo navegación TV
+                      // para que las flechas vuelvan a hacer seek.
+                      _navMode = false;
+                      if (!_focus.hasPrimaryFocus) _focus.requestFocus();
                       setState(() => _controlsVisible = false);
                     }
                   },
@@ -1190,7 +1413,15 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                       duration: const Duration(milliseconds: 200),
                       child: IgnorePointer(
                         ignoring: !_controlsVisible,
-                        child: _buildOverlay(),
+                        // Los botones siguen montados con opacidad 0: excluirlos
+                        // del traversal para no enfocar controles invisibles.
+                        child: ExcludeFocus(
+                          excluding: !_controlsVisible,
+                          child: FocusTraversalGroup(
+                            policy: OrderedTraversalPolicy(),
+                            child: _buildOverlay(),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -1336,9 +1567,15 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         : null;
 
     // Hora estimada de fin (ahora + restante), junto al transporte.
-    // Sin valor durante el trick-play (el cálculo no vale a velocidad ≠ 1x).
+    // El restante de medios se divide por la velocidad de reproducción:
+    // a 2x queda la mitad de tiempo real que a 1x.
+    // Sin valor durante el trick-play (seeks periódicos, no velocidad real).
     String? endsAtLabel;
-    final remaining = effDuration - displayPos;
+    final remainingMedia = effDuration - displayPos;
+    final effectiveRate = _isAudio ? 1.0 : _playbackRate.clamp(0.5, 2.0);
+    final remaining = Duration(
+      milliseconds: (remainingMedia.inMilliseconds / effectiveRate).round(),
+    );
     if (!_inTrickPlay &&
         effDuration.inMilliseconds > 0 &&
         remaining.inMilliseconds > 0) {
@@ -1374,10 +1611,15 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                 padding: const EdgeInsets.fromLTRB(8, 8, 16, 24),
                 child: Row(
                   children: [
-                    IconButton(
-                      tooltip: l10n.back,
-                      icon: const Icon(Icons.arrow_back, color: Colors.white),
-                      onPressed: _close,
+                    _orderedVideoControl(
+                      10,
+                      _PlayerIconButton(
+                        tooltip: l10n.back,
+                        icon: Icons.arrow_back,
+                        iconSize: 24,
+                        focusNode: _backFocus,
+                        onPressed: _close,
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Expanded(
@@ -1404,9 +1646,9 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
         // Botón central play/pausa.
         if (!effPlaying && !effCompleted)
           Center(
-            child: _BigButton(
-              icon: Icons.play_arrow_rounded,
-              onTap: _togglePlay,
+            child: _orderedVideoControl(
+              35,
+              _BigButton(icon: Icons.play_arrow_rounded, onTap: _togglePlay),
             ),
           ),
         // Barra inferior con el seek y los controles.
@@ -1430,77 +1672,95 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     if (hasActiveSubtitle)
-                      _SubtitleSyncSlider(
-                        value: _subtitleDelay,
-                        onChanged: _applySubtitleDelay,
-                        onChangeEnd: _persistSubtitleDelay,
-                        onSyncByText: _openSubtitleSyncByText,
+                      _orderedVideoControl(
+                        15,
+                        _SubtitleSyncSlider(
+                          value: _subtitleDelay,
+                          onChanged: _applySubtitleDelay,
+                          onChangeEnd: _persistSubtitleDelay,
+                          onSyncByText: _openSubtitleSyncByText,
+                        ),
                       ),
-                    Row(
-                      children: [
-                        Text(
-                          _formatDuration(displayPos),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                          ),
+                    _orderedVideoControl(
+                      20,
+                      _SliderFocusFrame(
+                        focusNode: _progressSliderFocus,
+                        onFocusChange: (v) {
+                          if (mounted) {
+                            setState(() => _progressSliderFocused = v);
+                          }
+                        },
+                        focused: _progressSliderFocused,
+                        child: Row(
+                          children: [
+                            Text(
+                              _formatDuration(displayPos),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Expanded(
+                              child: Slider(
+                                focusNode: _progressSliderKey,
+                                min: 0,
+                                max: effDuration.inMilliseconds > 0
+                                    ? effDuration.inMilliseconds / 1000
+                                    : 1,
+                                value: displayPos.inMilliseconds > 0
+                                    ? (displayPos.inMilliseconds / 1000).clamp(
+                                        0,
+                                        effDuration.inMilliseconds / 1000,
+                                      )
+                                    : 0,
+                                onChanged: effDuration.inMilliseconds > 0
+                                    ? _onSliderChanged
+                                    : null,
+                                onChangeEnd: effDuration.inMilliseconds > 0
+                                    ? _onSliderEnd
+                                    : null,
+                                activeColor: Colors.white,
+                                inactiveColor: Colors.white24,
+                                thumbColor: Colors.white,
+                                overlayColor: _playerSliderFocusOverlay(),
+                              ),
+                            ),
+                            Text(
+                              _formatDuration(effDuration),
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
                         ),
-                        Expanded(
-                          child: Slider(
-                            min: 0,
-                            max: effDuration.inMilliseconds > 0
-                                ? effDuration.inMilliseconds / 1000
-                                : 1,
-                            value: displayPos.inMilliseconds > 0
-                                ? (displayPos.inMilliseconds / 1000).clamp(
-                                    0,
-                                    effDuration.inMilliseconds / 1000,
-                                  )
-                                : 0,
-                            onChanged: effDuration.inMilliseconds > 0
-                                ? _onSliderChanged
-                                : null,
-                            onChangeEnd: effDuration.inMilliseconds > 0
-                                ? _onSliderEnd
-                                : null,
-                            activeColor: Colors.white,
-                            inactiveColor: Colors.white24,
-                            thumbColor: Colors.white,
-                          ),
-                        ),
-                        Text(
-                          _formatDuration(effDuration),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                     Row(
                       children: [
-                        IconButton(
-                          tooltip: l10n.rewind,
-                          icon: const Icon(
-                            Icons.fast_rewind_rounded,
-                            color: Colors.white,
-                            size: 28,
+                        _orderedVideoControl(
+                          30,
+                          _PlayerIconButton(
+                            tooltip: l10n.rewind,
+                            icon: Icons.fast_rewind_rounded,
+                            focusNode: _rewindFocus,
+                            onPressed: () => _ffPress(-1),
                           ),
-                          onPressed: () => _ffPress(-1),
                         ),
                         Stack(
                           alignment: Alignment.topRight,
                           children: [
-                            IconButton(
-                              tooltip: effPlaying ? l10n.pause : l10n.play,
-                              icon: Icon(
-                                effPlaying
+                            _orderedVideoControl(
+                              40,
+                              _PlayerIconButton(
+                                tooltip: effPlaying ? l10n.pause : l10n.play,
+                                icon: effPlaying
                                     ? Icons.pause_rounded
                                     : Icons.play_arrow_rounded,
-                                color: Colors.white,
-                                size: 32,
+                                iconSize: 32,
+                                focusNode: _playFocus,
+                                onPressed: _togglePlay,
                               ),
-                              onPressed: _togglePlay,
                             ),
                             if (ffBadge != null)
                               Positioned(
@@ -1527,15 +1787,22 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                               ),
                           ],
                         ),
-                        IconButton(
-                          tooltip: l10n.fastForward,
-                          icon: const Icon(
-                            Icons.fast_forward_rounded,
-                            color: Colors.white,
-                            size: 28,
+                        _orderedVideoControl(
+                          50,
+                          _PlayerIconButton(
+                            tooltip: l10n.fastForward,
+                            icon: Icons.fast_forward_rounded,
+                            onPressed: () => _ffPress(1),
                           ),
-                          onPressed: () => _ffPress(1),
                         ),
+                        if (!_isAudio)
+                          _orderedVideoControl(
+                            60,
+                            _PlaybackSpeedButton(
+                              speed: _playbackRate,
+                              onSelected: _setPlaybackRate,
+                            ),
+                          ),
                         if (endsAtLabel != null) ...[
                           const SizedBox(width: 4),
                           Text(
@@ -1552,62 +1819,69 @@ class _PlayerViewState extends ConsumerState<_PlayerView>
                         _InlineVolume(
                           volume: effVolume,
                           width: 240,
-                          onChanged: (v) {
-                            // Tocar el volumen sale del trick-play (el modo
-                            // lo tenía muteado; el gesto devuelve audio real).
-                            _exitTrickPlay();
-                            if (_isAudio && hasSoloud) {
-                              ref
-                                  .read(soloudMusicProvider.notifier)
-                                  .setVolume(v);
-                            } else {
-                              setState(() => _volume = v);
-                              _player.setVolume(v);
-                              try {
-                                ref
-                                    .read(appVolumeProvider.notifier)
-                                    .setVolume(v);
-                              } catch (_) {}
-                            }
+                          muteOrder: 70,
+                          sliderOrder: 80,
+                          onChanged: _setVolume,
+                          focusNode: _volumeSliderFocus,
+                          keyNode: _volumeSliderKey,
+                          focused: _volumeSliderFocused,
+                          engaged: _volumeSliderEngaged,
+                          onFocusChange: (v) {
+                            if (!mounted) return;
+                            setState(() {
+                              _volumeSliderFocused = v;
+                              // Al perder el foco se desacopla solo.
+                              if (!v) _volumeSliderEngaged = false;
+                            });
                           },
                         ),
                         if (hasSubtitles) ...[
-                          _SubtitleButton(
-                            tracks: _tracks,
-                            external: _session.externalSubtitles,
-                            embeddedMeta: embeddedSubMeta,
-                            externalMeta: externalSubMeta,
-                            selected: _selectedSubtitle,
-                            onSelected: _selectSubtitle,
+                          _orderedVideoControl(
+                            90,
+                            _SubtitleButton(
+                              tracks: _tracks,
+                              external: _session.externalSubtitles,
+                              embeddedMeta: embeddedSubMeta,
+                              externalMeta: externalSubMeta,
+                              selected: _selectedSubtitle,
+                              onSelected: _selectSubtitle,
+                            ),
                           ),
                           const SizedBox(width: 4),
                         ] else if (showSubtitleSearch) ...[
-                          _SearchSubtitlesButton(
-                            label: l10n.searchSubtitles,
-                            onPressed: _openSubtitleSearch,
+                          _orderedVideoControl(
+                            90,
+                            _SearchSubtitlesButton(
+                              label: l10n.searchSubtitles,
+                              onPressed: _openSubtitleSearch,
+                            ),
                           ),
                           const SizedBox(width: 4),
                         ],
                         if (audioTracks.length > 1) ...[
-                          _AudioButton(
-                            tracks: audioTracks,
-                            meta: jellyAudio,
-                            selected: _selectedAudio,
-                            onSelected: _selectAudio,
+                          _orderedVideoControl(
+                            100,
+                            _AudioButton(
+                              tracks: audioTracks,
+                              meta: jellyAudio,
+                              selected: _selectedAudio,
+                              onSelected: _selectAudio,
+                            ),
                           ),
                           const SizedBox(width: 4),
                         ],
-                        IconButton(
-                          tooltip: _fullscreen
-                              ? l10n.exitFullscreen
-                              : l10n.fullscreen,
-                          icon: Icon(
-                            _fullscreen
+                        _orderedVideoControl(
+                          110,
+                          _PlayerIconButton(
+                            tooltip: _fullscreen
+                                ? l10n.exitFullscreen
+                                : l10n.fullscreen,
+                            icon: _fullscreen
                                 ? Icons.fullscreen_exit_rounded
                                 : Icons.fullscreen_rounded,
-                            color: Colors.white,
+                            iconSize: 24,
+                            onPressed: _toggleFullscreen,
                           ),
-                          onPressed: _toggleFullscreen,
                         ),
                       ],
                     ),
@@ -5201,6 +5475,136 @@ class _CoverFallback extends StatelessWidget {
   }
 }
 
+/// Botón de icono del overlay de vídeo con foco visible para mando/D-pad.
+///
+/// Reutiliza el foco nativo del [IconButton] (sin nodos de foco extra que
+/// romperían el traversal) con colores de foco/hover marcados sobre negro.
+Widget _orderedVideoControl(int order, Widget child) => FocusTraversalOrder(
+  order: NumericFocusOrder(order.toDouble()),
+  child: child,
+);
+
+class _PlayerIconButton extends StatelessWidget {
+  const _PlayerIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+    this.iconSize = 28,
+    this.focusNode,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final double iconSize;
+
+  /// Nodo de foco propio del botón (opcional). Se reenvía al [IconButton]
+  /// interno: sigue habiendo un único nodo, sin anidamiento.
+  final FocusNode? focusNode;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      iconSize: iconSize,
+      focusNode: focusNode,
+      style: IconButton.styleFrom(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      focusColor: Colors.white.withValues(alpha: 0.28),
+      hoverColor: Colors.white.withValues(alpha: 0.14),
+      highlightColor: Colors.white.withValues(alpha: 0.20),
+      splashColor: Colors.white.withValues(alpha: 0.24),
+      icon: Icon(icon, color: Colors.white, size: iconSize),
+    );
+  }
+}
+
+/// Estilo del disparador de los menús del transporte (velocidad, subtítulos,
+/// audio): fondo redondeado que se ilumina con foco/hover.
+///
+/// OJO: solo funciona con el constructor `icon:` de [PopupMenuButton]; con
+/// `child:` el menú envuelve en un InkWell que ignora este `style`.
+ButtonStyle _playerMenuTriggerStyle() => ButtonStyle(
+  shape: WidgetStatePropertyAll(
+    RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  ),
+  backgroundColor: WidgetStateProperty.resolveWith((states) {
+    if (states.contains(WidgetState.focused)) {
+      return Colors.white.withValues(alpha: 0.28);
+    }
+    if (states.contains(WidgetState.hovered)) {
+      return Colors.white.withValues(alpha: 0.14);
+    }
+    return Colors.transparent;
+  }),
+);
+
+/// Overlay del slider visible solo con foco (mando/D-pad); el resto de
+/// estados (hover/arrastre) mantienen sus colores por defecto.
+WidgetStateProperty<Color?> _playerSliderFocusOverlay() =>
+    WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.focused)) {
+        return Colors.white.withValues(alpha: 0.25);
+      }
+      return null;
+    });
+
+/// Marco de foco para los sliders del transporte (progreso y volumen).
+///
+/// El foco de teclado/mando lo tiene este wrapper: el [Slider] interno recibe
+/// un nodo no enfocable para que no consuma Up/Down con su mapa nativo y las
+/// flechas siempre naveguen (o ajusten bajo control manual). El puntero y el
+/// táctil no se ven afectados. El borde siempre existe (transparente sin foco)
+/// para no desplazar el layout al enfocar.
+class _SliderFocusFrame extends StatelessWidget {
+  const _SliderFocusFrame({
+    required this.focusNode,
+    required this.onFocusChange,
+    required this.focused,
+    this.engaged = false,
+    required this.child,
+  });
+
+  final FocusNode focusNode;
+  final ValueChanged<bool> onFocusChange;
+
+  /// El wrapper tiene el foco: se pinta el anillo.
+  final bool focused;
+
+  /// Ajuste acoplado (volumen): anillo más marcado.
+  final bool engaged;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      focusNode: focusNode,
+      onFocusChange: onFocusChange,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: focused
+              ? Colors.white.withValues(alpha: engaged ? 0.14 : 0.08)
+              : Colors.transparent,
+          border: Border.all(
+            color: !focused
+                ? Colors.transparent
+                : engaged
+                ? Colors.white
+                : Colors.white70,
+            width: 1.5,
+          ),
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
 /// Botón circular grande (play/replay).
 class _BigButton extends StatelessWidget {
   const _BigButton({required this.icon, required this.onTap});
@@ -5217,6 +5621,8 @@ class _BigButton extends StatelessWidget {
         backgroundColor: Colors.black45,
         foregroundColor: Colors.white,
       ),
+      focusColor: Colors.white.withValues(alpha: 0.30),
+      hoverColor: Colors.white.withValues(alpha: 0.20),
       icon: Icon(icon),
     );
   }
@@ -5236,38 +5642,75 @@ class _InlineVolume extends StatelessWidget {
   const _InlineVolume({
     required this.volume,
     required this.onChanged,
+    required this.muteOrder,
+    required this.sliderOrder,
     this.width = 140,
+    this.focusNode,
+    this.keyNode,
+    this.focused = false,
+    this.engaged = false,
+    this.onFocusChange,
   });
 
   final double volume;
   final ValueChanged<double> onChanged;
+  final int muteOrder;
+  final int sliderOrder;
 
   /// Ancho total del control (icono + slider).
   final double width;
+
+  /// Foco del wrapper del slider (navegación TV) y nodo no enfocable del
+  /// Slider interno. Si son null, el Slider usa su foco nativo.
+  final FocusNode? focusNode;
+  final FocusNode? keyNode;
+
+  /// Anillo visible y modo acoplado (ver `_SliderFocusFrame`).
+  final bool focused;
+  final bool engaged;
+  final ValueChanged<bool>? onFocusChange;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final current = volume.clamp(0, 100).toDouble();
+    final slider = Slider(
+      value: current,
+      min: 0,
+      max: 100,
+      focusNode: keyNode,
+      activeColor: Colors.white,
+      inactiveColor: Colors.white24,
+      thumbColor: Colors.white,
+      overlayColor: _playerSliderFocusOverlay(),
+      onChanged: onChanged,
+    );
     return SizedBox(
       width: width,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          IconButton(
-            tooltip: l10n.volume,
-            icon: Icon(_volumeIconFor(current), color: Colors.white, size: 24),
-            onPressed: () => onChanged(current <= 0 ? 100 : 0),
+          _orderedVideoControl(
+            muteOrder,
+            _PlayerIconButton(
+              tooltip: l10n.volume,
+              icon: _volumeIconFor(current),
+              iconSize: 24,
+              onPressed: () => onChanged(current <= 0 ? 100 : 0),
+            ),
           ),
           Expanded(
-            child: Slider(
-              value: current,
-              min: 0,
-              max: 100,
-              activeColor: Colors.white,
-              inactiveColor: Colors.white24,
-              thumbColor: Colors.white,
-              onChanged: onChanged,
+            child: _orderedVideoControl(
+              sliderOrder,
+              focusNode == null
+                  ? slider
+                  : _SliderFocusFrame(
+                      focusNode: focusNode!,
+                      onFocusChange: onFocusChange ?? (_) {},
+                      focused: focused,
+                      engaged: engaged,
+                      child: slider,
+                    ),
             ),
           ),
         ],
@@ -5317,6 +5760,108 @@ class _CoverVolumeSlider extends StatelessWidget {
 }
 
 /// Botón de subtítulos con menú de pistas ("Idioma - Predeterminado - Formato").
+/// Botón de velocidad de reproducción (solo vídeo). Abre un menú hacia arriba
+/// con 0.5x–2.0x en pasos de 0.25 y muestra un badge cuando no está en 1x.
+class _PlaybackSpeedButton extends StatelessWidget {
+  const _PlaybackSpeedButton({required this.speed, required this.onSelected});
+
+  final double speed;
+  final ValueChanged<double> onSelected;
+
+  static const List<double> _speeds = [0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
+
+  /// 1.0 → "1x", 1.25 → "1.25x", 0.5 → "0.5x".
+  static String _label(double value) {
+    var text = value.toStringAsFixed(2);
+    text = text.replaceFirst(RegExp(r'0+$'), '');
+    text = text.replaceFirst(RegExp(r'\.$'), '');
+    return '${text}x';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final showBadge = (speed - 1.0).abs() > 0.001;
+
+    Widget button = PopupMenuButton<double>(
+      tooltip: l10n.playbackSpeed,
+      offset: const Offset(0, -60),
+      color: const Color(0xEE1A1A1A),
+      icon: const Icon(Icons.speed_rounded, color: Colors.white, size: 28),
+      iconSize: 28,
+      style: _playerMenuTriggerStyle(),
+      onSelected: onSelected,
+      itemBuilder: (context) => [
+        PopupMenuItem<double>(
+          enabled: false,
+          child: Text(
+            l10n.playbackSpeed,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        for (final value in _speeds)
+          PopupMenuItem<double>(
+            value: value,
+            child: Row(
+              children: [
+                Icon(
+                  (value - speed).abs() < 0.001 ? Icons.check_rounded : null,
+                  color: Colors.white,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _label(value),
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: (value - speed).abs() < 0.001
+                          ? FontWeight.w700
+                          : FontWeight.w400,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+
+    if (!showBadge) return button;
+    return Stack(
+      alignment: Alignment.topRight,
+      children: [
+        button,
+        Positioned(
+          top: 2,
+          right: 2,
+          child: IgnorePointer(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _label(speed),
+                style: const TextStyle(
+                  color: Colors.black,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _SubtitleButton extends StatelessWidget {
   const _SubtitleButton({
     required this.tracks,
@@ -5397,6 +5942,8 @@ class _SubtitleButton extends StatelessWidget {
       tooltip: l10n.subtitle,
       offset: const Offset(0, -60),
       color: const Color(0xEE1A1A1A),
+      icon: const Icon(Icons.closed_caption, color: Colors.white),
+      style: _playerMenuTriggerStyle(),
       onSelected: onSelected,
       itemBuilder: (context) => [
         PopupMenuItem<String>(
@@ -5460,10 +6007,6 @@ class _SubtitleButton extends StatelessWidget {
           ),
         ),
       ],
-      child: const Padding(
-        padding: EdgeInsets.all(8),
-        child: Icon(Icons.closed_caption, color: Colors.white),
-      ),
     );
   }
 }
@@ -5481,6 +6024,10 @@ class _SearchSubtitlesButton extends StatelessWidget {
     return InkWell(
       onTap: onPressed,
       borderRadius: BorderRadius.circular(20),
+      focusColor: Colors.white.withValues(alpha: 0.28),
+      hoverColor: Colors.white.withValues(alpha: 0.14),
+      highlightColor: Colors.white.withValues(alpha: 0.20),
+      splashColor: Colors.white.withValues(alpha: 0.24),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
@@ -5862,6 +6409,8 @@ class _AudioButton extends StatelessWidget {
       tooltip: l10n.audio,
       offset: const Offset(0, -60),
       color: const Color(0xEE1A1A1A),
+      icon: const Icon(Icons.audiotrack_rounded, color: Colors.white),
+      style: _playerMenuTriggerStyle(),
       onSelected: onSelected,
       itemBuilder: (context) => [
         PopupMenuItem<String>(
@@ -5898,10 +6447,6 @@ class _AudioButton extends StatelessWidget {
             ),
           ),
       ],
-      child: const Padding(
-        padding: EdgeInsets.all(8),
-        child: Icon(Icons.audiotrack_rounded, color: Colors.white),
-      ),
     );
   }
 }

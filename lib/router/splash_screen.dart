@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:morphnext/morphnext.dart';
 
@@ -11,6 +12,7 @@ import '../core/widgets/scale_button.dart';
 import '../core/widgets/snow_drip.dart';
 import '../features/auth/application/auth_controller.dart';
 import '../features/splash/presentation/presentations/splash_presentations.dart';
+import '../l10n/app_localizations.dart';
 
 /// Pantalla de bienvenida con el logo animado en 3D.
 ///
@@ -247,6 +249,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                           const LanguageSelector(),
                           const SizedBox(height: 24),
                           _buildDevBadge(),
+                          const SizedBox(height: 16),
+                          _buildPlatformDisclaimer(),
                         ],
                       ),
                     ),
@@ -436,11 +440,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// clock (7.0, 8.0, 9.0, 10.0) justo cuando el morph de su icono termina,
   /// acumulándose a la izquierda hasta "Watch. Read. Play. Anything".
   Widget _buildTaglineWords() {
-    const words = [
-      ('Watch.', _tWatch),
-      ('Read.', _tRead),
-      ('Play.', _tPlay),
-      ('Anything', _tAnything),
+    final l10n = AppLocalizations.of(context)!;
+    final words = [
+      (l10n.splashWatch, _tWatch),
+      (l10n.splashRead, _tRead),
+      (l10n.splashPlay, _tPlay),
+      (l10n.splashAnything, _tAnything),
     ];
     return FittedBox(
       fit: BoxFit.scaleDown,
@@ -559,6 +564,51 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           ),
         ],
       ),
+    );
+  }
+
+  /// Disclaimer de plataformas disponibles (Android, Linux y Windows).
+  ///
+  /// Se muestra en todas las presentaciones de splash (el `build` es común a
+  /// las estaciones). El texto va por ARB; los nombres de plataforma son
+  /// propios y no se traducen. Los botones del badge de desarrollo que hay
+  /// encima mantienen sus textos fijos (norma de no traducir debug).
+  Widget _buildPlatformDisclaimer() {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          l10n.splashAvailableOn,
+          style: TextStyle(
+            color: Colors.white.withValues(alpha: 0.9),
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SvgPicture.asset(
+              'assets/images/android.svg',
+              height: 28,
+              semanticsLabel: 'Android',
+            ),
+            const SizedBox(width: 20),
+            Image.asset(
+              'assets/images/Linux-Logo.png',
+              height: 38,
+              semanticLabel: 'Linux',
+            ),
+            Image.asset(
+              'assets/images/windows.png',
+              height: 58,
+              semanticLabel: 'Windows',
+            ),
+          ],
+        ),
+      ],
     );
   }
 

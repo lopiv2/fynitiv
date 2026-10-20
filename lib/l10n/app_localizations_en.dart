@@ -15,6 +15,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get splashTagline => 'Watch. Read. Play. Anything';
 
   @override
+  String get splashWatch => 'Watch.';
+
+  @override
+  String get splashRead => 'Read.';
+
+  @override
+  String get splashPlay => 'Play.';
+
+  @override
+  String get splashAnything => 'Anything';
+
+  @override
+  String get splashAvailableOn => 'Available on:';
+
+  @override
   String get whoIsWatching => 'Who\'s watching?';
 
   @override
@@ -582,6 +597,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get fastForward => 'Fast forward (x2, x4, up to x64)';
+
+  @override
+  String get playbackSpeed => 'Playback speed';
 
   @override
   String endsAtHour(String time) {

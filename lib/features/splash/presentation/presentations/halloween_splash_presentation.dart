@@ -176,7 +176,13 @@ Widget halloweenMoonEffect(BuildContext context, double progress) {
       final appear = Curves.easeOut.transform(
         (progress / 0.14).clamp(0.0, 1.0),
       );
-      if (appear <= 0) return const SizedBox.shrink();
+      // La luna se apaga con el relámpago: cuando el flash revela el fondo
+      // blanco ya no pinta nada y chocaría con los murciélagos en primer plano.
+      final vanish = Curves.easeOut.transform(
+        ((progress - (_kLightningAt - 0.03)) / 0.06).clamp(0.0, 1.0),
+      );
+      final moonAlpha = appear * (1.0 - vanish);
+      if (moonAlpha <= 0) return const SizedBox.shrink();
 
       final size = (height * 0.26).clamp(110.0, 300.0);
       final drift = math.sin(progress * 2 * math.pi * 0.25);
@@ -190,7 +196,7 @@ Widget halloweenMoonEffect(BuildContext context, double progress) {
               left: left,
               top: top,
               child: Opacity(
-                opacity: 0.92 * appear,
+                opacity: 0.92 * moonAlpha,
                 child: SizedBox(
                   width: size,
                   height: size,
@@ -206,7 +212,7 @@ Widget halloweenMoonEffect(BuildContext context, double progress) {
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0x55FFE9B0).withValues(alpha: 0.45 * appear),
+                              const Color(0x55FFE9B0).withValues(alpha: 0.45 * moonAlpha),
                               const Color(0x00FFE9B0),
                             ],
                           ),

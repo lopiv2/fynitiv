@@ -16,6 +16,8 @@ Notas y preferencias sobre cómo trabajar en este proyecto.
 
 - Siempre que vaya a haber texto de widgets, debe traducirse con cadenas ARB, minimo a ingles y español, como ya esta en otras partes de la aplicacion. Se reutilizaran cadenas si ya existen en dichos archivos ARB, para no duplicar claves. Autogenera la cadenas ARB siempre que añadas traducciones a dichos ARB, no escribas a mano en los archivos de traduccion dart.
 
+- **Los textos de debug nunca se traducen.** La UI de depuracion (barra de dispositivo, selector de estacion, badges de desarrollo, etc.) mantiene sus textos fijos, sin cadenas ARB.
+
 ## Utiliza siempre el widget universal de Hover en todas las tarjetas
 
 - Debes utilizar el widget universal de Hover en todas las tarjetas, y luego ya te ire yo diciendo el enrutamiento y todo eso hacia otras pantallas o reproductores

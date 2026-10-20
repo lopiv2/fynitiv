@@ -147,6 +147,9 @@ flutter:
     - assets/images/radio.png
     - assets/images/icons/surfer.svg
     - assets/images/icons/spaceship.svg
+    - assets/images/android.svg
+    - assets/images/Linux-Logo.png
+    - assets/images/windows.png
     # Iconos de badge para las filas estacionales (Halloween, Navidad...)
     - assets/images/seasonal/
     - assets/audio/splash_reveal.mp3

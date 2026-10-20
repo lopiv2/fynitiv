@@ -30,6 +30,7 @@ curso. Primera variante completa: Halloween.
 - [x] Modelo + registro de presentaciones; `flutter analyze`.
 - [x] `splash_screen.dart` renderiza desde la presentación y reacciona al cambio de estación; `flutter analyze`.
 - [x] Presentación de Halloween (audio + paleta + murciélagos) y Navidad (audio + recoloreado).
+- [x] La luna de Halloween se apaga con el relámpago (desaparece al revelarse el fondo blanco).
 - [x] `pubspec.yaml` + `main.dart` con los audios nuevos.
 - [x] `flutter analyze` sin problemas (`No issues found!`).
 
@@ -67,6 +68,9 @@ curso. Primera variante completa: Halloween.
     pantalla en el mismo instante; doble destello con subida rápida y
     caída exponencial en progreso 0.55).
   - Los `Image.asset` llevan `errorBuilder` para no romper si el asset no está disponible.
+  - La luna (`halloweenMoonEffect`) se desvanece con el relámpago (`vanish` desde
+    `_kLightningAt - 0.03` durante 0.06 de progreso): cuando el flash revela el fondo blanco
+    ya está a opacidad 0 y no choca con los murciélagos en primer plano.
   - El icono del tagline (incluida la ∞ de `Icons.all_inclusive`) usa el naranja de la paleta
     (`iconColor`) y `iconShadows` oscuras: sobre la imagen clara `halloween_back` el blanco
     original desaparecía. `Icon` y `MorphIcon` aceptan `shadows`, aplicadas en `splash_screen.dart`.

@@ -110,6 +110,36 @@ abstract class AppLocalizations {
   /// **'Watch. Read. Play. Anything'**
   String get splashTagline;
 
+  /// No description provided for @splashWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch.'**
+  String get splashWatch;
+
+  /// No description provided for @splashRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Read.'**
+  String get splashRead;
+
+  /// No description provided for @splashPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'Play.'**
+  String get splashPlay;
+
+  /// No description provided for @splashAnything.
+  ///
+  /// In en, this message translates to:
+  /// **'Anything'**
+  String get splashAnything;
+
+  /// No description provided for @splashAvailableOn.
+  ///
+  /// In en, this message translates to:
+  /// **'Available on:'**
+  String get splashAvailableOn;
+
   /// No description provided for @whoIsWatching.
   ///
   /// In en, this message translates to:
@@ -1207,6 +1237,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fast forward (x2, x4, up to x64)'**
   String get fastForward;
+
+  /// No description provided for @playbackSpeed.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback speed'**
+  String get playbackSpeed;
 
   /// Estimated end time label next to the player transport controls (e.g. Ends at 4:58 PM).
   ///
