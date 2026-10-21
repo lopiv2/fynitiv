@@ -1004,5 +1004,30 @@
       }
     }
   },
-  "subtitleSyncReset": "Restablecer sincronización"
+  "subtitleSyncReset": "Restablecer sincronización",
+  "customSkin": "Skin personalizado",
+  "customSkinHint": "Solo visible con el tema Custom. Usa los colores de Apariencia y añade tus propios scrolls a Inicio y VOD.",
+  "homeCustomRows": "Scrolls de Inicio",
+  "vodCustomRows": "Scrolls de VOD",
+  "addCustomRow": "Añadir scroll",
+  "editCustomRow": "Editar scroll",
+  "noCustomRows": "Sin scrolls personalizados todavía.",
+  "customName": "Nombre personalizado",
+  "genres": "Géneros",
+  "types": "Tipos",
+  "genreNamesHint": "Son los nombres exactos de género de Jellyfin (en inglés).",
+  "customSort": "Orden",
+  "sortRecent": "Más recientes",
+  "sortRating": "Mejor valoradas",
+  "sortAdded": "Añadidas recientemente",
+  "sortRandom": "Aleatorio",
+  "customLimit": "Límite",
+  "delete": "Eliminar",
+  "moveUp": "Subir",
+  "moveDown": "Bajar",
+  "needGenre": "Elige al menos un género",
+  "customRowAdded": "Scroll añadido",
+  "customRowUpdated": "Scroll actualizado",
+  "customRowRemoved": "Scroll eliminado",
+  "customRowTitle": "Título del scroll"
 }

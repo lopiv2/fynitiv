@@ -4807,6 +4807,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reset sync'**
   String get subtitleSyncReset;
+
+  /// No description provided for @customSkin.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom skin'**
+  String get customSkin;
+
+  /// No description provided for @customSkinHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Only shown with the Custom theme. Uses the Appearance colors and lets you add your own rows to Home and VOD.'**
+  String get customSkinHint;
+
+  /// No description provided for @homeCustomRows.
+  ///
+  /// In en, this message translates to:
+  /// **'Home rows'**
+  String get homeCustomRows;
+
+  /// No description provided for @vodCustomRows.
+  ///
+  /// In en, this message translates to:
+  /// **'VOD rows'**
+  String get vodCustomRows;
+
+  /// No description provided for @addCustomRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Add row'**
+  String get addCustomRow;
+
+  /// No description provided for @editCustomRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Edit row'**
+  String get editCustomRow;
+
+  /// No description provided for @noCustomRows.
+  ///
+  /// In en, this message translates to:
+  /// **'No custom rows yet.'**
+  String get noCustomRows;
+
+  /// No description provided for @customName.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom name'**
+  String get customName;
+
+  /// No description provided for @genres.
+  ///
+  /// In en, this message translates to:
+  /// **'Genres'**
+  String get genres;
+
+  /// No description provided for @types.
+  ///
+  /// In en, this message translates to:
+  /// **'Types'**
+  String get types;
+
+  /// No description provided for @genreNamesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'These are Jellyfin\'s exact genre names (in English).'**
+  String get genreNamesHint;
+
+  /// No description provided for @customSort.
+  ///
+  /// In en, this message translates to:
+  /// **'Sort'**
+  String get customSort;
+
+  /// No description provided for @sortRecent.
+  ///
+  /// In en, this message translates to:
+  /// **'Newest'**
+  String get sortRecent;
+
+  /// No description provided for @sortRating.
+  ///
+  /// In en, this message translates to:
+  /// **'Top rated'**
+  String get sortRating;
+
+  /// No description provided for @sortAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Recently added'**
+  String get sortAdded;
+
+  /// No description provided for @sortRandom.
+  ///
+  /// In en, this message translates to:
+  /// **'Random'**
+  String get sortRandom;
+
+  /// No description provided for @customLimit.
+  ///
+  /// In en, this message translates to:
+  /// **'Limit'**
+  String get customLimit;
+
+  /// No description provided for @delete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get delete;
+
+  /// No description provided for @moveUp.
+  ///
+  /// In en, this message translates to:
+  /// **'Move up'**
+  String get moveUp;
+
+  /// No description provided for @moveDown.
+  ///
+  /// In en, this message translates to:
+  /// **'Move down'**
+  String get moveDown;
+
+  /// No description provided for @needGenre.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick at least one genre'**
+  String get needGenre;
+
+  /// No description provided for @customRowAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Row added'**
+  String get customRowAdded;
+
+  /// No description provided for @customRowUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Row updated'**
+  String get customRowUpdated;
+
+  /// No description provided for @customRowRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Row removed'**
+  String get customRowRemoved;
+
+  /// No description provided for @customRowTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Row title'**
+  String get customRowTitle;
 }
 
 class _AppLocalizationsDelegate

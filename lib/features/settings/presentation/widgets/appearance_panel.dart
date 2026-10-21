@@ -18,6 +18,7 @@ import '../../../../core/widgets/logo_image.dart';
 import '../../../../core/widgets/scale_button.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../library/domain/seasonal_suggestion.dart';
+import 'custom_skin_section.dart';
 
 /// Panel de Apariencia: presets + editor de skin.
 class AppearancePanel extends ConsumerStatefulWidget {
@@ -108,6 +109,15 @@ class _AppearancePanelState extends ConsumerState<AppearancePanel> {
                 ],
               ),
               const SizedBox(height: 24),
+              // Scrolls custom: solo con el tema Custom. Usa los colores
+              // definidos en Apariencia (parte del propio skin).
+              if (_draft.id == 'custom') ...[
+                CustomSkinSection(
+                  draft: _draft,
+                  onChanged: _applyDraft,
+                ),
+                const SizedBox(height: 24),
+              ],
               // Contenido estacional: misma selección que la barra de debug.
               Text(
                 l10n.seasonalContent,

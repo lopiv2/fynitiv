@@ -2546,4 +2546,81 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get subtitleSyncReset => 'Restablecer sincronización';
+
+  @override
+  String get customSkin => 'Skin personalizado';
+
+  @override
+  String get customSkinHint =>
+      'Solo visible con el tema Custom. Usa los colores de Apariencia y añade tus propios scrolls a Inicio y VOD.';
+
+  @override
+  String get homeCustomRows => 'Scrolls de Inicio';
+
+  @override
+  String get vodCustomRows => 'Scrolls de VOD';
+
+  @override
+  String get addCustomRow => 'Añadir scroll';
+
+  @override
+  String get editCustomRow => 'Editar scroll';
+
+  @override
+  String get noCustomRows => 'Sin scrolls personalizados todavía.';
+
+  @override
+  String get customName => 'Nombre personalizado';
+
+  @override
+  String get genres => 'Géneros';
+
+  @override
+  String get types => 'Tipos';
+
+  @override
+  String get genreNamesHint =>
+      'Son los nombres exactos de género de Jellyfin (en inglés).';
+
+  @override
+  String get customSort => 'Orden';
+
+  @override
+  String get sortRecent => 'Más recientes';
+
+  @override
+  String get sortRating => 'Mejor valoradas';
+
+  @override
+  String get sortAdded => 'Añadidas recientemente';
+
+  @override
+  String get sortRandom => 'Aleatorio';
+
+  @override
+  String get customLimit => 'Límite';
+
+  @override
+  String get delete => 'Eliminar';
+
+  @override
+  String get moveUp => 'Subir';
+
+  @override
+  String get moveDown => 'Bajar';
+
+  @override
+  String get needGenre => 'Elige al menos un género';
+
+  @override
+  String get customRowAdded => 'Scroll añadido';
+
+  @override
+  String get customRowUpdated => 'Scroll actualizado';
+
+  @override
+  String get customRowRemoved => 'Scroll eliminado';
+
+  @override
+  String get customRowTitle => 'Título del scroll';
 }

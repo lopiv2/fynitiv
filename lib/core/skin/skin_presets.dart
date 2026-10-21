@@ -414,10 +414,50 @@ abstract final class SkinPresets {
     sidebarCollapsible: true,
   );
 
+  /// Skin Custom: punto de partida editable por el usuario.
+  /// Usa los colores que se definan en Apariencia y layouts base con los
+  /// bloques habituales; el usuario añade sus propios scrolls (custom) a
+  /// Inicio y VOD desde el editor de la sección "Skin personalizado".
+  static const Skin custom = Skin(
+    id: 'custom',
+    name: 'Custom',
+    primary: Color(0xFFAA5CC3),
+    secondary: Color(0xFF2B7FFF),
+    backgroundTop: Color(0xFF0B1030),
+    backgroundBottom: Color(0xFF1A2568),
+    sidebarBackground: Color(0xFF0A0E24),
+    accent: Color(0xFF2B7FFF),
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xB3FFFFFF),
+    sidebarLogo: 'assets/images/Logo_letter_fynitiv.png',
+    sidebarWidth: 260,
+    showContinueRow: true,
+    showNewReleasesRow: true,
+    cardBorderRadius: 10,
+    sidebarCollapsible: true,
+    titleMarqueeOnHover: true,
+    homeLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(),
+      LayoutSection.nextUp(),
+      LayoutSection.recent(),
+      LayoutSection.library(),
+    ],
+    vodLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(),
+      LayoutSection.nextUp(),
+      LayoutSection.newReleases(),
+      LayoutSection.library(),
+    ],
+    seerrLayout: _seerrDiscoverAll,
+  );
+
   static const List<Skin> all = [
     jellyfinDefault,
     disneyPlus,
     amazonPrime,
     movistarPlus,
+    custom,
   ];
 }

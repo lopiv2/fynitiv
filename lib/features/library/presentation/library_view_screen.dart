@@ -155,7 +155,7 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
         widget.titleOverride!.trim().isNotEmpty) {
       headerTitle = widget.titleOverride!;
     } else if (widget.scroll != null) {
-      headerTitle = _resolveScrollTitle(l10n, widget.scroll!.titleKey);
+      headerTitle = _resolveScrollTitle(l10n, widget.scroll!);
     } else if (view?.name != null && view!.name!.trim().isNotEmpty) {
       headerTitle = view.name!;
     } else {
@@ -453,8 +453,8 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
     );
   }
 
-  String _resolveScrollTitle(AppLocalizations l10n, HomeScrollTitle key) =>
-      HomeScrollTitle.resolve(l10n, key);
+  String _resolveScrollTitle(AppLocalizations l10n, HomeScroll scroll) =>
+      HomeScrollTitle.resolve(l10n, scroll.titleKey, scroll.customTitle);
 
   String _genreFromPipe(String pipe) {
     final parts = pipe.split('|');

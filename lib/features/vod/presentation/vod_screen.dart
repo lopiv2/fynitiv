@@ -632,7 +632,7 @@ class VodScreen extends ConsumerWidget {
                   final isNextPoster = isNextPosterFor(isBack);
                   final hasNext = rowCursor < visibleBackdrops.length - 1;
                   final w = ContentRow(
-                    title: _scrollTitle(l10n, s.titleKey),
+                    title: _scrollTitle(l10n, s),
                     items: items,
                     serverUrl: serverUrl,
                     height: rowHeight,
@@ -712,22 +712,25 @@ class VodScreen extends ConsumerWidget {
       body: DashboardBackground(
         child: initialLoading
             ? const Center(child: AppLoader())
-            : ListView(
-                padding: EdgeInsets.only(
-                  top: bannerAttached ? 0 : 54,
-                  bottom: 24,
+            : FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                child: ListView(
+                  padding: EdgeInsets.only(
+                    top: bannerAttached ? 0 : 54,
+                    bottom: 24,
+                  ),
+                  children: hasCustomVodLayout
+                      ? buildCustomVodChildren()
+                      : buildLegacyVodChildren(),
                 ),
-                children: hasCustomVodLayout
-                    ? buildCustomVodChildren()
-                    : buildLegacyVodChildren(),
               ),
       ),
     );
   }
 
-  /// Resuelve el título de una fila de contenido ([HomeScrollTitle]).
-  static String _scrollTitle(AppLocalizations l10n, HomeScrollTitle key) =>
-      HomeScrollTitle.resolve(l10n, key);
+  /// Resuelve el título de una fila de contenido ([HomeScroll]).
+  static String _scrollTitle(AppLocalizations l10n, HomeScroll scroll) =>
+      HomeScrollTitle.resolve(l10n, scroll.titleKey, scroll.customTitle);
 
   static CollectionType? _collectionTypeForKind(BaseItemKind kind) {
     switch (kind) {

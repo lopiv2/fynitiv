@@ -2536,4 +2536,81 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get subtitleSyncReset => 'Reset sync';
+
+  @override
+  String get customSkin => 'Custom skin';
+
+  @override
+  String get customSkinHint =>
+      'Only shown with the Custom theme. Uses the Appearance colors and lets you add your own rows to Home and VOD.';
+
+  @override
+  String get homeCustomRows => 'Home rows';
+
+  @override
+  String get vodCustomRows => 'VOD rows';
+
+  @override
+  String get addCustomRow => 'Add row';
+
+  @override
+  String get editCustomRow => 'Edit row';
+
+  @override
+  String get noCustomRows => 'No custom rows yet.';
+
+  @override
+  String get customName => 'Custom name';
+
+  @override
+  String get genres => 'Genres';
+
+  @override
+  String get types => 'Types';
+
+  @override
+  String get genreNamesHint =>
+      'These are Jellyfin\'s exact genre names (in English).';
+
+  @override
+  String get customSort => 'Sort';
+
+  @override
+  String get sortRecent => 'Newest';
+
+  @override
+  String get sortRating => 'Top rated';
+
+  @override
+  String get sortAdded => 'Recently added';
+
+  @override
+  String get sortRandom => 'Random';
+
+  @override
+  String get customLimit => 'Limit';
+
+  @override
+  String get delete => 'Delete';
+
+  @override
+  String get moveUp => 'Move up';
+
+  @override
+  String get moveDown => 'Move down';
+
+  @override
+  String get needGenre => 'Pick at least one genre';
+
+  @override
+  String get customRowAdded => 'Row added';
+
+  @override
+  String get customRowUpdated => 'Row updated';
+
+  @override
+  String get customRowRemoved => 'Row removed';
+
+  @override
+  String get customRowTitle => 'Row title';
 }

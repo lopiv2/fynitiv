@@ -729,7 +729,7 @@ class HomeScreen extends ConsumerWidget {
                       : useBackdrop;
                   final isNextPoster = isNextPosterFor(isBack);
                   final w = ContentRow(
-                    title: _scrollTitle(l10n, s.titleKey),
+                    title: _scrollTitle(l10n, s),
                     items: items,
                     serverUrl: serverUrl,
                     height: rowHeight,
@@ -826,9 +826,9 @@ class HomeScreen extends ConsumerWidget {
     );
   }
 
-  /// Resuelve el título de una fila de contenido ([HomeScrollTitle]).
-  static String _scrollTitle(AppLocalizations l10n, HomeScrollTitle key) =>
-      HomeScrollTitle.resolve(l10n, key);
+  /// Resuelve el título de una fila de contenido ([HomeScroll]).
+  static String _scrollTitle(AppLocalizations l10n, HomeScroll scroll) =>
+      HomeScrollTitle.resolve(l10n, scroll.titleKey, scroll.customTitle);
 
   static CollectionType? _collectionTypeForKind(BaseItemKind kind) {
     switch (kind) {

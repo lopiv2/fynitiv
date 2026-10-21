@@ -1007,5 +1007,30 @@
       }
     }
   },
-  "subtitleSyncReset": "Reset sync"
+  "subtitleSyncReset": "Reset sync",
+  "customSkin": "Custom skin",
+  "customSkinHint": "Only shown with the Custom theme. Uses the Appearance colors and lets you add your own rows to Home and VOD.",
+  "homeCustomRows": "Home rows",
+  "vodCustomRows": "VOD rows",
+  "addCustomRow": "Add row",
+  "editCustomRow": "Edit row",
+  "noCustomRows": "No custom rows yet.",
+  "customName": "Custom name",
+  "genres": "Genres",
+  "types": "Types",
+  "genreNamesHint": "These are Jellyfin's exact genre names (in English).",
+  "customSort": "Sort",
+  "sortRecent": "Newest",
+  "sortRating": "Top rated",
+  "sortAdded": "Recently added",
+  "sortRandom": "Random",
+  "customLimit": "Limit",
+  "delete": "Delete",
+  "moveUp": "Move up",
+  "moveDown": "Move down",
+  "needGenre": "Pick at least one genre",
+  "customRowAdded": "Row added",
+  "customRowUpdated": "Row updated",
+  "customRowRemoved": "Row removed",
+  "customRowTitle": "Row title"
 }

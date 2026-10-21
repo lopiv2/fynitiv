@@ -52,8 +52,13 @@ enum HomeScrollTitle {
   /// Clave usada en `HomeScroll.titleKey`.
   String get key => name;
 
-  /// Traduce el título (`custom` se devuelve tal cual).
-  static String resolve(AppLocalizations l10n, HomeScrollTitle title) {
+  /// Traduce el título (`custom` devuelve [customTitle] si no está vacío,
+  /// si no la clave tal cual).
+  static String resolve(
+    AppLocalizations l10n,
+    HomeScrollTitle title, [
+    String? customTitle,
+  ]) {
     switch (title) {
       case HomeScrollTitle.continueWatching:
         return l10n.continueWatching;
@@ -64,7 +69,8 @@ enum HomeScrollTitle {
       case HomeScrollTitle.library:
         return l10n.library;
       case HomeScrollTitle.custom:
-        return title.key;
+        final free = customTitle?.trim() ?? '';
+        return free.isEmpty ? title.key : free;
       case HomeScrollTitle.actionMovies:
         return l10n.actionMovies;
       case HomeScrollTitle.familyMovies:
@@ -170,6 +176,7 @@ enum HomeScrollSort { alphabetical, recent, rating, added, random }
 class HomeScroll {
   const HomeScroll({
     required this.titleKey,
+    this.customTitle,
     this.genres = const [],
     this.types = const [BaseItemKind.movie, BaseItemKind.series],
     this.limit = 20,
@@ -200,6 +207,10 @@ class HomeScroll {
 
   /// Título de la fila como enum ([HomeScrollTitle], sin cadenas).
   final HomeScrollTitle titleKey;
+
+  /// Nombre libre para la fila. Solo se usa cuando
+  /// [titleKey] es [HomeScrollTitle.custom]; `null`/vacío = clave tal cual.
+  final String? customTitle;
 
   /// Géneros de Jellyfin ([JellyGenre]) para filtrar la fila.
   /// Se muestran los elementos que tengan cualquiera de estos géneros.
@@ -291,6 +302,8 @@ class HomeScroll {
 
   Map<String, dynamic> toJson() => {
     'titleKey': titleKey.name,
+    if (customTitle != null && customTitle!.trim().isNotEmpty)
+      'customTitle': customTitle!.trim(),
     'genres': genres.map((g) => g.value).toList(),
     'types': types.map((t) => t.name).toList(),
     'limit': limit,
@@ -323,6 +336,9 @@ class HomeScroll {
     titleKey:
         HomeScrollTitle.values.asNameMap()[json['titleKey'] as String? ?? ''] ??
         HomeScrollTitle.custom,
+    customTitle: (json['customTitle'] as String?)?.trim().isNotEmpty == true
+        ? (json['customTitle'] as String).trim()
+        : null,
     // Los JSON guardados traen nombres de la API; los desconocidos se omiten.
     genres: ((json['genres'] as List?) ?? const [])
         .map((e) => JellyGenre.fromValue(e as String?))
@@ -384,6 +400,7 @@ class HomeScroll {
   bool operator ==(Object other) =>
       other is HomeScroll &&
       other.titleKey == titleKey &&
+      other.customTitle == customTitle &&
       listEquals(other.genres, genres) &&
       listEquals(other.types, types) &&
       other.limit == limit &&
@@ -414,6 +431,7 @@ class HomeScroll {
   @override
   int get hashCode => Object.hashAll([
     titleKey,
+    customTitle,
     genres,
     types,
     limit,
