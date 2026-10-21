@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'home_scroll.dart';
 import 'layout_section.dart';
 import 'skin.dart';
 import 'skin_presets.dart';
@@ -15,13 +16,44 @@ const _kSkinPresetKey = 'jellyfin.skin_preset';
 /// (rehidratación desde preset o JSON sin la clave).
 const _kTitleMarqueeKey = 'fynitiv.title_marquee';
 
+/// Retitula scrolls custom legacy guardados con el título "Acción" por
+/// defecto: si sus géneros coinciden exactamente con otro título conocido
+/// (vía [titleForGenres]), adopta ese título. Devuelve la misma instancia
+/// si no hay nada que cambiar.
+Skin _migrateLegacyCustomTitles(Skin skin) {
+  var changed = false;
+  List<LayoutSection> fix(List<LayoutSection> layout) {
+    var listChanged = false;
+    final out = layout.map((section) {
+      if (section.type != LayoutSectionType.custom) return section;
+      final scroll = section.scroll;
+      if (scroll == null ||
+          scroll.titleKey != HomeScrollTitle.actionMovies) {
+        return section;
+      }
+      final match = titleForGenres(scroll.genres.toSet());
+      if (match == null || match == HomeScrollTitle.actionMovies) {
+        return section;
+      }
+      listChanged = true;
+      return LayoutSection.custom(scroll.copyWith(titleKey: match));
+    }).toList();
+    if (listChanged) changed = true;
+    return listChanged ? out : layout;
+  }
+
+  final home = fix(skin.homeLayout);
+  final vod = fix(skin.vodLayout);
+  if (!changed) return skin;
+  return skin.copyWith(homeLayout: home, vodLayout: vod);
+}
+
 /// Skin activo de la app (persistido).
 ///
 /// Si el usuario aplicó un preset sin personalizarlo, solo se guarda su id
 /// para que el skin se rehidrate SIEMPRE de la definición actual del preset
 /// en el código (así los cambios en `SkinPresets` se reflejan al recargar).
-class SkinController extends AsyncNotifier<Skin> {
-  @override
+class SkinController extends AsyncNotifier<Skin> {  @override
   Future<Skin> build() async {
     final prefs = await SharedPreferences.getInstance();
     // Preset sin personalizar → usar la definición actual en el código.
@@ -42,6 +74,20 @@ class SkinController extends AsyncNotifier<Skin> {
         if (skin.id == 'amazon_prime' &&
             !map.containsKey('showCardBadge')) {
           skin = skin.copyWith(showCardBadge: true);
+        }
+        // Migración: scrolls custom guardados cuando el diálogo nacía con el
+        // título "Acción" por defecto sin ligar géneros. Si una fila custom
+        // sigue titulada `actionMovies` pero sus géneros coinciden
+        // exactamente con otro título conocido (p. ej. solo comedia), se
+        // retitula a ese (`comedies`, ...) para que lo mostrado y lo
+        // filtrado coincidan. Se persiste una sola vez.
+        final legacyFixed = _migrateLegacyCustomTitles(skin);
+        if (!identical(legacyFixed, skin)) {
+          skin = legacyFixed;
+          // ignore: unawaited_futures
+          SharedPreferences.getInstance().then((p) {
+            p.setString(_kSkinKey, jsonEncode(skin.toJson()));
+          });
         }
         // Migración: skins custom guardados antes de que `newReleases` tuviera
         // `showLogo:true` (vodLayout con logo de película/serie). Si el preset

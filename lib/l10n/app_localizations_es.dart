@@ -1382,6 +1382,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get genreAnime => 'Anime';
 
   @override
+  String get genreBiography => 'Biografía';
+
+  @override
   String get genreComedy => 'Comedia';
 
   @override
@@ -1412,6 +1415,9 @@ class AppLocalizationsEs extends AppLocalizations {
   String get genreMusic => 'Música';
 
   @override
+  String get genreMusical => 'Musical';
+
+  @override
   String get genreMystery => 'Misterio';
 
   @override
@@ -1430,7 +1436,16 @@ class AppLocalizationsEs extends AppLocalizations {
   String get genreSciFiFantasy => 'Ciencia ficción y fantasía';
 
   @override
+  String get genreShort => 'Cortometraje';
+
+  @override
   String get genreSoap => 'Telenovela';
+
+  @override
+  String get genreSport => 'Deportes';
+
+  @override
+  String get genreSuperhero => 'Superhéroes';
 
   @override
   String get genreTalkShow => 'Programa de entrevistas';
@@ -2580,7 +2595,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get genreNamesHint =>
-      'Son los nombres exactos de género de Jellyfin (en inglés).';
+      'Los géneros se muestran traducidos; el filtrado usa los nombres exactos de Jellyfin.';
 
   @override
   String get customSort => 'Orden';
@@ -2623,4 +2638,23 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get customRowTitle => 'Título del scroll';
+
+  @override
+  String get addSlider => 'Añadir slider destacado';
+
+  @override
+  String get featuredSliderName => 'Slider destacado';
+
+  @override
+  String get showBannerRow => 'Mostrar slider destacado';
+
+  @override
+  String get showBannerRowHint =>
+      'Si está apagado, los sliders no se muestran en Inicio ni VOD.';
+
+  @override
+  String get sliderAdded => 'Slider añadido';
+
+  @override
+  String get sliderRemoved => 'Slider eliminado';
 }

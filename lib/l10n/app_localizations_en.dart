@@ -1378,6 +1378,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get genreAnime => 'Anime';
 
   @override
+  String get genreBiography => 'Biography';
+
+  @override
   String get genreComedy => 'Comedy';
 
   @override
@@ -1408,6 +1411,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get genreMusic => 'Music';
 
   @override
+  String get genreMusical => 'Musical';
+
+  @override
   String get genreMystery => 'Mystery';
 
   @override
@@ -1426,7 +1432,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get genreSciFiFantasy => 'Sci-Fi & Fantasy';
 
   @override
+  String get genreShort => 'Short';
+
+  @override
   String get genreSoap => 'Soap';
+
+  @override
+  String get genreSport => 'Sport';
+
+  @override
+  String get genreSuperhero => 'Superhero';
 
   @override
   String get genreTalkShow => 'Talk Show';
@@ -2570,7 +2585,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get genreNamesHint =>
-      'These are Jellyfin\'s exact genre names (in English).';
+      'Genres are shown translated; filtering uses Jellyfin\'s exact names.';
 
   @override
   String get customSort => 'Sort';
@@ -2613,4 +2628,23 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get customRowTitle => 'Row title';
+
+  @override
+  String get addSlider => 'Add featured slider';
+
+  @override
+  String get featuredSliderName => 'Featured slider';
+
+  @override
+  String get showBannerRow => 'Show featured slider';
+
+  @override
+  String get showBannerRowHint =>
+      'If off, featured sliders are hidden on Home and VOD.';
+
+  @override
+  String get sliderAdded => 'Slider added';
+
+  @override
+  String get sliderRemoved => 'Slider removed';
 }

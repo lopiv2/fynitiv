@@ -10,6 +10,7 @@ import '../../../../core/skin/skin.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/scale_button.dart';
 import '../../../../l10n/app_localizations.dart';
+import '../../../../l10n/genre_localizer.dart';
 
 /// Títulos ofrecidos en el editor de scrolls custom (contenido + libre).
 /// Se excluyen los built-in (`continueWatching`, `nextUp`...) y `seasonal`
@@ -72,11 +73,51 @@ class CustomSkinSection extends StatelessWidget {
           style: const TextStyle(color: Colors.white38, fontSize: 11),
         ),
         const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                l10n.showBannerRow,
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ),
+            Switch(
+              value: draft.showNewReleasesBanner,
+              onChanged: (v) => onChanged(
+                draft.copyWith(showNewReleasesBanner: v),
+              ),
+            ),
+          ],
+        ),
+        Text(
+          l10n.showBannerRowHint,
+          style: const TextStyle(color: Colors.white38, fontSize: 11),
+        ),
+        const SizedBox(height: 10),
         _GroupBlock(
           title: l10n.homeCustomRows,
           layout: draft.homeLayout,
           onChangedLayout: (layout) =>
               onChanged(draft.copyWith(homeLayout: layout)),
+          onAddSlider: () {
+            onChanged(
+              draft.copyWith(
+                homeLayout: [
+                  ...draft.homeLayout,
+                  const LayoutSection.featuredSlider(),
+                ],
+                showNewReleasesBanner: true,
+              ),
+            );
+            unawaited(
+              EasyLoading.showToast(
+                l10n.sliderAdded,
+                toastPosition: EasyLoadingToastPosition.bottom,
+                maskType: EasyLoadingMaskType.none,
+                dismissOnTap: true,
+              ),
+            );
+          },
         ),
         const SizedBox(height: 16),
         _GroupBlock(
@@ -84,31 +125,57 @@ class CustomSkinSection extends StatelessWidget {
           layout: draft.vodLayout,
           onChangedLayout: (layout) =>
               onChanged(draft.copyWith(vodLayout: layout)),
+          onAddSlider: () {
+            onChanged(
+              draft.copyWith(
+                vodLayout: [
+                  ...draft.vodLayout,
+                  const LayoutSection.featuredSlider(),
+                ],
+                showNewReleasesBanner: true,
+              ),
+            );
+            unawaited(
+              EasyLoading.showToast(
+                l10n.sliderAdded,
+                toastPosition: EasyLoadingToastPosition.bottom,
+                maskType: EasyLoadingMaskType.none,
+                dismissOnTap: true,
+              ),
+            );
+          },
         ),
       ],
     );
   }
 }
 
-/// Bloque de un grupo (Inicio o VOD): lista solo las secciones `custom` con
-/// añadir / editar / eliminar / subir / bajar.
+/// Bloque de un grupo (Inicio o VOD): lista las secciones `custom` y
+/// `featuredSlider` con añadir / editar (solo scrolls) / eliminar / subir /
+/// bajar. Las built-ins de contenido (continue, nextUp...) no se gestionan.
 class _GroupBlock extends StatelessWidget {
   const _GroupBlock({
     required this.title,
     required this.layout,
     required this.onChangedLayout,
+    required this.onAddSlider,
   });
 
   final String title;
   final List<LayoutSection> layout;
   final ValueChanged<List<LayoutSection>> onChangedLayout;
+  final VoidCallback onAddSlider;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final customs = <int>[];
+    final managed = <int>[];
     for (var i = 0; i < layout.length; i++) {
-      if (layout[i].type == LayoutSectionType.custom) customs.add(i);
+      final type = layout[i].type;
+      if (type == LayoutSectionType.custom ||
+          type == LayoutSectionType.featuredSlider) {
+        managed.add(i);
+      }
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -159,10 +226,40 @@ class _GroupBlock extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 8),
+            Tooltip(
+              message: l10n.addSlider,
+              child: ScaleButton(
+                selectedScale: 1.05,
+                borderRadius: BorderRadius.circular(12),
+                onPressed: onAddSlider,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.white.withValues(alpha: 0.08),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.view_carousel_outlined,
+                        size: 16,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 8),
-        if (customs.isEmpty)
+        if (managed.isEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
@@ -171,8 +268,9 @@ class _GroupBlock extends StatelessWidget {
             ),
           )
         else
-          for (final index in customs)
-            _CustomRowTile(
+          for (final index in managed)
+            if (layout[index].type == LayoutSectionType.custom)
+              _CustomRowTile(
               scroll: layout[index].scroll!,
               canUp: index > 0,
               canDown: index < layout.length - 1,
@@ -219,7 +317,38 @@ class _GroupBlock extends StatelessWidget {
                   ),
                 );
               },
-            ),
+            )
+            else
+              _SliderTile(
+                canUp: index > 0,
+                canDown: index < layout.length - 1,
+                onUp: () {
+                  final next = [...layout];
+                  final tmp = next[index - 1];
+                  next[index - 1] = next[index];
+                  next[index] = tmp;
+                  onChangedLayout(next);
+                },
+                onDown: () {
+                  final next = [...layout];
+                  final tmp = next[index + 1];
+                  next[index + 1] = next[index];
+                  next[index] = tmp;
+                  onChangedLayout(next);
+                },
+                onDelete: () {
+                  final next = [...layout]..removeAt(index);
+                  onChangedLayout(next);
+                  unawaited(
+                    EasyLoading.showToast(
+                      l10n.sliderRemoved,
+                      toastPosition: EasyLoadingToastPosition.bottom,
+                      maskType: EasyLoadingMaskType.none,
+                      dismissOnTap: true,
+                    ),
+                  );
+                },
+              ),
       ],
     );
   }
@@ -263,7 +392,7 @@ class _CustomRowTile extends StatelessWidget {
     final title =
         HomeScrollTitle.resolve(l10n, scroll.titleKey, scroll.customTitle);
     final subtitle = [
-      scroll.genres.map((g) => g.value).join(', '),
+      scroll.genres.map((g) => localizeJellyGenre(g, l10n)).join(', '),
       scroll.types
           .map(
             (t) => t == BaseItemKind.series
@@ -336,6 +465,80 @@ class _CustomRowTile extends StatelessWidget {
   }
 }
 
+/// Fila del editor para un slider destacado: sin edición (usa los ajustes de
+/// banner del skin), solo subir / bajar / eliminar. Sin [AppHover] con tap
+/// para no capturar foco TV en una fila sin acción.
+class _SliderTile extends StatelessWidget {
+  const _SliderTile({
+    required this.canUp,
+    required this.canDown,
+    required this.onUp,
+    required this.onDown,
+    required this.onDelete,
+  });
+
+  final bool canUp;
+  final bool canDown;
+  final VoidCallback onUp;
+  final VoidCallback onDown;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.white.withValues(alpha: 0.06),
+          border: Border.all(color: Colors.white12),
+        ),
+        child: Row(
+          children: [
+            const Icon(
+              Icons.view_carousel_outlined,
+              size: 18,
+              color: Colors.white70,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                l10n.featuredSliderName,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (canUp)
+              IconButton(
+                tooltip: l10n.moveUp,
+                icon: const Icon(Icons.arrow_upward,
+                    size: 18, color: Colors.white70),
+                onPressed: onUp,
+              ),
+            if (canDown)
+              IconButton(
+                tooltip: l10n.moveDown,
+                icon: const Icon(Icons.arrow_downward,
+                    size: 18, color: Colors.white70),
+                onPressed: onDown,
+              ),
+            IconButton(
+              tooltip: l10n.delete,
+              icon:
+                  const Icon(Icons.delete_outline, size: 18, color: Colors.white70),
+              onPressed: onDelete,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// Diálogo para añadir o editar un scroll custom.
 class _CustomRowDialog extends StatefulWidget {
   const _CustomRowDialog({this.initial});
@@ -359,7 +562,10 @@ class _CustomRowDialogState extends State<_CustomRowDialog> {
   void initState() {
     super.initState();
     final initial = widget.initial;
-    _titleKey = initial?.titleKey ?? HomeScrollTitle.actionMovies;
+    // Fila nueva: título libre y ningún género marcado. El título sigue a
+    // los chips (coincidencia exacta) o se escribe a mano; así nunca nace
+    // una fila "Acción" con otros géneros.
+    _titleKey = initial?.titleKey ?? HomeScrollTitle.custom;
     if (!_customTitles.contains(_titleKey)) {
       _titleKey = HomeScrollTitle.custom;
     }
@@ -398,12 +604,18 @@ class _CustomRowDialogState extends State<_CustomRowDialog> {
       return;
     }
     final initial = widget.initial;
+    final l10n = AppLocalizations.of(context)!;
     final name = _nameController.text.trim();
+    // Nombre libre: si se dejó vacío, se titula con sus géneros traducidos
+    // (p. ej. "Comedia, Drama") en vez de mostrar la clave en crudo.
+    final freeTitle = name.isNotEmpty
+        ? name
+        : _genres.map((g) => localizeJellyGenre(g, l10n)).join(', ');
     Navigator.of(context).pop(
       HomeScroll(
         titleKey: _titleKey,
-        customTitle: _titleKey == HomeScrollTitle.custom && name.isNotEmpty
-            ? name
+        customTitle: _titleKey == HomeScrollTitle.custom && freeTitle.isNotEmpty
+            ? freeTitle
             : null,
         genres: _genres.toList(),
         types: _types.toList(),
@@ -465,7 +677,16 @@ class _CustomRowDialogState extends State<_CustomRowDialog> {
                 ],
                 onChanged: (v) {
                   if (v == null) return;
-                  setState(() => _titleKey = v);
+                  setState(() {
+                    _titleKey = v;
+                    // El título manda: autofiltra sus géneros por defecto para
+                    // que lo mostrado y lo filtrado coincidan. Sin valores
+                    // (títulos sin género directo) se respeta lo ya elegido.
+                    final defaults = defaultGenresForTitle[v];
+                    if (defaults != null && defaults.isNotEmpty) {
+                      _genres = defaults.toSet();
+                    }
+                  });
                 },
               ),
               if (_titleKey == HomeScrollTitle.custom) ...[
@@ -492,13 +713,25 @@ class _CustomRowDialogState extends State<_CustomRowDialog> {
                 children: [
                   for (final genre in JellyGenre.values)
                     FilterChip(
-                      label: Text(genre.value),
+                      label: Text(localizeJellyGenre(genre, l10n)),
                       selected: _genres.contains(genre),
                       onSelected: (selected) => setState(() {
                         if (selected) {
                           _genres.add(genre);
                         } else {
                           _genres.remove(genre);
+                        }
+                        // Los chips mandan: si la combinación elegida coincide
+                        // exactamente con un título conocido, el título la
+                        // sigue (p. ej. {comedia} → "Comedias"). Se respeta
+                        // el nombre libre solo si ya se escribió; las
+                        // combinaciones libres sin nombre se titulan al
+                        // guardar con sus géneros traducidos.
+                        final match = titleForGenres(_genres);
+                        if (match != null &&
+                            (_titleKey != HomeScrollTitle.custom ||
+                                _nameController.text.trim().isEmpty)) {
+                          _titleKey = match;
                         }
                       }),
                     ),

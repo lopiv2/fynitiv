@@ -10,6 +10,7 @@ import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/scroll_title.dart';
 import '../../../l10n/app_localizations.dart';
 import '../application/library_providers.dart';
 import 'widgets/content_row.dart';
@@ -384,9 +385,11 @@ class HomeScreen extends ConsumerWidget {
             break;
           case LayoutSectionType.custom:
             final s = section.scroll!;
-            final items =
-                ref.watch(homeScrollItemsProvider(s)).value ?? const [];
-            if (items.isEmpty) break;
+            final scrollItems = ref.watch(homeScrollItemsProvider(s));
+            final items = scrollItems.value ?? const [];
+            // En carga cuenta como presente: la fila aparece al instante
+            // (título + loader) en vez de esperar a que responda la API.
+            if (items.isEmpty && !scrollItems.isLoading) break;
             final isBack = s.cardType == HomeScrollCardType.backdrop
                 ? true
                 : s.cardType == HomeScrollCardType.poster
@@ -719,15 +722,39 @@ class HomeScreen extends ConsumerWidget {
             out.add(
               Builder(
                 builder: (context) {
-                  final items =
-                      ref.watch(homeScrollItemsProvider(s)).value ?? const [];
-                  if (items.isEmpty) return const SizedBox.shrink();
+                  final scrollItems = ref.watch(homeScrollItemsProvider(s));
+                  final items = scrollItems.value ?? const [];
                   final isBack = s.cardType == HomeScrollCardType.backdrop
                       ? true
                       : s.cardType == HomeScrollCardType.poster
                       ? false
                       : useBackdrop;
                   final isNextPoster = isNextPosterFor(isBack);
+                  if (items.isEmpty) {
+                    // Carga inicial: la fila se muestra al instante con su
+                    // título traducido y un loader; al llegar la API se pinta
+                    // el ContentRow. Sin resultados reales se oculta igual.
+                    // Sin elementos enfocables: no altera el foco de TV.
+                    if (!scrollItems.isLoading) {
+                      return const SizedBox.shrink();
+                    }
+                    final w = Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: ScrollTitle(title: _scrollTitle(l10n, s)),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          height: rowHeight,
+                          child: const Center(child: AppLoader()),
+                        ),
+                      ],
+                    );
+                    rowCursor++;
+                    return w;
+                  }
                   final w = ContentRow(
                     title: _scrollTitle(l10n, s),
                     items: items,

@@ -2696,6 +2696,12 @@ abstract class AppLocalizations {
   /// **'Anime'**
   String get genreAnime;
 
+  /// No description provided for @genreBiography.
+  ///
+  /// In en, this message translates to:
+  /// **'Biography'**
+  String get genreBiography;
+
   /// No description provided for @genreComedy.
   ///
   /// In en, this message translates to:
@@ -2756,6 +2762,12 @@ abstract class AppLocalizations {
   /// **'Music'**
   String get genreMusic;
 
+  /// No description provided for @genreMusical.
+  ///
+  /// In en, this message translates to:
+  /// **'Musical'**
+  String get genreMusical;
+
   /// No description provided for @genreMystery.
   ///
   /// In en, this message translates to:
@@ -2792,11 +2804,29 @@ abstract class AppLocalizations {
   /// **'Sci-Fi & Fantasy'**
   String get genreSciFiFantasy;
 
+  /// No description provided for @genreShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Short'**
+  String get genreShort;
+
   /// No description provided for @genreSoap.
   ///
   /// In en, this message translates to:
   /// **'Soap'**
   String get genreSoap;
+
+  /// No description provided for @genreSport.
+  ///
+  /// In en, this message translates to:
+  /// **'Sport'**
+  String get genreSport;
+
+  /// No description provided for @genreSuperhero.
+  ///
+  /// In en, this message translates to:
+  /// **'Superhero'**
+  String get genreSuperhero;
 
   /// No description provided for @genreTalkShow.
   ///
@@ -4871,7 +4901,7 @@ abstract class AppLocalizations {
   /// No description provided for @genreNamesHint.
   ///
   /// In en, this message translates to:
-  /// **'These are Jellyfin\'s exact genre names (in English).'**
+  /// **'Genres are shown translated; filtering uses Jellyfin\'s exact names.'**
   String get genreNamesHint;
 
   /// No description provided for @customSort.
@@ -4957,6 +4987,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Row title'**
   String get customRowTitle;
+
+  /// No description provided for @addSlider.
+  ///
+  /// In en, this message translates to:
+  /// **'Add featured slider'**
+  String get addSlider;
+
+  /// No description provided for @featuredSliderName.
+  ///
+  /// In en, this message translates to:
+  /// **'Featured slider'**
+  String get featuredSliderName;
+
+  /// No description provided for @showBannerRow.
+  ///
+  /// In en, this message translates to:
+  /// **'Show featured slider'**
+  String get showBannerRow;
+
+  /// No description provided for @showBannerRowHint.
+  ///
+  /// In en, this message translates to:
+  /// **'If off, featured sliders are hidden on Home and VOD.'**
+  String get showBannerRowHint;
+
+  /// No description provided for @sliderAdded.
+  ///
+  /// In en, this message translates to:
+  /// **'Slider added'**
+  String get sliderAdded;
+
+  /// No description provided for @sliderRemoved.
+  ///
+  /// In en, this message translates to:
+  /// **'Slider removed'**
+  String get sliderRemoved;
 }
 
 class _AppLocalizationsDelegate

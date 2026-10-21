@@ -114,6 +114,53 @@ enum HomeScrollTitle {
   }
 }
 
+/// Géneros que cada título de scroll custom trae por defecto.
+/// El título mostrado (traducido vía ARB) y el contenido filtrado van así
+/// siempre acordes: elegir "Comedias" filtra comedia. Los títulos sin
+/// correspondencia directa en [JellyGenre] (nostalgia, cocina, viajes) traen
+/// lista vacía y sus géneros se fijan a mano.
+const Map<HomeScrollTitle, List<JellyGenre>> defaultGenresForTitle = {
+  HomeScrollTitle.actionMovies: [JellyGenre.action],
+  HomeScrollTitle.familyMovies: [
+    JellyGenre.animation,
+    JellyGenre.family,
+    JellyGenre.kids,
+  ],
+  HomeScrollTitle.romanticMovies: [JellyGenre.romance],
+  HomeScrollTitle.animationMovies: [JellyGenre.animation],
+  HomeScrollTitle.realities: [JellyGenre.reality],
+  HomeScrollTitle.animeSeries: [JellyGenre.anime],
+  HomeScrollTitle.nostalgia: [],
+  HomeScrollTitle.dramas: [JellyGenre.drama],
+  HomeScrollTitle.comedies: [JellyGenre.comedy],
+  HomeScrollTitle.actionAdventure: [JellyGenre.action, JellyGenre.adventure],
+  HomeScrollTitle.musicals: [JellyGenre.musical, JellyGenre.music],
+  HomeScrollTitle.foodCooking: [],
+  HomeScrollTitle.travel: [],
+  HomeScrollTitle.sciFi: [JellyGenre.sciFi],
+  HomeScrollTitle.western: [JellyGenre.western],
+  HomeScrollTitle.crime: [
+    JellyGenre.crime,
+    JellyGenre.mystery,
+    JellyGenre.suspense,
+    JellyGenre.thriller,
+  ],
+  HomeScrollTitle.horror: [JellyGenre.horror],
+  HomeScrollTitle.superHero: [JellyGenre.superhero],
+};
+
+/// Título cuyo [defaultGenresForTitle] coincide exactamente con [genres]
+/// (sin importar el orden), o `null` si es una combinación libre.
+HomeScrollTitle? titleForGenres(Set<JellyGenre> genres) {
+  if (genres.isEmpty) return null;
+  for (final entry in defaultGenresForTitle.entries) {
+    final defaults = entry.value;
+    if (defaults.isEmpty || defaults.length != genres.length) continue;
+    if (genres.containsAll(defaults)) return entry.key;
+  }
+  return null;
+}
+
 /// Qué hace pulsar una tarjeta de la fila:
 /// - play: reproduce directamente (comportamiento actual).
 /// - details: abre la pantalla de detalle del item (y de ahí su lógica).
@@ -300,8 +347,73 @@ class HomeScroll {
   final int? yearFrom;
   final int? yearTo;
 
-  Map<String, dynamic> toJson() => {
-    'titleKey': titleKey.name,
+  /// Copia con cambios puntuales (p. ej. migración de títulos legacy).
+  HomeScroll copyWith({
+    HomeScrollTitle? titleKey,
+    String? customTitle,
+    List<JellyGenre>? genres,
+    List<BaseItemKind>? types,
+    int? limit,
+    bool? bottomVignette,
+    double? bottomVignetteHeight,
+    double? bottomVignetteOpacity,
+    HomeScrollCardType? cardType,
+    RowImageSource? imageSource,
+    bool? metaOverlay,
+    RowMetaAlign? metaAlignment,
+    bool? showNewBadge,
+    bool? showLogo,
+    RowLogoPosition? logoPosition,
+    double? logoSize,
+    bool? hideTitle,
+    bool? hideYear,
+    bool? showHoverOverlay,
+    bool? showPlayIcon,
+    bool? highlightTitleOnHover,
+    double? cardBorderRadius,
+    double? hoverScale,
+    bool? showSeeMore,
+    HomeScrollSort? sort,
+    HomeScrollTapAction? tapAction,
+    int? yearFrom,
+    int? yearTo,
+  }) {
+    return HomeScroll(
+      titleKey: titleKey ?? this.titleKey,
+      customTitle: customTitle ?? this.customTitle,
+      genres: genres ?? this.genres,
+      types: types ?? this.types,
+      limit: limit ?? this.limit,
+      bottomVignette: bottomVignette ?? this.bottomVignette,
+      bottomVignetteHeight:
+          bottomVignetteHeight ?? this.bottomVignetteHeight,
+      bottomVignetteOpacity:
+          bottomVignetteOpacity ?? this.bottomVignetteOpacity,
+      cardType: cardType ?? this.cardType,
+      imageSource: imageSource ?? this.imageSource,
+      metaOverlay: metaOverlay ?? this.metaOverlay,
+      metaAlignment: metaAlignment ?? this.metaAlignment,
+      showNewBadge: showNewBadge ?? this.showNewBadge,
+      showLogo: showLogo ?? this.showLogo,
+      logoPosition: logoPosition ?? this.logoPosition,
+      logoSize: logoSize ?? this.logoSize,
+      hideTitle: hideTitle ?? this.hideTitle,
+      hideYear: hideYear ?? this.hideYear,
+      showHoverOverlay: showHoverOverlay ?? this.showHoverOverlay,
+      showPlayIcon: showPlayIcon ?? this.showPlayIcon,
+      highlightTitleOnHover:
+          highlightTitleOnHover ?? this.highlightTitleOnHover,
+      cardBorderRadius: cardBorderRadius ?? this.cardBorderRadius,
+      hoverScale: hoverScale ?? this.hoverScale,
+      showSeeMore: showSeeMore ?? this.showSeeMore,
+      sort: sort ?? this.sort,
+      tapAction: tapAction ?? this.tapAction,
+      yearFrom: yearFrom ?? this.yearFrom,
+      yearTo: yearTo ?? this.yearTo,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {    'titleKey': titleKey.name,
     if (customTitle != null && customTitle!.trim().isNotEmpty)
       'customTitle': customTitle!.trim(),
     'genres': genres.map((g) => g.value).toList(),
@@ -432,8 +544,11 @@ class HomeScroll {
   int get hashCode => Object.hashAll([
     titleKey,
     customTitle,
-    genres,
-    types,
+    // Por contenido (como `==` con `listEquals`): dos scrolls iguales deben
+    // compartir provider en `homeScrollItemsProvider` aunque vengan de
+    // instancias distintas (p. ej. tras editar el skin).
+    Object.hashAll(genres.map((g) => g.index)),
+    Object.hashAll(types.map((t) => t.index)),
     limit,
     bottomVignette,
     bottomVignetteHeight,
