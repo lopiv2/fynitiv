@@ -1445,13 +1445,13 @@ abstract class AppLocalizations {
   /// No description provided for @music.
   ///
   /// In en, this message translates to:
-  /// **'Music Player'**
+  /// **'Music'**
   String get music;
 
   /// No description provided for @eReader.
   ///
   /// In en, this message translates to:
-  /// **'E-Reader'**
+  /// **'Books'**
   String get eReader;
 
   /// No description provided for @eReaderDescription.
@@ -5023,6 +5023,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Slider removed'**
   String get sliderRemoved;
+
+  /// No description provided for @shows.
+  ///
+  /// In en, this message translates to:
+  /// **'TV Shows'**
+  String get shows;
+
+  /// No description provided for @movies.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies'**
+  String get movies;
+
+  /// No description provided for @myNetflix.
+  ///
+  /// In en, this message translates to:
+  /// **'My Netflix'**
+  String get myNetflix;
+
+  /// Prime hover button to resume a series (e.g. Resume S1 E18).
+  ///
+  /// In en, this message translates to:
+  /// **'Resume S{season} E{episode}'**
+  String resumeSeasonEpisode(int season, int episode);
 }
 
 class _AppLocalizationsDelegate

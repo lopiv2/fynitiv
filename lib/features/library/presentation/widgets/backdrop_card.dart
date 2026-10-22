@@ -816,7 +816,13 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
         showHoverDarkening: widget.showHoverOverlay,
         showPlayIcon: widget.showPlayIcon,
         showIncludedBadge: widget.showHoverIncludedBadge,
-        hoverActionLabel: widget.hoverActionLabel,
+        hoverActionLabel:
+            widget.hoverActionLabel ??
+            primeSeriesResumeLabel(
+              skinId: skin?.id,
+              item: widget.item,
+              l10n: l10n,
+            ),
         hoverScale: widget.hoverScale,
         onHoverChanged: (v) {
           _setHovered(v);

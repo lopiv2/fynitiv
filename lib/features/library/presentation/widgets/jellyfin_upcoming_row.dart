@@ -5,7 +5,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../../core/constants/ui_constants.dart';
 import '../../../../core/skin/home_scroll.dart';
-import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/scroll_title.dart';

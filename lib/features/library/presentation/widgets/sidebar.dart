@@ -12,14 +12,17 @@ import '../../../../core/navigation/sidebar_controller.dart';
 import '../../../../core/navigation/tv_focus_nodes.dart';
 import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
+import '../../../../core/skin/skin_enums.dart';
 import '../../../../core/widgets/scale_button.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/application/auth_controller.dart';
-import '../../../auth/application/auth_state.dart';
 import '../../application/library_providers.dart';
 import 'desktop_library_dialog.dart';
 import 'floating_island_bar.dart';
+import 'netflix_top_bar.dart';
+import 'top_bar_icon_button.dart';
 import 'tv_library_modal.dart';
+import 'user_avatar_menu.dart';
 
 /// Barra lateral del dashboard (estilo Prime/Disney).
 class Sidebar extends ConsumerWidget {
@@ -68,17 +71,25 @@ class Sidebar extends ConsumerWidget {
     final onSeerr = loc == '/seerr';
     final horizontal =
         position == SidebarPosition.top || position == SidebarPosition.bottom;
+    // Estilo Prime: navegación solo-texto (sin iconos) y Buscar como lupa
+    // a la derecha, pegada a Ajustes.
+    final isPrimeBar = skin?.topBarStyle == TopBarStyle.prime;
+    // VOD dividido en Películas/Series (Disney/Prime).
+    final splitVod = skin?.splitVod ?? false;
+    final onMovies = loc.startsWith('/vod/movies');
+    final onSeries = loc.startsWith('/vod/series');
 
     final mainItems = <Widget>[
       _NavItem(
-        icon: Icons.home_outlined,
-        selectedIcon: Icons.home,
+        icon: isPrimeBar ? null : Icons.home_outlined,
+        selectedIcon: isPrimeBar ? null : Icons.home,
         label: l10n.home,
         selected: currentIndex == 0 && activeViewId == null,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
         iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 0 && activeViewId == null,
         // Nodo global para que el featured slider pueda subir a la barra
@@ -87,75 +98,81 @@ class Sidebar extends ConsumerWidget {
         onTap: () => _goBranch(context, ref, 0),
       ),
       _NavItem(
-        icon: Icons.search,
+        icon: isPrimeBar ? null : Icons.search,
         label: l10n.search,
         selected: currentIndex == 1,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
         iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 1,
         onTap: () => _goBranch(context, ref, 1),
       ),
       _NavItem(
-        faIcon: FontAwesomeIcons.circlePlay,
+        faIcon: isPrimeBar ? null : FontAwesomeIcons.circlePlay,
         label: l10n.vod,
-        selected: currentIndex == 2,
+        selected: currentIndex == 2 && !(splitVod && (onMovies || onSeries)),
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
         iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 2,
         onTap: () => _goBranch(context, ref, 2),
       ),
       _NavItem(
-        faIcon: FontAwesomeIcons.tv,
+        faIcon: isPrimeBar ? null : FontAwesomeIcons.tv,
         label: l10n.liveTvRadio,
         selected: currentIndex == 3,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
         iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 3,
         onTap: () => _goBranch(context, ref, 3),
       ),
       _NavItem(
-        faIcon: FontAwesomeIcons.music,
+        faIcon: isPrimeBar ? null : FontAwesomeIcons.music,
         label: l10n.music,
         selected: currentIndex == 4,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
         iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 4,
         onTap: () => _goBranch(context, ref, 4),
       ),
       _NavItem(
-        icon: Icons.menu_book_outlined,
-        selectedIcon: Icons.menu_book,
+        icon: isPrimeBar ? null : Icons.menu_book_outlined,
+        selectedIcon: isPrimeBar ? null : Icons.menu_book,
         label: l10n.eReader,
         selected: currentIndex == 5,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
         iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 5,
         onTap: () => _goBranch(context, ref, 5),
       ),
       _NavItem(
-        icon: Icons.sports_esports,
-        selectedIcon: Icons.sports_esports_rounded,
+        icon: isPrimeBar ? null : Icons.sports_esports,
+        selectedIcon: isPrimeBar ? null : Icons.sports_esports_rounded,
         label: l10n.games,
         selected: currentIndex == 6,
         textPrimary: textPrimary,
         textSecondary: textSecondary,
         accent: accent,
         iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
         selectedColor: selectedColor,
         autofocus: isTv && currentIndex == 6,
         onTap: () => _goBranch(context, ref, 6),
@@ -176,55 +193,106 @@ class Sidebar extends ConsumerWidget {
         ),
     ];
     final settings = _NavItem(
-      icon: Icons.settings_outlined,
-      selectedIcon: Icons.settings,
+      icon: isPrimeBar ? null : Icons.settings_outlined,
+      selectedIcon: isPrimeBar ? null : Icons.settings,
       label: l10n.settings,
       selected: currentIndex == 7,
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
       iconSpacing: iconSpacing,
+      emphasized: isPrimeBar,
       selectedColor: selectedColor,
       autofocus: isTv && currentIndex == 7,
       onTap: () => _goBranch(context, ref, 7),
     );
     // Disney: Biblioteca tras Buscar (posición 3) y Seerr tras Juegos.
     final libraryItem = _NavItem(
-      icon: Icons.video_library_outlined,
-      selectedIcon: Icons.video_library,
+      icon: isPrimeBar ? null : Icons.video_library_outlined,
+      selectedIcon: isPrimeBar ? null : Icons.video_library,
       label: l10n.library,
       selected: onLibraries,
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
       iconSpacing: iconSpacing,
+      emphasized: isPrimeBar,
       selectedColor: selectedColor,
       autofocus: isTv && onLibraries && !onSeerr,
       onTap: () => context.go('/library'),
     );
     final seerrItem = _NavItem(
-      faIcon: FontAwesomeIcons.cloudArrowDown,
+      faIcon: isPrimeBar ? null : FontAwesomeIcons.cloudArrowDown,
       label: l10n.seerr,
       selected: onSeerr,
       textPrimary: textPrimary,
       textSecondary: textSecondary,
       accent: accent,
       iconSpacing: iconSpacing,
+      emphasized: isPrimeBar,
       selectedColor: selectedColor,
       autofocus: isTv && onSeerr,
       onTap: () => context.go('/seerr'),
     );
+    // VOD dividido: Películas y Series tras VOD (Disney/Prime).
+    final splitItems = <Widget>[
+      _NavItem(
+        icon: isPrimeBar ? null : Icons.movie_outlined,
+        selectedIcon: isPrimeBar ? null : Icons.movie,
+        label: l10n.movies,
+        selected: onMovies,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        accent: accent,
+        iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
+        selectedColor: selectedColor,
+        autofocus: isTv && onMovies,
+        onTap: () => context.go('/vod/movies'),
+      ),
+      _NavItem(
+        icon: isPrimeBar ? null : Icons.tv_outlined,
+        selectedIcon: isPrimeBar ? null : Icons.tv,
+        label: l10n.shows,
+        selected: onSeries,
+        textPrimary: textPrimary,
+        textSecondary: textSecondary,
+        accent: accent,
+        iconSpacing: iconSpacing,
+        emphasized: isPrimeBar,
+        selectedColor: selectedColor,
+        autofocus: isTv && onSeries,
+        onTap: () => context.go('/vod/series'),
+      ),
+    ];
+    // Con split, el item VOD se sustituye por Películas/Series en su sitio.
+    final vodItems = splitVod ? splitItems : <Widget>[mainItems[2]];
     final verticalItems = isDisney
         ? <Widget>[
             ...mainItems.sublist(0, 2),
             libraryItem,
-            ...mainItems.sublist(2),
+            ...vodItems,
+            ...mainItems.sublist(3),
             seerrItem,
           ]
-        : <Widget>[...mainItems];
+        : <Widget>[
+            ...mainItems.sublist(0, 2),
+            ...vodItems,
+            ...mainItems.sublist(3),
+          ];
 
+    // Flujo de la topbar classic/prime: con split, Películas/Series en
+    // el sitio de VOD.
+    final flowItems = <Widget>[
+      ...mainItems.sublist(0, 2),
+      ...vodItems,
+      ...mainItems.sublist(3),
+    ];
     final logo = _logo(sidebarLogo, textPrimary);
-    final avatar = _UserAvatar(auth: auth);
+    final avatar = UserAvatarMenu(
+      auth: auth,
+      onSettings: () => _goBranch(context, ref, 7),
+    );
 
       if (horizontal) {
       final isIsland =
@@ -233,6 +301,15 @@ class Sidebar extends ConsumerWidget {
         return FloatingIslandBar(
           currentIndex: currentIndex,
           onNavigateBranch: onNavigateBranch,
+        );
+      }
+      // Topbar modular por skin: estilo Netflix (avatar izq., nav centrada
+      // con píldora, logo dcha.) en lugar de la barra classic.
+      if (skin?.topBarStyle == TopBarStyle.netflix) {
+        return NetflixTopBar(
+          currentIndex: currentIndex,
+          onNavigateBranch: (index) => _goBranch(context, ref, index),
+          barOpacity: barOpacity,
         );
       }
       // Barra superior fija (Prime sin isla): misma estructura que [Image 1]
@@ -278,7 +355,11 @@ class Sidebar extends ConsumerWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    ...mainItems,
+                    // En Prime, Buscar sale del flujo: va como lupa a la
+                    // derecha, pegada a Ajustes.
+                    ...isPrimeBar
+                        ? [flowItems[0], ...flowItems.sublist(2)]
+                        : flowItems,
                     if (views.isNotEmpty)
                       _TopBarLibraryMenu(
                         views: views,
@@ -289,14 +370,28 @@ class Sidebar extends ConsumerWidget {
                         accent: accent,
                         iconSpacing: iconSpacing,
                         selectedColor: selectedColor,
+                        textOnly: isPrimeBar,
+                        emphasized: isPrimeBar,
                       ),
                     seerrItem,
                   ],
                 ),
               ),
             ),
-            settings,
-            _UserAvatar(auth: auth, compact: true),
+            // Lupa de Buscar a la derecha en Prime (sin texto).
+            if (isPrimeBar)
+              TopBarIconButton(
+                icon: Icons.search,
+                tooltip: l10n.search,
+                onTap: () => _goBranch(context, ref, 1),
+              ),
+            // En Prime no hay Ajustes en la barra: ya está en el avatar.
+            if (!isPrimeBar) settings,
+            UserAvatarMenu(
+              auth: auth,
+              compact: true,
+              onSettings: () => _goBranch(context, ref, 7),
+            ),
           ],
         ),
       );
@@ -414,87 +509,6 @@ class Sidebar extends ConsumerWidget {
   }
 }
 
-/// Avatar del usuario con menú desplegable (cerrar sesión).
-class _UserAvatar extends ConsumerWidget {
-  const _UserAvatar({required this.auth, this.compact = false});
-
-  final AuthState auth;
-
-  /// En la barra horizontal se muestra solo el círculo del avatar.
-  final bool compact;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    final name = auth.user?.name ?? auth.userId ?? '';
-    final initial = name.isNotEmpty ? name.substring(0, 1).toUpperCase() : '?';
-
-    // URL de la imagen primaria del usuario si está disponible.
-    String? photoUrl;
-    final serverUrl = auth.serverUrl;
-    final userId = auth.userId;
-    final tag = auth.user?.primaryImageTag;
-    if (serverUrl != null && userId != null && tag != null) {
-      photoUrl = '$serverUrl/Users/$userId/Images/Primary?tag=$tag';
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: compact ? 8 : 16, vertical: 8),
-      child: PopupMenuButton<String>(
-        tooltip: name.isEmpty ? null : name,
-        position: PopupMenuPosition.under,
-        color: const Color(0xFF1A2568),
-        onSelected: (value) {
-          if (value == 'logout') {
-            ref.read(authControllerProvider.notifier).logout();
-          }
-        },
-        itemBuilder: (context) => [
-          PopupMenuItem(
-            value: 'logout',
-            child: Row(
-              children: [
-                const Icon(Icons.logout, color: Colors.white70, size: 20),
-                const SizedBox(width: 10),
-                Text(l10n.logout, style: const TextStyle(color: Colors.white)),
-              ],
-            ),
-          ),
-        ],
-        child: Row(
-          mainAxisSize: compact ? MainAxisSize.min : MainAxisSize.max,
-          children: [
-            CircleAvatar(
-              radius: compact ? 18 : 28,
-              backgroundImage: photoUrl != null ? NetworkImage(photoUrl) : null,
-              onBackgroundImageError: photoUrl != null ? (_, _) {} : null,
-              child: photoUrl != null
-                  ? null
-                  : Text(initial, style: const TextStyle(fontSize: 16)),
-            ),
-            if (!compact) ...[
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                ),
-              ),
-              const Icon(
-                Icons.arrow_drop_down,
-                color: Colors.white54,
-                size: 20,
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _NavItem extends ConsumerStatefulWidget {
   const _NavItem({
     this.icon,
@@ -510,6 +524,7 @@ class _NavItem extends ConsumerStatefulWidget {
     this.faIcon,
     this.autofocus = false,
     this.focusNode,
+    this.emphasized = false,
   });
 
   final IconData? icon;
@@ -533,6 +548,9 @@ class _NavItem extends ConsumerStatefulWidget {
   final bool autofocus;
   final FocusNode? focusNode;
 
+  /// Resalta el texto: blanco siempre y más peso (estilo Prime).
+  final bool emphasized;
+
   @override
   ConsumerState<_NavItem> createState() => _NavItemState();
 }
@@ -547,13 +565,14 @@ class _NavItemState extends ConsumerState<_NavItem> {
     final isTv = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
     final iconSize = isTv ? 18.0 : 22.0;
     final fontSize = isTv ? 13.0 : 15.0;
+    final hasIcon = widget.faIcon != null || widget.icon != null;
     return Row(
       children: [
         if (widget.faIcon != null)
           FaIcon(widget.faIcon, color: color, size: iconSize)
         else if (widget.icon != null)
           Icon(_icon, color: color, size: iconSize),
-        SizedBox(width: isTv ? 6.0 : widget.iconSpacing),
+        if (hasIcon) SizedBox(width: isTv ? 6.0 : widget.iconSpacing),
         Text(
           widget.label,
           style: TextStyle(color: color, fontSize: fontSize, fontWeight: weight),
@@ -601,7 +620,11 @@ class _NavItemState extends ConsumerState<_NavItem> {
             ],
           ),
         ),
-        child: _buildRow(color: textPrimary, weight: FontWeight.w600),
+        child: _buildRow(
+          color: textPrimary,
+          weight:
+              widget.emphasized ? FontWeight.w800 : FontWeight.w600,
+        ),
       );
     } else {
       content = Container(
@@ -614,8 +637,12 @@ class _NavItemState extends ConsumerState<_NavItem> {
               : Colors.transparent,
         ),
         child: _buildRow(
-          color: selected ? textPrimary : textSecondary,
-          weight: selected ? FontWeight.w600 : FontWeight.w400,
+          color: widget.emphasized
+              ? textPrimary
+              : (selected ? textPrimary : textSecondary),
+          weight: selected
+              ? (widget.emphasized ? FontWeight.w800 : FontWeight.w600)
+              : (widget.emphasized ? FontWeight.w700 : FontWeight.w400),
         ),
       );
     }
@@ -650,6 +677,8 @@ class _TopBarLibraryMenu extends ConsumerStatefulWidget {
     required this.accent,
     required this.iconSpacing,
     this.selectedColor,
+    this.textOnly = false,
+    this.emphasized = false,
   });
 
   final List<BaseItemDto> views;
@@ -660,6 +689,12 @@ class _TopBarLibraryMenu extends ConsumerStatefulWidget {
   final Color accent;
   final double iconSpacing;
   final Color? selectedColor;
+
+  /// Si es `true` no muestra el icono (estilo Prime: solo texto).
+  final bool textOnly;
+
+  /// Resalta el texto: blanco siempre y más peso (estilo Prime).
+  final bool emphasized;
 
   @override
   ConsumerState<_TopBarLibraryMenu> createState() => _TopBarLibraryMenuState();
@@ -673,10 +708,11 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
     final isTvRow = (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) == PlatformMode.tv;
     final iconS = isTvRow ? 18.0 : 22.0;
     final fontS = isTvRow ? 13.0 : 15.0;
+    final hasIcon = !widget.textOnly;
     return Row(
       children: [
-        Icon(Icons.video_library_outlined, color: Colors.white, size: iconS),
-        SizedBox(width: isTvRow ? 6.0 : widget.iconSpacing),
+        if (hasIcon) Icon(Icons.video_library_outlined, color: Colors.white, size: iconS),
+        if (hasIcon) SizedBox(width: isTvRow ? 6.0 : widget.iconSpacing),
         Text(l10n.library, style: TextStyle(color: color, fontSize: fontS, fontWeight: weight)),
         const SizedBox(width: 4),
         Icon(Icons.arrow_drop_down, color: color.withValues(alpha: 0.85), size: iconS - 2),
@@ -730,7 +766,10 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
             colors: [selectedColor, Color.lerp(selectedColor, Colors.black, 0.5)!],
           ),
         ),
-        child: _buildRow(widget.textPrimary, FontWeight.w600),
+        child: _buildRow(
+          widget.textPrimary,
+          widget.emphasized ? FontWeight.w800 : FontWeight.w600,
+        ),
       );
     } else {
       content = Container(
@@ -739,7 +778,14 @@ class _TopBarLibraryMenuState extends ConsumerState<_TopBarLibraryMenu> {
           borderRadius: BorderRadius.circular(10),
           color: selected ? widget.accent.withValues(alpha: 0.35) : Colors.transparent,
         ),
-        child: _buildRow(selected ? widget.textPrimary : widget.textSecondary, selected ? FontWeight.w600 : FontWeight.w400),
+        child: _buildRow(
+          widget.emphasized
+              ? widget.textPrimary
+              : (selected ? widget.textPrimary : widget.textSecondary),
+          selected
+              ? (widget.emphasized ? FontWeight.w800 : FontWeight.w600)
+              : (widget.emphasized ? FontWeight.w700 : FontWeight.w400),
+        ),
       );
     }
 

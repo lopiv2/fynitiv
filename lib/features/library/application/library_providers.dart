@@ -241,20 +241,32 @@ final latestItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 
 /// Novedades para el carrusel de banners del home (estilo Disney+).
 /// Máximo 10 items y con imágenes de fondo (backdrop) habilitadas.
-final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((
-  ref,
-) async {
+/// Banner destacado por tipos de contenido (el `featuredSlider` filtra por
+/// los `types` de su scroll: pelis, series, ambas o música).
+/// Clave = nombres de [BaseItemKind] ordenados y unidos por comas
+/// (p. ej. `'movie'`, `'series'`, `'movie,series'`, `'musicAlbum'`).
+/// Clave vacía o desconocida = pelis + series (comportamiento previo).
+final bannerItemsForProvider =
+    FutureProvider.family<List<BaseItemDto>, String>((ref, key) async {
   ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
+  final types = key
+      .split(',')
+      .map((e) => BaseItemKind.values.asNameMap()[e.trim()])
+      .whereType<BaseItemKind>()
+      .toList();
+  final include = types.isEmpty
+      ? [BaseItemKind.movie, BaseItemKind.series]
+      : types;
   final res = await client.getItemsApi().getItems(
     userId: userId,
     recursive: true,
     // Solo contenido multimedia real: sin este filtro la API devuelve también
     // carpetas/colecciones (CollectionFolder, BoxSet, Season…) que aparecían
     // como "novedades" vacías en el banner.
-    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+    includeItemTypes: include,
     sortBy: [ItemSortBy.dateCreated],
     sortOrder: [SortOrder.descending],
     limit: 10,
@@ -271,6 +283,20 @@ final latestBannerItemsProvider = FutureProvider<List<BaseItemDto>>((
   // El banner no debe mostrar stubs/placeholders (`.disc`).
   return excludePlaceholders(res.data?.items ?? []);
 });
+
+/// Clave de tipos para filas con contenido propio (slider y novedades):
+/// los del scroll o pelis + series si no hay.
+/// [`typesKeyFor`] hace lo mismo desde una lista de tipos.
+String scrollTypesKey(HomeScroll? scroll) =>
+    typesKeyFor(scroll?.types ?? const []);
+
+/// Clave canónica de una lista de tipos (nombres ordenados unidos por comas;
+/// vacía = pelis + series).
+String typesKeyFor(Iterable<BaseItemKind> types) {
+  final names = {for (final t in types) t.name}.toList()..sort();
+  if (names.isEmpty) return 'movie,series';
+  return names.join(',');
+}
 
 /// Mapeo compartido de [HomeScrollSort] a orden de la API de Jellyfin.
 /// Devuelve (sortBy, sortOrder) con SortName secundario para orden estable.
@@ -369,6 +395,18 @@ Set<String> _seriesGroupKeys(BaseItemDto e) {
   return keys;
 }
 
+/// Tipos de item a pedir por cada colección en las filas de biblioteca.
+/// Sin filtro la API mezcla series con temporadas y capítulos y el `limit`
+/// recorta antes de colapsar (p. ej. 3 tarjetas con 222 series).
+/// `null` = sin filtro (comportamiento previo).
+List<BaseItemKind>? _viewItemTypes(CollectionType? type) => switch (type) {
+  CollectionType.movies => const [BaseItemKind.movie],
+  CollectionType.tvshows => const [BaseItemKind.series],
+  CollectionType.music => const [BaseItemKind.musicAlbum],
+  CollectionType.books => const [BaseItemKind.book],
+  _ => null,
+};
+
 /// Items de una vista/biblioteca concreta.
 final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
   ref,
@@ -378,10 +416,14 @@ final libraryItemsProvider = FutureProvider.family<List<BaseItemDto>, String>((
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
+  final views = await ref.watch(userViewsProvider.future);
+  final collectionType =
+      views.where((v) => v.id == viewId).firstOrNull?.collectionType;
   final res = await client.getItemsApi().getItems(
     userId: userId,
     parentId: viewId,
     recursive: true,
+    includeItemTypes: _viewItemTypes(collectionType),
     sortBy: [ItemSortBy.sortName],
     limit: 20,
     fields: [
@@ -414,10 +456,14 @@ final libraryRowItemsProvider =
       final viewId = args.$1;
       if (client == null || userId == null) return const [];
       final (sortBy, sortOrder) = homeScrollSortParams(args.$2);
+      final views = await ref.watch(userViewsProvider.future);
+      final collectionType =
+          views.where((v) => v.id == viewId).firstOrNull?.collectionType;
       final res = await client.getItemsApi().getItems(
         userId: userId,
         parentId: viewId,
         recursive: true,
+        includeItemTypes: _viewItemTypes(collectionType),
         sortBy: sortBy,
         sortOrder: sortOrder,
         limit: 20,
@@ -445,10 +491,14 @@ final recentLibraryItemsProvider =
       final client = ref.watch(jellyfinClientProvider);
       final userId = ref.watch(currentUserIdProvider);
       if (client == null || userId == null || viewId.isEmpty) return const [];
+      final views = await ref.watch(userViewsProvider.future);
+      final collectionType =
+          views.where((v) => v.id == viewId).firstOrNull?.collectionType;
       final res = await client.getItemsApi().getItems(
         userId: userId,
         parentId: viewId,
         recursive: true,
+        includeItemTypes: _viewItemTypes(collectionType),
         sortBy: [ItemSortBy.dateCreated],
         sortOrder: [SortOrder.descending],
         limit: 20,
@@ -484,10 +534,14 @@ final recentRowItemsProvider =
       final viewId = args.$1;
       if (client == null || userId == null || viewId.isEmpty) return const [];
       final (sortBy, sortOrder) = homeScrollSortParams(args.$2);
+      final views = await ref.watch(userViewsProvider.future);
+      final collectionType =
+          views.where((v) => v.id == viewId).firstOrNull?.collectionType;
       final res = await client.getItemsApi().getItems(
         userId: userId,
         parentId: viewId,
         recursive: true,
+        includeItemTypes: _viewItemTypes(collectionType),
         sortBy: sortBy,
         sortOrder: sortOrder,
         limit: 20,
@@ -801,31 +855,6 @@ final itemDetailProvider = FutureProvider.family<BaseItemDto?, String>((
   }
 });
 
-/// Novedades de VOD para el carrusel de banners (solo películas y series).
-final vodLatestBannerProvider = FutureProvider<List<BaseItemDto>>((ref) async {
-  final client = ref.watch(jellyfinClientProvider);
-  final userId = ref.watch(currentUserIdProvider);
-  if (client == null || userId == null) return const [];
-  final res = await client.getItemsApi().getItems(
-    userId: userId,
-    recursive: true,
-    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
-    sortBy: [ItemSortBy.dateCreated],
-    sortOrder: [SortOrder.descending],
-    limit: 10,
-    fields: [
-      ItemFields.dateCreated,
-      ItemFields.genres,
-      ItemFields.overview,
-      ItemFields.primaryImageAspectRatio,
-      ItemFields.providerIds,
-    ],
-    enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.logo],
-  );
-  // El banner no debe mostrar stubs/placeholders (`.disc`).
-  return excludePlaceholders(res.data?.items ?? []);
-});
-
 /// "Continuar viendo" de VOD (películas y episodios: lo retomable de una
 /// serie es el episodio a medias, nunca el item `series`).
 final vodResumeProvider = FutureProvider<List<BaseItemDto>>((ref) async {
@@ -944,15 +973,28 @@ final jellyfinUpcomingProvider = FutureProvider<List<BaseItemDto>>((ref) async {
   }
 });
 
-/// Novedades de VOD (fila "Novedades" cuando no hay banner).
-final vodLatestProvider = FutureProvider<List<BaseItemDto>>((ref) async {
+/// Novedades por tipos (la fila `newReleases` obedece al `types` de su
+/// scroll, igual que `library`).
+/// Clave = nombres de [BaseItemKind] ordenados y unidos por comas.
+/// Clave vacía o desconocida = pelis + series.
+final latestForTypesProvider =
+    FutureProvider.family<List<BaseItemDto>, String>((ref, key) async {
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null) return const [];
+  final types = key
+      .split(',')
+      .map((e) => BaseItemKind.values.asNameMap()[e.trim()])
+      .whereType<BaseItemKind>()
+      .toList();
+  final include = types.isEmpty
+      ? [BaseItemKind.movie, BaseItemKind.series]
+      : types;
   final res = await client.getItemsApi().getItems(
     userId: userId,
     recursive: true,
-    includeItemTypes: [BaseItemKind.movie, BaseItemKind.series],
+    includeItemTypes: include,
     sortBy: [ItemSortBy.dateCreated],
     sortOrder: [SortOrder.descending],
     limit: 20,
@@ -1246,9 +1288,7 @@ final homeScrollItemsProvider =
       // Sin géneros => sin filtro (antes se enviaba [""] y Jellyfin devolvía 0).
       final genresFilter = scroll.genres.isEmpty
           ? null
-          : [
-              scroll.genres.map((g) => g.value).join('|'),
-            ];
+          : [jellyGenresFilter(scroll.genres)];
       // Rango de años (ej. nostalgia con yearTo). Solo scrolls custom.
       final yearsFilter = _yearRange(scroll.yearFrom, scroll.yearTo);
       final res = await client.getItemsApi().getItems(

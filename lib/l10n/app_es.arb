@@ -243,8 +243,8 @@
   "liveTvNoAiring": "Sin programa en emisión",
   "liveTvNoGuide": "No hay datos de guía para el servidor",
   "liveTvNoChannels": "No hay canales disponibles",
-  "music": "Music Player",
-  "eReader": "E-Reader",
+  "music": "Música",
+  "eReader": "Libros",
   "eReaderDescription": "Libros y cómics de tu biblioteca Jellyfin.",
   "eReaderRecent": "Recién añadidos",
   "eReaderAllBooks": "Todos los libros",
@@ -1040,5 +1040,16 @@
   "showBannerRow": "Mostrar slider destacado",
   "showBannerRowHint": "Si está apagado, los sliders no se muestran en Inicio ni VOD.",
   "sliderAdded": "Slider añadido",
-  "sliderRemoved": "Slider eliminado"
+  "sliderRemoved": "Slider eliminado",
+  "shows": "Series",
+  "movies": "Películas",
+  "myNetflix": "Mi Netflix",
+  "resumeSeasonEpisode": "Reanudar T{season} E{episode}",
+  "@resumeSeasonEpisode": {
+    "description": "Botón del hover Prime para seguir una serie (ej. Reanudar T1 E18).",
+    "placeholders": {
+      "season": { "type": "int" },
+      "episode": { "type": "int" }
+    }
+  }
 }

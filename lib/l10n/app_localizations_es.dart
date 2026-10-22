@@ -704,10 +704,10 @@ class AppLocalizationsEs extends AppLocalizations {
   String get liveTvNoChannels => 'No hay canales disponibles';
 
   @override
-  String get music => 'Music Player';
+  String get music => 'Música';
 
   @override
-  String get eReader => 'E-Reader';
+  String get eReader => 'Libros';
 
   @override
   String get eReaderDescription => 'Libros y cómics de tu biblioteca Jellyfin.';
@@ -2657,4 +2657,18 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get sliderRemoved => 'Slider eliminado';
+
+  @override
+  String get shows => 'Series';
+
+  @override
+  String get movies => 'Películas';
+
+  @override
+  String get myNetflix => 'Mi Netflix';
+
+  @override
+  String resumeSeasonEpisode(int season, int episode) {
+    return 'Reanudar T$season E$episode';
+  }
 }

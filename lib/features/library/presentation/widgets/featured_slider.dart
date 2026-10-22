@@ -1068,6 +1068,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   }
 
   /// Abre el reproductor a pantalla completa con el contenido del banner.
+  /// Los álbumes de música abren su pantalla (el reproductor es de vídeo).
   Future<void> _openPlayer() async {
     final itemId = widget.item.id;
     if (itemId == null || itemId.isEmpty) return;
@@ -1075,15 +1076,24 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     // abrir el reproductor, para no dejar dos sesiones de media_kit activas.
     await _closeTrailer();
     if (!mounted) return;
+    if (widget.item.type == BaseItemKind.musicAlbum) {
+      context.push('/music/album/$itemId', extra: widget.item);
+      return;
+    }
     context.push('/player/$itemId', extra: widget.item);
   }
 
   /// Abre la pantalla de detalles (misma que al pulsar una tarjeta de película).
+  /// Los álbumes de música abren su pantalla de álbum.
   Future<void> _openDetails() async {
     final id = widget.item.id;
     if (id == null || id.isEmpty) return;
     await _closeTrailer();
     if (!mounted) return;
+    if (widget.item.type == BaseItemKind.musicAlbum) {
+      context.push('/music/album/$id', extra: widget.item);
+      return;
+    }
     context.push('/home/details/$id', extra: widget.item);
   }
 
@@ -1565,7 +1575,11 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                                 LogicalKeyboardKey.gameButtonA)) {
                       final id = item.id;
                       if (id != null && id.isNotEmpty) {
-                        context.push('/home/details/$id', extra: item);
+                        if (item.type == BaseItemKind.musicAlbum) {
+                          context.push('/music/album/$id', extra: item);
+                        } else {
+                          context.push('/home/details/$id', extra: item);
+                        }
                       }
                       return KeyEventResult.handled;
                     }
@@ -1577,7 +1591,11 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                       onTap: () {
                         final id = item.id;
                         if (id != null && id.isNotEmpty) {
-                          context.push('/home/details/$id', extra: item);
+                          if (item.type == BaseItemKind.musicAlbum) {
+                            context.push('/music/album/$id', extra: item);
+                          } else {
+                            context.push('/home/details/$id', extra: item);
+                          }
                         }
                       },
                       child: const SizedBox.expand(),

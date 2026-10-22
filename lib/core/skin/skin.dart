@@ -2,34 +2,7 @@ import 'package:material_ui/material_ui.dart';
 
 import 'layout_section.dart';
 
-/// Posición de la barra lateral en el dashboard.
-enum SidebarPosition { left, top, right, bottom }
-
-/// Posición del logo dentro de la barra lateral.
-enum LogoPosition { top, bottom }
-
-/// Posición del avatar de usuario dentro de la barra lateral.
-typedef AvatarPosition = LogoPosition;
-
-/// Posición de los puntos de navegación del slider de novedades.
-enum SliderDotAlignment { left, center, right }
-
-/// Posición del logotipo superpuesto en el reproductor.
-enum LogoOverlayPosition { none, topLeft, topRight, bottomLeft, bottomRight }
-
-/// Tipo de imagen de las tarjetas de las filas de contenido.
-enum CardImageType { poster, backdrop }
-
-/// Efecto de la animación de onda del reproductor de audio.
-enum AudioWaveformEffect { equalizer, wave, mirror, bars, surfer, audioFlux, frequency, ledSpectrum, soundEclipse, soundSinus, raymarching, smokeRings, circularSpectrum }
-
-/// Tipo de transición entre banners del slider de novedades.
-enum SliderTransition { slide, fade }
-
-/// Lados donde se dibuja la viñeta del featured slider.
-/// - left/right/top/bottom: solo ese borde, con grosor [Skin.bannerVignetteSize].
-/// - around: composición completa (radial + degradados, aspecto previo).
-enum SliderVignetteMode { left, right, top, bottom, around }
+export 'skin_enums.dart';
 
 /// Skin: define colores, logos, layout y tipografía de la app.
 class Skin {
@@ -117,6 +90,21 @@ class Skin {
     this.titleMarqueeOnHover = false,
     this.topBarFloating = false,
     this.showCardBadge = false,
+    this.topBarStyle = TopBarStyle.classic,
+    this.topBarNavItems = const [
+      TopBarNavItem.search,
+      TopBarNavItem.home,
+      TopBarNavItem.shows,
+      TopBarNavItem.movies,
+      TopBarNavItem.books,
+      TopBarNavItem.liveTv,
+      TopBarNavItem.games,
+      TopBarNavItem.seerr,
+      TopBarNavItem.myNetflix,
+    ],
+    this.splitVod = false,
+    this.moviesLayout = const [],
+    this.seriesLayout = const [],
   });
 
   final String id;
@@ -352,6 +340,28 @@ class Skin {
   /// visual si `cardImageType == backdrop` y rating ≥ 7.
   final bool showCardBadge;
 
+  /// Estilo de la barra superior (modular por skin). Solo afecta a la rama
+  /// horizontal (`sidebarPosition` top/bottom); la lateral siempre es classic.
+  final TopBarStyle topBarStyle;
+
+  /// Items de la topbar estilo Netflix, de izquierda a derecha.
+  /// `shows`/`movies` se ocultan si la biblioteca no existe en el servidor.
+  final List<TopBarNavItem> topBarNavItems;
+
+  /// Divide el VOD en dos pantallas dashboard (`/vod/movies` y
+  /// `/vod/series`) con sus propios layouts. Solo afecta a la navegación
+  /// (items Películas/Series tras VOD); el contenido lo definen
+  /// [moviesLayout] y [seriesLayout].
+  final bool splitVod;
+
+  /// Layout de la pantalla de Películas (`/vod/movies`).
+  /// Vacío = se reutiliza [vodLayout] filtrado a películas.
+  final List<LayoutSection> moviesLayout;
+
+  /// Layout de la pantalla de Series (`/vod/series`).
+  /// Vacío = se reutiliza [vodLayout] filtrado a series.
+  final List<LayoutSection> seriesLayout;
+
   Skin copyWith({
     String? id,
     String? name,
@@ -428,6 +438,11 @@ class Skin {
     bool? titleMarqueeOnHover,
     bool? topBarFloating,
     bool? showCardBadge,
+    TopBarStyle? topBarStyle,
+    List<TopBarNavItem>? topBarNavItems,
+    bool? splitVod,
+    List<LayoutSection>? moviesLayout,
+    List<LayoutSection>? seriesLayout,
     bool clearSidebarLogo = false,
     bool clearCardLogo = false,
     bool clearPlayerLogo = false,
@@ -515,6 +530,11 @@ class Skin {
       titleMarqueeOnHover: titleMarqueeOnHover ?? this.titleMarqueeOnHover,
       topBarFloating: topBarFloating ?? this.topBarFloating,
       showCardBadge: showCardBadge ?? this.showCardBadge,
+      topBarStyle: topBarStyle ?? this.topBarStyle,
+      topBarNavItems: topBarNavItems ?? this.topBarNavItems,
+      splitVod: splitVod ?? this.splitVod,
+      moviesLayout: moviesLayout ?? this.moviesLayout,
+      seriesLayout: seriesLayout ?? this.seriesLayout,
     );
   }
 
@@ -640,6 +660,36 @@ class Skin {
       titleMarqueeOnHover: json['titleMarqueeOnHover'] as bool? ?? false,
       topBarFloating: json['topBarFloating'] as bool? ?? false,
       showCardBadge: json['showCardBadge'] as bool? ?? false,
+      topBarStyle:
+          TopBarStyle.values.asNameMap()[json['topBarStyle']] ??
+          TopBarStyle.classic,
+      topBarNavItems:
+          (json['topBarNavItems'] as List?)
+              ?.map((e) => TopBarNavItem.values.asNameMap()[e])
+              .whereType<TopBarNavItem>()
+              .toList() ??
+          const [
+            TopBarNavItem.search,
+            TopBarNavItem.home,
+            TopBarNavItem.shows,
+            TopBarNavItem.movies,
+            TopBarNavItem.books,
+            TopBarNavItem.liveTv,
+            TopBarNavItem.games,
+            TopBarNavItem.seerr,
+            TopBarNavItem.myNetflix,
+          ],
+      splitVod: json['splitVod'] as bool? ?? false,
+      moviesLayout:
+          (json['moviesLayout'] as List?)
+              ?.map((e) => LayoutSection.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
+      seriesLayout:
+          (json['seriesLayout'] as List?)
+              ?.map((e) => LayoutSection.fromJson(e as Map<String, dynamic>))
+              .toList() ??
+          const [],
     );
   }
 
@@ -717,6 +767,11 @@ class Skin {
     'homeLayout': homeLayout.map((s) => s.toJson()).toList(),
     'vodLayout': vodLayout.map((s) => s.toJson()).toList(),
     'seerrLayout': seerrLayout.map((s) => s.toJson()).toList(),
+    'topBarStyle': topBarStyle.name,
+    'topBarNavItems': topBarNavItems.map((i) => i.name).toList(),
+    'splitVod': splitVod,
+    'moviesLayout': moviesLayout.map((s) => s.toJson()).toList(),
+    'seriesLayout': seriesLayout.map((s) => s.toJson()).toList(),
     'titleMarqueeOnHover': titleMarqueeOnHover,
     'topBarFloating': topBarFloating,
     'showCardBadge': showCardBadge,

@@ -8,7 +8,6 @@ import '../../../../core/seasonal/active_seasonal_event.dart';
 import '../../../../core/seasonal/seasonal_event.dart';
 import '../../../../core/settings/seasonal_suggestions_controller.dart';
 import '../../../../core/skin/home_scroll.dart';
-import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/widgets/app_loader.dart';
 import '../../../../core/widgets/scroll_title.dart';

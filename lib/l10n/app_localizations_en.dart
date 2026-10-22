@@ -703,10 +703,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get liveTvNoChannels => 'No channels available';
 
   @override
-  String get music => 'Music Player';
+  String get music => 'Music';
 
   @override
-  String get eReader => 'E-Reader';
+  String get eReader => 'Books';
 
   @override
   String get eReaderDescription =>
@@ -2647,4 +2647,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get sliderRemoved => 'Slider removed';
+
+  @override
+  String get shows => 'TV Shows';
+
+  @override
+  String get movies => 'Movies';
+
+  @override
+  String get myNetflix => 'My Netflix';
+
+  @override
+  String resumeSeasonEpisode(int season, int episode) {
+    return 'Resume S$season E$episode';
+  }
 }

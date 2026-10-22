@@ -6,7 +6,6 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/navigation/platform_mode.dart';
 import '../../../core/skin/home_scroll.dart';
 import '../../../core/skin/layout_section.dart';
-import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -20,18 +19,68 @@ import '../../library/presentation/widgets/seasonal_suggestions_row.dart';
 
 /// VOD (Video On Demand): dashboard de películas y series a la carta, con el
 /// mismo diseño que el home (banner + filas) usando los valores del skin.
+///
+/// Con [split] se divide en dos pantallas (`/vod/movies` y `/vod/series`):
+/// todo (vistas, continuar, novedades, customs) se filtra por tipo y se usa
+/// el layout propio del skin (`moviesLayout`/`seriesLayout`, con fallback a
+/// `vodLayout`).
 class VodScreen extends ConsumerWidget {
-  const VodScreen({super.key});
+  const VodScreen({super.key, this.split});
+
+  /// División por tipo de contenido. `null` = VOD completo.
+  final VodSplit? split;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final serverUrl = ref.watch(authServerUrlProvider);
-    final resume = ref.watch(vodResumeProvider);
-    final nextUp = ref.watch(vodNextUpProvider);
-    final latest = ref.watch(vodLatestProvider);
-    final latestBanner = ref.watch(vodLatestBannerProvider);
-    final views = ref.watch(vodLibraryViewsProvider);
+
+    // División Películas/Series: filtra items por tipo de contenido.
+    List<BaseItemDto> filterItems(List<BaseItemDto> items) {
+      final sp = split;
+      if (sp == null) return items;
+      return items.where((i) {
+        final t = i.type;
+        return sp == VodSplit.movies
+            ? t == BaseItemKind.movie
+            : t == BaseItemKind.episode || t == BaseItemKind.series;
+      }).toList();
+    }
+
+    // Clave del slider: la de su scroll o, sin scroll en split, el tipo
+    // del split (así Series muestra series aunque el provider global
+    // venga dominado por pelis).
+    String sliderKey(HomeScroll? scroll) {
+      if (scroll != null) return scrollTypesKey(scroll);
+      return switch (split) {
+        null => scrollTypesKey(null),
+        VodSplit.movies => 'movie',
+        VodSplit.series => 'series',
+      };
+    }
+
+    final resume = ref.watch(vodResumeProvider).whenData(filterItems);
+    // "A continuación" son episodios: sin fila en la pantalla de películas.
+    final nextUp = ref.watch(vodNextUpProvider).whenData(
+      (items) =>
+          split == VodSplit.movies ? const <BaseItemDto>[] : items,
+    );
+    // Novedades del split con query propia (sin competir en el top-20 global
+    // y obedeciendo al `types` del scroll, igual que `library`).
+    final latest = ref.watch(latestForTypesProvider(sliderKey(null)));
+    final latestBanner =
+        ref.watch(bannerItemsForProvider(sliderKey(null)));
+    final views = ref.watch(vodLibraryViewsProvider).whenData(
+      (list) => switch (split) {
+        null => list,
+        VodSplit.movies => list
+            .where((v) => v.collectionType == CollectionType.movies)
+            .toList(),
+        VodSplit.series => list
+            .where((v) => v.collectionType == CollectionType.tvshows)
+            .toList(),
+      },
+    );
     final skin = ref.watch(skinControllerProvider).value;
     final platformMode = ref.watch(platformModeProvider).value;
     final showBanner = skin?.showNewReleasesBanner ?? false;
@@ -177,7 +226,7 @@ class VodScreen extends ConsumerWidget {
       return w;
     }
 
-    Widget buildNewReleasesRow([HomeScroll? cfg]) {
+    Widget buildNewReleasesRow([HomeScroll? cfg, List<BaseItemDto>? items]) {
       final isBack = cfg?.cardType == HomeScrollCardType.backdrop
           ? true
           : cfg?.cardType == HomeScrollCardType.poster
@@ -186,7 +235,7 @@ class VodScreen extends ConsumerWidget {
       final isNextPoster = isNextPosterFor(isBack);
       final w = ContentRow(
         title: l10n.newReleases,
-        items: latest.value ?? const [],
+        items: items ?? latest.value ?? const [],
         serverUrl: serverUrl,
         height: rowHeight,
         cardWidth: cardWidth,
@@ -219,10 +268,67 @@ class VodScreen extends ConsumerWidget {
       return w;
     }
 
-    final hasCustomVodLayout = (skin?.vodLayout.isNotEmpty ?? false);
-    Widget buildFeaturedSliderVod() => FeaturedSlider(
+    // Layout propio del split (fallback al vodLayout, ya filtrado por vistas).
+    final vodLayout = skin?.vodLayout ?? const <LayoutSection>[];
+    final layout = switch (split) {
+      null => vodLayout,
+      VodSplit.movies =>
+        (skin?.moviesLayout.isNotEmpty ?? false)
+            ? skin!.moviesLayout
+            : vodLayout,
+      VodSplit.series =>
+        (skin?.seriesLayout.isNotEmpty ?? false)
+            ? skin!.seriesLayout
+            : vodLayout,
+    };
+
+    // Estrecha un scroll custom al split (null = omitir la sección).
+    HomeScroll? narrowScroll(HomeScroll s) {
+      final sp = split;
+      if (sp == null) return s;
+      final allowed = sp == VodSplit.movies
+          ? const {BaseItemKind.movie}
+          : const {BaseItemKind.series};
+      final types = s.types.where(allowed.contains).toList();
+      if (types.isEmpty) return null;
+      if (types.length == s.types.length) return s;
+      return s.copyWith(types: types);
+    }
+
+    // Tipos efectivos para novedades: los del scroll estrechados al split.
+    // null = el split los vacía (omitir fila); lista vacía = defecto
+    // (top-level `latest`, ya del split).
+    List<BaseItemKind>? latestTypesFor(HomeScroll? scroll) {
+      if (scroll == null) return const [];
+      final sp = split;
+      if (sp == null) {
+        return scroll.types.isEmpty
+            ? const [BaseItemKind.movie, BaseItemKind.series]
+            : scroll.types;
+      }
+      final allowed = sp == VodSplit.movies
+          ? const {BaseItemKind.movie}
+          : const {BaseItemKind.series};
+      final out = scroll.types.where(allowed.contains).toList();
+      if (out.isEmpty) return null;
+      return out;
+    }
+
+    // Items de novedades para una sección (query propia si el scroll fija
+    // tipos, igual que `library`).
+    List<BaseItemDto> newReleasesItems(HomeScroll? scroll) {
+      final eff = latestTypesFor(scroll);
+      if (eff == null) return const [];
+      if (eff.isEmpty) return latest.value ?? const [];
+      return ref.watch(latestForTypesProvider(typesKeyFor(eff))).value ??
+          const [];
+    }
+
+    final hasCustomVodLayout = layout.isNotEmpty;
+    Widget buildFeaturedSliderVod([List<BaseItemDto>? items]) =>
+        FeaturedSlider(
       title: l10n.newReleases,
-      items: latestBanner.value ?? const [],
+      items: items ?? latestBanner.value ?? const [],
       serverUrl: serverUrl,
       showTitle: skin?.bannerShowTitle ?? true,
       showAgeRating: skin?.bannerShowAgeRating ?? false,
@@ -323,7 +429,7 @@ class VodScreen extends ConsumerWidget {
       // Vistas ya emitidas por una entrada library anterior (si dos entradas
       // solapan colecciones, gana la primera para no duplicar filas).
       final consumedViews = <String>{};
-      for (final section in skin!.vodLayout) {
+      for (final section in layout) {
         switch (section.type) {
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;
@@ -334,7 +440,7 @@ class VodScreen extends ConsumerWidget {
             customBackdrops.add(useBackdrop);
             break;
           case LayoutSectionType.newReleases:
-            if ((latest.value ?? []).isEmpty) break;
+            if (newReleasesItems(section.scroll).isEmpty) break;
             customBackdrops.add(useBackdrop);
             break;
           case LayoutSectionType.recent:
@@ -369,7 +475,9 @@ class VodScreen extends ConsumerWidget {
             }
             break;
           case LayoutSectionType.custom:
-            final s = section.scroll!;
+            final narrowed = narrowScroll(section.scroll!);
+            if (narrowed == null) break;
+            final s = narrowed;
             final scrollItems = ref.watch(homeScrollItemsProvider(s));
             final items = scrollItems.value ?? const [];
             // En carga cuenta como presente: la fila aparece al instante
@@ -395,11 +503,18 @@ class VodScreen extends ConsumerWidget {
       rowCursor = 0;
       final List<Widget> out = [];
       final builtViews = <String>{};
-      for (final section in skin.vodLayout) {
+      for (final section in layout) {
         switch (section.type) {
           case LayoutSectionType.featuredSlider:
-            if (showBanner && (latestBanner.value?.isNotEmpty ?? false)) {
-              out.add(buildFeaturedSliderVod());
+            final sliderItems =
+                ref
+                    .watch(
+                      bannerItemsForProvider(sliderKey(section.scroll)),
+                    )
+                    .value ??
+                const [];
+            if (showBanner && sliderItems.isNotEmpty) {
+              out.add(buildFeaturedSliderVod(sliderItems));
             }
             break;
           case LayoutSectionType.seasonal:
@@ -420,8 +535,9 @@ class VodScreen extends ConsumerWidget {
             out.add(buildUpNextRow2(section.scroll));
             break;
           case LayoutSectionType.newReleases:
-            if ((latest.value ?? []).isEmpty) break;
-            out.add(buildNewReleasesRow(section.scroll));
+            final nrItems = newReleasesItems(section.scroll);
+            if (nrItems.isEmpty) break;
+            out.add(buildNewReleasesRow(section.scroll, nrItems));
             break;
           case LayoutSectionType.recent:
             final recentScroll = section.scroll;
@@ -470,9 +586,9 @@ class VodScreen extends ConsumerWidget {
                       serverUrl: serverUrl,
                       height: rowHeight,
                       cardWidth: cardWidth,
-                      itemSpacing: skin.itemSpacing,
+                      itemSpacing: skin?.itemSpacing,
                       useBackdrop: isBack,
-                      cardLogo: skin.cardLogo,
+                      cardLogo: skin?.cardLogo,
                       useSeriesPoster: isSeriesView,
                       showBottomVignette:
                           recentScroll?.bottomVignette ?? false,
@@ -568,9 +684,9 @@ class VodScreen extends ConsumerWidget {
                       serverUrl: serverUrl,
                       height: rowHeight,
                       cardWidth: cardWidth,
-                      itemSpacing: skin.itemSpacing,
+                      itemSpacing: skin?.itemSpacing,
                       useBackdrop: isBack,
-                      cardLogo: skin.cardLogo,
+                      cardLogo: skin?.cardLogo,
                       useSeriesPoster: isSeriesView,
                       showBottomVignette:
                           libraryScroll?.bottomVignette ?? false,
@@ -620,7 +736,9 @@ class VodScreen extends ConsumerWidget {
             }
             break;
           case LayoutSectionType.custom:
-            final s = section.scroll!;
+            final narrowed = narrowScroll(section.scroll!);
+            if (narrowed == null) break;
+            final s = narrowed;
             out.add(
               Builder(
                 builder: (context) {
@@ -664,9 +782,9 @@ class VodScreen extends ConsumerWidget {
                     serverUrl: serverUrl,
                     height: rowHeight,
                     cardWidth: cardWidth,
-                    itemSpacing: skin.itemSpacing,
+                    itemSpacing: skin?.itemSpacing,
                     useBackdrop: isBack,
-                    cardLogo: skin.cardLogo,
+                    cardLogo: skin?.cardLogo,
                     showBottomVignette: s.bottomVignette,
                     bottomVignetteHeight: s.bottomVignetteHeight,
                     bottomVignetteOpacity: s.bottomVignetteOpacity,

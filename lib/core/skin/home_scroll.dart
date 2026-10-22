@@ -1,224 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 
-import '../../l10n/app_localizations.dart';
+import 'skin_enums.dart';
 
-/// Origen de imagen para un scroll (configurable por scroll).
-enum RowImageSource { primary, thumb, backdrop }
-
-/// Posición del logo overlay en un scroll (stack). Meta siempre abajo.
-enum RowLogoPosition { top, center, bottom }
-
-/// Alineación horizontal del meta overlay sobre la imagen.
-enum RowMetaAlign { left, center, right }
-
-/// Fila de contenido configurable por skin: un título y filtros que deciden
-/// qué elementos se muestran (géneros y tipos). Permite customizar los scrolls
-/// de cada skin sin tocar código de pantalla.
-enum HomeScrollCardType { poster, backdrop }
-
-/// Títulos de fila conocidos (solo etiqueta, sin cadenas ni filtros).
-/// El filtrado lo hacen siempre `genres` ([JellyGenre]) y `types` de
-/// [HomeScroll]: `titleKey` únicamente elige la cadena traducida.
-/// Usa `titleKey: HomeScrollTitle.actionMovies` (sin cadenas).
-enum HomeScrollTitle {
-  continueWatching,
-  nextUp,
-  newReleases,
-  library,
-  seasonal,
-
-  /// Comodín para claves libres (se muestra tal cual).
-  custom,
-  actionMovies,
-  familyMovies,
-  romanticMovies,
-  animationMovies,
-  realities,
-  animeSeries,
-  nostalgia,
-  dramas,
-  comedies,
-  actionAdventure,
-  musicals,
-  foodCooking,
-  travel,
-  sciFi,
-  western,
-  crime,
-  horror,
-  superHero;
-
-  /// Clave usada en `HomeScroll.titleKey`.
-  String get key => name;
-
-  /// Traduce el título (`custom` devuelve [customTitle] si no está vacío,
-  /// si no la clave tal cual).
-  static String resolve(
-    AppLocalizations l10n,
-    HomeScrollTitle title, [
-    String? customTitle,
-  ]) {
-    switch (title) {
-      case HomeScrollTitle.continueWatching:
-        return l10n.continueWatching;
-      case HomeScrollTitle.nextUp:
-        return l10n.upNext;
-      case HomeScrollTitle.newReleases:
-        return l10n.newReleases;
-      case HomeScrollTitle.library:
-        return l10n.library;
-      case HomeScrollTitle.custom:
-        final free = customTitle?.trim() ?? '';
-        return free.isEmpty ? title.key : free;
-      case HomeScrollTitle.actionMovies:
-        return l10n.actionMovies;
-      case HomeScrollTitle.familyMovies:
-        return l10n.familyMovies;
-      case HomeScrollTitle.romanticMovies:
-        return l10n.romanticMovies;
-      case HomeScrollTitle.animationMovies:
-        return l10n.animationMovies;
-      case HomeScrollTitle.realities:
-        return l10n.realities;
-      case HomeScrollTitle.animeSeries:
-        return l10n.animeSeries;
-      case HomeScrollTitle.nostalgia:
-        return l10n.nostalgia;
-      case HomeScrollTitle.dramas:
-        return l10n.dramas;
-      case HomeScrollTitle.comedies:
-        return l10n.comedies;
-      case HomeScrollTitle.actionAdventure:
-        return l10n.actionAdventure;
-      case HomeScrollTitle.musicals:
-        return l10n.musicals;
-      case HomeScrollTitle.foodCooking:
-        return l10n.foodCooking;
-      case HomeScrollTitle.travel:
-        return l10n.travel;
-      case HomeScrollTitle.sciFi:
-        return l10n.sciFi;
-      case HomeScrollTitle.western:
-        return l10n.western;
-      case HomeScrollTitle.crime:
-        return l10n.crime;
-      case HomeScrollTitle.horror:
-        return l10n.horror;
-      case HomeScrollTitle.superHero:
-        return l10n.superHero;
-      case HomeScrollTitle.seasonal:
-        // TODO: Handle this case.
-        throw UnimplementedError();
-    }
-  }
-}
-
-/// Géneros que cada título de scroll custom trae por defecto.
-/// El título mostrado (traducido vía ARB) y el contenido filtrado van así
-/// siempre acordes: elegir "Comedias" filtra comedia. Los títulos sin
-/// correspondencia directa en [JellyGenre] (nostalgia, cocina, viajes) traen
-/// lista vacía y sus géneros se fijan a mano.
-const Map<HomeScrollTitle, List<JellyGenre>> defaultGenresForTitle = {
-  HomeScrollTitle.actionMovies: [JellyGenre.action],
-  HomeScrollTitle.familyMovies: [
-    JellyGenre.animation,
-    JellyGenre.family,
-    JellyGenre.kids,
-  ],
-  HomeScrollTitle.romanticMovies: [JellyGenre.romance],
-  HomeScrollTitle.animationMovies: [JellyGenre.animation],
-  HomeScrollTitle.realities: [JellyGenre.reality],
-  HomeScrollTitle.animeSeries: [JellyGenre.anime],
-  HomeScrollTitle.nostalgia: [],
-  HomeScrollTitle.dramas: [JellyGenre.drama],
-  HomeScrollTitle.comedies: [JellyGenre.comedy],
-  HomeScrollTitle.actionAdventure: [JellyGenre.action, JellyGenre.adventure],
-  HomeScrollTitle.musicals: [JellyGenre.musical, JellyGenre.music],
-  HomeScrollTitle.foodCooking: [],
-  HomeScrollTitle.travel: [],
-  HomeScrollTitle.sciFi: [JellyGenre.sciFi],
-  HomeScrollTitle.western: [JellyGenre.western],
-  HomeScrollTitle.crime: [
-    JellyGenre.crime,
-    JellyGenre.mystery,
-    JellyGenre.suspense,
-    JellyGenre.thriller,
-  ],
-  HomeScrollTitle.horror: [JellyGenre.horror],
-  HomeScrollTitle.superHero: [JellyGenre.superhero],
-};
-
-/// Título cuyo [defaultGenresForTitle] coincide exactamente con [genres]
-/// (sin importar el orden), o `null` si es una combinación libre.
-HomeScrollTitle? titleForGenres(Set<JellyGenre> genres) {
-  if (genres.isEmpty) return null;
-  for (final entry in defaultGenresForTitle.entries) {
-    final defaults = entry.value;
-    if (defaults.isEmpty || defaults.length != genres.length) continue;
-    if (genres.containsAll(defaults)) return entry.key;
-  }
-  return null;
-}
-
-/// Qué hace pulsar una tarjeta de la fila:
-/// - play: reproduce directamente (comportamiento actual).
-/// - details: abre la pantalla de detalle del item (y de ahí su lógica).
-enum HomeScrollTapAction { play, details }
-
-/// Géneros de Jellyfin como enum para evitar misspellings en los presets.
-/// `value` es el nombre exacto que devuelve la API (ej. 'Action', 'Sci-Fi'):
-/// úsalo así: `genres: [JellyGenre.action, JellyGenre.animation]`.
-enum JellyGenre {
-  action('Action'),
-  adventure('Adventure'),
-  animation('Animation'),
-  anime('Anime'),
-  biography('Biography'),
-  comedy('Comedy'),
-  crime('Crime'),
-  documentary('Documentary'),
-  drama('Drama'),
-  family('Family'),
-  fantasy('Fantasy'),
-  history('History'),
-  horror('Horror'),
-  kids('Kids'),
-  music('Music'),
-  musical('Musical'),
-  mystery('Mystery'),
-  reality('Reality'),
-  romance('Romance'),
-  sciFi('Sci-Fi'),
-  short('Short'),
-  sport('Sport'),
-  superhero('Superhero'),
-  suspense('Suspense'),
-  thriller('Thriller'),
-  war('War'),
-  western('Western');
-
-  const JellyGenre(this.value);
-
-  /// Nombre exacto en inglés que usa Jellyfin.
-  final String value;
-
-  static final Map<String, JellyGenre> _byValue = {
-    for (final g in JellyGenre.values) g.value: g,
-  };
-
-  /// Resuelve el enum desde el nombre de la API (`null` si no existe).
-  static JellyGenre? fromValue(String? value) =>
-      value == null ? null : _byValue[value];
-}
-
-/// Orden de los elementos de un scroll de biblioteca (series/películas).
-/// - alphabetical: orden alfabético (SortName asc)
-/// - recent: más recientes por fecha de estreno (PremiereDate desc)
-/// - rating: mejor valoradas (CommunityRating desc)
-/// - added: recientemente añadidas al catálogo (DateCreated desc) – por defecto actual
-/// - random: orden aleatorio (cada carga muestra películas diferentes)
-enum HomeScrollSort { alphabetical, recent, rating, added, random }
+export 'skin_enums.dart';
 
 class HomeScroll {
   const HomeScroll({
@@ -347,7 +132,6 @@ class HomeScroll {
   final int? yearFrom;
   final int? yearTo;
 
-  /// Copia con cambios puntuales (p. ej. migración de títulos legacy).
   HomeScroll copyWith({
     HomeScrollTitle? titleKey,
     String? customTitle,
@@ -385,8 +169,7 @@ class HomeScroll {
       types: types ?? this.types,
       limit: limit ?? this.limit,
       bottomVignette: bottomVignette ?? this.bottomVignette,
-      bottomVignetteHeight:
-          bottomVignetteHeight ?? this.bottomVignetteHeight,
+      bottomVignetteHeight: bottomVignetteHeight ?? this.bottomVignetteHeight,
       bottomVignetteOpacity:
           bottomVignetteOpacity ?? this.bottomVignetteOpacity,
       cardType: cardType ?? this.cardType,

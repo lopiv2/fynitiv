@@ -3,58 +3,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 
 import 'home_scroll.dart';
 
-/// Categoría de descubrimiento de Seerr (pestaña "Descubrir"). Cada valor se
-/// resuelve contra la API de Seerr.
-enum SeerrDiscoverCategory {
-  /// Tendencias (películas + series).
-  trending,
-
-  /// Películas populares.
-  popularMovies,
-
-  /// Próximas películas (estrenos).
-  upcomingMovies,
-
-  /// Series populares.
-  popularTv,
-
-  /// Próximas series.
-  upcomingTv,
-}
-
-/// Tipo de sección configurable para Home y VOD (unificado).
-/// Cada valor representa un bloque que aparece en el dashboard.
-/// El orden en el array `Skin.homeLayout` / `Skin.vodLayout` define el orden
-/// de arriba a abajo en la pantalla. Si el layout está vacío, se usa el orden
-/// legado de cada pantalla.
-///
-/// - featuredSlider: carrusel de novedades (banner grande). Solo si hay items.
-/// - continueWatching: fila “Continuar viendo”.
-/// - nextUp: fila “A continuación” (siguientes episodios).
-/// - recent: expande a una fila por cada biblioteca con `recentIn`
-///   (ordenados por fecha de creación). En Home aplica a
-///   Música/Películas/Series/Libros; en VOD a las vistas VOD.
-/// - newReleases: fila “Novedades” en formato posters (cuando no hay banner).
-/// - library: expande a una fila por cada biblioteca (título = nombre de la
-///   vista, orden por nombre o por `scroll.sort`).
-/// - custom: fila filtrada por géneros/tipos definida en [HomeScroll].
-/// - seasonal: fila de sugerencias estacionales (aparece solo en fechas
-///   temáticas y si la preferencia está activa; vacía el resto del año).
-enum LayoutSectionType {
-  featuredSlider,
-  continueWatching,
-  nextUp,
-  recent,
-  newReleases,
-  library,
-  custom,
-  seasonal,
-  upcoming,
-
-  /// Fila de descubrimiento de Seerr (pestaña "Descubrir"). La categoría va en
-  /// [LayoutSection.seerrCategory].
-  seerrDiscover,
-}
+export 'skin_enums.dart';
 
 /// Sección ordenable de Home y VOD.
 /// Documenta claramente: el array `homeLayout`/`vodLayout` de arriba a abajo

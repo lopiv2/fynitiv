@@ -293,6 +293,116 @@ abstract final class SkinPresets {
         ),
       ),
     ],
+    splitVod: true,
+    moviesLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(
+        HomeScroll(
+          titleKey: HomeScrollTitle.continueWatching,
+          genres: [],
+          imageSource: RowImageSource.thumb,
+          cardType: HomeScrollCardType.backdrop,
+          tapAction: HomeScrollTapAction.play,
+          showHoverOverlay: false,
+          showPlayIcon: true,
+          highlightTitleOnHover: true,
+        ),
+      ),
+      LayoutSection.newReleases(),
+      LayoutSection.library(
+        HomeScroll(
+          titleKey: HomeScrollTitle.library,
+          genres: [],
+          types: [BaseItemKind.movie],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          sort: HomeScrollSort.random,
+        ),
+        {CollectionType.movies},
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.actionMovies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.action],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.animationMovies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.animation],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.comedies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.comedy],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+        ),
+      ),
+    ],
+    seriesLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(
+        HomeScroll(
+          titleKey: HomeScrollTitle.continueWatching,
+          genres: [],
+          imageSource: RowImageSource.thumb,
+          cardType: HomeScrollCardType.backdrop,
+          tapAction: HomeScrollTapAction.play,
+          showHoverOverlay: false,
+          showPlayIcon: true,
+          highlightTitleOnHover: true,
+        ),
+      ),
+      LayoutSection.nextUp(),
+      LayoutSection.library(
+        HomeScroll(
+          titleKey: HomeScrollTitle.library,
+          genres: [],
+          types: [BaseItemKind.series],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          sort: HomeScrollSort.random,
+        ),
+        {CollectionType.tvshows},
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.animeSeries,
+          types: [BaseItemKind.series],
+          genres: [JellyGenre.anime],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.dramas,
+          types: [BaseItemKind.series],
+          genres: [JellyGenre.drama],
+          cardType: HomeScrollCardType.poster,
+          imageSource: RowImageSource.primary,
+          sort: HomeScrollSort.random,
+          tapAction: HomeScrollTapAction.details,
+        ),
+      ),
+    ],
     seerrLayout: _seerrDiscoverAll,
   );
 
@@ -347,6 +457,7 @@ abstract final class SkinPresets {
     cardHoverExtension: true,
     topBarFloating: false,
     showCardBadge: true,
+    topBarStyle: TopBarStyle.prime,
     // Layout de Inicio y VOD con la misma estructura; se mantiene el estilo de
     // las filas Prime (backdrop + hover extendido) en los scrolls propios.
     homeLayout: [
@@ -387,6 +498,71 @@ abstract final class SkinPresets {
         HomeScroll(
           titleKey: HomeScrollTitle.familyMovies,
           genres: [JellyGenre.animation, JellyGenre.family, JellyGenre.kids],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+    ],
+    splitVod: true,
+    moviesLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(),
+      LayoutSection.newReleases(),
+      LayoutSection.library(
+        HomeScroll(
+          titleKey: HomeScrollTitle.library,
+          genres: [],
+          types: [BaseItemKind.movie],
+          cardType: HomeScrollCardType.backdrop,
+          sort: HomeScrollSort.random,
+        ),
+        {CollectionType.movies},
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.actionMovies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.action],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.comedies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.comedy],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+    ],
+    seriesLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(),
+      LayoutSection.nextUp(),
+      LayoutSection.newReleases(),
+      LayoutSection.library(
+        HomeScroll(
+          titleKey: HomeScrollTitle.library,
+          genres: [],
+          types: [BaseItemKind.series],
+          cardType: HomeScrollCardType.backdrop,
+          imageSource: RowImageSource.thumb,
+          sort: HomeScrollSort.random,
+        ),
+        {CollectionType.tvshows},
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.dramas,
+          types: [BaseItemKind.series],
+          genres: [JellyGenre.drama],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.sciFi,
+          types: [BaseItemKind.series],
+          genres: [JellyGenre.sciFi],
           cardType: HomeScrollCardType.backdrop,
         ),
       ),
@@ -453,11 +629,183 @@ abstract final class SkinPresets {
     seerrLayout: _seerrDiscoverAll,
   );
 
+  /// Estilo Netflix (negro casi puro, acento rojo, barra superior,
+  /// tarjetas backdrop 16:9 y billboard superior con acciones).
+  /// Usa la topbar modular estilo Netflix (avatar, nav con píldora, logo).
+  static const Skin netflix = Skin(
+    id: 'netflix',
+    name: 'Netflix',
+    primary: Color(0xFFE50914),
+    secondary: Color(0xFF221F1F),
+    backgroundTop: Color(0xFF000000),
+    backgroundBottom: Color(0xFF141414),
+    sidebarBackground: Color(0xFF000000),
+    accent: Color(0xFFE50914),
+    textPrimary: Color(0xFFFFFFFF),
+    textSecondary: Color(0xB3FFFFFF),
+    sidebarLogo: 'assets/images/Logo_letter_fynitiv.png',
+    sidebarPosition: SidebarPosition.top,
+    sidebarWidth: 240,
+    showContinueRow: true,
+    showNewReleasesRow: true,
+    cardImageType: CardImageType.backdrop,
+    showTrailerInSlider: true,
+    bannerShowTitle: false,
+    bannerAttachedTop: true,
+    bannerShowAgeRating: true,
+    bannerShowActions: true,
+    bannerTransition: SliderTransition.fade,
+    bannerHeightFactor: 0.5,
+    bannerMaxHeight: 560,
+    bannerContentScale: 1.1,
+    bannerVignette: true,
+    bannerVignetteMode: SliderVignetteMode.around,
+    homeCardWidth: 300,
+    homeRowHeight: 300,
+    rowSpacing: 32,
+    itemSpacing: 12,
+    cardBorderRadius: 4,
+    sidebarCollapsible: true,
+    topBarFloating: false,
+    topBarStyle: TopBarStyle.netflix,
+    splitVod: true,
+    // Layout de Inicio y VOD con la misma estructura: billboard, continuar,
+    // a continuación, recientes y bibliotecas, más scrolls propios de género.
+    homeLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(
+        HomeScroll(
+          titleKey: HomeScrollTitle.continueWatching,
+          genres: [],
+          imageSource: RowImageSource.thumb,
+          cardType: HomeScrollCardType.backdrop,
+          tapAction: HomeScrollTapAction.play,
+          showHoverOverlay: false,
+          showPlayIcon: true,
+          highlightTitleOnHover: true,
+        ),
+      ),
+      LayoutSection.nextUp(),
+      LayoutSection.recent(),
+      LayoutSection.library(),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.actionMovies,
+          genres: [JellyGenre.action],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.comedies,
+          genres: [JellyGenre.comedy],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+    ],
+    vodLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(
+        HomeScroll(
+          titleKey: HomeScrollTitle.continueWatching,
+          genres: [],
+          imageSource: RowImageSource.thumb,
+          cardType: HomeScrollCardType.backdrop,
+          tapAction: HomeScrollTapAction.play,
+          showHoverOverlay: false,
+          showPlayIcon: true,
+          highlightTitleOnHover: true,
+        ),
+      ),
+      LayoutSection.nextUp(),
+      LayoutSection.newReleases(),
+      LayoutSection.library(),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.actionMovies,
+          genres: [JellyGenre.action],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.comedies,
+          genres: [JellyGenre.comedy],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+    ],
+    moviesLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(),
+      LayoutSection.newReleases(),
+      LayoutSection.library(
+        HomeScroll(
+          titleKey: HomeScrollTitle.library,
+          genres: [],
+          types: [BaseItemKind.movie],
+          cardType: HomeScrollCardType.backdrop,
+          sort: HomeScrollSort.random,
+        ),
+        {CollectionType.movies},
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.actionMovies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.action],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.comedies,
+          types: [BaseItemKind.movie],
+          genres: [JellyGenre.comedy],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+    ],
+    seriesLayout: [
+      LayoutSection.featuredSlider(),
+      LayoutSection.continueWatching(),
+      LayoutSection.nextUp(),
+      LayoutSection.library(
+        HomeScroll(
+          titleKey: HomeScrollTitle.library,
+          genres: [],
+          types: [BaseItemKind.series],
+          cardType: HomeScrollCardType.backdrop,
+          sort: HomeScrollSort.random,
+        ),
+        {CollectionType.tvshows},
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.dramas,
+          types: [BaseItemKind.series],
+          genres: [JellyGenre.drama],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+      LayoutSection.custom(
+        HomeScroll(
+          titleKey: HomeScrollTitle.animeSeries,
+          types: [BaseItemKind.series],
+          genres: [JellyGenre.anime],
+          cardType: HomeScrollCardType.backdrop,
+        ),
+      ),
+    ],
+    seerrLayout: _seerrDiscoverAll,
+  );
+
   static const List<Skin> all = [
     jellyfinDefault,
     disneyPlus,
     amazonPrime,
     movistarPlus,
     custom,
+    netflix,
   ];
 }

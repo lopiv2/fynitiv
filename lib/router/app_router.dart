@@ -188,6 +188,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           StatefulShellBranch(
             routes: [
               GoRoute(path: '/vod', builder: (_, _) => const VodScreen()),
+              GoRoute(
+                path: '/vod/movies',
+                builder: (_, _) =>
+                    const VodScreen(split: VodSplit.movies),
+              ),
+              GoRoute(
+                path: '/vod/series',
+                builder: (_, _) =>
+                    const VodScreen(split: VodSplit.series),
+              ),
             ],
           ),
           StatefulShellBranch(

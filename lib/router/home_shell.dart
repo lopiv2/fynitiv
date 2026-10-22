@@ -11,6 +11,7 @@ import '../core/navigation/sidebar_controller.dart';
 import '../core/settings/game_bg_music_controller.dart';
 import '../core/skin/skin.dart';
 import '../core/skin/skin_controller.dart';
+import '../core/skin/skin_enums.dart';
 import '../core/theme/dashboard_background.dart';
 import '../features/library/presentation/widgets/sidebar.dart';
 import '../features/music/application/music_player_provider.dart';
@@ -156,7 +157,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
         (skin?.id == 'amazon_prime') &&
         sidebarPosition == SidebarPosition.top &&
         !isFloatingTopIsland;
-    final barOpacity = isPrimeAnchored
+    // La topbar Netflix también flota sobre el billboard: transparente
+    // arriba y sólida al hacer scroll (igual que Prime anclado).
+    final isNetflixOverlayTop =
+        (skin?.topBarStyle == TopBarStyle.netflix) &&
+        sidebarPosition == SidebarPosition.top &&
+        !isFloatingTopIsland;
+    final barOpacity = (isPrimeAnchored || isNetflixOverlayTop)
         ? (_scrollOffset / 100).clamp(0.0, 1.0)
         : 1.0;
     final sidebarWidget = _showSidebar(mode, sidebar)

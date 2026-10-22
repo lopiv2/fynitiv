@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/gestures.dart';
+import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../l10n/app_localizations.dart';
@@ -10,6 +11,25 @@ import 'included_badge.dart';
 import 'marquee_text.dart';
 import 'round_icon_button.dart';
 import 'watch_now_button.dart';
+
+/// Etiqueta del botón principal para el hover Prime de una serie en curso
+/// ("Reanudar T1 E18", como la foto de referencia).
+/// Devuelve `null` si no aplica: otro skin, sin progreso o episodio sin
+/// números de temporada/capítulo. Con `null` el panel usa "Reanudar".
+String? primeSeriesResumeLabel({
+  required String? skinId,
+  required BaseItemDto item,
+  required AppLocalizations? l10n,
+}) {
+  if (skinId != 'amazon_prime') return null;
+  if ((item.userData?.playbackPositionTicks ?? 0) <= 0) return null;
+  if (item.type != BaseItemKind.episode) return null;
+  final season = item.parentIndexNumber;
+  final episode = item.indexNumber;
+  if (season == null || episode == null) return null;
+  return l10n?.resumeSeasonEpisode(season, episode) ??
+      'Reanudar T$season E$episode';
+}
 
 /// Altura del panel de extensión que aparece bajo la tarjeta al hacer hover
 /// (estilo Prime).

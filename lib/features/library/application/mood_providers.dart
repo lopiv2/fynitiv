@@ -68,7 +68,7 @@ Future<BaseItemDto?> fetchRandomMoodItem({
     recursive: true,
     includeItemTypes: const [BaseItemKind.movie, BaseItemKind.series],
     // Jellyfin espera los géneros separados por "|" en un único valor (OR).
-    genres: [genres.map((g) => g.value).join('|')],
+    genres: [jellyGenresFilter(genres)],
     sortBy: const [ItemSortBy.random],
     limit: preferBackdrop ? 10 : 1,
     fields: const [

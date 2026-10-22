@@ -5,8 +5,6 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/navigation/platform_mode.dart';
 import '../../../core/skin/home_scroll.dart';
-import '../../../core/skin/layout_section.dart';
-import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -30,7 +28,8 @@ class HomeScreen extends ConsumerWidget {
     final resume = ref.watch(resumeItemsProvider);
     final nextUp = ref.watch(nextUpEpisodesProvider);
     final latest = ref.watch(latestItemsProvider);
-    final latestBanner = ref.watch(latestBannerItemsProvider);
+    final latestBanner =
+        ref.watch(bannerItemsForProvider(scrollTypesKey(null)));
     final views = ref.watch(userViewsProvider);
     final skin = ref.watch(skinControllerProvider).value;
     final platformMode = ref.watch(platformModeProvider).value;
@@ -194,10 +193,11 @@ class HomeScreen extends ConsumerWidget {
 
     final hasCustomLayout = (skin?.homeLayout.isNotEmpty ?? false);
 
-    // Helper para construir FeaturedSlider reutilizable
-    Widget buildFeaturedSlider() => FeaturedSlider(
+    // Helper para construir FeaturedSlider reutilizable.
+    // Sin [items] usa el banner por defecto (pelis + series).
+    Widget buildFeaturedSlider([List<BaseItemDto>? items]) => FeaturedSlider(
       title: l10n.newReleases,
-      items: latestBanner.value ?? const [],
+      items: items ?? latestBanner.value ?? const [],
       serverUrl: serverUrl,
       showTitle: skin?.bannerShowTitle ?? true,
       showAgeRating: skin?.bannerShowAgeRating ?? false,
@@ -414,8 +414,17 @@ class HomeScreen extends ConsumerWidget {
       for (final section in skin.homeLayout) {
         switch (section.type) {
           case LayoutSectionType.featuredSlider:
-            if (showBanner && (latestBanner.value?.isNotEmpty ?? false)) {
-              out.add(buildFeaturedSlider());
+            final sliderItems =
+                ref
+                    .watch(
+                      bannerItemsForProvider(
+                        scrollTypesKey(section.scroll),
+                      ),
+                    )
+                    .value ??
+                const [];
+            if (showBanner && sliderItems.isNotEmpty) {
+              out.add(buildFeaturedSlider(sliderItems));
             }
             out.add(const MoodSuggestionsGrid());
             break;
