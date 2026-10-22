@@ -277,6 +277,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             letter: _title[i],
             angle: _letterAngle(i),
             gradient: _presentation.letterGradient(i, _title.length),
+            fontFamily: _presentation.titleFontFamily,
+            letterOutlineColor: _presentation.letterOutlineColor,
             extrusionDark: _presentation.extrusionDark,
             extrusionLight: _presentation.extrusionLight,
             glowColor: _presentation.glowColor,
@@ -638,6 +640,8 @@ class _LetterTile extends StatelessWidget {
     required this.snowSeed,
     required this.snowMelt,
     this.gradient,
+    this.fontFamily,
+    this.letterOutlineColor = Colors.white,
     this.glow = 0,
     this.flareOpacity = 0,
     this.flareScale = 0,
@@ -668,6 +672,12 @@ class _LetterTile extends StatelessWidget {
 
   /// Degradado vertical de la cara frontal de la letra.
   final LinearGradient? gradient;
+
+  /// Familia tipográfica del título (viene de la presentación estacional).
+  final String? fontFamily;
+
+  /// Color del borde (outline) de la letra (viene de la presentación).
+  final Color letterOutlineColor;
 
   /// Intensidad 0→1 del glow que envuelve la letra (usado en la última "V").
   final double glow;
@@ -748,6 +758,7 @@ class _LetterTile extends StatelessWidget {
                       letter,
                       style: TextStyle(
                         color: const Color(0xFFF4FAFF),
+                        fontFamily: fontFamily,
                         fontSize: 160,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 4,
@@ -801,6 +812,7 @@ class _LetterTile extends StatelessWidget {
       letter,
       style: TextStyle(
         color: color ?? Colors.white,
+        fontFamily: fontFamily,
         fontSize: 160,
         fontWeight: FontWeight.w800,
         letterSpacing: 4,
@@ -832,16 +844,17 @@ class _LetterTile extends StatelessWidget {
         Text(
           letter,
           style: TextStyle(
+            fontFamily: fontFamily,
             fontSize: 160,
             fontWeight: FontWeight.w800,
             letterSpacing: 4,
             foreground: Paint()
               ..style = PaintingStyle.stroke
               ..strokeWidth = 3.5
-              ..color = const Color(0xFFFFFFFF),
-            shadows: const [
+              ..color = letterOutlineColor,
+            shadows: [
               Shadow(
-                color: Color(0x4DFFFFFF),
+                color: letterOutlineColor.withValues(alpha: 0.30),
                 blurRadius: 10,
                 offset: Offset(0, 0),
               ),

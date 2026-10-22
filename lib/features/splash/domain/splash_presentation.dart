@@ -29,6 +29,8 @@ class SplashPresentation {
     this.flareAsset = 'assets/images/flares/flare_01.png',
     this.backgroundEffects = const [],
     this.effects = const [],
+    this.titleFontFamily,
+    this.letterOutlineColor = Colors.white,
   });
 
   /// Identificador estable (para comparar presentaciones entre estaciones).
@@ -72,6 +74,14 @@ class SplashPresentation {
 
   /// Capas decorativas propias de la estación, **delante** del contenido.
   final List<SplashEffect> effects;
+
+  /// Familia tipográfica del título (letras FYNITIV). `null` = fuente del
+  /// sistema (resto de presentaciones). Halloween usa Super Midnight.
+  final String? titleFontFamily;
+
+  /// Color del borde (outline) de las letras del título. Blanco por defecto;
+  /// cada presentación puede fijar el suyo (p. ej. Halloween).
+  final Color letterOutlineColor;
 
   /// Color base de la letra [index] de un título de [count] letras:
   /// interpolación con paradas repartidas uniformemente en [letterStops].

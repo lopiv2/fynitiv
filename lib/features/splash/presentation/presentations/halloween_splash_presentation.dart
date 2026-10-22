@@ -43,6 +43,13 @@ const SplashPresentation kHalloweenSplashPresentation = SplashPresentation(
     Shadow(color: Color(0xDD1A0B2E), blurRadius: 10),
     Shadow(color: Color(0xAA2A0A3E), blurRadius: 24),
   ],
+  titleFontFamily: 'SuperMidnight',
+  letterOutlineColor: Color.fromARGB(
+    255,
+    161,
+    70,
+    9,
+  ), // rosa pálido, solo Halloween
   backgroundEffects: [
     halloweenBackEffect,
     halloweenFogEffect,
@@ -155,7 +162,10 @@ Widget _fogBand({
       child: DecoratedBox(
         decoration: BoxDecoration(
           gradient: RadialGradient(
-            colors: [color.withValues(alpha: opacity), color.withValues(alpha: 0)],
+            colors: [
+              color.withValues(alpha: opacity),
+              color.withValues(alpha: 0),
+            ],
           ),
         ),
       ),
@@ -212,7 +222,9 @@ Widget halloweenMoonEffect(BuildContext context, double progress) {
                           shape: BoxShape.circle,
                           gradient: RadialGradient(
                             colors: [
-                              const Color(0x55FFE9B0).withValues(alpha: 0.45 * moonAlpha),
+                              const Color(
+                                0x55FFE9B0,
+                              ).withValues(alpha: 0.45 * moonAlpha),
                               const Color(0x00FFE9B0),
                             ],
                           ),
@@ -413,7 +425,9 @@ class _BoltPainter extends CustomPainter {
     final bottomY = size.height * 0.68;
     final segments = 16;
 
-    final main = <Offset>[Offset(centerX + (rnd.nextDouble() - 0.5) * 10, -size.height * 0.03)];
+    final main = <Offset>[
+      Offset(centerX + (rnd.nextDouble() - 0.5) * 10, -size.height * 0.03),
+    ];
     for (var i = 1; i <= segments; i++) {
       final t = i / segments;
       final y = bottomY * t;
@@ -429,13 +443,17 @@ class _BoltPainter extends CustomPainter {
     for (var b = 0; b < branchCount; b++) {
       final startIndex = 1 + rnd.nextInt(main.length - 2);
       final direction = rnd.nextBool() ? 1.0 : -1.0;
-      branches.add(_growBranch(rnd, size, main[startIndex], direction, 3 + rnd.nextInt(4)));
+      branches.add(
+        _growBranch(rnd, size, main[startIndex], direction, 3 + rnd.nextInt(4)),
+      );
       // Sub-rama: nace a mitad de algunas ramas, con dirección opuesta.
       if (rnd.nextDouble() < 0.7) {
         final parent = branches.last;
         if (parent.length > 2) {
           final from = parent[1 + rnd.nextInt(parent.length - 2)];
-          branches.add(_growBranch(rnd, size, from, -direction, 2 + rnd.nextInt(2)));
+          branches.add(
+            _growBranch(rnd, size, from, -direction, 2 + rnd.nextInt(2)),
+          );
         }
       }
     }
@@ -629,7 +647,9 @@ Widget _buildFlock(
   final centerY =
       (flock.y +
           flock.amplitude *
-              math.sin(local * 2 * math.pi * flock.oscillations + flock.phase)) *
+              math.sin(
+                local * 2 * math.pi * flock.oscillations + flock.phase,
+              )) *
       height;
   // La bandada completa se desvanece al entrar y al salir.
   final fade = math

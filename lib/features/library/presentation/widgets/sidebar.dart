@@ -1,5 +1,5 @@
-// ignore: unnecessary_import - PointerDeviceKind usado en _HorizontalScrollBehavior
-import 'package:flutter/gestures.dart';
+import 'dart:ui';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:go_router/go_router.dart';
@@ -314,35 +314,44 @@ class Sidebar extends ConsumerWidget {
       }
       // Barra superior fija (Prime sin isla): misma estructura que [Image 1]
       // los extremos no tocan los bordes, solo esquinas inferiores redondeadas en Prime.
+      // Glassmorphism: transparente sin blur arriba, blur + translúcido al scrollear
+      // (barOpacity 0 -> 1), en lugar de volverse negra opaca.
       final isAnyLibrarySelected = views.any((v) => v.id == activeViewId);
       final isPrime = skin?.id == 'amazon_prime';
-      final effectiveBg = bg.withValues(alpha: barOpacity);
-      final effectiveBorder = border.withValues(alpha: 0.6 * barOpacity);
-      final effectiveShadow = Colors.black.withValues(alpha: 0.18 * barOpacity);
+      final glassBlur = 18.0 * barOpacity;
+      final glassBg = bg.withValues(alpha: 0.55 * barOpacity);
+      final effectiveBorder =
+          Colors.white.withValues(alpha: 0.14 * barOpacity);
+      final effectiveShadow = Colors.black.withValues(alpha: 0.28 * barOpacity);
       final effectiveRadius = isPrime
           ? (position == SidebarPosition.bottom
               ? const BorderRadius.vertical(top: Radius.circular(12))
               : const BorderRadius.vertical(bottom: Radius.circular(12)))
           : BorderRadius.circular(12);
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        curve: Curves.easeOut,
+      return Container(
         height: 60,
         margin: const EdgeInsets.symmetric(horizontal: 40, vertical: 8),
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: effectiveBg,
+        child: ClipRRect(
           borderRadius: effectiveRadius,
-          border: Border.all(color: effectiveBorder),
-          boxShadow: [
-            BoxShadow(
-              color: effectiveShadow,
-              blurRadius: 12,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: glassBlur, sigmaY: glassBlur),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                color: glassBg,
+                borderRadius: effectiveRadius,
+                border: Border.all(color: effectiveBorder),
+                boxShadow: [
+                  BoxShadow(
+                    color: effectiveShadow,
+                    blurRadius: 22,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: Row(
           children: [
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -393,6 +402,9 @@ class Sidebar extends ConsumerWidget {
               onSettings: () => _goBranch(context, ref, 7),
             ),
           ],
+        ),
+            ),
+          ),
         ),
       );
     }
