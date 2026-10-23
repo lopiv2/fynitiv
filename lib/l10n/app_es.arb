@@ -197,6 +197,8 @@
     }
   },
   "details": "Detalles",
+  "moreInfo": "Más información",
+  "netflixHeroMatch": "Creemos que te va a encantar",
   "watchTrailer": "Ver trailer",
   "playbackFailed": "No se pudo iniciar la reproducción.",
   "play": "Reproducir",

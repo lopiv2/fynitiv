@@ -149,13 +149,13 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
   }
 
   Widget _cachedImage(String url, Widget Function() onError) {
-    // A máxima resolución (1920 Full HD): con menos la tarjeta se veía
-    // borrosa en pantallas HiDPI y al expandirse en el hover (x1.3).
+    // 800px afinado para tarjetas 16:9 de scroll (antes 1920 Full HD: con
+    // menos no se notaba en la tarjeta y el hover x1.3 sigue nítido).
     return CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
-      memCacheWidth: 1920,
-      maxWidthDiskCache: 1920,
+      memCacheWidth: kLandscapeMaxWidth,
+      maxWidthDiskCache: kLandscapeMaxWidth,
       fadeInDuration: const Duration(milliseconds: 150),
       useOldImageOnUrlChange: true,
       errorBuilder: (_, _, _) => onError(),
@@ -170,9 +170,6 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
       logoUrl = itemLogoUrl(widget.serverUrl!, widget.item);
     }
     String? displayUrl;
-    String? fallbackPrimaryUrl;
-    String? fallbackBackdropUrl;
-    String? fallbackThumbUrl;
     if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
       displayUrl = widget.imageUrl;
     } else if (widget.useSeriesPoster &&
@@ -180,57 +177,27 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
         widget.item.seriesId != null &&
         widget.item.seriesId!.isNotEmpty &&
         widget.serverUrl != null) {
-      final tag = widget.item.seriesPrimaryImageTag;
-      displayUrl = tag != null && tag.isNotEmpty
-          ? '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=1000&tag=$tag'
-          : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=1000';
-      fallbackBackdropUrl = widget.serverUrl != null
-          ? itemBackdropUrl(widget.serverUrl!, widget.item)
-          : null;
-      fallbackThumbUrl = widget.serverUrl != null
-          ? itemThumbUrl(widget.serverUrl!, widget.item)
-          : null;
-      fallbackPrimaryUrl = widget.serverUrl != null
-          ? itemImageUrl(widget.serverUrl!, widget.item, maxWidth: 800)
-          : null;
+      // Póster de la serie; si el episodio no trae tag de serie se resuelve
+      // a la mejor panorámica del propio episodio para no pedir un 404.
+      displayUrl =
+          seriesPosterUrl(widget.serverUrl!, widget.item) ??
+          singleCardImageUrl(
+            widget.serverUrl!,
+            widget.item,
+            CardImageKind.thumb,
+          );
     } else if (widget.serverUrl != null) {
-      switch (widget.imageSource) {
-        case RowImageSource.primary:
-          displayUrl = itemImageUrl(
-            widget.serverUrl!,
-            widget.item,
-            maxWidth: 1000,
-          );
-          fallbackThumbUrl = itemThumbUrl(widget.serverUrl!, widget.item);
-          fallbackBackdropUrl = itemBackdropUrl(widget.serverUrl!, widget.item);
-          break;
-        case RowImageSource.thumb:
-          displayUrl = itemThumbUrl(widget.serverUrl!, widget.item);
-          fallbackBackdropUrl = itemBackdropUrl(widget.serverUrl!, widget.item);
-          fallbackPrimaryUrl = itemImageUrl(
-            widget.serverUrl!,
-            widget.item,
-            maxWidth: 800,
-          );
-          break;
-        case RowImageSource.backdrop:
-          displayUrl = itemBackdropUrl(widget.serverUrl!, widget.item);
-          fallbackThumbUrl = itemThumbUrl(widget.serverUrl!, widget.item);
-          fallbackPrimaryUrl = itemImageUrl(
-            widget.serverUrl!,
-            widget.item,
-            maxWidth: 800,
-          );
-          break;
-      }
-      // Mantener fallbacks nulos para lógica de image anidada
-      fallbackPrimaryUrl ??= itemImageUrl(
+      // Una sola URL según los tags del DTO: evita la cadena de fallbacks
+      // por red (hasta 3 peticiones secuenciales por tarjeta).
+      displayUrl = singleCardImageUrl(
         widget.serverUrl!,
         widget.item,
-        maxWidth: 800,
+        switch (widget.imageSource) {
+          RowImageSource.primary => CardImageKind.primary,
+          RowImageSource.thumb => CardImageKind.thumb,
+          RowImageSource.backdrop => CardImageKind.backdrop,
+        },
       );
-      fallbackThumbUrl ??= itemThumbUrl(widget.serverUrl!, widget.item);
-      fallbackBackdropUrl ??= itemBackdropUrl(widget.serverUrl!, widget.item);
     }
     final progress = widget.item.userData?.playedPercentage;
     final skin =
@@ -411,42 +378,10 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
     }
 
     final fallback = PosterFallback(item: widget.item, color: fallbackColor);
-    final Widget image;
-    if (displayUrl != null) {
-      image = _cachedImage(displayUrl, () {
-        // Fallback chain excluding displayUrl
-        final fallbacks = [
-          fallbackThumbUrl,
-          fallbackBackdropUrl,
-          fallbackPrimaryUrl,
-        ].whereType<String>().where((u) => u != displayUrl).toList();
-        Widget buildChain(int i) {
-          if (i >= fallbacks.length) return fallback;
-          return _cachedImage(fallbacks[i], () => buildChain(i + 1));
-        }
-
-        return buildChain(0);
-      });
-    } else {
-      final candidates = [
-        fallbackThumbUrl,
-        fallbackBackdropUrl,
-        fallbackPrimaryUrl,
-      ].whereType<String>().toList();
-      if (candidates.isNotEmpty) {
-        Widget buildChain(int i) {
-          if (i >= candidates.length) return fallback;
-          if (i == candidates.length - 1) {
-            return _cachedImage(candidates[i], () => fallback);
-          }
-          return _cachedImage(candidates[i], () => buildChain(i + 1));
-        }
-
-        image = buildChain(0);
-      } else {
-        image = fallback;
-      }
-    }
+    // Sin URL (el DTO no trae tags) se pinta el fallback local sin pedir red.
+    final Widget image = displayUrl != null
+        ? _cachedImage(displayUrl, () => fallback)
+        : fallback;
 
     final isImageHovered =
         _isHovered || (AppHoverScope.of(context)?.hovered ?? false);

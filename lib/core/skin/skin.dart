@@ -60,6 +60,8 @@ class Skin {
     this.bannerHeightFactor = 0.38,
     this.bannerMaxHeight = 440,
     this.bannerHorizontalPadding = 0,
+    this.bannerTopPadding = 54,
+    this.bannerShowDots = true,
     this.bannerShadow = false,
     this.bannerHoverScale = 1.02,
     this.bannerVignette = true,
@@ -255,6 +257,15 @@ class Skin {
   /// Deja un hueco entre el borde de la pantalla y el banner. 0 = sin padding.
   final double bannerHorizontalPadding;
 
+  /// Hueco vertical entre la barra superior y el featured slider, cuando el
+  /// banner no va pegado arriba (`bannerAttachedTop: false`). 54 = valor
+  /// previo fijo.
+  final double bannerTopPadding;
+
+  /// Muestra los puntos de navegación del featured slider. En `false` el
+  /// banner rota solo (autoplay) y en TV ←/→ en los bordes cambian de banner.
+  final bool bannerShowDots;
+
   /// Si `true`, el featured slider muestra sombra elevada alrededor del banner.
   final bool bannerShadow;
 
@@ -416,6 +427,8 @@ class Skin {
     double? bannerHeightFactor,
     double? bannerMaxHeight,
     double? bannerHorizontalPadding,
+    double? bannerTopPadding,
+    bool? bannerShowDots,
     bool? bannerShadow,
     double? bannerHoverScale,
     bool? bannerVignette,
@@ -507,6 +520,8 @@ class Skin {
       bannerMaxHeight: bannerMaxHeight ?? this.bannerMaxHeight,
       bannerHorizontalPadding:
           bannerHorizontalPadding ?? this.bannerHorizontalPadding,
+      bannerTopPadding: bannerTopPadding ?? this.bannerTopPadding,
+      bannerShowDots: bannerShowDots ?? this.bannerShowDots,
       bannerShadow: bannerShadow ?? this.bannerShadow,
       bannerHoverScale: bannerHoverScale ?? this.bannerHoverScale,
       bannerVignette: bannerVignette ?? this.bannerVignette,
@@ -623,6 +638,9 @@ class Skin {
       bannerMaxHeight: (json['bannerMaxHeight'] as num?)?.toDouble() ?? 440,
       bannerHorizontalPadding:
           (json['bannerHorizontalPadding'] as num?)?.toDouble() ?? 0,
+      bannerTopPadding:
+          (json['bannerTopPadding'] as num?)?.toDouble() ?? 54,
+      bannerShowDots: json['bannerShowDots'] as bool? ?? true,
       bannerShadow: json['bannerShadow'] as bool? ?? false,
       bannerHoverScale:
           (json['bannerHoverScale'] as num?)?.toDouble() ?? 1.02,
@@ -748,6 +766,8 @@ class Skin {
     'bannerHeightFactor': bannerHeightFactor,
     'bannerMaxHeight': bannerMaxHeight,
     'bannerHorizontalPadding': bannerHorizontalPadding,
+    'bannerTopPadding': bannerTopPadding,
+    'bannerShowDots': bannerShowDots,
     'bannerShadow': bannerShadow,
     'bannerHoverScale': bannerHoverScale,
     'bannerVignette': bannerVignette,

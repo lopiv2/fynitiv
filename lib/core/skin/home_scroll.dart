@@ -31,6 +31,8 @@ class HomeScroll {
     this.cardBorderRadius,
     this.hoverScale,
     this.showSeeMore = true,
+    this.spotlight = false,
+    this.cardScale = 1.0,
     this.sort = HomeScrollSort.added,
     this.tapAction = HomeScrollTapAction.play,
     this.yearFrom,
@@ -121,6 +123,14 @@ class HomeScroll {
   /// Si es `false` oculta el botón "Ver más" del título de la fila.
   final bool showSeeMore;
 
+  /// Efecto spotlight estilo Netflix TV: la tarjeta con hover/foco crece y
+  /// despliega debajo meta + sinopsis. Apagado por defecto (a demanda).
+  final bool spotlight;
+
+  /// Escala de las tarjetas de este scroll (1.0 = tamaño del skin).
+  /// Multiplica ancho y alto de fila. P. ej. 1.2 = 20% más grandes.
+  final double cardScale;
+
   /// Orden de los elementos de la biblioteca para este scroll.
   final HomeScrollSort sort;
 
@@ -157,6 +167,8 @@ class HomeScroll {
     double? cardBorderRadius,
     double? hoverScale,
     bool? showSeeMore,
+    bool? spotlight,
+    double? cardScale,
     HomeScrollSort? sort,
     HomeScrollTapAction? tapAction,
     int? yearFrom,
@@ -189,6 +201,8 @@ class HomeScroll {
       cardBorderRadius: cardBorderRadius ?? this.cardBorderRadius,
       hoverScale: hoverScale ?? this.hoverScale,
       showSeeMore: showSeeMore ?? this.showSeeMore,
+      spotlight: spotlight ?? this.spotlight,
+      cardScale: cardScale ?? this.cardScale,
       sort: sort ?? this.sort,
       tapAction: tapAction ?? this.tapAction,
       yearFrom: yearFrom ?? this.yearFrom,
@@ -221,6 +235,8 @@ class HomeScroll {
     if (cardBorderRadius != null) 'cardBorderRadius': cardBorderRadius,
     if (hoverScale != null) 'hoverScale': hoverScale,
     'showSeeMore': showSeeMore,
+    'spotlight': spotlight,
+    'cardScale': cardScale,
     'sort': sort.name,
     'tapAction': tapAction.name,
     if (yearFrom != null) 'yearFrom': yearFrom,
@@ -279,6 +295,8 @@ class HomeScroll {
     cardBorderRadius: (json['cardBorderRadius'] as num?)?.toDouble(),
     hoverScale: (json['hoverScale'] as num?)?.toDouble(),
     showSeeMore: json['showSeeMore'] as bool? ?? true,
+    spotlight: json['spotlight'] as bool? ?? false,
+    cardScale: (json['cardScale'] as num?)?.toDouble() ?? 1.0,
     yearFrom: (json['yearFrom'] as num?)?.toInt(),
     yearTo: (json['yearTo'] as num?)?.toInt(),
     tapAction: json['tapAction'] != null
@@ -318,6 +336,8 @@ class HomeScroll {
         other.cardBorderRadius == cardBorderRadius &&
         other.hoverScale == hoverScale &&
         other.showSeeMore == showSeeMore &&
+        other.spotlight == spotlight &&
+        other.cardScale == cardScale &&
         other.sort == sort &&
         other.tapAction == tapAction &&
         other.yearFrom == yearFrom &&
@@ -352,6 +372,8 @@ class HomeScroll {
     cardBorderRadius,
     hoverScale,
     showSeeMore,
+    spotlight,
+    cardScale,
     sort,
     tapAction,
     yearFrom,

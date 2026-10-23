@@ -81,6 +81,7 @@ enum SeerrDiscoverCategory {
 /// - custom: fila filtrada por géneros/tipos definida en [HomeScroll].
 /// - seasonal: fila de sugerencias estacionales (aparece solo en fechas
 ///   temáticas y si la preferencia está activa; vacía el resto del año).
+/// - gap: hueco vertical fijo (espaciador) entre secciones.
 enum LayoutSectionType {
   featuredSlider,
   continueWatching,
@@ -91,6 +92,10 @@ enum LayoutSectionType {
   custom,
   seasonal,
   upcoming,
+
+  /// Hueco vertical fijo entre secciones (espaciador). La altura va en
+  /// [LayoutSection.gapHeight].
+  gap,
 
   /// Fila de descubrimiento de Seerr (pestaña "Descubrir"). La categoría va en
   /// [LayoutSection.seerrCategory].

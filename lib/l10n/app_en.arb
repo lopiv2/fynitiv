@@ -198,6 +198,8 @@
     }
   },
   "details": "Details",
+  "moreInfo": "More Info",
+  "netflixHeroMatch": "We think you'll love this!",
   "watchTrailer": "Watch trailer",
   "playbackFailed": "Couldn't start playback.",
   "retry": "Retry",

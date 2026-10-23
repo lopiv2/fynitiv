@@ -1190,6 +1190,18 @@ abstract class AppLocalizations {
   /// **'Details'**
   String get details;
 
+  /// No description provided for @moreInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'More Info'**
+  String get moreInfo;
+
+  /// No description provided for @netflixHeroMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'We think you\'ll love this!'**
+  String get netflixHeroMatch;
+
   /// No description provided for @watchTrailer.
   ///
   /// In en, this message translates to:

@@ -25,6 +25,7 @@ class LayoutSection {
     this.scroll, [
     this.collections,
     this.seerrCategory,
+    this.gapHeight,
   ]);
 
   /// Bloque Featured Slider (banner).
@@ -80,6 +81,11 @@ class LayoutSection {
   const LayoutSection.upcoming([HomeScroll? scroll])
     : this._(LayoutSectionType.upcoming, scroll);
 
+  /// Hueco vertical fijo entre secciones (espaciador configurable por skin).
+  /// Ej: `LayoutSection.gap(24)` entre dos scrolls.
+  const LayoutSection.gap(double height)
+    : this._(LayoutSectionType.gap, null, null, null, height);
+
   /// Fila de descubrimiento de Seerr (pestaña "Descubrir"). Define la
   /// [category] a consultar; la apariencia se toma del skin o de [scroll].
   const LayoutSection.seerrDiscover(
@@ -100,6 +106,9 @@ class LayoutSection {
   /// Categoría de descubrimiento de Seerr (solo `seerrDiscover`).
   final SeerrDiscoverCategory? seerrCategory;
 
+  /// Altura del hueco (solo `gap`). `null` = 24.
+  final double? gapHeight;
+
   /// Comprueba si una vista entra en esta sección según [collections].
   bool matchesView(CollectionType? collectionType) {
     if (collections == null || collections!.isEmpty) return true;
@@ -113,6 +122,7 @@ class LayoutSection {
       map['collections'] = collections!.map((c) => c.name).toList();
     }
     if (seerrCategory != null) map['seerrCategory'] = seerrCategory!.name;
+    if (gapHeight != null) map['gap'] = gapHeight;
     return map;
   }
 
@@ -153,6 +163,10 @@ class LayoutSection {
         return LayoutSection.seasonal(s);
       case LayoutSectionType.upcoming:
         return LayoutSection.upcoming(s);
+      case LayoutSectionType.gap:
+        return LayoutSection.gap(
+          (json['gap'] as num?)?.toDouble() ?? 24,
+        );
       case LayoutSectionType.seerrDiscover:
         return LayoutSection.seerrDiscover(
           seerrCategory ?? SeerrDiscoverCategory.trending,
@@ -167,6 +181,7 @@ class LayoutSection {
       other.type == type &&
       other.scroll == scroll &&
       other.seerrCategory == seerrCategory &&
+      other.gapHeight == gapHeight &&
       setEquals(other.collections, collections);
 
   @override
@@ -174,6 +189,7 @@ class LayoutSection {
     type,
     scroll,
     seerrCategory,
+    gapHeight,
     collections == null
         ? null
         : Object.hashAll(

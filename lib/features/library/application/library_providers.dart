@@ -12,7 +12,7 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../core/skin/home_scroll.dart';
 import '../../../core/skin/music_player_skin.dart';
 
-/// Mantiene el provider vivo 5 min tras la última escucha para que al
+/// Mantiene el provider vivo 20 min tras la última escucha para que al
 /// volver a la pantalla no se refetchee la API ni se recarguen imágenes.
 extension _CacheExtension on Ref {
   void cacheFor(Duration d) {
@@ -21,7 +21,7 @@ extension _CacheExtension on Ref {
   }
 }
 
-const _kLibraryCache = Duration(minutes: 5);
+const _kLibraryCache = Duration(minutes: 20);
 
 /// userId del usuario autenticado actual.
 final currentUserIdProvider = Provider<String?>(
@@ -277,6 +277,9 @@ final bannerItemsForProvider =
       ItemFields.primaryImageAspectRatio,
       ItemFields.providerIds,
       ItemFields.people,
+      // Hero Netflix: nº de temporadas (series) y badge CC (subtítulos).
+      ItemFields.childCount,
+      ItemFields.mediaStreams,
     ],
     enableImageTypes: [ImageType.primary, ImageType.backdrop, ImageType.logo],
   );
@@ -1422,8 +1425,7 @@ final artistAlbumsProvider = FutureProvider.family<List<BaseItemDto>, BaseItemDt
 /// en la DB de Jellyfin, evitando la búsqueda de texto completa.
 final artistTracksByArtistIdProvider =
     FutureProvider.family<List<BaseItemDto>, String>((ref, artistId) async {
-      final link = ref.keepAlive();
-      Timer(const Duration(minutes: 5), link.close);
+      ref.cacheFor(_kLibraryCache);
 
       final client = ref.watch(jellyfinClientProvider);
       final userId = ref.watch(currentUserIdProvider);
@@ -1473,14 +1475,12 @@ final artistTracksByArtistIdProvider =
 ///
 /// Optimizado para carga rápida: 1 sola petición (searchTerm) con `limit:20`,
 /// fields mínimos y `enableTotalRecordCount:false` para evitar COUNT(*) en DB.
-/// Cachea 5 minutos vía keepAlive para evitar refetch al volver atrás.
+/// Cachea 20 minutos vía keepAlive para evitar refetch al volver atrás.
 final artistTracksProvider = FutureProvider.family<List<BaseItemDto>, String>((
   ref,
   artistName,
 ) async {
-  final link = ref.keepAlive();
-  Timer(const Duration(minutes: 5), link.close);
-
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null || artistName.trim().isEmpty) {
@@ -1720,8 +1720,7 @@ final artistJellyIndexByNameProvider = FutureProvider.family<List<BaseItemDto>, 
   ref,
   artistName,
 ) async {
-  final link = ref.keepAlive();
-  Timer(const Duration(minutes: 5), link.close);
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null || artistName.trim().isEmpty) {
@@ -2355,9 +2354,9 @@ String _stripAccents(String s) {
 /// Unicode distinta entre Deezer y la biblioteca.
 String _normArtistName(String s) => _stripAccents(s.toLowerCase().trim());
 
-/// Artista Jellyfin por nombre (para logo / imagen). Cache 5 min.
+/// Artista Jellyfin por nombre (para logo / imagen). Cache 20 min.
 final artistEntityByNameProvider = FutureProvider.family<BaseItemDto?, String>((ref, name) async {
-  ref.cacheFor(const Duration(minutes: 5));
+  ref.cacheFor(_kLibraryCache);
   final client = ref.watch(jellyfinClientProvider);
   final userId = ref.watch(currentUserIdProvider);
   if (client == null || userId == null || name.trim().isEmpty) return null;

@@ -576,6 +576,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get details => 'Detalles';
 
   @override
+  String get moreInfo => 'Más información';
+
+  @override
+  String get netflixHeroMatch => 'Creemos que te va a encantar';
+
+  @override
   String get watchTrailer => 'Ver trailer';
 
   @override

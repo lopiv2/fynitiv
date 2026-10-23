@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
@@ -68,8 +69,26 @@ class NetflixTopBar extends ConsumerWidget {
 
     void goBranch(int index) => onNavigateBranch(index);
 
-    return Container(
-      height: 64,
+    return FocusScope(
+      // Desde la barra ↓ al banner del slider (nivel intermedio sin dots).
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+          if (tvSliderBannerFocusNode.context != null) {
+            tvSliderBannerFocusNode.requestFocus();
+            return KeyEventResult.handled;
+          }
+          if (tvSliderFirstActionFocusNode.context != null) {
+            tvSliderFirstActionFocusNode.requestFocus();
+            return KeyEventResult.handled;
+          }
+          final moved = node.focusInDirection(TraversalDirection.down);
+          if (moved) return KeyEventResult.handled;
+        }
+        return KeyEventResult.ignored;
+      },
+      child: Container(
+        height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: BoxDecoration(
         color: bg.withValues(alpha: barOpacity),
@@ -202,6 +221,7 @@ class NetflixTopBar extends ConsumerWidget {
               ),
             ),
         ],
+      ),
       ),
     );
   }

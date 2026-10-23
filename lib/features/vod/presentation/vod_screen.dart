@@ -172,6 +172,8 @@ class VodScreen extends ConsumerWidget {
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
         isNextPoster: isNextPoster,
         hasNext: hasNext,
         onItemTap: tapFor(cfg),
@@ -216,6 +218,8 @@ class VodScreen extends ConsumerWidget {
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
         isNextPoster: isNextPoster,
         hasNext: hasNext,
         onItemTap: tapFor(cfg),
@@ -259,6 +263,8 @@ class VodScreen extends ConsumerWidget {
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
         isNextPoster: isNextPoster,
         onItemTap: tapFor(cfg),
         onItemImageTap: (item) =>
@@ -338,6 +344,7 @@ class VodScreen extends ConsumerWidget {
       borderWidth: skin?.bannerBorderWidth ?? 1.5,
       hoverBorderWidth: skin?.bannerBorderHoverWidth ?? 2.5,
       showArrows: skin?.bannerShowArrows ?? false,
+      showDots: skin?.bannerShowDots ?? true,
       showIncludedBadge: skin?.bannerShowIncludedBadge ?? false,
       showJellyfinLogo: skin?.bannerShowJellyfinLogo ?? false,
       hoverReveal: hoverReveal,
@@ -494,6 +501,7 @@ class VodScreen extends ConsumerWidget {
           case LayoutSectionType.seasonal:
           case LayoutSectionType.upcoming:
           case LayoutSectionType.seerrDiscover:
+          case LayoutSectionType.gap:
             break;
         }
       }
@@ -525,6 +533,9 @@ class VodScreen extends ConsumerWidget {
             break;
           case LayoutSectionType.seerrDiscover:
             // Las secciones de Seerr solo aplican en su propia pantalla.
+            break;
+          case LayoutSectionType.gap:
+            out.add(SizedBox(height: section.gapHeight ?? 24));
             break;
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;
@@ -615,6 +626,8 @@ class VodScreen extends ConsumerWidget {
                           recentScroll?.highlightTitleOnHover ?? false,
                       cardBorderRadius: recentScroll?.cardBorderRadius,
                       hoverScale: recentScroll?.hoverScale,
+                      spotlight: recentScroll?.spotlight ?? false,
+                      cardScale: recentScroll?.cardScale ?? 1.0,
                       isNextPoster: isNextPoster,
                       hasNext: hasNext,
                       onSeeMore: (recentScroll?.showSeeMore ?? true)
@@ -713,6 +726,8 @@ class VodScreen extends ConsumerWidget {
                           libraryScroll?.highlightTitleOnHover ?? false,
                       cardBorderRadius: libraryScroll?.cardBorderRadius,
                       hoverScale: libraryScroll?.hoverScale,
+                      spotlight: libraryScroll?.spotlight ?? false,
+                      cardScale: libraryScroll?.cardScale ?? 1.0,
                       isNextPoster: isNextPoster,
                       hasNext: hasNext,
                       onSeeMore: (libraryScroll?.showSeeMore ?? true)
@@ -802,6 +817,8 @@ class VodScreen extends ConsumerWidget {
                     highlightTitleOnHover: s.highlightTitleOnHover,
                     cardBorderRadius: s.cardBorderRadius,
                     hoverScale: s.hoverScale,
+                    spotlight: s.spotlight,
+                    cardScale: s.cardScale,
                     isNextPoster: isNextPoster,
                     hasNext: hasNext,
                     onSeeMore: s.showSeeMore
@@ -861,7 +878,7 @@ class VodScreen extends ConsumerWidget {
                 policy: ReadingOrderTraversalPolicy(),
                 child: ListView(
                   padding: EdgeInsets.only(
-                    top: bannerAttached ? 0 : 54,
+                    top: bannerAttached ? 0 : (skin?.bannerTopPadding ?? 54),
                     bottom: 24,
                   ),
                   children: hasCustomVodLayout

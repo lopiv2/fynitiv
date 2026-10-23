@@ -70,6 +70,8 @@ class JellyfinUpcomingRow extends ConsumerWidget {
             highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
             cardBorderRadius: cfg?.cardBorderRadius,
             hoverScale: cfg?.hoverScale,
+            spotlight: cfg?.spotlight ?? false,
+            cardScale: cfg?.cardScale ?? 1.0,
             onItemTap: (item) => _open(context, item),
             onItemImageTap: (item) => _open(context, item),
           ),

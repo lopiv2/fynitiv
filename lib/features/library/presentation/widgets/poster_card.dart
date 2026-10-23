@@ -128,10 +128,7 @@ class _PosterCardState extends ConsumerState<PosterCard> {
         widget.item.seriesId != null &&
         widget.item.seriesId!.isNotEmpty &&
         widget.serverUrl != null) {
-      final tag = widget.item.seriesPrimaryImageTag;
-      url = tag != null && tag.isNotEmpty
-          ? '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=1000&tag=$tag'
-          : '${widget.serverUrl}/Items/${widget.item.seriesId}/Images/Primary?maxWidth=1000';
+      url = seriesPosterUrl(widget.serverUrl!, widget.item);
     } else if (widget.serverUrl != null) {
       switch (widget.imageSource) {
         case RowImageSource.thumb:
@@ -141,7 +138,11 @@ class _PosterCardState extends ConsumerState<PosterCard> {
           url = itemBackdropUrl(widget.serverUrl!, widget.item);
           break;
         case RowImageSource.primary:
-          url = itemImageUrl(widget.serverUrl!, widget.item, maxWidth: 1000);
+          url = itemImageUrl(
+            widget.serverUrl!,
+            widget.item,
+            maxWidth: kPosterMaxWidth,
+          );
           break;
       }
     } else {
@@ -323,10 +324,10 @@ class _PosterCardState extends ConsumerState<PosterCard> {
       imageWidget = CachedNetworkImage(
         imageUrl: url,
         fit: BoxFit.cover,
-        // 1000px (nativa habitual de pósters): las tarjetas llegan a 300px
-        // lógicos (x2 con homeCardScale) y el hover las amplía.
-        memCacheWidth: 1000,
-        maxWidthDiskCache: 1000,
+        // 500px: las tarjetas llegan a ~300px lógicos (x2 con homeCardScale)
+        // y el hover las amplía x1.3. Con más solo crece descarga y decode.
+        memCacheWidth: kPosterMaxWidth,
+        maxWidthDiskCache: kPosterMaxWidth,
         fadeInDuration: const Duration(milliseconds: 150),
         useOldImageOnUrlChange: true,
         errorBuilder: (_, _, _) =>

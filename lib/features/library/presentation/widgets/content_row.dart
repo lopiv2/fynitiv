@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -12,6 +13,9 @@ import '../../../../core/skin/skin_scope.dart';
 import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/horizontal_scroll_behavior.dart';
 import '../../../../core/widgets/scroll_title.dart';
+import '../../../../l10n/app_localizations.dart';
+import '../../../../l10n/genre_localizer.dart';
+import '../../application/image_url.dart';
 import '../../application/library_providers.dart';
 import 'backdrop_card.dart';
 import 'poster_card.dart';
@@ -55,6 +59,9 @@ class ContentRow extends ConsumerStatefulWidget {
     this.highlightTitleOnHover = false,
     this.cardBorderRadius,
     this.hoverScale,
+    this.spotlight = false,
+    this.spotlightScale = 1.35,
+    this.cardScale = 1.0,
     this.isNextPoster = false,
     this.hasNext = false,
     this.cornerBadge,
@@ -186,6 +193,17 @@ class ContentRow extends ConsumerStatefulWidget {
   /// `null` => default (1.3 para HoverPlayCard, 1.04 para TV).
   final double? hoverScale;
 
+  /// Efecto spotlight estilo Netflix TV: la tarjeta con hover/foco crece
+  /// ([spotlightScale]) y despliega debajo meta + sinopsis. A demanda.
+  final bool spotlight;
+
+  /// Escala de la tarjeta destacada cuando [spotlight] es `true`.
+  final double spotlightScale;
+
+  /// Escala de las tarjetas de la fila (viene del scroll). Multiplica el
+  /// ancho fijado por el skin y el alto de fila.
+  final double cardScale;
+
   /// Badge opcional superpuesto en la esquina de cada tarjeta (ej. icono
   /// estacional). Se reenvía a [PosterCard]/[BackdropCard].
   final Widget? cornerBadge;
@@ -210,6 +228,14 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   /// tarjeta escalada se superponga a las vecinas). -1 = ninguna.
   int _hoveredIndex = -1;
 
+  /// Índice de la tarjeta con foco TV (para el spotlight sin ratón).
+  /// Separado del hover para no disparar overlays de flechas en TV.
+  int _focusedIndex = -1;
+
+  /// Alto extra reservado bajo la fila para la tira de info del spotlight
+  /// (meta + sinopsis de 3 líneas).
+  static const double _spotlightExtra = 100;
+
   /// Las flechas se muestran mientras el puntero está sobre la fila o sobre
   /// una hovercard expandida.
   bool _rowHovered = false;
@@ -222,6 +248,20 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   void initState() {
     super.initState();
     _controller.addListener(_onScroll);
+    // Precalienta la caché de imágenes con las primeras tarjetas para que
+    // al hacer scroll lateral ya estén decodificadas.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _precacheFirst());
+  }
+
+  @override
+  void didUpdateWidget(covariant ContentRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.items != widget.items ||
+        oldWidget.serverUrl != widget.serverUrl ||
+        oldWidget.imageSource != widget.imageSource ||
+        oldWidget.useBackdrop != widget.useBackdrop) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _precacheFirst());
+    }
   }
 
   @override
@@ -239,8 +279,162 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     }
   }
 
-  /// Ancho de cada tarjeta (el fijado por el skin).
-  double get _cardWidth => widget.cardWidth;
+  /// URL de imagen de un item con la misma lógica que las tarjetas, para
+  /// precalentar la caché sin duplicar peticiones.
+  String? _imageUrlFor(BaseItemDto item) {
+    final explicit = widget.imageUrlFor?.call(item);
+    if (explicit != null && explicit.isNotEmpty) return explicit;
+    final serverUrl = widget.serverUrl;
+    if (serverUrl == null) return null;
+    if (widget.useSeriesPoster && item.type == BaseItemKind.episode) {
+      final seriesUrl = seriesPosterUrl(serverUrl, item);
+      if (seriesUrl != null) return seriesUrl;
+    }
+    final source = widget.imageSource;
+    if (widget.useBackdrop && source == null) {
+      return singleCardImageUrl(serverUrl, item, CardImageKind.thumb);
+    }
+    return singleCardImageUrl(
+      serverUrl,
+      item,
+      switch (source) {
+        RowImageSource.thumb => CardImageKind.thumb,
+        RowImageSource.backdrop => CardImageKind.backdrop,
+        RowImageSource.primary || null => CardImageKind.primary,
+      },
+    );
+  }
+
+  /// Precalienta las 8 primeras tarjetas en la caché compartida de
+  /// `cached_network_image` (disco + memoria). Se ignoran errores: si falla,
+  /// la tarjeta pintará su fallback al hacerse visible.
+  void _precacheFirst() {
+    if (!mounted) return;
+    final items = _items;
+    if (widget.serverUrl == null || items.isEmpty) return;
+    final ctx = context;
+    final count = items.length < 8 ? items.length : 8;
+    for (var i = 0; i < count; i++) {
+      final url = _imageUrlFor(items[i]);
+      if (url == null || url.isEmpty) continue;
+      precacheImage(
+        CachedNetworkImageProvider(
+          url,
+          maxWidth: widget.useBackdrop
+              ? kLandscapeMaxWidth
+              : kPosterMaxWidth,
+        ),
+        ctx,
+        onError: (_, _) {},
+      );
+    }
+  }
+
+  /// Actualiza el índice de la tarjeta con foco TV (spotlight sin ratón).
+  /// No toca flechas ni overlays: solo escala + tira de info.
+  void _onCardFocus(int index, bool value) {
+    if (!widget.spotlight) return;
+    final next = value ? index : -1;
+    if (_focusedIndex != next && mounted) {
+      setState(() => _focusedIndex = next);
+    }
+  }
+
+  /// Índice destacado por el spotlight (hover o foco TV), o -1 si ninguno.
+  /// Con CardHoverExtension el panel Prime ya ocupa el foco: el spotlight
+  /// se inhibe para no componer expansiones.
+  int get _spotlightIndex {
+    if (!widget.spotlight) return -1;
+    final items = _items;
+    final hovered = _hoveredIndex >= 0 && _hoveredIndex < items.length
+        ? _hoveredIndex
+        : -1;
+    if (hovered != -1) return hovered;
+    final focused = _focusedIndex >= 0 && _focusedIndex < items.length
+        ? _focusedIndex
+        : -1;
+    return focused;
+  }
+
+  /// Tira de info del spotlight (foto): meta + sinopsis bajo la tarjeta.
+  Widget _buildSpotlightInfo(BaseItemDto item, double width) {
+    final l10n = AppLocalizations.of(context);
+    final segments = <String>[];
+    final genreList = item.genres ?? const <String>[];
+    final genreText = l10n == null
+        ? genreList.take(2).join(' • ')
+        : localizeGenres(genreList.take(2), l10n).join(' • ');
+    if (genreText.isNotEmpty) segments.add(genreText);
+    if (!widget.hideYear && item.productionYear != null) {
+      segments.add('${item.productionYear}');
+    }
+    if (item.type == BaseItemKind.series) {
+      final seasons = item.childCount ?? 0;
+      if (seasons > 0 && l10n != null) {
+        segments.add(l10n.seriesSeasons(seasons));
+      }
+    }
+    final age = (item.officialRating ?? '').trim();
+    if (age.isNotEmpty) segments.add(age);
+    final hasSubtitles = (item.mediaStreams ?? const <MediaStream>[]).any(
+      (m) => m.type == MediaStreamType.subtitle,
+    );
+    final overview = (item.overview ?? '').trim();
+    const metaStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 13,
+      fontWeight: FontWeight.w600,
+    );
+    return SizedBox(
+      width: width,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (segments.isNotEmpty || hasSubtitles)
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (segments.isNotEmpty)
+                  Flexible(
+                    child: Text(
+                      segments.join(' • '),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: metaStyle,
+                    ),
+                  ),
+                if (hasSubtitles) ...[
+                  if (segments.isNotEmpty)
+                    const Text(' • ', style: metaStyle),
+                  const Icon(
+                    Icons.closed_caption_outlined,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                ],
+              ],
+            ),
+          if (overview.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              overview,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 13,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Ancho de cada tarjeta (el fijado por el skin, por [cardScale]).
+  double get _cardWidth => widget.cardWidth * widget.cardScale;
 
   /// Altura de la fila, derivada dinámicamente del ancho de tarjeta para que
   /// las tarjetas midan lo fijado. Con backdrop (16:9) la altura es la de la
@@ -263,9 +457,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     }
     // Póster: widget.height ya incluye título/subtítulo, añadir extra para Disney+
     if (skin?.id == 'disney_plus' && hasBelowText) {
-      return widget.height + 14;
+      return widget.height * widget.cardScale + 14;
     }
-    return widget.height;
+    return widget.height * widget.cardScale;
   }
 
   /// Separación entre tarjetas.
@@ -462,20 +656,23 @@ class _ContentRowState extends ConsumerState<ContentRow> {
       widget.excludePlaceholders ? excludePlaceholders(widget.items) : widget.items;
 
   /// Construye las tarjetas en un único [Stack] horizontal. El orden de pintado
-  /// se reordena para que la tarjeta con hover sea la última (y quede por
+  /// se reordena para que la tarjeta con hover/foco sea la última (y quede por
   /// encima de las vecinas al escalar con el [ScaleButton]).
   List<Widget> _buildStackedItems() {
     final items = _items;
+    final spotIndex = _spotlightIndex;
     final indices = List<int>.generate(items.length, (i) => i);
     indices.sort((a, b) {
-      if (a == _hoveredIndex) return 1;
-      if (b == _hoveredIndex) return -1;
+      if (a == _hoveredIndex || a == spotIndex) return 1;
+      if (b == _hoveredIndex || b == spotIndex) return -1;
       return a.compareTo(b);
     });
     final step = _cardWidth + _spacing;
     final isTv =
         (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
         PlatformMode.tv;
+    // Con spotlight la fila escala (la tarjeta no debe componer su 1.3).
+    final cardHoverScale = widget.spotlight ? 1.0 : widget.hoverScale;
     return [
       for (final i in indices)
         Positioned(
@@ -485,11 +682,20 @@ class _ContentRowState extends ConsumerState<ContentRow> {
           width: _cardWidth,
           child: _wrapForTv(
             isTv: isTv,
+            index: i,
             onTap: widget.onItemTap == null
                 ? null
                 : () => widget.onItemTap!(items[i]),
-            child: widget.useBackdrop
-                ? BackdropCard(
+            child: AnimatedScale(
+              // Sin spotlight el wrapper es identidad (sin cambio visual).
+              scale: widget.spotlight && i == spotIndex
+                  ? widget.spotlightScale
+                  : 1.0,
+              alignment: Alignment.topCenter,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: widget.useBackdrop
+                  ? BackdropCard(
                     item: items[i],
                     serverUrl: widget.serverUrl,
                     cardLogo:
@@ -516,7 +722,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     showPlayIcon: widget.showPlayIcon,
                     highlightTitleOnHover: widget.highlightTitleOnHover,
                     cardBorderRadius: widget.cardBorderRadius,
-                    hoverScale: widget.hoverScale,
+                    hoverScale: cardHoverScale,
                     onTap: widget.onItemTap == null
                         ? null
                         : () => widget.onItemTap!(items[i]),
@@ -557,7 +763,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     showPlayIcon: widget.showPlayIcon,
                     highlightTitleOnHover: widget.highlightTitleOnHover,
                     cardBorderRadius: widget.cardBorderRadius,
-                    hoverScale: widget.hoverScale,
+                    hoverScale: cardHoverScale,
                     onTap: widget.onItemTap == null
                         ? null
                         : () => widget.onItemTap!(items[i]),
@@ -571,6 +777,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                         widget.cornerBadgeFor?.call(items[i]) ??
                         widget.cornerBadge,
                   ),
+            ),
           ),
         ),
     ];
@@ -578,6 +785,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
 
   Widget _wrapForTv({
     required bool isTv,
+    required int index,
     required VoidCallback? onTap,
     required Widget child,
   }) {
@@ -589,6 +797,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         radius: BorderRadius.circular(12),
       ),
       onTap: onTap,
+      onFocusChange: (v) => _onCardFocus(index, v),
       child: child,
     );
   }
@@ -611,6 +820,17 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         : baseRowSpacing;
     _pageScrollPosition = Scrollable.maybeOf(context)?.position;
 
+    // Spotlight (foto): al destacar una tarjeta la fila crece para la tira
+    // de info (meta + sinopsis) bajo ella. Animado en ambas direcciones.
+    final spotIndex = _spotlightIndex;
+    final spotActive = widget.spotlight && spotIndex != -1;
+    final displayH = _rowHeight + (spotActive ? _spotlightExtra : 0);
+    final step = _cardWidth + _spacing;
+    final spotW = _cardWidth * widget.spotlightScale;
+    final spotLeft = spotActive
+        ? (spotIndex * step - (spotW - _cardWidth) / 2)
+        : 0.0;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -626,8 +846,10 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         ],
         FocusTraversalGroup(
           policy: ReadingOrderTraversalPolicy(),
-          child: SizedBox(
-            height: _rowHeight,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            height: displayH,
             child: Stack(
               fit: StackFit.expand,
               children: [
@@ -660,10 +882,26 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                             width:
                                 _items.length * _cardWidth +
                                 (_items.length - 1) * _spacing,
-                            height: _rowHeight,
+                            height: displayH,
                             child: Stack(
                               clipBehavior: Clip.none,
-                              children: _buildStackedItems(),
+                              children: [
+                                ..._buildStackedItems(),
+                                // Tira de info del spotlight: sigue el scroll
+                                // horizontal al vivir dentro del contenido.
+                                if (spotActive)
+                                  AnimatedPositioned(
+                                    duration: const Duration(milliseconds: 200),
+                                    curve: Curves.easeOut,
+                                    left: spotLeft,
+                                    top: _rowHeight + 10,
+                                    width: spotW,
+                                    child: _buildSpotlightInfo(
+                                      _items[spotIndex],
+                                      spotW,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),

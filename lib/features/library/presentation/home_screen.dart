@@ -52,14 +52,10 @@ class HomeScreen extends ConsumerWidget {
       return pct <= 0 && ticks <= 0;
     }).toList();
 
-    // Carga inicial: mientras los datos principales no tienen contenido y se
-    // están resolviendo, se muestra un loader.
-    final initialLoading =
-        (views.isLoading && views.value == null) ||
-        (resume.isLoading && resume.value == null) ||
-        (nextUp.isLoading && nextUp.value == null) ||
-        (latest.isLoading && latest.value == null) ||
-        (latestBanner.isLoading && latestBanner.value == null);
+    // Carga inicial: solo se bloquea con loader a pantalla completa mientras
+    // no hay vistas (sin ellas no se puede construir ninguna fila). El resto
+    // de filas (resume/nextUp/banner) pintan en progresivo al resolver.
+    final initialLoading = views.isLoading && views.value == null;
 
     // --- RowSpacing doble backdrop->poster ---
     final List<bool> visibleBackdrops = [];
@@ -137,6 +133,8 @@ class HomeScreen extends ConsumerWidget {
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
         isNextPoster: isNextPoster,
         hasNext: hasNext,
         onItemTap: tapFor(cfg),
@@ -181,6 +179,8 @@ class HomeScreen extends ConsumerWidget {
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
         cardBorderRadius: cfg?.cardBorderRadius,
         hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
         isNextPoster: isNextPoster,
         hasNext: hasNext,
         onItemTap: tapFor(cfg),
@@ -207,6 +207,7 @@ class HomeScreen extends ConsumerWidget {
       borderWidth: skin?.bannerBorderWidth ?? 1.5,
       hoverBorderWidth: skin?.bannerBorderHoverWidth ?? 2.5,
       showArrows: skin?.bannerShowArrows ?? false,
+      showDots: skin?.bannerShowDots ?? true,
       showIncludedBadge: skin?.bannerShowIncludedBadge ?? false,
       showJellyfinLogo: skin?.bannerShowJellyfinLogo ?? false,
       hoverReveal: hoverReveal,
@@ -401,6 +402,7 @@ class HomeScreen extends ConsumerWidget {
           case LayoutSectionType.seasonal:
           case LayoutSectionType.upcoming:
           case LayoutSectionType.seerrDiscover:
+          case LayoutSectionType.gap:
             break;
         }
       }
@@ -436,6 +438,9 @@ class HomeScreen extends ConsumerWidget {
             break;
           case LayoutSectionType.seerrDiscover:
             // Las secciones de Seerr solo aplican en su propia pantalla.
+            break;
+          case LayoutSectionType.gap:
+            out.add(SizedBox(height: section.gapHeight ?? 24));
             break;
           case LayoutSectionType.continueWatching:
             if ((resume.value ?? []).isEmpty) break;
@@ -530,6 +535,8 @@ class HomeScreen extends ConsumerWidget {
                             recentScroll?.highlightTitleOnHover ?? false,
                         cardBorderRadius: recentScroll?.cardBorderRadius,
                         hoverScale: recentScroll?.hoverScale,
+                        spotlight: recentScroll?.spotlight ?? false,
+                        cardScale: recentScroll?.cardScale ?? 1.0,
                         isNextPoster: isNextPoster,
                         hasNext: rowCursor < visibleBackdrops.length - 1,
                         onSeeMore: (recentScroll?.showSeeMore ?? true)
@@ -639,6 +646,8 @@ class HomeScreen extends ConsumerWidget {
                             libraryScroll?.highlightTitleOnHover ?? false,
                         cardBorderRadius: libraryScroll?.cardBorderRadius,
                         hoverScale: libraryScroll?.hoverScale,
+                        spotlight: libraryScroll?.spotlight ?? false,
+                        cardScale: libraryScroll?.cardScale ?? 1.0,
                         isNextPoster: isNextPoster,
                         hasNext: rowCursor < visibleBackdrops.length - 1,
                         onSeeMore: (libraryScroll?.showSeeMore ?? true)
@@ -714,6 +723,8 @@ class HomeScreen extends ConsumerWidget {
                         newReleasesScroll?.highlightTitleOnHover ?? false,
                     cardBorderRadius: newReleasesScroll?.cardBorderRadius,
                     hoverScale: newReleasesScroll?.hoverScale,
+                    spotlight: newReleasesScroll?.spotlight ?? false,
+                    cardScale: newReleasesScroll?.cardScale ?? 1.0,
                     isNextPoster: isNextPoster,
                     hasNext: rowCursor < visibleBackdrops.length - 1,
                     onItemTap: tapFor(newReleasesScroll),
@@ -790,6 +801,8 @@ class HomeScreen extends ConsumerWidget {
                     highlightTitleOnHover: s.highlightTitleOnHover,
                     cardBorderRadius: s.cardBorderRadius,
                     hoverScale: s.hoverScale,
+                    spotlight: s.spotlight,
+                    cardScale: s.cardScale,
                     isNextPoster: isNextPoster,
                     hasNext: rowCursor < visibleBackdrops.length - 1,
                     onSeeMore: s.showSeeMore
@@ -849,8 +862,11 @@ class HomeScreen extends ConsumerWidget {
             : FocusTraversalGroup(
                 policy: ReadingOrderTraversalPolicy(),
                 child: ListView(
+                  // Mantiene las filas vecinas compuestas para que el scroll
+                  // vertical no reconstruya tarjetas al volver atrás.
+                  scrollCacheExtent: const ScrollCacheExtent.pixels(800),
                   padding: EdgeInsets.only(
-                    top: bannerAttached ? 0 : 54,
+                    top: bannerAttached ? 0 : (skin?.bannerTopPadding ?? 54),
                     bottom: 24,
                   ),
                   children: hasCustomLayout

@@ -16,6 +16,7 @@ import '../../../../core/skin/skin.dart';
 import '../../../../core/skin/skin_controller.dart';
 import '../../../../core/video/mpv_teardown.dart';
 import '../../../../core/widgets/app_loader.dart';
+import '../../../../core/widgets/app_hover.dart';
 import '../../../../core/widgets/age_rating_badge.dart';
 import '../../../../core/widgets/included_badge.dart';
 import '../../../../core/widgets/round_icon_button.dart';
@@ -48,6 +49,7 @@ class FeaturedSlider extends ConsumerStatefulWidget {
     this.maxHeight = 440,
     this.dotAlignment = SliderDotAlignment.right,
     this.dotsOutside = false,
+    this.showDots = true,
     this.logoWidthFactor = kDefaultLogoWidthFactor,
     this.logoMaxHeight = kDefaultLogoMaxHeight,
     this.showArrows = false,
@@ -105,6 +107,10 @@ class FeaturedSlider extends ConsumerStatefulWidget {
   /// Si `true`, los puntos se muestran centrados debajo del slider,
   /// fuera del banner.
   final bool dotsOutside;
+
+  /// Muestra los puntos de navegación. En `false` el banner rota solo con
+  /// autoplay y en TV ←/→ en los bordes de los botones cambian de banner.
+  final bool showDots;
 
   /// Anchura máxima del logo del título relativa al ancho del banner.
   final double logoWidthFactor;
@@ -457,7 +463,9 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
 
   /// Puntos dentro del banner (overlay). Si [dotsOutside] es `true` no se
   /// muestra nada aquí: los puntos van debajo del slider.
+  /// Si [showDots] es `false` no se muestran (estilo Netflix 2026).
   Widget _buildDots() {
+    if (!widget.showDots) return const SizedBox.shrink();
     if (widget.dotsOutside) return const SizedBox.shrink();
     final dots = _buildDotsRow();
 
@@ -481,6 +489,7 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
 
   /// Puntos fuera del slider, centrados debajo del banner.
   Widget _buildDotsOutside() {
+    if (!widget.showDots) return const SizedBox.shrink();
     if (!widget.dotsOutside) return const SizedBox.shrink();
     final dots = _buildDotsRow();
     final MainAxisAlignment alignment = switch (widget.dotAlignment) {
@@ -522,6 +531,9 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
     onTrailerPlaybackChanged: _setTrailerPaused,
     onHoverChanged: _setHoverPaused,
     actionFocusNodes: _actionNodes,
+    onPrevBanner: _goToPrev,
+    onNextBanner: _goToNext,
+    showHeroOverview: _sliderFocused || _sliderHovered,
   );
 
   /// Capa de banners: PageView (deslizamiento) o AnimatedSwitcher (fade).
@@ -613,11 +625,22 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
                         primary != null && _actionNodes.contains(primary);
                     final isDot =
                         primary != null && _dotNodes.contains(primary);
-                    // Índice del dot actual (para foco inicial al bajar desde acciones)
-                    final currentDotNode =
-                        _dotNodes.isNotEmpty && _currentPage < _dotNodes.length
-                        ? _dotNodes[_currentPage]
-                        : (_dotNodes.isNotEmpty ? _dotNodes.first : null);
+                    // Nivel banner (sin dots): foco propio intermedio.
+                    final isBanner = identical(
+                      primary,
+                      tvSliderBannerFocusNode,
+                    );
+                    // Índice del dot actual (para foco inicial al bajar desde acciones).
+                    // Sin dots (estilo Netflix) es null: ↓ baja a la fila
+                    // siguiente y ←/→ en bordes cambian de banner.
+                    final currentDotNode = !widget.showDots
+                        ? null
+                        : (_dotNodes.isNotEmpty &&
+                                _currentPage < _dotNodes.length
+                            ? _dotNodes[_currentPage]
+                            : (_dotNodes.isNotEmpty
+                                  ? _dotNodes.first
+                                  : null));
                     final firstActionNode = _actionNodes.isNotEmpty
                         ? _actionNodes.first
                         : null;
@@ -680,48 +703,58 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
 
                     // ── ABAJO ─────────────────────────────────────────────
                     if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                      if (isBanner) {
+                        // Del banner ↓ a Reproducir (primera acción).
+                        if (_actionNodes.isNotEmpty) {
+                          _actionNodes.first.requestFocus();
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      // Desde el slider a la siguiente fila (Continuar viendo…).
+                      // El slider está aislado en su FocusScope, por lo que
+                      // node.focusInDirection(down) nunca encuentra la fila
+                      // exterior. Hay que subir al scope padre (HomeShell)
+                      // que contiene slider + filas.
+                      bool moveDownToNextRow() {
+                        FocusNode? scope = node.parent;
+                        while (scope != null) {
+                          if (scope is FocusScopeNode) {
+                            if (scope.focusInDirection(
+                              TraversalDirection.down,
+                            )) {
+                              return true;
+                            }
+                          }
+                          scope = scope.parent;
+                        }
+                        final root = FocusManager.instance.rootScope;
+                        if (root.focusInDirection(TraversalDirection.down)) {
+                          return true;
+                        }
+                        // Último fallback: next en el scope padre (siguiente fila)
+                        final parent = node.parent;
+                        if (parent is FocusScopeNode) {
+                          parent.nextFocus();
+                          return true;
+                        }
+                        root.nextFocus();
+                        return true;
+                      }
+
                       if (isAction) {
                         // Desde Ver ahora/trailer/fav/info → ↓ a dots
                         if (currentDotNode != null) {
                           currentDotNode.requestFocus();
                           return KeyEventResult.handled;
                         }
+                        // Sin dots → ↓ directo a la siguiente fila.
+                        if (!widget.showDots) {
+                          moveDownToNextRow();
+                          return KeyEventResult.handled;
+                        }
                       }
                       if (isDot) {
-                        // Desde dots → ↓ a Continuar viendo (siguiente fila).
-                        // El slider está aislado en su FocusScope, por lo que
-                        // node.focusInDirection(down) nunca encuentra la fila
-                        // exterior. Hay que subir al scope padre (HomeShell)
-                        // que contiene slider + filas.
-                        bool movedDownFromParent() {
-                          FocusNode? scope = node.parent;
-                          while (scope != null) {
-                            if (scope is FocusScopeNode) {
-                              if (scope.focusInDirection(
-                                TraversalDirection.down,
-                              )) {
-                                return true;
-                              }
-                            }
-                            scope = scope.parent;
-                          }
-                          return false;
-                        }
-
-                        if (movedDownFromParent()) {
-                          return KeyEventResult.handled;
-                        }
-                        final root = FocusManager.instance.rootScope;
-                        if (root.focusInDirection(TraversalDirection.down)) {
-                          return KeyEventResult.handled;
-                        }
-                        // Último fallback: next en el scope padre (siguiente fila)
-                        final parent = node.parent;
-                        if (parent is FocusScopeNode) {
-                          parent.nextFocus();
-                          return KeyEventResult.handled;
-                        }
-                        root.nextFocus();
+                        moveDownToNextRow();
                         return KeyEventResult.handled;
                       }
                       // Fallback: si no está en acción ni dot, intentar bajar dentro
@@ -760,10 +793,29 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
                           ? TraversalDirection.left
                           : TraversalDirection.right;
 
+                      if (isBanner) {
+                        // En el banner ←/→ cambian de novedad.
+                        if (dir == TraversalDirection.left) {
+                          _goToPrev();
+                        } else {
+                          _goToNext();
+                        }
+                        return KeyEventResult.handled;
+                      }
                       if (isAction) {
                         // Intentar mover entre Ver ahora ↔ trailer ↔ fav ↔ info
                         final moved = node.focusInDirection(dir);
                         if (moved) return KeyEventResult.handled;
+                        // Sin dots (estilo Netflix): en los bordes ←/→ cambian
+                        // de banner, imitando la UI original.
+                        if (!widget.showDots) {
+                          if (dir == TraversalDirection.left) {
+                            _goToPrev();
+                          } else {
+                            _goToNext();
+                          }
+                          return KeyEventResult.handled;
+                        }
                         // En el borde derecho (Info) → → va a dots (no cambia banner)
                         if (dir == TraversalDirection.right &&
                             currentDotNode != null) {
@@ -798,31 +850,48 @@ class _FeaturedSliderState extends ConsumerState<FeaturedSlider> {
                         MouseRegion(
                           onEnter: (_) => setState(() => _sliderHovered = true),
                           onExit: (_) => setState(() => _sliderHovered = false),
-                          child: SizedBox(
-                            height: height,
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              fit: StackFit.expand,
-                              children: [
-                                _buildBannerLayer(),
-                                _buildDots(),
-                                if (widget.showArrows &&
-                                    _banners.length > 1) ...[
-                                  _buildArrow(
-                                    icon: Icons.chevron_left,
-                                    onTap: _goToPrev,
-                                    align: Alignment.centerLeft,
-                                    padding: const EdgeInsets.only(left: 10),
-                                  ),
-                                  _buildArrow(
-                                    icon: Icons.chevron_right,
-                                    onTap: _goToNext,
-                                    align: Alignment.centerRight,
-                                    padding: const EdgeInsets.only(right: 10),
-                                  ),
-                                ],
-                              ],
-                            ),
+                          child: Builder(
+                            builder: (context) {
+                              final bannerBox = SizedBox(
+                                height: height,
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  fit: StackFit.expand,
+                                  children: [
+                                    _buildBannerLayer(),
+                                    _buildDots(),
+                                    if (widget.showArrows &&
+                                        _banners.length > 1) ...[
+                                      _buildArrow(
+                                        icon: Icons.chevron_left,
+                                        onTap: _goToPrev,
+                                        align: Alignment.centerLeft,
+                                        padding: const EdgeInsets.only(
+                                          left: 10,
+                                        ),
+                                      ),
+                                      _buildArrow(
+                                        icon: Icons.chevron_right,
+                                        onTap: _goToNext,
+                                        align: Alignment.centerRight,
+                                        padding: const EdgeInsets.only(
+                                          right: 10,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                              // Sin dots el banner es un nivel de foco propio:
+                              // barra ↓ aquí, ←/→ cambian de novedad, ↓ a Play.
+                              if (!widget.showDots) {
+                                return Focus(
+                                  focusNode: tvSliderBannerFocusNode,
+                                  child: bannerBox,
+                                );
+                              }
+                              return bannerBox;
+                            },
                           ),
                         ),
                         _buildDotsOutside(),
@@ -870,6 +939,9 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
     this.onTrailerPlaybackChanged,
     this.onHoverChanged,
     this.actionFocusNodes,
+    this.onPrevBanner,
+    this.onNextBanner,
+    this.showHeroOverview = true,
   });
 
   final BaseItemDto item;
@@ -909,12 +981,25 @@ class _SliderBannerCard extends ConsumerStatefulWidget {
   /// padre para poder orquestar el flujo isla → acciones → dots).
   final List<FocusNode>? actionFocusNodes;
 
+  /// Callbacks para cambiar de banner (inyectados desde el slider padre).
+  /// El hero sin dots los usa en ←/→ sobre sus botones.
+  final VoidCallback? onPrevBanner;
+  final VoidCallback? onNextBanner;
+
+  /// Muestra la sinopsis del hero Netflix. El padre lo calcula como
+  /// foco-en-slider o hover sobre el banner; solo lo usa la rama hero.
+  final bool showHeroOverview;
+
   @override
   ConsumerState<_SliderBannerCard> createState() => _SliderBannerCardState();
 }
 
 class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
   bool _hovered = false;
+
+  /// Índice del botón hero enfocado (0 = Play, 1 = More Info, -1 = ninguno).
+  /// Lo usa el FocusScope propio del hero para ←/→ deterministas.
+  int _heroFocusedButton = -1;
   bool _trailerLoading = false;
   bool _trailerBuffering = false;
   Player? _trailerPlayer;
@@ -1219,6 +1304,136 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     );
   }
 
+  /// Meta del hero Netflix (foto): `género • año • temporadas • edad • CC`,
+  /// en texto blanco. Solo se muestra si hay al menos un segmento.
+  Widget _buildNetflixHeroMeta(AppLocalizations? l10n, bool hasSubtitles) {
+    final item = widget.item;
+    final segments = <String>[];
+    final genreList = item.genres ?? const <String>[];
+    final genreText = l10n == null
+        ? genreList.take(2).join(' • ')
+        : localizeGenres(genreList.take(2), l10n).join(' • ');
+    if (genreText.isNotEmpty) segments.add(genreText);
+    if (item.productionYear != null) segments.add('${item.productionYear}');
+    if (item.type == BaseItemKind.series) {
+      final seasons = item.childCount ?? 0;
+      if (seasons > 0 && l10n != null) {
+        segments.add(l10n.seriesSeasons(seasons));
+      }
+    }
+    final age = (item.officialRating ?? '').trim();
+    if (age.isNotEmpty) segments.add(age);
+    if (segments.isEmpty && !hasSubtitles) {
+      return const SizedBox.shrink();
+    }
+    const textStyle = TextStyle(
+      color: Colors.white,
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      shadows: [Shadow(blurRadius: 4, color: Colors.black54)],
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (segments.isNotEmpty)
+          Flexible(
+            child: Text(
+              segments.join(' • '),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: textStyle,
+            ),
+          ),
+        if (hasSubtitles) ...[
+          if (segments.isNotEmpty)
+            const Text(' • ', style: textStyle),
+          const Icon(
+            Icons.closed_caption_outlined,
+            color: Colors.white,
+            size: 18,
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// Píldoras del hero Netflix (foto): `Play` blanca + `More Info` gris
+  /// translúcida, con el hover universal y foco TV (nodos 0 y 1, compactados
+  /// como cuando no hay trailer). Lleva su propio `FocusScope`: ← en Play va
+  /// al banner anterior y → en More Info al siguiente, sin depender de la
+  /// detección de bordes del scope padre.
+  Widget _buildNetflixHeroButtons(double s, AppLocalizations? l10n) {
+    final nodes = widget.actionFocusNodes;
+    return FocusScope(
+      onKeyEvent: (node, event) {
+        if (event is! KeyDownEvent) return KeyEventResult.ignored;
+        // Foco explícito entre píldoras (sin traversal): ←/→ deterministas.
+        final nodes = widget.actionFocusNodes;
+        final playNode = (nodes != null && nodes.isNotEmpty) ? nodes[0] : null;
+        final infoNode = (nodes != null && nodes.length > 1) ? nodes[1] : null;
+        if (event.logicalKey == LogicalKeyboardKey.arrowLeft) {
+          if (_heroFocusedButton == 1 && playNode != null) {
+            playNode.requestFocus();
+            return KeyEventResult.handled;
+          }
+          if (_heroFocusedButton == 0) {
+            widget.onPrevBanner?.call();
+            return KeyEventResult.handled;
+          }
+        }
+        if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
+          if (_heroFocusedButton == 0 && infoNode != null) {
+            infoNode.requestFocus();
+            return KeyEventResult.handled;
+          }
+          if (_heroFocusedButton == 1) {
+            widget.onNextBanner?.call();
+            return KeyEventResult.handled;
+          }
+        }
+        return KeyEventResult.ignored;
+      },
+      child: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FocusTraversalOrder(
+              order: const NumericFocusOrder(0),
+              child: _NetflixHeroButton(
+                label: l10n?.play ?? 'Play',
+                icon: Icons.play_arrow,
+                primary: true,
+                scale: s,
+                focusNode: (nodes != null && nodes.isNotEmpty) ? nodes[0] : null,
+                onFocusChange: (v) {
+                  if (v) setState(() => _heroFocusedButton = 0);
+                },
+                onTap: _openPlayer,
+              ),
+            ),
+            SizedBox(width: 12 * s),
+            FocusTraversalOrder(
+              order: const NumericFocusOrder(1),
+              child: _NetflixHeroButton(
+                label: l10n?.moreInfo ?? 'More Info',
+                primary: false,
+                scale: s,
+                focusNode: (nodes != null && nodes.length > 1)
+                    ? nodes[1]
+                    : null,
+                onFocusChange: (v) {
+                  if (v) setState(() => _heroFocusedButton = 1);
+                },
+                onTap: _openDetails,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   /// Etiqueta de la pastilla "Nueva película"/"Nueva serie" según el tipo.
   /// `null` si el tipo no es película ni serie (no se muestra pastilla).
   String? _newBadgeLabel(AppLocalizations l10n) {
@@ -1472,9 +1687,13 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     final item = widget.item;
     final serverUrl = widget.serverUrl;
     final backdrop = serverUrl != null
-        ? itemBackdropUrl(serverUrl, item)
+        // 1280 = ancho explícito del banner a pantalla completa (no usa el
+        // default de 800 de las tarjetas de scroll).
+        ? itemBackdropUrl(serverUrl, item, maxWidth: 1280)
         : null;
-    final poster = serverUrl != null ? itemImageUrl(serverUrl, item) : null;
+    final poster = serverUrl != null
+        ? itemImageUrl(serverUrl, item, maxWidth: 600)
+        : null;
     final hasBackdrop =
         backdrop != null && (item.backdropImageTags?.isNotEmpty ?? false);
 
@@ -1512,6 +1731,14 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     final newBadgeLabel = widget.showNewBadge && _isNew
         ? _newBadgeLabel(AppLocalizations.of(context)!)
         : null;
+    // Hero estilo Netflix (foto): solo para el skin con id 'netflix'.
+    // Reutiliza logo/título, apertura de player/detalle y nodos de foco TV.
+    final isNetflixHero = skin?.id == 'netflix';
+    final hasHeroSubtitles = isNetflixHero
+        ? (item.mediaStreams ?? const <MediaStream>[]).any(
+            (m) => m.type == MediaStreamType.subtitle,
+          )
+        : false;
 
     final card = ClipRRect(
       borderRadius: BorderRadius.circular(bannerRadius),
@@ -1646,6 +1873,41 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                           )
                         else
                           _buildLogoSlide(constraints, ui),
+                        // Hero Netflix (foto): meta bajo el título, sinopsis y
+                        // píldoras Play/More Info. El resto de skins mantiene
+                        // el orden genérico (acciones → meta → sinopsis).
+                        if (isNetflixHero) ...[
+                          SizedBox(height: 8 * s),
+                          _buildNetflixHeroMeta(l10n, hasHeroSubtitles),
+                          if (!isTv &&
+                              widget.showHeroOverview &&
+                              (item.overview ?? '').isNotEmpty) ...[
+                            SizedBox(height: 10 * s),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: constraints.maxWidth * 0.45,
+                              ),
+                              child: Text(
+                                item.overview!,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: Color(0xE6FFFFFF),
+                                  fontSize: 15,
+                                  height: 1.4,
+                                  shadows: [
+                                    Shadow(
+                                      blurRadius: 6,
+                                      color: Colors.black54,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                          SizedBox(height: 16 * s),
+                          _buildNetflixHeroButtons(s, l10n),
+                        ] else ...[
                         // Descripción revelada al pasar el ratón (desktop). En TV
                         // se oculta: era la que desbordaba 167px con altura
                         // reducida y no aporta en mando a distancia.
@@ -1798,6 +2060,7 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
                               ),
                             ),
                           ),
+                        ],
                       ],
                     ),
                   ),
@@ -1806,13 +2069,45 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
             ),
             // Edad recomendada del contenido, abajo a la derecha.
             // En modo inline (Disney+) la edad ya va en la meta inferior.
+            // En el hero Netflix va en la meta bajo el título (foto).
             if (widget.showAgeRating &&
                 !widget.inlineMeta &&
+                !isNetflixHero &&
                 _ageRating != null)
               Positioned(
                 right: isTv ? 30 : 28,
                 bottom: isTv ? 8 : 34,
                 child: AgeRatingBadge(rating: _ageRating!),
+              ),
+            // "We think you'll love this!" abajo a la derecha, encima de los
+            // dots para no taparlos (siguen siendo el foco TV inferior).
+            if (isNetflixHero)
+              Positioned(
+                right: 28,
+                bottom: 44,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.favorite_border,
+                      color: Colors.white,
+                      size: 14,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      l10n?.netflixHeroMatch ??
+                          "We think you'll love this!",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        shadows: [
+                          Shadow(blurRadius: 4, color: Colors.black54),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             // Reproductor del trailer en el lado derecho (estilo Prime).
             if (_trailerLoading || _trailerPlayer != null)
@@ -1927,6 +2222,74 @@ class _SliderBannerCardState extends ConsumerState<_SliderBannerCard> {
     return ClipRRect(
       borderRadius: BorderRadius.circular(bannerRadius),
       child: cardContent,
+    );
+  }
+}
+
+/// Píldora del hero Netflix (foto): blanca con texto negro (`Play`) o gris
+/// translúcida con texto blanco (`More Info`). Usa el hover universal con
+/// escala y admite `FocusNode` para el modo TV.
+class _NetflixHeroButton extends StatelessWidget {
+  const _NetflixHeroButton({
+    required this.label,
+    required this.primary,
+    required this.onTap,
+    this.icon,
+    this.focusNode,
+    this.onFocusChange,
+    this.scale = 1.0,
+  });
+
+  final String label;
+  final bool primary;
+  final VoidCallback onTap;
+  final IconData? icon;
+  final FocusNode? focusNode;
+  final ValueChanged<bool>? onFocusChange;
+  final double scale;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = scale;
+    final bg = primary
+        ? Colors.white
+        : Colors.white.withValues(alpha: 0.30);
+    final fg = primary ? Colors.black : Colors.white;
+    return AppHover(
+      effect: AppHoverEffect.scaleHighlightOutline,
+      config: AppHoverConfig.scaleHighlightOutline(
+        scale: 1.05,
+        radius: BorderRadius.circular(999),
+      ),
+      focusNode: focusNode,
+      onFocusChange: onFocusChange,
+      onTap: onTap,
+      child: Container(
+        height: 40 * s,
+        padding: EdgeInsets.symmetric(horizontal: 22 * s),
+        decoration: BoxDecoration(
+          color: bg,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: fg, size: 22 * s),
+              SizedBox(width: 6 * s),
+            ],
+            Text(
+              label,
+              style: TextStyle(
+                color: fg,
+                fontSize: 15 * s,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
