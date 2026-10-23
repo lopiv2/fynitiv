@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -28,8 +29,9 @@ class HomeScreen extends ConsumerWidget {
     final resume = ref.watch(resumeItemsProvider);
     final nextUp = ref.watch(nextUpEpisodesProvider);
     final latest = ref.watch(latestItemsProvider);
-    final latestBanner =
-        ref.watch(bannerItemsForProvider(scrollTypesKey(null)));
+    final latestBanner = ref.watch(
+      bannerItemsForProvider(scrollTypesKey(null)),
+    );
     final views = ref.watch(userViewsProvider);
     final skin = ref.watch(skinControllerProvider).value;
     final platformMode = ref.watch(platformModeProvider).value;
@@ -419,9 +421,7 @@ class HomeScreen extends ConsumerWidget {
             final sliderItems =
                 ref
                     .watch(
-                      bannerItemsForProvider(
-                        scrollTypesKey(section.scroll),
-                      ),
+                      bannerItemsForProvider(scrollTypesKey(section.scroll)),
                     )
                     .value ??
                 const [];

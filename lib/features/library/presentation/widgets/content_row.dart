@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cached_network_image_ce/cached_network_image.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
@@ -232,9 +233,14 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   /// Separado del hover para no disparar overlays de flechas en TV.
   int _focusedIndex = -1;
 
+  /// Mantiene el spotlight hover activo mientras el scroll programático mueve
+  /// la tarjeta bajo el puntero. Se libera al mover el ratón.
+  int _pinnedHoveredIndex = -1;
+
   /// Alto extra reservado bajo la fila para la tira de info del spotlight
   /// (meta + sinopsis de 3 líneas).
   static const double _spotlightExtra = 100;
+  static const double _netflixSpotlightInfoHeight = 128;
 
   /// Las flechas se muestran mientras el puntero está sobre la fila o sobre
   /// una hovercard expandida.
@@ -294,15 +300,11 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     if (widget.useBackdrop && source == null) {
       return singleCardImageUrl(serverUrl, item, CardImageKind.thumb);
     }
-    return singleCardImageUrl(
-      serverUrl,
-      item,
-      switch (source) {
-        RowImageSource.thumb => CardImageKind.thumb,
-        RowImageSource.backdrop => CardImageKind.backdrop,
-        RowImageSource.primary || null => CardImageKind.primary,
-      },
-    );
+    return singleCardImageUrl(serverUrl, item, switch (source) {
+      RowImageSource.thumb => CardImageKind.thumb,
+      RowImageSource.backdrop => CardImageKind.backdrop,
+      RowImageSource.primary || null => CardImageKind.primary,
+    });
   }
 
   /// Precalienta las 8 primeras tarjetas en la caché compartida de
@@ -320,9 +322,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
       precacheImage(
         CachedNetworkImageProvider(
           url,
-          maxWidth: widget.useBackdrop
-              ? kLandscapeMaxWidth
-              : kPosterMaxWidth,
+          maxWidth: widget.useBackdrop ? kLandscapeMaxWidth : kPosterMaxWidth,
         ),
         ctx,
         onError: (_, _) {},
@@ -334,10 +334,101 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   /// No toca flechas ni overlays: solo escala + tira de info.
   void _onCardFocus(int index, bool value) {
     if (!widget.spotlight) return;
-    final next = value ? index : -1;
-    if (_focusedIndex != next && mounted) {
-      setState(() => _focusedIndex = next);
+    if (value && mounted) {
+      setState(() {
+        _focusedIndex = index;
+        _hoveredIndex = -1;
+        _pinnedHoveredIndex = -1;
+      });
+      _scrollSpotlightToStart(index);
+      _centerNetflixSpotlightVertically(index);
+    } else if (_focusedIndex == index && mounted) {
+      setState(() => _focusedIndex = -1);
     }
+  }
+
+  void _centerNetflixSpotlightVertically(int index) {
+    final pagePosition = _pageScrollPosition;
+    if (!_isNetflixSpotlight ||
+        pagePosition == null ||
+        (pagePosition.axisDirection != AxisDirection.down &&
+            pagePosition.axisDirection != AxisDirection.up)) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 280), () {
+        if (!mounted || _focusedIndex != index) return;
+        final position = _pageScrollPosition;
+        final rowObject = _rowKey.currentContext?.findRenderObject();
+        if (position == null ||
+            !position.hasContentDimensions ||
+            rowObject == null ||
+            !rowObject.attached) {
+          return;
+        }
+
+        RenderObject? ancestor = rowObject;
+        RenderViewportBase<dynamic>? pageViewport;
+        while (ancestor != null) {
+          if (ancestor is RenderViewportBase<dynamic> &&
+              ancestor.axisDirection == position.axisDirection) {
+            pageViewport = ancestor;
+            break;
+          }
+          ancestor = ancestor.parent;
+        }
+        if (pageViewport == null) return;
+
+        final target = pageViewport.getOffsetToReveal(rowObject, 0.5).offset;
+        final boundedTarget = target
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble();
+        if ((position.pixels - boundedTarget).abs() < 1) return;
+        position.animateTo(
+          boundedTarget,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        );
+      });
+    });
+  }
+
+  void _scrollSpotlightToStart(int index, {bool pinHover = false}) {
+    if (!_isNetflixSpotlight) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.hasClients || _spotlightIndex != index) {
+        return;
+      }
+      final target = _cardLeft(index, index, true);
+      final position = _controller.position;
+      if ((position.pixels - target).abs() < 1) return;
+      if (pinHover && _hoveredIndex == index) {
+        _pinnedHoveredIndex = index;
+      }
+      final boundedTarget = target
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble();
+      _controller.animateTo(
+        boundedTarget,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _onRowPointerHover(PointerHoverEvent event) {
+    if (_pinnedHoveredIndex == -1) return;
+    final hoveredIndex = _hoveredIndex;
+    setState(() => _pinnedHoveredIndex = -1);
+    if (hoveredIndex >= 0) {
+      _scrollSpotlightToStart(hoveredIndex, pinHover: true);
+    }
+  }
+
+  void _clearPinnedHover() {
+    if (_pinnedHoveredIndex == -1 || !mounted) return;
+    setState(() => _pinnedHoveredIndex = -1);
   }
 
   /// Índice destacado por el spotlight (hover o foco TV), o -1 si ninguno.
@@ -346,6 +437,11 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   int get _spotlightIndex {
     if (!widget.spotlight) return -1;
     final items = _items;
+    final pinned =
+        _pinnedHoveredIndex >= 0 && _pinnedHoveredIndex < items.length
+        ? _pinnedHoveredIndex
+        : -1;
+    if (pinned != -1) return pinned;
     final hovered = _hoveredIndex >= 0 && _hoveredIndex < items.length
         ? _hoveredIndex
         : -1;
@@ -357,7 +453,11 @@ class _ContentRowState extends ConsumerState<ContentRow> {
   }
 
   /// Tira de info del spotlight (foto): meta + sinopsis bajo la tarjeta.
-  Widget _buildSpotlightInfo(BaseItemDto item, double width) {
+  Widget _buildSpotlightInfo(
+    BaseItemDto item,
+    double width, {
+    bool netflixStyle = false,
+  }) {
     final l10n = AppLocalizations.of(context);
     final segments = <String>[];
     final genreList = item.genres ?? const <String>[];
@@ -385,6 +485,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
       fontSize: 13,
       fontWeight: FontWeight.w600,
     );
+    final styledMeta = netflixStyle
+        ? metaStyle.copyWith(fontSize: 16)
+        : metaStyle;
     return SizedBox(
       width: width,
       child: Column(
@@ -401,16 +504,15 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                       segments.join(' • '),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: metaStyle,
+                      style: styledMeta,
                     ),
                   ),
                 if (hasSubtitles) ...[
-                  if (segments.isNotEmpty)
-                    const Text(' • ', style: metaStyle),
-                  const Icon(
+                  if (segments.isNotEmpty) Text(' • ', style: styledMeta),
+                  Icon(
                     Icons.closed_caption_outlined,
                     color: Colors.white,
-                    size: 16,
+                    size: netflixStyle ? 18 : 16,
                   ),
                 ],
               ],
@@ -421,14 +523,66 @@ class _ContentRowState extends ConsumerState<ContentRow> {
               overview,
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
+              style: TextStyle(
                 color: Colors.white70,
-                fontSize: 13,
+                fontSize: netflixStyle ? 17 : 13,
                 height: 1.35,
               ),
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildNetflixSpotlightLogo(BaseItemDto item, double cardWidth) {
+    final logoUrl = widget.serverUrl == null
+        ? null
+        : itemLogoUrl(widget.serverUrl!, item);
+    final logoWidth = cardWidth * 0.52;
+    final logoHeight = (cardWidth * 0.23).clamp(38.0, 94.0).toDouble();
+    final title = (item.name ?? '').trim();
+    final fallback = title.isEmpty
+        ? const SizedBox.shrink()
+        : SizedBox(
+            width: logoWidth,
+            height: logoHeight,
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: (logoHeight * 0.42).clamp(14.0, 24.0),
+                  fontWeight: FontWeight.w700,
+                  height: 1.05,
+                  shadows: const [
+                    Shadow(color: Colors.black87, blurRadius: 8),
+                    Shadow(color: Colors.black54, blurRadius: 2),
+                  ],
+                ),
+              ),
+            ),
+          );
+    if (logoUrl == null || logoUrl.isEmpty) return fallback;
+
+    return SizedBox(
+      width: logoWidth,
+      height: logoHeight,
+      child: CachedNetworkImage(
+        imageUrl: logoUrl,
+        fit: BoxFit.contain,
+        alignment: Alignment.centerLeft,
+        memCacheWidth: (logoWidth * 3).round(),
+        memCacheHeight: (logoHeight * 3).round(),
+        maxWidthDiskCache: (logoWidth * 3).round(),
+        maxHeightDiskCache: (logoHeight * 3).round(),
+        fadeInDuration: const Duration(milliseconds: 150),
+        useOldImageOnUrlChange: true,
+        placeholder: (_, _) => fallback,
+        errorBuilder: (_, _, _) => fallback,
       ),
     );
   }
@@ -451,8 +605,9 @@ class _ContentRowState extends ConsumerState<ContentRow> {
       // Texto bajo la imagen (título 12 + subtítulo 10 + gaps 4+1 ≈ 27)
       // Antes era solo imageH y provocaba overflow de ~18px (Column:334)
       // Disney+ en Seguir viendo añade "Tiempo restante" (+14px)
-      final extraForRemaining =
-          (skin?.id == 'disney_plus' && hasBelowText) ? 14 : 0;
+      final extraForRemaining = (skin?.id == 'disney_plus' && hasBelowText)
+          ? 14
+          : 0;
       return imageH + (hasBelowText ? 28 : 0) + extraForRemaining;
     }
     // Póster: widget.height ya incluye título/subtítulo, añadir extra para Disney+
@@ -467,8 +622,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     if (widget.itemSpacing != null) return widget.itemSpacing!;
     // Fallback al skin (12 por defecto) o valores legacy por tipo.
     final skinSpacing =
-        (SkinScope.maybeOf(context) ??
-                ref.watch(skinControllerProvider).value)
+        (SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value)
             ?.itemSpacing;
     if (skinSpacing != null) return skinSpacing;
     return widget.useBackdrop ? 20 : 12;
@@ -520,15 +674,20 @@ class _ContentRowState extends ConsumerState<ContentRow> {
 
   /// Actualiza el índice de la tarjeta con hover.
   void _onCardHover(int index, bool value) {
-    final next = value ? index : -1;
-    if (_hoveredIndex != next || _rowHovered != value) {
+    if (value && mounted) {
       setState(() {
-        _hoveredIndex = next;
-        if (value) _rowHovered = true;
+        _hoveredIndex = index;
+        _pinnedHoveredIndex = -1;
+        _rowHovered = true;
       });
+    } else if (_hoveredIndex == index && mounted) {
+      setState(() => _hoveredIndex = -1);
     }
     if (value) {
       _showArrowOverlay();
+      if (_isNetflixSpotlight) {
+        _scrollSpotlightToStart(index, pinHover: true);
+      }
       // La hovercard se inserta inmediatamente despues de esta notificacion
       // (con `below:` la entrada de flechas, que ya está por encima).
       // Refrescar al final del frame evita carreras durante la transicion
@@ -652,135 +811,326 @@ class _ContentRowState extends ConsumerState<ContentRow> {
 
   /// Items de la fila, excluyendo stubs/placeholders salvo que se pida lo
   /// contrario (fila "Próximamente").
-  List<BaseItemDto> get _items =>
-      widget.excludePlaceholders ? excludePlaceholders(widget.items) : widget.items;
+  List<BaseItemDto> get _items => widget.excludePlaceholders
+      ? excludePlaceholders(widget.items)
+      : widget.items;
 
-  /// Construye las tarjetas en un único [Stack] horizontal. El orden de pintado
-  /// se reordena para que la tarjeta con hover/foco sea la última (y quede por
-  /// encima de las vecinas al escalar con el [ScaleButton]).
+  double get _spotlightCardWidth {
+    if (!widget.spotlight) return _cardWidth;
+    final scaledWidth = _cardWidth * widget.spotlightScale;
+    final skin =
+        SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
+    if (skin?.id != 'netflix') return scaledWidth;
+    final viewport = MediaQuery.sizeOf(context);
+    final referenceDimension = viewport.height > viewport.width
+        ? viewport.height
+        : viewport.width;
+    final platformMode =
+        ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
+    final referenceFactor = switch (platformMode) {
+      PlatformMode.tv => 0.60,
+      PlatformMode.desktop => 0.4,
+      PlatformMode.mobile => 0.65,
+    };
+    final referenceWidth = referenceDimension * referenceFactor;
+    final currentNetflixWidth = scaledWidth > referenceWidth
+        ? scaledWidth
+        : referenceWidth;
+    final calculatedWidth = currentNetflixWidth * 0.7;
+    final viewportWidthLimit = viewport.width * 0.45;
+    final maxWidth = _cardWidth > viewportWidthLimit
+        ? _cardWidth
+        : viewportWidthLimit;
+    return calculatedWidth > maxWidth ? maxWidth : calculatedWidth;
+  }
+
+  bool get _isNetflixSpotlight {
+    final skin =
+        SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
+    return widget.spotlight && skin?.id == 'netflix';
+  }
+
+  double _cardLeft(int index, int spotlightIndex, bool expandSpotlight) {
+    var left = 0.0;
+    for (var previous = 0; previous < index; previous++) {
+      final width = expandSpotlight && previous == spotlightIndex
+          ? _spotlightCardWidth
+          : _cardWidth;
+      left += width + _spacing;
+    }
+    return left;
+  }
+
+  double _contentWidth(
+    int itemCount,
+    int spotlightIndex,
+    bool expandSpotlight,
+  ) {
+    if (itemCount == 0) return 0;
+    var contentWidth = itemCount * _cardWidth + (itemCount - 1) * _spacing;
+    if (!expandSpotlight || spotlightIndex < 0) return contentWidth;
+    contentWidth += _spotlightCardWidth - _cardWidth;
+
+    // Reserve trailing room so even the last card can align to the viewport's
+    // left edge instead of being clamped by the scroll extent.
+    final targetLeft = _cardLeft(spotlightIndex, spotlightIndex, true);
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final currentMaxOffset = contentWidth + 48 - viewportWidth;
+    if (targetLeft > currentMaxOffset) {
+      final requiredWidth = targetLeft + viewportWidth - 48;
+      if (requiredWidth > contentWidth) contentWidth = requiredWidth;
+    }
+    return contentWidth;
+  }
+
+  /// Construye las tarjetas en un único [Stack] horizontal. En Netflix,
+  /// el ancho spotlight forma parte del layout y desplaza las tarjetas vecinas.
   List<Widget> _buildStackedItems() {
     final items = _items;
     final spotIndex = _spotlightIndex;
+    final isNetflixSpotlight = _isNetflixSpotlight;
     final indices = List<int>.generate(items.length, (i) => i);
     indices.sort((a, b) {
-      if (a == _hoveredIndex || a == spotIndex) return 1;
-      if (b == _hoveredIndex || b == spotIndex) return -1;
+      if (a == spotIndex) return 1;
+      if (b == spotIndex) return -1;
       return a.compareTo(b);
     });
-    final step = _cardWidth + _spacing;
     final isTv =
         (ref.watch(platformModeProvider).value ?? PlatformMode.mobile) ==
         PlatformMode.tv;
-    // Con spotlight la fila escala (la tarjeta no debe componer su 1.3).
-    final cardHoverScale = widget.spotlight ? 1.0 : widget.hoverScale;
     return [
       for (final i in indices)
-        Positioned(
-          key: ValueKey('content_card_$i'),
-          left: i * step,
-          top: 0,
-          width: _cardWidth,
-          child: _wrapForTv(
-            isTv: isTv,
-            index: i,
-            onTap: widget.onItemTap == null
-                ? null
-                : () => widget.onItemTap!(items[i]),
-            child: AnimatedScale(
-              // Sin spotlight el wrapper es identidad (sin cambio visual).
-              scale: widget.spotlight && i == spotIndex
-                  ? widget.spotlightScale
-                  : 1.0,
-              alignment: Alignment.topCenter,
-              duration: const Duration(milliseconds: 200),
-              curve: Curves.easeOut,
-              child: widget.useBackdrop
-                  ? BackdropCard(
-                    item: items[i],
-                    serverUrl: widget.serverUrl,
-                    cardLogo:
-                        widget.cardLogoFor?.call(items[i]) ?? widget.cardLogo,
-                    hoverExtension: true,
-                    useSeriesPoster: widget.useSeriesPoster,
-                    showBottomVignette: widget.showBottomVignette,
-                    bottomVignetteHeight: widget.bottomVignetteHeight,
-                    bottomVignetteOpacity: widget.bottomVignetteOpacity,
-                    showMetaOverlay: widget.showMetaOverlay,
-                    metaAlignment: widget.metaAlignment,
-                    imageSource: widget.imageSource ?? RowImageSource.thumb,
-                    imageUrl: widget.imageUrlFor?.call(items[i]),
-                    showHoverIncludedBadge: widget.showHoverIncludedBadge,
-                    hoverActionLabel: widget.hoverActionLabel,
-                    cornerLogos: widget.cornerLogosFor?.call(items[i]),
-                    showNewBadge: widget.showNewBadge,
-                    showStackLogo: widget.showStackLogo,
-                    logoPosition: widget.logoPosition,
-                    logoSize: widget.logoSize,
-                    hideTitle: widget.hideTitle,
-                    hideYear: widget.hideYear,
-                    showHoverOverlay: widget.showHoverOverlay,
-                    showPlayIcon: widget.showPlayIcon,
-                    highlightTitleOnHover: widget.highlightTitleOnHover,
-                    cardBorderRadius: widget.cardBorderRadius,
-                    hoverScale: cardHoverScale,
-                    onTap: widget.onItemTap == null
-                        ? null
-                        : () => widget.onItemTap!(items[i]),
-                    onImageTap: widget.onItemImageTap == null
-                        ? null
-                        : () => widget.onItemImageTap!(items[i]),
-                    onHoverChanged: (v) => _onCardHover(i, v),
-                    onPointerSignal: _onPagePointerSignal,
-                    overlayBelowEntry: _prepareArrowOverlayForHover,
-                    cornerBadge:
-                        widget.cornerBadgeFor?.call(items[i]) ??
-                        widget.cornerBadge,
-                  )
-                : PosterCard(
-                    item: items[i],
-                    serverUrl: widget.serverUrl,
-                    cardLogo:
-                        widget.cardLogoFor?.call(items[i]) ?? widget.cardLogo,
-                    hoverExtension: true,
-                    useSeriesPoster: widget.useSeriesPoster,
-                    showBottomVignette: widget.showBottomVignette,
-                    bottomVignetteHeight: widget.bottomVignetteHeight,
-                    bottomVignetteOpacity: widget.bottomVignetteOpacity,
-                    showMetaOverlay: widget.showMetaOverlay,
-                    metaAlignment: widget.metaAlignment,
-                    imageSource: widget.imageSource ?? RowImageSource.primary,
-                    imageUrl: widget.imageUrlFor?.call(items[i]),
-                    showHoverIncludedBadge: widget.showHoverIncludedBadge,
-                    hoverActionLabel: widget.hoverActionLabel,
-                    cornerLogos: widget.cornerLogosFor?.call(items[i]),
-                    showNewBadge: widget.showNewBadge,
-                    showStackLogo: widget.showStackLogo,
-                    logoPosition: widget.logoPosition,
-                    logoSize: widget.logoSize,
-                    hideTitle: widget.hideTitle,
-                    hideYear: widget.hideYear,
-                    showHoverOverlay: widget.showHoverOverlay,
-                    showPlayIcon: widget.showPlayIcon,
-                    highlightTitleOnHover: widget.highlightTitleOnHover,
-                    cardBorderRadius: widget.cardBorderRadius,
-                    hoverScale: cardHoverScale,
-                    onTap: widget.onItemTap == null
-                        ? null
-                        : () => widget.onItemTap!(items[i]),
-                    onImageTap: widget.onItemImageTap == null
-                        ? null
-                        : () => widget.onItemImageTap!(items[i]),
-                    onHoverChanged: (v) => _onCardHover(i, v),
-                    onPointerSignal: _onPagePointerSignal,
-                    overlayBelowEntry: _prepareArrowOverlayForHover,
-                    cornerBadge:
-                        widget.cornerBadgeFor?.call(items[i]) ??
-                        widget.cornerBadge,
-                  ),
+        if (isNetflixSpotlight)
+          AnimatedPositioned(
+            key: ValueKey('content_card_$i'),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            left: _cardLeft(i, spotIndex, true),
+            top: 0,
+            width: i == spotIndex ? _spotlightCardWidth : _cardWidth,
+            child: _buildRowCard(
+              item: items[i],
+              index: i,
+              isTv: isTv,
+              netflixSpotlightCard: i == spotIndex,
+            ),
+          )
+        else
+          Positioned(
+            key: ValueKey('content_card_$i'),
+            left: _cardLeft(i, spotIndex, false),
+            top: 0,
+            width: _cardWidth,
+            child: _buildRowCard(
+              item: items[i],
+              index: i,
+              isTv: isTv,
+              netflixSpotlightCard: false,
             ),
           ),
-        ),
     ];
+  }
+
+  Widget _buildRowCard({
+    required BaseItemDto item,
+    required int index,
+    required bool isTv,
+    required bool netflixSpotlightCard,
+  }) {
+    final onTap = widget.onItemTap == null
+        ? null
+        : () => widget.onItemTap!(item);
+    final cardHoverScale = widget.spotlight ? 1.0 : widget.hoverScale;
+    final cardLogo = widget.cardLogoFor?.call(item) ?? widget.cardLogo;
+    final cornerLogos = widget.cornerLogosFor?.call(item);
+    final cornerBadge = widget.cornerBadgeFor?.call(item) ?? widget.cornerBadge;
+    final imageUrl = widget.imageUrlFor?.call(item);
+    final cardWidth = netflixSpotlightCard ? _spotlightCardWidth : _cardWidth;
+    final showImageHoverBorder =
+        !_isNetflixSpotlight || index == _spotlightIndex;
+
+    Widget card;
+    if (netflixSpotlightCard) {
+      final backdropUrl =
+          imageUrl ??
+          (widget.serverUrl == null
+              ? null
+              : singleCardImageUrl(
+                  widget.serverUrl!,
+                  item,
+                  CardImageKind.backdrop,
+                ));
+      final skin =
+          SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
+      final radius = widget.cardBorderRadius ?? skin?.cardBorderRadius ?? 12;
+      card = AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOutCubic,
+        width: cardWidth,
+        decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(radius),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: cardWidth,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  BackdropCard(
+                    item: item,
+                    serverUrl: widget.serverUrl,
+                    cardLogo: cardLogo,
+                    hoverExtension: false,
+                    useSeriesPoster: widget.useSeriesPoster,
+                    showBottomVignette: false,
+                    showMetaOverlay: false,
+                    metaAlignment: widget.metaAlignment,
+                    imageSource: RowImageSource.backdrop,
+                    imageUrl: backdropUrl,
+                    showHoverIncludedBadge: widget.showHoverIncludedBadge,
+                    hoverActionLabel: widget.hoverActionLabel,
+                    cornerLogos: cornerLogos,
+                    showNewBadge: widget.showNewBadge,
+                    showStackLogo: false,
+                    logoPosition: widget.logoPosition,
+                    logoSize: widget.logoSize,
+                    hideTitle: true,
+                    hideYear: true,
+                    hideSubtitle: true,
+                    showHoverOverlay: false,
+                    showPlayIcon: false,
+                    showImageHoverBorder: true,
+                    highlightTitleOnHover: widget.highlightTitleOnHover,
+                    cardBorderRadius: widget.cardBorderRadius,
+                    hoverScale: 1,
+                    onTap: onTap,
+                    onImageTap: widget.onItemImageTap == null
+                        ? null
+                        : () => widget.onItemImageTap!(item),
+                    onHoverChanged: (value) => _onCardHover(index, value),
+                    onPointerSignal: _onPagePointerSignal,
+                    overlayBelowEntry: _prepareArrowOverlayForHover,
+                    cornerBadge: cornerBadge,
+                  ),
+                  Positioned(
+                    left: 16,
+                    bottom: 16,
+                    child: IgnorePointer(
+                      child: _buildNetflixSpotlightLogo(item, cardWidth),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 12, 4, 12),
+              child: _buildSpotlightInfo(
+                item,
+                cardWidth - 8,
+                netflixStyle: true,
+              ),
+            ),
+          ],
+        ),
+      );
+    } else if (widget.useBackdrop) {
+      card = BackdropCard(
+        item: item,
+        serverUrl: widget.serverUrl,
+        cardLogo: cardLogo,
+        hoverExtension: true,
+        useSeriesPoster: widget.useSeriesPoster,
+        showBottomVignette: widget.showBottomVignette,
+        bottomVignetteHeight: widget.bottomVignetteHeight,
+        bottomVignetteOpacity: widget.bottomVignetteOpacity,
+        showMetaOverlay: widget.showMetaOverlay,
+        metaAlignment: widget.metaAlignment,
+        imageSource: widget.imageSource ?? RowImageSource.thumb,
+        imageUrl: imageUrl,
+        showHoverIncludedBadge: widget.showHoverIncludedBadge,
+        hoverActionLabel: widget.hoverActionLabel,
+        cornerLogos: cornerLogos,
+        showNewBadge: widget.showNewBadge,
+        showStackLogo: widget.showStackLogo,
+        logoPosition: widget.logoPosition,
+        logoSize: widget.logoSize,
+        hideTitle: widget.hideTitle,
+        hideYear: widget.hideYear,
+        showHoverOverlay: widget.showHoverOverlay,
+        showPlayIcon: widget.showPlayIcon,
+        showImageHoverBorder: showImageHoverBorder,
+        highlightTitleOnHover: widget.highlightTitleOnHover,
+        cardBorderRadius: widget.cardBorderRadius,
+        hoverScale: cardHoverScale,
+        onTap: onTap,
+        onImageTap: widget.onItemImageTap == null
+            ? null
+            : () => widget.onItemImageTap!(item),
+        onHoverChanged: (value) => _onCardHover(index, value),
+        onPointerSignal: _onPagePointerSignal,
+        overlayBelowEntry: _prepareArrowOverlayForHover,
+        cornerBadge: cornerBadge,
+      );
+    } else {
+      card = PosterCard(
+        item: item,
+        serverUrl: widget.serverUrl,
+        cardLogo: cardLogo,
+        hoverExtension: true,
+        useSeriesPoster: widget.useSeriesPoster,
+        showBottomVignette: widget.showBottomVignette,
+        bottomVignetteHeight: widget.bottomVignetteHeight,
+        bottomVignetteOpacity: widget.bottomVignetteOpacity,
+        showMetaOverlay: widget.showMetaOverlay,
+        metaAlignment: widget.metaAlignment,
+        imageSource: widget.imageSource ?? RowImageSource.primary,
+        imageUrl: imageUrl,
+        showHoverIncludedBadge: widget.showHoverIncludedBadge,
+        hoverActionLabel: widget.hoverActionLabel,
+        cornerLogos: cornerLogos,
+        showNewBadge: widget.showNewBadge,
+        showStackLogo: widget.showStackLogo,
+        logoPosition: widget.logoPosition,
+        logoSize: widget.logoSize,
+        hideTitle: widget.hideTitle,
+        hideYear: widget.hideYear,
+        showHoverOverlay: widget.showHoverOverlay,
+        showPlayIcon: widget.showPlayIcon,
+        showImageHoverBorder: showImageHoverBorder,
+        highlightTitleOnHover: widget.highlightTitleOnHover,
+        cardBorderRadius: widget.cardBorderRadius,
+        hoverScale: cardHoverScale,
+        onTap: onTap,
+        onImageTap: widget.onItemImageTap == null
+            ? null
+            : () => widget.onItemImageTap!(item),
+        onHoverChanged: (value) => _onCardHover(index, value),
+        onPointerSignal: _onPagePointerSignal,
+        overlayBelowEntry: _prepareArrowOverlayForHover,
+        cornerBadge: cornerBadge,
+      );
+    }
+
+    if (!widget.spotlight || _isNetflixSpotlight) {
+      return _wrapForTv(isTv: isTv, index: index, onTap: onTap, child: card);
+    }
+    return _wrapForTv(
+      isTv: isTv,
+      index: index,
+      onTap: onTap,
+      child: AnimatedScale(
+        scale: index == _spotlightIndex ? widget.spotlightScale : 1.0,
+        alignment: Alignment.topCenter,
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOut,
+        child: card,
+      ),
+    );
   }
 
   Widget _wrapForTv({
@@ -790,14 +1140,35 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     required Widget child,
   }) {
     if (onTap == null) return child;
+    final skin =
+        SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value;
+    final isNetflixSkin = skin?.id == 'netflix';
+    final isNetflixSpotlight = isNetflixSkin && widget.spotlight;
+    final useNetflixCardOutline = isNetflixSkin && !widget.spotlight;
+    final hoverScale = isNetflixSkin && widget.spotlight
+        ? 1.0
+        : widget.hoverScale ?? 1.04;
     return AppHover(
-      effect: AppHoverEffect.scale,
-      config: AppHoverConfig.scaleOnly(
-        scale: widget.hoverScale ?? 1.04,
-        radius: BorderRadius.circular(12),
-      ),
+      effect: useNetflixCardOutline
+          ? AppHoverEffect.scaleHighlightOutline
+          : AppHoverEffect.scale,
+      config: useNetflixCardOutline
+          ? AppHoverConfig.scaleHighlightOutline(
+              scale: hoverScale,
+              radius: BorderRadius.circular(
+                widget.cardBorderRadius ?? skin?.cardBorderRadius ?? 12,
+              ),
+              outlineHoveredWidth: 2,
+            )
+          : AppHoverConfig.scaleOnly(
+              scale: hoverScale,
+              radius: BorderRadius.circular(
+                isNetflixSkin ? skin?.cardBorderRadius ?? 12 : 12,
+              ),
+            ),
       onTap: onTap,
       onFocusChange: (v) => _onCardFocus(index, v),
+      ensureVisibleOnFocus: !isNetflixSpotlight,
       child: child,
     );
   }
@@ -810,8 +1181,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     // Si este es backdrop y hay siguiente fila → doble spacing (backdrop→poster y backdrop→backdrop).
     // Si es poster→poster o poster→backdrop → simple. Última fila sin siguiente → simple.
     final baseRowSpacing =
-        (SkinScope.maybeOf(context) ??
-                ref.watch(skinControllerProvider).value)
+        (SkinScope.maybeOf(context) ?? ref.watch(skinControllerProvider).value)
             ?.rowSpacing ??
         24;
     final hasNextEffective = widget.hasNext || widget.isNextPoster;
@@ -824,12 +1194,27 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     // de info (meta + sinopsis) bajo ella. Animado en ambas direcciones.
     final spotIndex = _spotlightIndex;
     final spotActive = widget.spotlight && spotIndex != -1;
-    final displayH = _rowHeight + (spotActive ? _spotlightExtra : 0);
+    final isNetflixSpotlight = _isNetflixSpotlight;
+    final netflixSpotlightActive = isNetflixSpotlight && spotActive;
+    final netflixSpotlightHeight =
+        _spotlightCardWidth * 9 / 16 + _netflixSpotlightInfoHeight;
+    final normalSpotlightHeight =
+        _rowHeight + (spotActive ? _spotlightExtra : 0);
+    final displayH = netflixSpotlightActive
+        ? (netflixSpotlightHeight > _rowHeight
+              ? netflixSpotlightHeight
+              : _rowHeight)
+        : normalSpotlightHeight;
     final step = _cardWidth + _spacing;
     final spotW = _cardWidth * widget.spotlightScale;
     final spotLeft = spotActive
         ? (spotIndex * step - (spotW - _cardWidth) / 2)
         : 0.0;
+    final contentWidth = _contentWidth(
+      _items.length,
+      spotIndex,
+      netflixSpotlightActive,
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -847,8 +1232,12 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         FocusTraversalGroup(
           policy: ReadingOrderTraversalPolicy(),
           child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOut,
+            duration: Duration(
+              milliseconds: netflixSpotlightActive ? 250 : 200,
+            ),
+            curve: netflixSpotlightActive
+                ? Curves.easeOutCubic
+                : Curves.easeOut,
             height: displayH,
             child: Stack(
               fit: StackFit.expand,
@@ -862,7 +1251,11 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     setState(() => _rowHovered = true);
                     _showArrowOverlay();
                   },
-                  onExit: (_) => _scheduleArrowOverlayHide(),
+                  onHover: _onRowPointerHover,
+                  onExit: (_) {
+                    _clearPinnedHover();
+                    _scheduleArrowOverlayHide();
+                  },
                   child: CompositedTransformTarget(
                     key: _rowKey,
                     link: _rowLink,
@@ -879,17 +1272,15 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                           clipBehavior: Clip.none,
                           padding: const EdgeInsets.symmetric(horizontal: 24),
                           child: SizedBox(
-                            width:
-                                _items.length * _cardWidth +
-                                (_items.length - 1) * _spacing,
+                            width: contentWidth,
                             height: displayH,
                             child: Stack(
                               clipBehavior: Clip.none,
                               children: [
                                 ..._buildStackedItems(),
-                                // Tira de info del spotlight: sigue el scroll
-                                // horizontal al vivir dentro del contenido.
-                                if (spotActive)
+                                // En otros skins la tira vive en el contenido
+                                // del scroll. Netflix la integra en la tarjeta.
+                                if (spotActive && !netflixSpotlightActive)
                                   AnimatedPositioned(
                                     duration: const Duration(milliseconds: 200),
                                     curve: Curves.easeOut,

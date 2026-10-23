@@ -74,7 +74,11 @@ class AppHoverConfig {
   final double ledSpreadRadius;
 
   /// Config Spotify: fondo #181818 -> #282828, sin escala, radius 8.
-  factory AppHoverConfig.spotify({required Color accent, double radius = 8, Duration? duration}) {
+  factory AppHoverConfig.spotify({
+    required Color accent,
+    double radius = 8,
+    Duration? duration,
+  }) {
     return AppHoverConfig(
       highlightNormal: const Color(0xFF181818),
       highlightHovered: const Color(0xFF282828),
@@ -84,7 +88,10 @@ class AppHoverConfig {
     );
   }
 
-  factory AppHoverConfig.scaleOnly({double scale = 1.05, BorderRadius? radius}) {
+  factory AppHoverConfig.scaleOnly({
+    double scale = 1.05,
+    BorderRadius? radius,
+  }) {
     return AppHoverConfig(
       scale: scale,
       borderRadius: radius ?? const BorderRadius.all(Radius.circular(12)),
@@ -200,9 +207,11 @@ class AppHoverConfig {
 class AppHoverScope extends InheritedWidget {
   const AppHoverScope({super.key, required this.hovered, required super.child});
   final bool hovered;
-  static AppHoverScope? of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<AppHoverScope>();
+  static AppHoverScope? of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<AppHoverScope>();
   @override
-  bool updateShouldNotify(AppHoverScope oldWidget) => hovered != oldWidget.hovered;
+  bool updateShouldNotify(AppHoverScope oldWidget) =>
+      hovered != oldWidget.hovered;
 }
 
 /// Widget universal para efectos hover/focus.
@@ -229,6 +238,7 @@ class AppHover extends ConsumerStatefulWidget {
     this.focusNode,
     this.autofocus = false,
     this.onFocusChange,
+    this.ensureVisibleOnFocus = true,
   });
 
   final Widget child;
@@ -249,6 +259,10 @@ class AppHover extends ConsumerStatefulWidget {
 
   /// Notifica cambios de foco (además del highlight interno).
   final ValueChanged<bool>? onFocusChange;
+
+  /// Si es `true`, asegura la visibilidad del elemento enfocado en el scroll más cercano.
+  /// Desactivado cuando el padre controla una alineación de scroll específica.
+  final bool ensureVisibleOnFocus;
 
   @override
   ConsumerState<AppHover> createState() => _AppHoverState();
@@ -277,7 +291,9 @@ class _AppHoverState extends ConsumerState<AppHover> {
     }
     final remaining = _globalMuteUntil!.difference(now);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final delay = remaining.isNegative ? const Duration(milliseconds: 350) : remaining + const Duration(milliseconds: 200);
+      final delay = remaining.isNegative
+          ? const Duration(milliseconds: 350)
+          : remaining + const Duration(milliseconds: 200);
       Future.delayed(delay, () {
         if (mounted) {
           // No hace falta setState visual, solo habilitar sonido
@@ -309,27 +325,37 @@ class _AppHoverState extends ConsumerState<AppHover> {
 
   @override
   Widget build(BuildContext context) {
-    final isHighlight = widget.effect == AppHoverEffect.highlight ||
+    final isHighlight =
+        widget.effect == AppHoverEffect.highlight ||
         widget.effect == AppHoverEffect.highlightWithScale ||
         widget.effect == AppHoverEffect.highlightWithOutline ||
         widget.effect == AppHoverEffect.scaleHighlightOutline ||
         widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
-    final isScale = widget.effect == AppHoverEffect.scale ||
+    final isScale =
+        widget.effect == AppHoverEffect.scale ||
         widget.effect == AppHoverEffect.highlightWithScale ||
         widget.effect == AppHoverEffect.outlineWithScale ||
         widget.effect == AppHoverEffect.scaleHighlightOutline ||
         widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
-    final isOutline = widget.effect == AppHoverEffect.outline ||
+    final isOutline =
+        widget.effect == AppHoverEffect.outline ||
         widget.effect == AppHoverEffect.outlineWithScale ||
         widget.effect == AppHoverEffect.highlightWithOutline ||
         widget.effect == AppHoverEffect.scaleHighlightOutline ||
         widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
-    final isLed = widget.effect == AppHoverEffect.led ||
+    final isLed =
+        widget.effect == AppHoverEffect.led ||
         widget.effect == AppHoverEffect.scaleHighlightOutlineLed;
     final isInvert = widget.effect == AppHoverEffect.invert;
-    final highlightColor = _active && isHighlight ? widget.config.highlightHovered : widget.config.highlightNormal;
-    final outlineColor = _active && isOutline ? widget.config.outlineHoveredColor : widget.config.outlineColor;
-    final outlineWidth = _active && isOutline ? widget.config.outlineHoveredWidth : widget.config.outlineWidth;
+    final highlightColor = _active && isHighlight
+        ? widget.config.highlightHovered
+        : widget.config.highlightNormal;
+    final outlineColor = _active && isOutline
+        ? widget.config.outlineHoveredColor
+        : widget.config.outlineColor;
+    final outlineWidth = _active && isOutline
+        ? widget.config.outlineHoveredWidth
+        : widget.config.outlineWidth;
 
     Widget content = AnimatedContainer(
       duration: widget.config.duration,
@@ -337,26 +363,22 @@ class _AppHoverState extends ConsumerState<AppHover> {
       decoration: BoxDecoration(
         color: isHighlight ? highlightColor : Colors.transparent,
         shape: widget.config.isCircular ? BoxShape.circle : BoxShape.rectangle,
-        borderRadius: widget.config.isCircular ? null : widget.config.borderRadius,
+        borderRadius: widget.config.isCircular
+            ? null
+            : widget.config.borderRadius,
         border: isOutline && outlineWidth > 0
             ? Border.all(color: outlineColor, width: outlineWidth)
             : isOutline
-                ? Border.all(color: outlineColor, width: 0)
-                : null,
+            ? Border.all(color: outlineColor, width: 0)
+            : null,
       ),
       child: (widget.config.isCircular
           ? ClipOval(
-              child: AppHoverScope(
-                hovered: _active,
-                child: widget.child,
-              ),
+              child: AppHoverScope(hovered: _active, child: widget.child),
             )
           : ClipRRect(
               borderRadius: widget.config.borderRadius,
-              child: AppHoverScope(
-                hovered: _active,
-                child: widget.child,
-              ),
+              child: AppHoverScope(hovered: _active, child: widget.child),
             )),
     );
 
@@ -399,8 +421,12 @@ class _AppHoverState extends ConsumerState<AppHover> {
         curve: Curves.easeOut,
         decoration: BoxDecoration(
           color: Colors.transparent,
-          shape: widget.config.isCircular ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: widget.config.isCircular ? null : widget.config.borderRadius,
+          shape: widget.config.isCircular
+              ? BoxShape.circle
+              : BoxShape.rectangle,
+          borderRadius: widget.config.isCircular
+              ? null
+              : widget.config.borderRadius,
           boxShadow: ledShadows,
         ),
         child: withLed,
@@ -421,7 +447,10 @@ class _AppHoverState extends ConsumerState<AppHover> {
     void playHoverSound() {
       if (!widget.playSoundOnHover) return;
       if (_suppressInitialSound) return;
-      if (_globalMuteUntil != null && DateTime.now().isBefore(_globalMuteUntil!)) return;
+      if (_globalMuteUntil != null &&
+          DateTime.now().isBefore(_globalMuteUntil!)) {
+        return;
+      }
       final key = ref.read(buttonSoundKeyProvider);
       final asset = assetForButtonSoundKey(key);
       if (asset.isEmpty) return;
@@ -442,15 +471,17 @@ class _AppHoverState extends ConsumerState<AppHover> {
         playHoverSound();
         // Al enfocar con D-pad/teclado la tarjeta puede estar fuera del viewport
         // horizontal/vertical. Asegurar visibilidad para que nunca se pierda el foco visual.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || !v) return;
-          Scrollable.ensureVisible(
-            context,
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            alignment: 0.5,
-          );
-        });
+        if (widget.ensureVisibleOnFocus) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || !v) return;
+            Scrollable.ensureVisible(
+              context,
+              duration: const Duration(milliseconds: 180),
+              curve: Curves.easeOut,
+              alignment: 0.5,
+            );
+          });
+        }
       }
     }
 
@@ -479,9 +510,6 @@ class _AppHoverState extends ConsumerState<AppHover> {
     // Es la mitigación documentada para el bug upstream flutter/flutter#182444
     // (abierto, sin fix en ningún release): no cambia roles ni oculta nada,
     // solo agrupa cada tarjeta bajo su propio nodo.
-    return Semantics(
-      container: true,
-      child: wrapped,
-    );
+    return Semantics(container: true, child: wrapped);
   }
 }

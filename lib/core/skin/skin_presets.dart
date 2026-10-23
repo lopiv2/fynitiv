@@ -703,9 +703,12 @@ abstract final class SkinPresets {
           cardType: HomeScrollCardType.poster,
           spotlight: true,
           cardScale: 0.7,
+          hideTitle: true,
+          hideYear: true,
+          showSeeMore: false,
         ),
       ),
-      LayoutSection.gap(54),
+      LayoutSection.gap(84),
       LayoutSection.custom(
         HomeScroll(
           hideTitle: true,
@@ -715,6 +718,7 @@ abstract final class SkinPresets {
           cardType: HomeScrollCardType.poster,
           spotlight: true,
           cardScale: 0.7,
+          showSeeMore: false,
         ),
       ),
     ],

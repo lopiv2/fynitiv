@@ -47,9 +47,11 @@ class BackdropCard extends ConsumerStatefulWidget {
     this.logoSize,
     this.hideTitle = false,
     this.hideYear = false,
+    this.hideSubtitle = false,
     this.subtitleOverride,
     this.showHoverOverlay = true,
     this.showPlayIcon = true,
+    this.showImageHoverBorder = true,
     this.highlightTitleOnHover = false,
     this.cardBorderRadius,
     this.hoverScale,
@@ -93,6 +95,7 @@ class BackdropCard extends ConsumerStatefulWidget {
   final double? logoSize;
   final bool hideTitle;
   final bool hideYear;
+  final bool hideSubtitle;
 
   /// Subtítulo forzado bajo la tarjeta (y en el panel de hover). Si viene
   /// no vacío sustituye al calculado por tipo (ej. en búsqueda se muestra
@@ -100,6 +103,7 @@ class BackdropCard extends ConsumerStatefulWidget {
   final String? subtitleOverride;
   final bool showHoverOverlay;
   final bool showPlayIcon;
+  final bool showImageHoverBorder;
   final bool highlightTitleOnHover;
   final double? cardBorderRadius;
   final double? hoverScale;
@@ -304,6 +308,7 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
       final y = widget.item.productionYear?.toString();
       if (y != null && subtitle == y) subtitle = null;
     }
+    if (widget.hideSubtitle) subtitle = null;
     // Pastilla de edad delante del subtítulo (pelis/series/episodios). En
     // episodios el texto ya trae "S:E - nombre"; aquí solo se añade el badge.
     final subtitleAgeRating =
@@ -414,8 +419,10 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(radius * 2),
             border: Border.all(
-              color: isImageHovered ? Colors.white : Colors.transparent,
-              width: isImageHovered ? 3.5 : 0,
+              color: widget.showImageHoverBorder && isImageHovered
+                  ? Colors.white
+                  : Colors.transparent,
+              width: widget.showImageHoverBorder && isImageHovered ? 3.5 : 0,
             ),
           ),
           child: ClipRRect(

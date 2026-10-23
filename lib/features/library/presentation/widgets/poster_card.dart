@@ -46,6 +46,7 @@ class PosterCard extends ConsumerStatefulWidget {
     this.hideYear = false,
     this.showHoverOverlay = true,
     this.showPlayIcon = true,
+    this.showImageHoverBorder = true,
     this.highlightTitleOnHover = false,
     this.cardBorderRadius,
     this.hoverScale,
@@ -91,6 +92,7 @@ class PosterCard extends ConsumerStatefulWidget {
   final bool hideYear;
   final bool showHoverOverlay;
   final bool showPlayIcon;
+  final bool showImageHoverBorder;
   final bool highlightTitleOnHover;
   final double? cardBorderRadius;
   final double? hoverScale;
@@ -350,8 +352,10 @@ class _PosterCardState extends ConsumerState<PosterCard> {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(radius * 2),
               border: Border.all(
-                color: isImageHovered ? Colors.white : Colors.transparent,
-                width: isImageHovered ? 2.5 : 0,
+                color: widget.showImageHoverBorder && isImageHovered
+                    ? Colors.white
+                    : Colors.transparent,
+                width: widget.showImageHoverBorder && isImageHovered ? 2.5 : 0,
               ),
             ),
             child: ClipRRect(
