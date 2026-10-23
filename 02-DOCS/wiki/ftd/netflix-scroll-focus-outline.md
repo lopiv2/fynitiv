@@ -72,6 +72,7 @@ Al enfocar con teclado una tarjeta Netflix, centrar verticalmente su fila en pan
 - Al terminar la expansión, `ContentRow` revela la fila en el `RenderViewport` vertical con alineación `0.5`; el controlador horizontal sigue alineando el elemento a la izquierda.
 - `flutter analyze` → `No issues found! (ran in 4.2s)`.
 - `flutter analyze` → `No issues found! (ran in 4.1s)`.
+- Usuario confirmó verificación visual: todo correcto.
 
 ## Next
-- Verificar visualmente que la fila queda centrada verticalmente y el elemento continúa a la izquierda.
+- Ninguno; FTD cerrado y verificación visual confirmada.
