@@ -118,13 +118,15 @@ const kPrimeDetailLayout = DetailLayout();
 
 /// Libros/cómics: sin pistas de audio/subtítulos ni temporadas; la ficha
 /// trae serie, autores, editorial, ISBN, idioma y archivo como extras.
+/// El orden replica la composición actual (cabecera, pestañas, relacionados,
+/// sinopsis+créditos) para paridad visual total.
 const kBookDetailLayout = DetailLayout(
   sections: [
     DetailSection.header,
     DetailSection.tabs,
+    DetailSection.related,
     DetailSection.synopsis,
     DetailSection.credits,
-    DetailSection.related,
     DetailSection.extras,
   ],
 );

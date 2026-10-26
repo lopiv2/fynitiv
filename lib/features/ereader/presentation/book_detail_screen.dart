@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../../../core/skin/detail_layout.dart';
+import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -27,9 +29,13 @@ import '../data/epub_metadata.dart';
 
 /// Pantalla de informacion con composicion inspirada en Prime Video.
 class BookDetailScreen extends ConsumerStatefulWidget {
-  const BookDetailScreen({super.key, required this.item});
+  const BookDetailScreen({super.key, required this.item, this.skin});
 
   final BaseItemDto item;
+
+  /// Skin forzado para el detalle. Si es `null` se usa el skin global.
+  /// Permite previsualizar el detalle con otro skin sin cambiarlo.
+  final Skin? skin;
 
   @override
   ConsumerState<BookDetailScreen> createState() => _BookDetailScreenState();
@@ -128,6 +134,124 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     });
   }
 
+  /// Cola Prime del detalle compuesta según `layout.sections` (fase 2).
+  /// `synopsis`+`credits` van fusionados en `_AdditionalInformation`;
+  /// `media`/`extras` no tienen bloque propio en libros porque la descarga y
+  /// el fichero ya viven en la cabecera y en la sinopsis.
+  List<Widget> _primeTail({
+    required BuildContext context,
+    required DetailLayout layout,
+    required AppLocalizations l10n,
+    required AsyncValue<List<BaseItemDto>> related,
+    required String? serverUrl,
+    required BaseItemDto item,
+    required String overview,
+    required List<String> genres,
+    required bool compact,
+    required double? imdbRating,
+    required List<BaseItemPerson> people,
+    required List<String> studios,
+    required List<String> audioLanguages,
+    required List<String> subtitleLanguages,
+    required BookMetadata? epubMeta,
+    required ComicMetadata? comicMeta,
+    required bool metadataLoading,
+    required String? fileName,
+    required int? fileSize,
+  }) {
+    final tail = <Widget>[];
+    var infoAdded = false;
+    void addInfo() {
+      if (infoAdded) return;
+      infoAdded = true;
+      if (!layout.showOverview && !layout.showCredits) return;
+      tail.add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 36),
+          child: KeyedSubtree(
+            key: _detailsKey,
+            child: _AdditionalInformation(
+              item: item,
+              overview: overview,
+              genres: genres,
+              compact: compact,
+              imdbRating: imdbRating,
+              people: people,
+              studios: studios,
+              audioLanguages: audioLanguages,
+              subtitleLanguages: subtitleLanguages,
+              isBook: true,
+              fileMetadata: epubMeta,
+              comicMetadata: comicMeta,
+              metadataLoading: metadataLoading,
+              fileName: fileName,
+              fileSize: fileSize,
+            ),
+          ),
+        ),
+      );
+    }
+
+    for (final section in layout.sections) {
+      switch (section) {
+        case DetailSection.header:
+          break; // La cabecera ya va arriba, fuera de la cola.
+        case DetailSection.tabs:
+          if (layout.showTabs) {
+            tail.addAll([
+              Padding(
+                padding: const EdgeInsets.fromLTRB(36, 0, 36, 8),
+                child: Row(
+                  children: [
+                    GestureDetector(
+                      onTap: _showRelated,
+                      child: _DetailTab(
+                        label: l10n.related,
+                        selected: !_detailsSelected,
+                      ),
+                    ),
+                    const SizedBox(width: 32),
+                    GestureDetector(
+                      onTap: _showDetails,
+                      child: _DetailTab(
+                        label: l10n.details,
+                        selected: _detailsSelected,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+            ]);
+          }
+        case DetailSection.related:
+          if (layout.showRelated && (related.value?.isNotEmpty ?? false)) {
+            tail.add(
+              Padding(
+                key: _relatedKey,
+                padding: const EdgeInsets.only(bottom: 24),
+                child: _RelatedSection(
+                  items: related.value!.take(10).toList(),
+                  serverUrl: serverUrl,
+                  onTap: (relatedItem) => context.push(
+                    '/ereader/details/${relatedItem.id}',
+                    extra: relatedItem,
+                  ),
+                ),
+              ),
+            );
+          }
+        case DetailSection.synopsis:
+        case DetailSection.credits:
+          addInfo();
+        case DetailSection.media:
+        case DetailSection.extras:
+          break; // Sin bloque propio en libros.
+      }
+    }
+    return tail;
+  }
+
   List<String> _streamLabels(MediaStreamType type) {
     return (item.mediaStreams ?? const <MediaStream>[])
         .where((stream) => stream.type == type)
@@ -210,16 +334,19 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
     final fileSize = fileInfo.sizeBytes;
     final related = ref.watch(similarItemsProvider(item));
     final isFavorite = _isFavorite ?? item.userData?.isFavorite ?? false;
+    // Detalle modular (fase 2): el skin puede forzarse por parámetro para
+    // previsualizar; el layout decide secciones y orden según (skin, tipo).
+    final effectiveSkin =
+        widget.skin ?? ref.watch(skinControllerProvider).value;
+    final layout = detailLayoutFor(skin: effectiveSkin, kind: item.type);
     // Detalle de serie estilo Disney (solo ese skin; el resto mantiene Prime).
-    // Más adelante se hará modular por pantalla como HomeScroll.
-    final skin = ref.watch(skinControllerProvider).value;
     final isDisneySeries =
-        item.type == BaseItemKind.series && skin?.id == 'disney_plus';
+        item.type == BaseItemKind.series && effectiveSkin?.id == 'disney_plus';
     // El detalle vive dentro del shell: reserva el alto de la barra superior
     // cuando el skin global la dibuja solapada (p. ej. Prime). El SafeArea ya
     // cubre el inset del sistema, así que se descuenta.
     final barTop =
-        libraryPageTopPadding(context, skin) -
+        libraryPageTopPadding(context, effectiveSkin) -
         MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -386,66 +513,28 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                                   ],
                                 ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(36, 0, 36, 8),
-                          child: Row(
-                            children: [
-                              GestureDetector(
-                                onTap: _showRelated,
-                                child: _DetailTab(
-                                  label: l10n.related,
-                                  selected: !_detailsSelected,
-                                ),
-                              ),
-                              const SizedBox(width: 32),
-                              GestureDetector(
-                                onTap: _showDetails,
-                                child: _DetailTab(
-                                  label: l10n.details,
-                                  selected: _detailsSelected,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 22),
-                        if (related.value?.isNotEmpty ?? false)
-                          Padding(
-                            key: _relatedKey,
-                            padding: const EdgeInsets.only(bottom: 24),
-                            child: _RelatedSection(
-                              items: related.value!.take(10).toList(),
-                              serverUrl: serverUrl,
-                              onTap: (relatedItem) => context.push(
-                                '/ereader/details/${relatedItem.id}',
-                                extra: relatedItem,
-                              ),
-                            ),
-                          ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 36),
-                          child: KeyedSubtree(
-                            key: _detailsKey,
-                            child: _AdditionalInformation(
-                              item: item,
-                              overview: overview,
-                              genres: genres,
-                              compact: compact,
-                              imdbRating: imdbRating,
-                              people: people,
-                              studios: studios,
-                              audioLanguages: audioLanguages,
-                              subtitleLanguages: subtitleLanguages,
-                              isBook: true,
-                              fileMetadata: epubMeta,
-                              comicMetadata: comicMeta,
-                              metadataLoading:
-                                  epubMetadataAsync.isLoading ||
-                                  comicMetadataAsync.isLoading,
-                              fileName: fileName,
-                              fileSize: fileSize,
-                            ),
-                          ),
+                        ..._primeTail(
+                          context: context,
+                          layout: layout,
+                          l10n: l10n,
+                          related: related,
+                          serverUrl: serverUrl,
+                          item: item,
+                          overview: overview,
+                          genres: genres,
+                          compact: compact,
+                          imdbRating: imdbRating,
+                          people: people,
+                          studios: studios,
+                          audioLanguages: audioLanguages,
+                          subtitleLanguages: subtitleLanguages,
+                          epubMeta: epubMeta,
+                          comicMeta: comicMeta,
+                          metadataLoading:
+                              epubMetadataAsync.isLoading ||
+                              comicMetadataAsync.isLoading,
+                          fileName: fileName,
+                          fileSize: fileSize,
                         ),
                       ],
                     ],
