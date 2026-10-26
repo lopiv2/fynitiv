@@ -14,6 +14,8 @@ class BookMetadata {
     this.date,
     this.description,
     this.subjects = const [],
+    this.series,
+    this.seriesIndex,
   });
 
   final String? title;
@@ -25,6 +27,12 @@ class BookMetadata {
   final String? description;
   final List<String> subjects;
 
+  /// Saga de Calibre (`opf:meta name="calibre:series"`) y su posición
+  /// (`calibre:series_index`). Es lo que permite agrupar sagas aunque el
+  /// servidor no traiga `SeriesName`.
+  final String? series;
+  final String? seriesIndex;
+
   bool get isEmpty =>
       (title == null || title!.isEmpty) &&
       authors.isEmpty &&
@@ -33,7 +41,8 @@ class BookMetadata {
       (language == null || language!.isEmpty) &&
       (date == null || date!.isEmpty) &&
       (description == null || description!.isEmpty) &&
-      subjects.isEmpty;
+      subjects.isEmpty &&
+      (series == null || series!.isEmpty);
 }
 
 /// Extrae los metadatos del OPF de un EPUB a partir de sus bytes.
@@ -86,10 +95,26 @@ BookMetadata? parseEpubMetadata(List<int> bytes) {
       date: single('date'),
       description: single('description'),
       subjects: many('subject'),
+      series: metaContent(scope, 'calibre:series'),
+      seriesIndex: metaContent(scope, 'calibre:series_index'),
     );
   } catch (_) {
     return null;
   }
+}
+
+/// Contenido de un `<meta name="..." content="...">` del OPF (p. ej. los de
+/// Calibre). Compara sin distinguir mayúsculas ni el prefijo de esquema.
+String? metaContent(XmlElement scope, String name) {
+  final wanted = name.toLowerCase();
+  for (final el in scope.descendants.whereType<XmlElement>()) {
+    if (el.name.local.toLowerCase() != 'meta') continue;
+    final metaName = (el.getAttribute('name') ?? '').toLowerCase();
+    if (metaName != wanted && metaName != 'opf:$wanted') continue;
+    final content = (el.getAttribute('content') ?? '').trim();
+    if (content.isNotEmpty) return content;
+  }
+  return null;
 }
 
 String? _readOpf(Archive archive) {

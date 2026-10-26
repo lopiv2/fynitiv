@@ -250,6 +250,8 @@
   "eReaderDescription": "Libros y cómics de tu biblioteca Jellyfin.",
   "eReaderRecent": "Recién añadidos",
   "eReaderAllBooks": "Todos los libros",
+  "eReaderSeries": "Serie",
+  "bookCollections": "Colecciones",
   "eReaderRead": "Leer",
   "eReaderUnsupported": "Formato no soportado todavía",
   "eReaderPreviousPage": "Página anterior",
@@ -1045,7 +1047,7 @@
   "sliderRemoved": "Slider eliminado",
   "shows": "Series",
   "movies": "Películas",
-  "myNetflix": "Mi Netflix",
+  "myNetflix": "Mi biblioteca",
   "resumeSeasonEpisode": "Reanudar T{season} E{episode}",
   "@resumeSeasonEpisode": {
     "description": "Botón del hover Prime para seguir una serie (ej. Reanudar T1 E18).",

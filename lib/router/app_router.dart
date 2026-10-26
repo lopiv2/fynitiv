@@ -22,7 +22,10 @@ import '../features/music/application/deezer_providers.dart';
 import '../features/music/presentation/artist_detail_screen.dart';
 import '../features/music/presentation/music_screen.dart';
 import '../features/music/presentation/playlist_detail_screen.dart';
+import '../features/ereader/application/ereader_providers.dart';
 import '../features/ereader/presentation/book_detail_screen.dart';
+import '../features/ereader/presentation/collection_detail_screen.dart';
+import '../features/ereader/presentation/collections_screen.dart';
 import '../features/ereader/presentation/ereader_screen.dart';
 import '../features/ereader/presentation/reader/book_reader_screen.dart';
 import '../features/games/presentation/game_detail_screen.dart';
@@ -190,13 +193,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(path: '/vod', builder: (_, _) => const VodScreen()),
               GoRoute(
                 path: '/vod/movies',
-                builder: (_, _) =>
-                    const VodScreen(split: VodSplit.movies),
+                builder: (_, _) => const VodScreen(split: VodSplit.movies),
               ),
               GoRoute(
                 path: '/vod/series',
-                builder: (_, _) =>
-                    const VodScreen(split: VodSplit.series),
+                builder: (_, _) => const VodScreen(split: VodSplit.series),
               ),
             ],
           ),
@@ -276,6 +277,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) =>
                         BookReaderScreen(item: state.extra as BaseItemDto),
                   ),
+                  GoRoute(
+                    path: 'collections',
+                    builder: (_, _) => const CollectionsScreen(),
+                    routes: [
+                      GoRoute(
+                        path: 'detail',
+                        builder: (context, state) => CollectionDetailScreen(
+                          collection: state.extra as EReaderCollection,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -296,18 +309,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                             0,
                       ),
                       transitionDuration: const Duration(milliseconds: 650),
-                      reverseTransitionDuration: const Duration(milliseconds: 550),
-                      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-                        // Fade + slight slide, compatible con Hero
-                        final fade = FadeTransition(opacity: animation, child: child);
-                        final slide = SlideTransition(
-                          position: Tween<Offset>(begin: const Offset(0.06, 0), end: Offset.zero)
-                              .chain(CurveTween(curve: Curves.easeOutCubic))
-                              .animate(animation),
-                          child: fade,
-                        );
-                        return slide;
-                      },
+                      reverseTransitionDuration: const Duration(
+                        milliseconds: 550,
+                      ),
+                      transitionsBuilder:
+                          (context, animation, secondaryAnimation, child) {
+                            // Fade + slight slide, compatible con Hero
+                            final fade = FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            );
+                            final slide = SlideTransition(
+                              position:
+                                  Tween<Offset>(
+                                        begin: const Offset(0.06, 0),
+                                        end: Offset.zero,
+                                      )
+                                      .chain(
+                                        CurveTween(curve: Curves.easeOutCubic),
+                                      )
+                                      .animate(animation),
+                              child: fade,
+                            );
+                            return slide;
+                          },
                     ),
                   ),
                   GoRoute(

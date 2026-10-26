@@ -4,7 +4,6 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/skin/skin_controller.dart';
-import '../../../core/skin/skin_scope.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/library_page_header.dart';
@@ -14,12 +13,12 @@ import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/content_row.dart';
 import '../../library/presentation/widgets/poster_card.dart';
 import '../application/ereader_providers.dart';
+import 'widgets/collections_content_row.dart';
 
 /// E-Reader: biblioteca de libros/cómics de Jellyfin.
 ///
 /// Arriba una fila de "recién añadidos" y debajo un grid paginado con todos los
-/// libros. Usa un skin fijo propio ([eReaderSkin]) que no cambia con el skin
-/// global (VOD, etc.).
+/// libros. Sigue el skin global como el resto de pantallas de biblioteca.
 class EReaderScreen extends ConsumerStatefulWidget {
   const EReaderScreen({super.key});
 
@@ -44,6 +43,9 @@ class _EReaderScreenState extends ConsumerState<EReaderScreen> {
     final serverUrl = ref.watch(authServerUrlProvider);
     final latest =
         ref.watch(eReaderLatestBooksProvider).value ?? const <BaseItemDto>[];
+    final collections =
+        ref.watch(eReaderCollectionsProvider).value ??
+        const <EReaderCollection>[];
 
     final args = EReaderBooksArgs(pageIndex: _page, sortAscending: _sortAsc);
     final pageAsync = ref.watch(eReaderBooksPageProvider(args));
@@ -56,154 +58,162 @@ class _EReaderScreenState extends ConsumerState<EReaderScreen> {
     final current = (_page + 1).clamp(1, totalPages);
     final isLoading = pageAsync.isLoading && items.isEmpty;
 
-    return SkinScope(
-      skin: eReaderSkin,
-      child: Scaffold(
-        body: DashboardBackground(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(height: libraryPageTopPadding(context, globalSkin)),
-              Expanded(
-                child: FocusTraversalGroup(
-                  policy: ReadingOrderTraversalPolicy(),
-                  child: CustomScrollView(
-                    slivers: [
+    return Scaffold(
+      body: DashboardBackground(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(height: libraryPageTopPadding(context, globalSkin)),
+            Expanded(
+              child: FocusTraversalGroup(
+                policy: ReadingOrderTraversalPolicy(),
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                        child: ScrollTitle(title: l10n.eReader, fontSize: 34),
+                      ),
+                    ),
+                    if (latest.isNotEmpty)
                       SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                          child: ScrollTitle(
-                            title: l10n.eReader,
-                            fontSize: 34,
-                          ),
+                        child: ContentRow(
+                          title: l10n.eReaderRecent,
+                          items: latest,
+                          serverUrl: serverUrl,
+                          showPlayIcon: false,
+                          onItemTap: _openDetail,
                         ),
                       ),
-                      if (latest.isNotEmpty)
-                        SliverToBoxAdapter(
-                          child: ContentRow(
-                            title: l10n.eReaderRecent,
-                            items: latest,
-                            serverUrl: serverUrl,
-                            showPlayIcon: false,
-                            onItemTap: _openDetail,
-                          ),
-                        ),
+                    if (collections.isNotEmpty)
                       SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: ScrollTitle(title: l10n.eReaderAllBooks),
-                              ),
-                              _PillButton(
-                                icon: _sortAsc
-                                    ? Icons.arrow_upward
-                                    : Icons.arrow_downward,
-                                label: _sortAsc ? l10n.sortAZ : l10n.sortZA,
-                                onTap: () => setState(() {
-                                  _sortAsc = !_sortAsc;
-                                  _page = 0;
-                                }),
-                              ),
-                            ],
+                        child: CollectionsContentRow(
+                          title: l10n.bookCollections,
+                          collections: collections,
+                          onCollectionTap: (collection) => context.push(
+                            '/ereader/collections/detail',
+                            extra: collection,
                           ),
+                          onSeeMore: () => context.push('/ereader/collections'),
                         ),
                       ),
-                      if (isLoading)
-                        const SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(child: AppLoader()),
-                        )
-                      else if (items.isEmpty)
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Center(
-                            child: Text(
-                              l10n.noResults,
-                              style: const TextStyle(color: Colors.white54),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 170, 24, 8),
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: ScrollTitle(title: l10n.eReaderAllBooks),
                             ),
-                          ),
-                        )
-                      else
-                        SliverPadding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
-                          sliver: SliverGrid(
-                            gridDelegate:
-                                const SliverGridDelegateWithMaxCrossAxisExtent(
-                                  maxCrossAxisExtent: 190,
-                                  mainAxisSpacing: 20,
-                                  crossAxisSpacing: 20,
-                                  childAspectRatio: 0.58,
-                                ),
-                            delegate: SliverChildBuilderDelegate(
-                              (context, i) {
-                                final item = items[i];
-                                return PosterCard(
-                                  item: item,
-                                  serverUrl: serverUrl,
-                                  hoverExtension: true,
-                                  onTap: () => _openDetail(item),
-                                  onImageTap: () => _openDetail(item),
-                                );
-                              },
-                              childCount: items.length,
+                            _PillButton(
+                              icon: _sortAsc
+                                  ? Icons.arrow_upward
+                                  : Icons.arrow_downward,
+                              label: _sortAsc ? l10n.sortAZ : l10n.sortZA,
+                              onTap: () => setState(() {
+                                _sortAsc = !_sortAsc;
+                                _page = 0;
+                              }),
                             ),
-                          ),
-                        ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              IconButton(
-                                tooltip: l10n.back,
-                                onPressed: _page > 0
-                                    ? () => setState(() => _page--)
-                                    : null,
-                                icon: const Icon(
-                                  Icons.chevron_left,
-                                  color: Colors.white,
-                                ),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white10,
-                                  disabledBackgroundColor: Colors.white12,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text(
-                                l10n.pageOf(current, totalPages),
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              IconButton(
-                                tooltip: l10n.seeMore,
-                                onPressed: (_page + 1) < totalPages
-                                    ? () => setState(() => _page++)
-                                    : null,
-                                icon: const Icon(
-                                  Icons.chevron_right,
-                                  color: Colors.white,
-                                ),
-                                style: IconButton.styleFrom(
-                                  backgroundColor: Colors.white10,
-                                  disabledBackgroundColor: Colors.white12,
-                                ),
-                              ),
-                            ],
-                          ),
+                          ],
                         ),
                       ),
-                    ],
-                  ),
+                    ),
+                    if (isLoading)
+                      const SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(child: AppLoader()),
+                      )
+                    else if (items.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: Text(
+                            l10n.noResults,
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        sliver: SliverGrid(
+                          gridDelegate:
+                              const SliverGridDelegateWithMaxCrossAxisExtent(
+                                maxCrossAxisExtent: 190,
+                                mainAxisSpacing: 20,
+                                crossAxisSpacing: 20,
+                                childAspectRatio: 0.58,
+                              ),
+                          delegate: SliverChildBuilderDelegate((context, i) {
+                            final item = items[i];
+                            return PosterCard(
+                              item: item,
+                              serverUrl: serverUrl,
+                              hoverExtension: true,
+                              onTap: () => _openDetail(item),
+                              onImageTap: () => _openDetail(item),
+                            );
+                          }, childCount: items.length),
+                        ),
+                      ),
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            IconButton(
+                              tooltip: l10n.back,
+                              onPressed: _page > 0
+                                  ? () => setState(() => _page--)
+                                  : null,
+                              icon: const Icon(
+                                Icons.chevron_left,
+                                color: Colors.white,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white10,
+                                disabledBackgroundColor: Colors.white12,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Text(
+                              l10n.pageOf(current, totalPages),
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            IconButton(
+                              tooltip: l10n.seeMore,
+                              onPressed: (_page + 1) < totalPages
+                                  ? () => setState(() => _page++)
+                                  : null,
+                              icon: const Icon(
+                                Icons.chevron_right,
+                                color: Colors.white,
+                              ),
+                              style: IconButton.styleFrom(
+                                backgroundColor: Colors.white10,
+                                disabledBackgroundColor: Colors.white12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

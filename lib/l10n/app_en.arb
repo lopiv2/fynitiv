@@ -253,6 +253,8 @@
   "eReaderDescription": "Books and comics from your Jellyfin library.",
   "eReaderRecent": "Recently added",
   "eReaderAllBooks": "All books",
+  "eReaderSeries": "Series",
+  "bookCollections": "Collections",
   "eReaderRead": "Read",
   "eReaderUnsupported": "Format not supported yet",
   "eReaderPreviousPage": "Previous page",
@@ -1048,7 +1050,7 @@
   "sliderRemoved": "Slider removed",
   "shows": "TV Shows",
   "movies": "Movies",
-  "myNetflix": "My Netflix",
+  "myNetflix": "My Library",
   "resumeSeasonEpisode": "Resume S{season} E{episode}",
   "@resumeSeasonEpisode": {
     "description": "Prime hover button to resume a series (e.g. Resume S1 E18).",

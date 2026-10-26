@@ -15,6 +15,7 @@ import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/detail_primitives.dart';
 import '../../../core/widgets/hover_play_glyph.dart';
 import '../../../core/widgets/included_badge.dart';
 import '../../../core/widgets/library_page_header.dart';
@@ -234,9 +235,11 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
       final session = await ref.read(playbackSessionProvider(itemId).future);
       if (session == null) throw StateError('No playback session');
       // El progreso/pausa/cancel vive en el gestor global (barra inferior).
-      await ref.read(downloadManagerProvider.notifier).enqueue(
+      await ref
+          .read(downloadManagerProvider.notifier)
+          .enqueue(
             url: session.streamUrl,
-            fileName: _downloadFilename(item.name ?? 'video'),
+            fileName: detailDownloadFilename(item.name ?? 'video'),
             sourceLabel: item.name ?? 'video',
             doneMessage: l10n.gamesDownloaded,
             failMessage: l10n.downloadFailed,
@@ -350,10 +353,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
             .toList() ??
         const <String>[];
     final audioLanguages = _streamLabels(bodyItem, MediaStreamType.audio);
-    final subtitleLanguages = _streamLabels(
-      bodyItem,
-      MediaStreamType.subtitle,
-    );
+    final subtitleLanguages = _streamLabels(bodyItem, MediaStreamType.subtitle);
     final related = ref.watch(similarItemsProvider(bodyItem));
     final isFavorite = _isFavorite ?? item.userData?.isFavorite ?? false;
     final wideScreen = MediaQuery.sizeOf(context).width >= 760;
@@ -457,15 +457,15 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           people: people,
                           studios: studios,
                           audioLanguages: audioLanguages,
-                           subtitleLanguages: subtitleLanguages,
-                           imdbRating: imdbRating,
-                           seerrMedia: widget.seerrMedia,
-                           relatedKey: _relatedKey,
-                           detailsKey: _detailsKey,
-                           detailsSelected: _detailsSelected,
-                           onShowRelated: _showRelated,
-                           onShowDetails: _showDetails,
-                         )
+                          subtitleLanguages: subtitleLanguages,
+                          imdbRating: imdbRating,
+                          seerrMedia: widget.seerrMedia,
+                          relatedKey: _relatedKey,
+                          detailsKey: _detailsKey,
+                          detailsSelected: _detailsSelected,
+                          onShowRelated: _showRelated,
+                          onShowDetails: _showDetails,
+                        )
                       else ...[
                         Padding(
                           padding: const EdgeInsets.fromLTRB(36, 24, 36, 0),
@@ -501,19 +501,19 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                       (m) => m.values.any(
                                         (t) =>
                                             t.fileName ==
-                                                _downloadFilename(
+                                                detailDownloadFilename(
                                                   item.name ?? 'video',
                                                 ) &&
                                             t.isActive,
                                       ),
                                     ),
                                   ),
-                                   onTrailer: _openTrailer,
-                                   onFavorite: _toggleFavorite,
-                                   onDownload: _downloadItem,
-                                   seerrMedia: widget.seerrMedia,
-                                 )
-                               : Row(
+                                  onTrailer: _openTrailer,
+                                  onFavorite: _toggleFavorite,
+                                  onDownload: _downloadItem,
+                                  seerrMedia: widget.seerrMedia,
+                                )
+                              : Row(
                                   crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
                                     SizedBox(
@@ -527,9 +527,8 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                                             (m) => m.values.any(
                                               (t) =>
                                                   t.fileName ==
-                                                      _downloadFilename(
-                                                        item.name ??
-                                                            'video',
+                                                      detailDownloadFilename(
+                                                        item.name ?? 'video',
                                                       ) &&
                                                   t.isActive,
                                             ),
@@ -734,7 +733,7 @@ class _AdditionalInformation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final details = _InfoCard(
+    final details = DetailInfoCard(
       title: item.name ?? '',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -743,16 +742,19 @@ class _AdditionalInformation extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             children: [
-              for (final genre in genres) _LinkText(text: localizeGenre(genre, l10n)),
+              for (final genre in genres)
+                DetailLinkText(text: localizeGenre(genre, l10n)),
               if (item.officialRating != null)
-                _InfoValue(text: item.officialRating!),
+                DetailInfoValue(text: item.officialRating!),
               if (item.productionYear != null)
-                _InfoValue(text: '${item.productionYear}'),
+                DetailInfoValue(text: '${item.productionYear}'),
               if (item.runTimeTicks != null)
-                _InfoValue(text: _formatDuration(item.runTimeTicks!)),
+                DetailInfoValue(text: _formatDuration(item.runTimeTicks!)),
               if (imdbRating != null)
-                _InfoValue(text: 'IMDb ${imdbRating!.toStringAsFixed(1)}/10'),
-              if (item.isHD == true) const _Tag(text: 'HD'),
+                DetailInfoValue(
+                  text: 'IMDb ${imdbRating!.toStringAsFixed(1)}/10',
+                ),
+              if (item.isHD == true) const DetailTag(text: 'HD'),
             ],
           ),
           if (overview.isNotEmpty) ...[
@@ -769,39 +771,42 @@ class _AdditionalInformation extends StatelessWidget {
         ],
       ),
     );
-    final credits = _InfoCard(
+    final credits = DetailInfoCard(
       title: l10n.creatorsAndCast,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _CreditRow(
+          DetailCreditRow(
             label: l10n.director,
-            value: _peopleByType(people, 'Director'),
+            value: detailPeopleByType(people, 'Director'),
           ),
           const SizedBox(height: 14),
-          _CreditRow(
+          DetailCreditRow(
             label: l10n.producers,
-            value: _peopleByType(people, 'Producer'),
+            value: detailPeopleByType(people, 'Producer'),
           ),
           const SizedBox(height: 14),
-          _CreditRow(label: l10n.castLabel, value: _peopleNames(people)),
+          DetailCreditRow(
+            label: l10n.castLabel,
+            value: detailPeopleNames(people),
+          ),
           const SizedBox(height: 14),
-          _CreditRow(label: l10n.studio, value: studios.join(', ')),
+          DetailCreditRow(label: l10n.studio, value: studios.join(', ')),
         ],
       ),
     );
-    final audio = _InfoCard(
+    final audio = DetailInfoCard(
       title: l10n.audioLanguages,
-      child: _LanguageInfo(
+      child: DetailLanguageInfo(
         icon: Icons.audiotrack_outlined,
         text: audioLanguages.isEmpty
             ? l10n.noAudioTracks
             : audioLanguages.join(', '),
       ),
     );
-    final subtitles = _InfoCard(
+    final subtitles = DetailInfoCard(
       title: l10n.subtitlesLabel,
-      child: _LanguageInfo(
+      child: DetailLanguageInfo(
         icon: Icons.subtitles_outlined,
         text: subtitleLanguages.isEmpty
             ? l10n.noSubtitles
@@ -839,193 +844,6 @@ class _AdditionalInformation extends StatelessWidget {
       ],
     );
   }
-}
-
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      decoration: BoxDecoration(
-        color: const Color(0xE611151B),
-        border: Border.all(color: Colors.white38),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _CreditRow extends StatelessWidget {
-  const _CreditRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-        children: [
-          TextSpan(
-            text: '$label  ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          TextSpan(
-            text: value,
-            style: const TextStyle(
-              color: Colors.white70,
-              decoration: TextDecoration.underline,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LanguageInfo extends StatelessWidget {
-  const _LanguageInfo({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Colors.white70, size: 22),
-        const SizedBox(height: 10),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white60,
-            fontSize: 16,
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          AppLocalizations.of(context)!.more,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            decoration: TextDecoration.underline,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LinkText extends StatelessWidget {
-  const _LinkText({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        decoration: TextDecoration.underline,
-      ),
-    );
-  }
-}
-
-class _InfoValue extends StatelessWidget {
-  const _InfoValue({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Colors.white60,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  const _Tag({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF454A51),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _peopleByType(List<BaseItemPerson> people, String type) {
-  return people
-      .where((person) => person.type?.name.toLowerCase() == type.toLowerCase())
-      .map((person) => person.name ?? '')
-      .where((name) => name.isNotEmpty)
-      .join(', ');
-}
-
-String _peopleNames(List<BaseItemPerson> people) {
-  return people
-      .map((person) => person.name ?? '')
-      .where((name) => name.isNotEmpty)
-      .take(20)
-      .join(', ');
-}
-
-String _downloadFilename(String name) {
-  final safeName = name
-      .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-  return '${safeName.isEmpty ? 'video' : safeName}.mkv';
 }
 
 class _TrailerPanel extends StatelessWidget {
@@ -1142,9 +960,11 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
     final libraryStatus =
         ref
             .watch(
-              seerrLibraryStatusProvider(
-                (kind: kind, tmdbId: tmdbId, title: item.name ?? ''),
-              ),
+              seerrLibraryStatusProvider((
+                kind: kind,
+                tmdbId: tmdbId,
+                title: item.name ?? '',
+              )),
             )
             .value ??
         SeerrLibraryStatus.none;
@@ -1290,9 +1110,7 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
   /// que la solicitud se refleje sin reiniciar la app.
   void _refreshSeerrState(SeerrMediaType type, int tmdbId) {
     final title = item.name ?? '';
-    ref.invalidate(
-      seerrDetailProvider((mediaType: type, tmdbId: tmdbId)),
-    );
+    ref.invalidate(seerrDetailProvider((mediaType: type, tmdbId: tmdbId)));
     ref.invalidate(
       seerrCardMetadataProvider((
         mediaType: type,
@@ -1492,7 +1310,8 @@ class _DetailDescription extends StatelessWidget {
           spacing: 10,
           runSpacing: 6,
           children: [
-            for (final genre in genres) _DetailMeta(text: localizeGenre(genre, l10n)),
+            for (final genre in genres)
+              _DetailMeta(text: localizeGenre(genre, l10n)),
             if (item.officialRating != null)
               _DetailMeta(text: item.officialRating!),
             if (item.productionYear != null)
@@ -1825,8 +1644,7 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
     final seriesId = _series.id ?? '';
     // La tarjeta de capítulo con barra de progreso/tiempo restante/meta es de
     // Prime; en otros skins se mantiene la tarjeta básica.
-    final prime =
-        ref.watch(skinControllerProvider).value?.id == 'amazon_prime';
+    final prime = ref.watch(skinControllerProvider).value?.id == 'amazon_prime';
     final seasons =
         ref.watch(seriesSeasonsProvider(seriesId)).value ??
         const <BaseItemDto>[];
@@ -1897,8 +1715,9 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
                     ),
                   ),
                 ),
-              if (_series.isHD == true) const _Tag(text: 'HD'),
-              if (widget.subtitleLanguages.isNotEmpty) const _Tag(text: 'CC'),
+              if (_series.isHD == true) const DetailTag(text: 'HD'),
+              if (widget.subtitleLanguages.isNotEmpty)
+                const DetailTag(text: 'CC'),
             ],
           ),
         ),
@@ -2040,7 +1859,7 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
             episodes: allEpisodes
                 .where((e) => e.parentIndexNumber == 0)
                 .toList(),
-             l10n: l10n,
+            l10n: l10n,
             prime: prime,
             onEpisodeTap: _playEpisode,
           ),

@@ -81,7 +81,8 @@ class _SpreadReaderState extends ConsumerState<SpreadReader> {
 
   int get _firstPage => _twoUp ? _step * 2 : _step;
 
-  PageController _ensurePager() => _pager ??= PageController(initialPage: _step);
+  PageController _ensurePager() =>
+      _pager ??= PageController(initialPage: _step);
 
   @override
   void initState() {

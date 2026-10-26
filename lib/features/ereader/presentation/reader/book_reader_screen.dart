@@ -69,7 +69,10 @@ class _BookReaderScreenState extends ConsumerState<BookReaderScreen> {
     final l10n = AppLocalizations.of(context)!;
     if (_error) {
       return Center(
-        child: Text(l10n.eReaderUnsupported, style: const TextStyle(color: Colors.white70)),
+        child: Text(
+          l10n.eReaderUnsupported,
+          style: const TextStyle(color: Colors.white70),
+        ),
       );
     }
     final file = _file;

@@ -725,6 +725,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get eReaderAllBooks => 'All books';
 
   @override
+  String get eReaderSeries => 'Series';
+
+  @override
+  String get bookCollections => 'Collections';
+
+  @override
   String get eReaderRead => 'Read';
 
   @override
@@ -2661,7 +2667,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get movies => 'Movies';
 
   @override
-  String get myNetflix => 'My Netflix';
+  String get myNetflix => 'My Library';
 
   @override
   String resumeSeasonEpisode(int season, int episode) {

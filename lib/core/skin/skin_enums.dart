@@ -127,7 +127,7 @@ enum TopBarStyle { classic, netflix, prime }
 /// - liveTv: rama de TV/Radio en directo.
 /// - games: rama de juegos.
 /// - seerr: página de descubrimiento y peticiones Seerr.
-/// - myNetflix: biblioteca general (Mi Netflix: mi contenido).
+/// - myNetflix: biblioteca general (Mi biblioteca: mi contenido).
 enum TopBarNavItem {
   search,
   home,

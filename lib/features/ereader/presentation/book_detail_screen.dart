@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/detail_primitives.dart';
 import '../../../core/widgets/hover_play_glyph.dart';
 import '../../../core/widgets/included_badge.dart';
 import '../../../core/widgets/library_page_header.dart';
@@ -21,6 +22,7 @@ import '../../library/presentation/widgets/content_row.dart';
 import '../../player/application/playback_provider.dart';
 import '../application/ereader_providers.dart';
 import '../data/book_format.dart';
+import '../data/comic_info.dart';
 import '../data/epub_metadata.dart';
 
 /// Pantalla de informacion con composicion inspirada en Prime Video.
@@ -76,9 +78,11 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
       final session = await ref.read(playbackSessionProvider(itemId).future);
       if (session == null) throw StateError('No playback session');
       // El progreso/pausa/cancel vive en el gestor global (barra inferior).
-      await ref.read(downloadManagerProvider.notifier).enqueue(
+      await ref
+          .read(downloadManagerProvider.notifier)
+          .enqueue(
             url: session.streamUrl,
-            fileName: _downloadFilename(item.name ?? 'video'),
+            fileName: detailDownloadFilename(item.name ?? 'video'),
             sourceLabel: item.name ?? 'video',
             doneMessage: l10n.gamesDownloaded,
             failMessage: l10n.downloadFailed,
@@ -152,7 +156,8 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         ? null
         : itemLogoUrl(serverUrl, item, maxWidth: 700);
     final overview = (item.overview ?? '').trim();
-    final genres = item.genres?.take(2).toList() ?? const <String>[];
+    final serverGenres = item.genres ?? const <String>[];
+    final serverSeries = (item.seriesName ?? '').trim();
     final imdbRating = item.communityRating;
     final people = item.people ?? const <BaseItemPerson>[];
     final studios =
@@ -163,15 +168,42 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
         const <String>[];
     final audioLanguages = _streamLabels(MediaStreamType.audio);
     final subtitleLanguages = _streamLabels(MediaStreamType.subtitle);
-    // Jellyfin puede no traer los metadatos del EPUB; se leen del OPF del
-    // fichero como respaldo solo si al servidor le falta algo.
+    // Jellyfin puede no traer los metadatos del libro/cómic; se leen del
+    // fichero (OPF del EPUB o ComicInfo.xml del cómic) como respaldo solo si
+    // al servidor le falta algo.
     final bookFormat = bookFormatOf(item);
+    final isComic =
+        bookFormat == 'cbz' ||
+        bookFormat == 'cb7' ||
+        bookFormat == 'cbt' ||
+        bookFormat == 'cbr' ||
+        bookFormat == 'rar';
     final needsFileMetadata =
-        bookFormat == 'epub' &&
-        (people.isEmpty || studios.isEmpty || _isbnOf(item).isEmpty);
-    final epubMetadataAsync = needsFileMetadata
+        (bookFormat == 'epub' || isComic) &&
+        (people.isEmpty ||
+            studios.isEmpty ||
+            _isbnOf(item).isEmpty ||
+            serverSeries.isEmpty ||
+            serverGenres.isEmpty);
+    final epubMetadataAsync = needsFileMetadata && bookFormat == 'epub'
         ? ref.watch(epubMetadataProvider(widget.item.id ?? ''))
         : const AsyncValue<BookMetadata?>.data(null);
+    final comicMetadataAsync = needsFileMetadata && isComic
+        ? ref.watch(comicMetadataProvider(widget.item.id ?? ''))
+        : const AsyncValue<ComicMetadata?>.data(null);
+    final epubMeta = epubMetadataAsync.value;
+    final comicMeta = comicMetadataAsync.value;
+    final List<String> embeddedGenres;
+    if (comicMeta?.genre?.trim().isNotEmpty ?? false) {
+      embeddedGenres = [comicMeta!.genre!.trim()];
+    } else if (epubMeta != null && epubMeta.subjects.isNotEmpty) {
+      embeddedGenres = epubMeta.subjects.take(2).toList();
+    } else {
+      embeddedGenres = const [];
+    }
+    final genres = serverGenres.isNotEmpty
+        ? serverGenres.take(2).toList()
+        : embeddedGenres;
     final fileInfoAsync = ref.watch(bookFileInfoProvider(widget.item.id ?? ''));
     final fileInfo = fileInfoAsync.value ?? bookFileInfoOf(item);
     final fileName = fileInfo.fileName;
@@ -302,7 +334,7 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                                       (m) => m.values.any(
                                         (t) =>
                                             t.fileName ==
-                                                _downloadFilename(
+                                                detailDownloadFilename(
                                                   item.name ?? 'video',
                                                 ) &&
                                             t.isActive,
@@ -326,9 +358,8 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                                             (m) => m.values.any(
                                               (t) =>
                                                   t.fileName ==
-                                                      _downloadFilename(
-                                                        item.name ??
-                                                            'video',
+                                                      detailDownloadFilename(
+                                                        item.name ?? 'video',
                                                       ) &&
                                                   t.isActive,
                                             ),
@@ -406,8 +437,11 @@ class _BookDetailScreenState extends ConsumerState<BookDetailScreen> {
                               audioLanguages: audioLanguages,
                               subtitleLanguages: subtitleLanguages,
                               isBook: true,
-                              fileMetadata: epubMetadataAsync.value,
-                              metadataLoading: epubMetadataAsync.isLoading,
+                              fileMetadata: epubMeta,
+                              comicMetadata: comicMeta,
+                              metadataLoading:
+                                  epubMetadataAsync.isLoading ||
+                                  comicMetadataAsync.isLoading,
                               fileName: fileName,
                               fileSize: fileSize,
                             ),
@@ -522,6 +556,7 @@ class _AdditionalInformation extends StatelessWidget {
     required this.subtitleLanguages,
     this.isBook = false,
     this.fileMetadata,
+    this.comicMetadata,
     this.metadataLoading = false,
     this.fileName,
     this.fileSize,
@@ -538,6 +573,7 @@ class _AdditionalInformation extends StatelessWidget {
   final List<String> subtitleLanguages;
   final bool isBook;
   final BookMetadata? fileMetadata;
+  final ComicMetadata? comicMetadata;
   final bool metadataLoading;
   final String? fileName;
   final int? fileSize;
@@ -545,7 +581,7 @@ class _AdditionalInformation extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final details = _InfoCard(
+    final details = DetailInfoCard(
       title: item.name ?? '',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -554,16 +590,21 @@ class _AdditionalInformation extends StatelessWidget {
             spacing: 12,
             runSpacing: 8,
             children: [
-              for (final genre in genres) _LinkText(text: localizeGenre(genre, l10n)),
+              for (final genre in genres)
+                DetailLinkText(text: localizeGenre(genre, l10n)),
               if (item.officialRating != null)
-                _InfoValue(text: item.officialRating!),
+                DetailInfoValue(text: item.officialRating!),
               if (item.productionYear != null)
-                _InfoValue(text: '${item.productionYear}'),
+                DetailInfoValue(text: '${item.productionYear}')
+              else if ((fileMetadata?.date?.trim().isNotEmpty ?? false))
+                DetailInfoValue(text: fileMetadata!.date!.trim()),
               if (item.runTimeTicks != null)
-                _InfoValue(text: _formatDuration(item.runTimeTicks!)),
+                DetailInfoValue(text: _formatDuration(item.runTimeTicks!)),
               if (imdbRating != null)
-                _InfoValue(text: 'IMDb ${imdbRating!.toStringAsFixed(1)}/10'),
-              if (item.isHD == true) const _Tag(text: 'HD'),
+                DetailInfoValue(
+                  text: 'IMDb ${imdbRating!.toStringAsFixed(1)}/10',
+                ),
+              if (item.isHD == true) const DetailTag(text: 'HD'),
             ],
           ),
           if (fileName != null || fileSize != null) ...[
@@ -573,9 +614,12 @@ class _AdditionalInformation extends StatelessWidget {
               runSpacing: 6,
               children: [
                 if (fileName != null)
-                  _CreditRow(label: l10n.eReaderFileName, value: fileName!),
+                  DetailCreditRow(
+                    label: l10n.eReaderFileName,
+                    value: fileName!,
+                  ),
                 if (fileSize != null)
-                  _CreditRow(
+                  DetailCreditRow(
                     label: l10n.eReaderFileSize,
                     value: _formatBytes(fileSize!),
                   ),
@@ -598,29 +642,61 @@ class _AdditionalInformation extends StatelessWidget {
     );
     final creditRows = <Widget>[];
     if (isBook) {
+      // Serie: servidor, Calibre (OPF) o ComicInfo, con nº si lo hay.
+      final serverSeries = (item.seriesName ?? '').trim();
+      final embeddedSeries = (comicMetadata?.series?.trim().isNotEmpty ?? false)
+          ? comicMetadata!.series!.trim()
+          : (fileMetadata?.series?.trim() ?? '');
+      final seriesNumber = (comicMetadata?.number?.trim().isNotEmpty ?? false)
+          ? comicMetadata!.number!.trim()
+          : (fileMetadata?.seriesIndex?.trim() ?? '');
+      final series = serverSeries.isNotEmpty ? serverSeries : embeddedSeries;
+      if (series.isNotEmpty) {
+        creditRows.add(
+          DetailCreditRow(
+            label: l10n.eReaderSeries,
+            value: seriesNumber.isNotEmpty ? '$series #$seriesNumber' : series,
+          ),
+        );
+      }
       if (people.isNotEmpty) {
         for (final entry in _groupPeople(people)) {
           creditRows.add(
-            _CreditRow(
+            DetailCreditRow(
               label: _bookRoleLabel(l10n, entry.key),
               value: entry.value.join(', '),
             ),
           );
         }
-      } else if (fileMetadata != null && fileMetadata!.authors.isNotEmpty) {
-        creditRows.add(
-          _CreditRow(
-            label: l10n.eReaderAuthor,
-            value: fileMetadata!.authors.join(', '),
-          ),
-        );
+      } else {
+        // Sin `people` del servidor: `artists`, autores del OPF o de
+        // ComicInfo (`Writer` y dibujantes).
+        final serverAuthors = (item.artists ?? const <String>[])
+            .map((a) => a.trim())
+            .where((a) => a.isNotEmpty)
+            .toList();
+        final authors = serverAuthors.isNotEmpty
+            ? serverAuthors
+            : (fileMetadata != null && fileMetadata!.authors.isNotEmpty
+                  ? fileMetadata!.authors
+                  : (comicMetadata?.authors ?? const <String>[]));
+        if (authors.isNotEmpty) {
+          creditRows.add(
+            DetailCreditRow(
+              label: l10n.eReaderAuthor,
+              value: authors.join(', '),
+            ),
+          );
+        }
       }
       final publisher = studios.isNotEmpty
           ? studios.join(', ')
-          : (fileMetadata?.publisher ?? '');
+          : (fileMetadata?.publisher?.trim().isNotEmpty ?? false)
+          ? fileMetadata!.publisher!.trim()
+          : (comicMetadata?.publisher?.trim() ?? '');
       if (publisher.isNotEmpty) {
         creditRows.add(
-          _CreditRow(label: l10n.eReaderPublisher, value: publisher),
+          DetailCreditRow(label: l10n.eReaderPublisher, value: publisher),
         );
       }
       final serverIsbn = _isbnOf(item);
@@ -628,23 +704,30 @@ class _AdditionalInformation extends StatelessWidget {
           ? serverIsbn
           : (fileMetadata?.isbn ?? '');
       if (isbn.isNotEmpty) {
-        creditRows.add(_CreditRow(label: l10n.eReaderIsbn, value: isbn));
+        creditRows.add(DetailCreditRow(label: l10n.eReaderIsbn, value: isbn));
+      }
+      final language = fileMetadata?.language?.trim() ?? '';
+      if (language.isNotEmpty) {
+        creditRows.add(DetailCreditRow(label: l10n.language, value: language));
       }
     } else {
       creditRows.addAll([
-        _CreditRow(
+        DetailCreditRow(
           label: l10n.director,
-          value: _peopleByType(people, 'Director'),
+          value: detailPeopleByType(people, 'Director'),
         ),
-        _CreditRow(
+        DetailCreditRow(
           label: l10n.producers,
-          value: _peopleByType(people, 'Producer'),
+          value: detailPeopleByType(people, 'Producer'),
         ),
-        _CreditRow(label: l10n.castLabel, value: _peopleNames(people)),
-        _CreditRow(label: l10n.studio, value: studios.join(', ')),
+        DetailCreditRow(
+          label: l10n.castLabel,
+          value: detailPeopleNames(people),
+        ),
+        DetailCreditRow(label: l10n.studio, value: studios.join(', ')),
       ]);
     }
-    final credits = _InfoCard(
+    final credits = DetailInfoCard(
       title: l10n.creatorsAndCast,
       child: isBook && metadataLoading && creditRows.isEmpty
           ? const Padding(
@@ -665,25 +748,21 @@ class _AdditionalInformation extends StatelessWidget {
     if (isBook) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          details,
-          const SizedBox(height: 18),
-          credits,
-        ],
+        children: [details, const SizedBox(height: 18), credits],
       );
     }
-    final audio = _InfoCard(
+    final audio = DetailInfoCard(
       title: l10n.audioLanguages,
-      child: _LanguageInfo(
+      child: DetailLanguageInfo(
         icon: Icons.audiotrack_outlined,
         text: audioLanguages.isEmpty
             ? l10n.noAudioTracks
             : audioLanguages.join(', '),
       ),
     );
-    final subtitles = _InfoCard(
+    final subtitles = DetailInfoCard(
       title: l10n.subtitlesLabel,
-      child: _LanguageInfo(
+      child: DetailLanguageInfo(
         icon: Icons.subtitles_outlined,
         text: subtitleLanguages.isEmpty
             ? l10n.noSubtitles
@@ -721,185 +800,6 @@ class _AdditionalInformation extends StatelessWidget {
       ],
     );
   }
-}
-
-class _InfoCard extends StatelessWidget {
-  const _InfoCard({required this.title, required this.child});
-
-  final String title;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
-      decoration: BoxDecoration(
-        color: const Color(0xE611151B),
-        border: Border.all(color: Colors.white38),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 21,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 10),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-class _CreditRow extends StatelessWidget {
-  const _CreditRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return RichText(
-      text: TextSpan(
-        style: const TextStyle(color: Colors.white, fontSize: 16),
-        children: [
-          TextSpan(
-            text: '$label  ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          TextSpan(
-            text: value,
-            style: const TextStyle(
-              color: Colors.white70,
-              decoration: TextDecoration.underline,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LanguageInfo extends StatelessWidget {
-  const _LanguageInfo({required this.icon, required this.text});
-
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: Colors.white70, size: 22),
-        const SizedBox(height: 10),
-        Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white60,
-            fontSize: 16,
-            height: 1.35,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          AppLocalizations.of(context)!.more,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            decoration: TextDecoration.underline,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _LinkText extends StatelessWidget {
-  const _LinkText({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 16,
-        fontWeight: FontWeight.bold,
-        decoration: TextDecoration.underline,
-      ),
-    );
-  }
-}
-
-class _InfoValue extends StatelessWidget {
-  const _InfoValue({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Colors.white60,
-        fontSize: 16,
-        fontWeight: FontWeight.w600,
-      ),
-    );
-  }
-}
-
-class _Tag extends StatelessWidget {
-  const _Tag({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF454A51),
-        borderRadius: BorderRadius.circular(3),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        child: Text(
-          text,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-String _peopleByType(List<BaseItemPerson> people, String type) {
-  return people
-      .where((person) => person.type?.name.toLowerCase() == type.toLowerCase())
-      .map((person) => person.name ?? '')
-      .where((name) => name.isNotEmpty)
-      .join(', ');
-}
-
-String _peopleNames(List<BaseItemPerson> people) {
-  return people
-      .map((person) => person.name ?? '')
-      .where((name) => name.isNotEmpty)
-      .take(20)
-      .join(', ');
 }
 
 /// Agrupa los nombres por tipo de persona (Autor, Ilustrador, ...), en el
@@ -965,7 +865,7 @@ String _formatBytes(int bytes) {
   return '${value.toStringAsFixed(decimals)} ${units[unit]}';
 }
 
-String _downloadFilename(String name) {
+String detailDownloadFilename(String name) {
   final safeName = name
       .replaceAll(RegExp(r'[<>:"/\\|?*]'), '_')
       .replaceAll(RegExp(r'\s+'), ' ')
@@ -1107,7 +1007,8 @@ class _DetailDescription extends StatelessWidget {
           spacing: 10,
           runSpacing: 6,
           children: [
-            for (final genre in genres) _DetailMeta(text: localizeGenre(genre, l10n)),
+            for (final genre in genres)
+              _DetailMeta(text: localizeGenre(genre, l10n)),
             if (item.officialRating != null)
               _DetailMeta(text: item.officialRating!),
             if (item.productionYear != null)
@@ -1401,8 +1302,9 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
                     ),
                   ),
                 ),
-              if (_series.isHD == true) const _Tag(text: 'HD'),
-              if (widget.subtitleLanguages.isNotEmpty) const _Tag(text: 'CC'),
+              if (_series.isHD == true) const DetailTag(text: 'HD'),
+              if (widget.subtitleLanguages.isNotEmpty)
+                const DetailTag(text: 'CC'),
             ],
           ),
         ),

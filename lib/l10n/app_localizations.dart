@@ -1484,6 +1484,18 @@ abstract class AppLocalizations {
   /// **'All books'**
   String get eReaderAllBooks;
 
+  /// No description provided for @eReaderSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'Series'**
+  String get eReaderSeries;
+
+  /// No description provided for @bookCollections.
+  ///
+  /// In en, this message translates to:
+  /// **'Collections'**
+  String get bookCollections;
+
   /// No description provided for @eReaderRead.
   ///
   /// In en, this message translates to:
@@ -5051,7 +5063,7 @@ abstract class AppLocalizations {
   /// No description provided for @myNetflix.
   ///
   /// In en, this message translates to:
-  /// **'My Netflix'**
+  /// **'My Library'**
   String get myNetflix;
 
   /// Prime hover button to resume a series (e.g. Resume S1 E18).

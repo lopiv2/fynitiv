@@ -3,14 +3,38 @@ import 'package:go_router/go_router.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 
+import '../../../core/seasonal/active_seasonal_event.dart';
+import '../../../core/seasonal/seasonal_event.dart';
 import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_hover_button.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/asset_video_background.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../auth/application/auth_controller.dart';
 import '../../auth/application/auth_state.dart';
 import '../../household/application/household_provider.dart';
 import '../application/users_provider.dart';
+
+/// Vídeo de fondo según la época activa (null = sin vídeo estacional).
+String? _seasonalVideoFor(SeasonalEvent? event) => switch (event) {
+  SeasonalEvent.halloween => 'assets/images/seasonal/halloween_video.mp4',
+  SeasonalEvent.christmas => 'assets/images/seasonal/christmas_video.mp4',
+  _ => null,
+};
+
+/// Póster del vídeo (se muestra mientras carga o si falla).
+String? _seasonalPosterFor(SeasonalEvent? event) => switch (event) {
+  SeasonalEvent.halloween => 'assets/images/seasonal/halloween_user.jpg',
+  SeasonalEvent.christmas => 'assets/images/seasonal/christmas_user.jpg',
+  _ => null,
+};
+
+/// Imagen fija de fondo para las épocas sin vídeo.
+String? _seasonalImageFor(SeasonalEvent? event) => switch (event) {
+  SeasonalEvent.valentinesDay => 'assets/images/seasonal/valentine_user.jpg',
+  SeasonalEvent.easter => 'assets/images/seasonal/easter_user.jpg',
+  _ => null,
+};
 
 /// Pantalla de selección de usuarios estilo Disney+: muestra los usuarios
 /// públicos del servidor como perfiles en círculo para entrar de un toque.
@@ -21,46 +45,109 @@ class UserSelectionScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authControllerProvider);
     final users = ref.watch(householdUsersProvider);
+    final seasonal = ref.watch(activeSeasonalEventProvider);
+    final videoAsset = _seasonalVideoFor(seasonal);
+    final posterAsset = _seasonalPosterFor(seasonal);
+    final imageAsset = _seasonalImageFor(seasonal);
+
+    final content = SafeArea(
+      child: Stack(
+        children: [
+          Positioned.fill(
+            top: MediaQuery.of(context).size.height * 0.25,
+            bottom: MediaQuery.of(context).size.height * 0.25,
+
+            child: users.when(
+              loading: () => const Center(child: AppLoader()),
+              error: (e, _) => _ErrorView(
+                error: e.toString(),
+                onRetry: () => ref.invalidate(householdUsersProvider),
+              ),
+              data: (list) => _buildContent(context, ref, auth, list),
+            ),
+          ),
+          // Overlay bloqueante mientras se autentica el usuario seleccionado.
+          // Utiliza AppLoader como en el resto de la app (peticiones DIO).
+          if (auth.isLoading)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Colors.black54,
+                child: Center(child: AppLoader()),
+              ),
+            ),
+        ],
+      ),
+    );
+
+    // Fondos estacionales añadidos por el usuario: vídeo en bucle en
+    // Halloween/Navidad (con su jpg como póster mientras carga) e imagen fija
+    // en San Valentín/Pascua. Sin época activa se mantiene el degradado.
+    if (videoAsset != null) {
+      return Scaffold(
+        body: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: AssetVideoBackground(
+            key: ValueKey(videoAsset),
+            assetPath: videoAsset,
+            posterAssetPath: posterAsset,
+            fallback: Container(
+              width: double.infinity,
+              height: double.infinity,
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xFF0B1030), Color(0xFF1A2568)],
+                ),
+              ),
+            ),
+            child: content,
+          ),
+        ),
+      );
+    }
+
+    if (imageAsset != null) {
+      return Scaffold(
+        body: SizedBox(
+          width: double.infinity,
+          height: double.infinity,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.asset(imageAsset, fit: BoxFit.cover),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.black.withValues(alpha: 0.45),
+                      Colors.black.withValues(alpha: 0.65),
+                    ],
+                  ),
+                ),
+              ),
+              content,
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: BoxDecoration(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: const [Color(0xFF0B1030), Color(0xFF1A2568)],
+            colors: [Color(0xFF0B1030), Color(0xFF1A2568)],
           ),
         ),
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Positioned.fill(
-                top: MediaQuery.of(context).size.height * 0.25,
-                bottom: MediaQuery.of(context).size.height * 0.25,
-
-                child: users.when(
-                  loading: () => const Center(child: AppLoader()),
-                  error: (e, _) => _ErrorView(
-                    error: e.toString(),
-                    onRetry: () => ref.invalidate(householdUsersProvider),
-                  ),
-                  data: (list) => _buildContent(context, ref, auth, list),
-                ),
-              ),
-              // Overlay bloqueante mientras se autentica el usuario seleccionado.
-              // Utiliza AppLoader como en el resto de la app (peticiones DIO).
-              if (auth.isLoading)
-                const Positioned.fill(
-                  child: ColoredBox(
-                    color: Colors.black54,
-                    child: Center(child: AppLoader()),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        child: content,
       ),
     );
   }

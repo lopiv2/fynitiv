@@ -92,7 +92,9 @@ class _ComicViewState extends State<ComicView> {
           .where((f) => f.isFile && _isImageName(f.name))
           .toList();
       if (entries.isEmpty) {
-        entries = archive.files.where((f) => f.isFile && _zipLooksLikeImage(f)).toList();
+        entries = archive.files
+            .where((f) => f.isFile && _zipLooksLikeImage(f))
+            .toList();
       }
       entries.sort((a, b) => _naturalCompare(a.name, b.name));
 
@@ -225,7 +227,11 @@ class _ComicViewState extends State<ComicView> {
     }
     if (_error || _pages.isEmpty) {
       return const Center(
-        child: Icon(Icons.broken_image_outlined, color: Colors.white38, size: 48),
+        child: Icon(
+          Icons.broken_image_outlined,
+          color: Colors.white38,
+          size: 48,
+        ),
       );
     }
     return SpreadReader(
