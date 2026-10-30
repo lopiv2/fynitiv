@@ -11,4 +11,5 @@
 | sdd/ plans | 02-DOCS/wiki/sdd/plans/ | Un plan técnico por feature (tareas dentro) |
 | sdd/ decisions | 02-DOCS/wiki/sdd/decisions.md | Registro append-only de decisiones |
 | ftd/ | 02-DOCS/wiki/ftd/ | Documentos FTD por feature/fix (Intent, Scope, Checklist, Evidence, Next) |
+| ftd/ ajustes adaptativo | 02-DOCS/wiki/ftd/settings-adaptativo.md | Rediseño de `/settings` en TV/móvil/tablet/escritorio — **pendiente de decisión** (3 preguntas abiertas) |
 | harness/ | 02-DOCS/wiki/harness/ | Perfil de usuario, decisiones y plan de instalación del harness |
