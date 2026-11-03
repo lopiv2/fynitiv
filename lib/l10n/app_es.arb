@@ -94,6 +94,8 @@
   "seasonalContent": "Contenido estacional",
   "seasonalContentHint": "Elige la temática estacional de Inicio y del skin sin esperar al calendario.",
   "language": "Idioma",
+  "prefsGroupLanguageTheme": "Idioma y tema",
+  "prefsGroupPlaybackContent": "Reproducción y contenido",
   "currentHome": "Casa actual",
   "version": "Versión",
   "aboutDescription": "Fynitiv es un cliente para Jellyfin, tu servidor multimedia personal.",

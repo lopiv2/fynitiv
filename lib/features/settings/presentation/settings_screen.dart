@@ -7,17 +7,13 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/di/providers.dart';
+import '../../../core/navigation/platform_mode.dart';
 import '../../../core/security/pin_hasher.dart';
-import '../../../core/settings/allow_bad_certificates_controller.dart';
-import '../../../core/settings/reader_page_flip_controller.dart';
-import '../../../core/settings/seasonal_suggestions_controller.dart';
-import '../../../core/settings/seasonal_theme_controller.dart';
 import '../../../core/storage/session_storage.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
-import '../../../core/theme/theme_controller.dart';
+import '../../../core/widgets/app_hover.dart';
 import '../../../core/widgets/app_loader.dart';
-import '../../../core/widgets/language_selector.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../core/widgets/scale_button.dart';
 import '../../../l10n/app_localizations.dart';
@@ -26,6 +22,8 @@ import '../../household/application/household_provider.dart';
 import '../../household/domain/household.dart';
 import 'widgets/appearance_panel.dart';
 import 'widgets/games_panel.dart';
+import 'widgets/preferences_panel.dart';
+import 'widgets/settings_metrics.dart';
 import 'widgets/sounds_panel.dart';
 
 enum SettingsSection { preferences, appearance, home, games, sounds, account, about }
@@ -59,8 +57,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final width = MediaQuery.sizeOf(context).width;
-    final useMenu = width >= 700;
+    final size = MediaQuery.sizeOf(context);
+    final mode = ref.watch(platformModeProvider).value ?? PlatformMode.mobile;
+    final metrics = metricsFor(
+      width: size.width,
+      height: size.height,
+      mode: mode,
+    );
     final skin = ref.watch(skinControllerProvider).value;
     final topPadding = libraryPageTopPadding(context, skin);
 
@@ -74,34 +77,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       (SettingsSection.about, Icons.info_outline, l10n.about),
     ];
 
-    final content = useMenu
-        ? Row(
-            children: [
-              _buildMenu(sections),
-              const VerticalDivider(
-                width: 1,
-                color: Color(0xFF1A2568),
-              ),
-              Expanded(child: _buildPanel()),
-            ],
-          )
-        : Column(
-            children: [
-              TabBar(
-                isScrollable: true,
-                tabAlignment: TabAlignment.start,
-                onTap: (i) => _section = sections[i].$1,
-                tabs: [
-                  for (final s in sections)
-                    Tab(
-                      icon: Icon(s.$2),
-                      text: s.$3,
-                    ),
-                ],
-              ),
-              Expanded(child: _buildPanel()),
-            ],
-          );
+    // El contenido va en su propio grupo de traversal para que ↑/↓ en TV
+    // recorra el panel antes de saltar al menú lateral.
+    final panel = FocusTraversalGroup(child: _buildPanel(metrics));
+
+    final content = switch (metrics.nav) {
+      // Móvil: selector desplegable de sección (una sola fila, sin scroll
+      // horizontal). Sin `TabBar` de material: exige `TabController` y su
+      // assert rompe el debug.
+      SettingsNav.topChips => Column(
+        children: [
+          _buildSectionDropdown(sections),
+          Expanded(child: panel),
+        ],
+      ),
+      // Tablet: rail de iconos.
+      SettingsNav.rail => Row(
+        children: [
+          _buildRail(sections, metrics),
+          const VerticalDivider(width: 1, color: Color(0xFF1A2568)),
+          Expanded(child: panel),
+        ],
+      ),
+      // Escritorio/TV: menú lateral (264 / 320 en TV).
+      SettingsNav.sideMenu => Row(
+        children: [
+          _buildMenu(sections, metrics),
+          const VerticalDivider(width: 1, color: Color(0xFF1A2568)),
+          Expanded(child: panel),
+        ],
+      ),
+    };
 
     return Scaffold(
       body: DashboardBackground(
@@ -115,9 +121,136 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildMenu(List<(SettingsSection, IconData, String)> sections) {
+  /// Selector desplegable de sección para móvil: una sola fila con la
+  /// sección actual (icono + etiqueta); el menú del desplegable hace scroll
+  /// interno si hace falta. Sin `TabBar` de material: exige `TabController`
+  /// y su assert rompe el debug.
+  Widget _buildSectionDropdown(
+    List<(SettingsSection, IconData, String)> sections,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+      child: DropdownButtonFormField<SettingsSection>(
+        initialValue: _section,
+        dropdownColor: const Color(0xFF1A2568),
+        style: const TextStyle(color: Colors.white, fontSize: 16),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.08),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.white12),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.white12),
+          ),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 14,
+          ),
+        ),
+        items: [
+          for (final s in sections)
+            DropdownMenuItem(
+              value: s.$1,
+              child: Row(
+                children: [
+                  Icon(s.$2, color: Colors.white70, size: 20),
+                  const SizedBox(width: 12),
+                  Text(s.$3),
+                ],
+              ),
+            ),
+        ],
+        onChanged: (v) {
+          if (v != null) _section = v;
+        },
+      ),
+    );
+  }
+
+  /// Rail de iconos para tablet (88 px). Etiqueta completa por tooltip;
+  /// con más ancho (≥840) se muestra bajo el icono.
+  Widget _buildRail(
+    List<(SettingsSection, IconData, String)> sections,
+    SettingsMetrics metrics,
+  ) {
+    final showLabels = MediaQuery.sizeOf(context).width >= 840;
     return Container(
-      width: 240,
+      width: metrics.menuWidth,
+      padding: const EdgeInsets.all(8),
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          for (final s in sections)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Tooltip(
+                message: s.$3,
+                child: AppHover(
+                  effect: AppHoverEffect.highlight,
+                  config: AppHoverConfig(
+                    duration: const Duration(milliseconds: 150),
+                    borderRadius: const BorderRadius.all(Radius.circular(12)),
+                    highlightNormal: _section == s.$1
+                        ? const Color(0xFF1A2568)
+                        : Colors.transparent,
+                    highlightHovered: _section == s.$1
+                        ? const Color(0xFF1A2568)
+                        : Colors.white12,
+                  ),
+                  autofocus: metrics.isTv && _section == s.$1,
+                  onTap: () => _section = s.$1,
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          s.$2,
+                          color: _section == s.$1
+                              ? Colors.white
+                              : Colors.white60,
+                          size: 24,
+                        ),
+                        if (showLabels) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            s.$3,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: _section == s.$1
+                                  ? Colors.white
+                                  : Colors.white70,
+                              fontSize: 11,
+                              fontWeight: _section == s.$1
+                                  ? FontWeight.w600
+                                  : FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMenu(
+    List<(SettingsSection, IconData, String)> sections,
+    SettingsMetrics metrics,
+  ) {
+    final rowFont = metrics.isTv ? 17.0 : 15.0;
+    return Container(
+      width: metrics.menuWidth,
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,21 +259,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           for (final s in sections)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 2),
-              child: ScaleButton(
-                selected: _section == s.$1,
-                selectedScale: 1.04,
-                borderRadius: BorderRadius.circular(10),
-                onPressed: () => _section = s.$1,
+              child: AppHover(
+                effect: AppHoverEffect.highlight,
+                config: AppHoverConfig(
+                  duration: const Duration(milliseconds: 150),
+                  borderRadius: const BorderRadius.all(Radius.circular(10)),
+                  highlightNormal: _section == s.$1
+                      ? const Color(0xFF1A2568)
+                      : Colors.transparent,
+                  highlightHovered: _section == s.$1
+                      ? const Color(0xFF1A2568)
+                      : Colors.white12,
+                ),
+                autofocus: metrics.isTv && _section == s.$1,
+                onTap: () => _section = s.$1,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 12,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    color: _section == s.$1
-                        ? const Color(0xFF1A2568)
-                        : Colors.transparent,
+                    vertical: metrics.isTv ? 18 : 14,
                   ),
                   child: Row(
                     children: [
@@ -149,19 +285,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         color: _section == s.$1
                             ? Colors.white
                             : Colors.white60,
-                        size: 22,
+                        size: metrics.isTv ? 26 : 22,
                       ),
                       const SizedBox(width: 12),
-                      Text(
-                        s.$3,
-                        style: TextStyle(
-                          color: _section == s.$1
-                              ? Colors.white
-                              : Colors.white70,
-                          fontSize: 15,
-                          fontWeight: _section == s.$1
-                              ? FontWeight.w600
-                              : FontWeight.w400,
+                      Expanded(
+                        child: Text(
+                          s.$3,
+                          style: TextStyle(
+                            color: _section == s.$1
+                                ? Colors.white
+                                : Colors.white70,
+                            fontSize: rowFont,
+                            fontWeight: _section == s.$1
+                                ? FontWeight.w600
+                                : FontWeight.w400,
+                          ),
                         ),
                       ),
                     ],
@@ -174,10 +312,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  Widget _buildPanel() {
+  Widget _buildPanel(SettingsMetrics metrics) {
     switch (_section) {
       case SettingsSection.preferences:
-        return _PreferencesPanel();
+        return PreferencesPanel(metrics: metrics);
       case SettingsSection.appearance:
         return const AppearancePanel();
       case SettingsSection.home:
@@ -223,180 +361,6 @@ class _SettingsPanel extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _PreferencesPanel extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final l10n = AppLocalizations.of(context)!;
-    return _SettingsPanel(
-      title: l10n.preferences,
-      children: [
-        _buildLanguage(context, l10n),
-        const SizedBox(height: 24),
-        _buildTheme(context, ref, l10n),
-        const SizedBox(height: 24),
-        _buildSeasonalSuggestions(ref, l10n),
-        const SizedBox(height: 24),
-        _buildSeasonalTheme(ref, l10n),
-        const SizedBox(height: 24),
-        _buildReaderPageFlip(ref, l10n),
-        const SizedBox(height: 24),
-        _buildAllowBadCertificates(ref, l10n),
-      ],
-    );
-  }
-
-  Widget _buildAllowBadCertificates(WidgetRef ref, AppLocalizations l10n) {
-    final state = ref.watch(allowBadCertificatesProvider);
-    return _SettingsCard(
-      title: l10n.allowBadCertificates,
-      subtitle: l10n.allowBadCertificatesHint,
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Switch(
-          value: state.value ?? true,
-          onChanged: state.isLoading
-              ? null
-              : (enabled) => ref
-                    .read(allowBadCertificatesProvider.notifier)
-                    .setEnabled(enabled),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReaderPageFlip(WidgetRef ref, AppLocalizations l10n) {
-    final state = ref.watch(readerPageFlipEnabledProvider);
-    return _SettingsCard(
-      title: l10n.readerPageFlip,
-      subtitle: l10n.readerPageFlipHint,
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Switch(
-          value: state.value ?? true,
-          onChanged: state.isLoading
-              ? null
-              : (enabled) => ref
-                    .read(readerPageFlipEnabledProvider.notifier)
-                    .setEnabled(enabled),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSeasonalTheme(WidgetRef ref, AppLocalizations l10n) {
-    final enabledState = ref.watch(seasonalThemeEnabledProvider);
-    final enabled = enabledState.value ?? true;
-    final intensityState = ref.watch(seasonalThemeIntensityProvider);
-    final intensity = intensityState.value ?? kSeasonalThemeDefaultIntensity;
-    return _SettingsCard(
-      title: l10n.seasonalTheme,
-      subtitle: l10n.seasonalThemeHint,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Align(
-            alignment: Alignment.centerRight,
-            child: Switch(
-              value: enabled,
-              onChanged: enabledState.isLoading
-                  ? null
-                  : (value) => ref
-                        .read(seasonalThemeEnabledProvider.notifier)
-                        .setEnabled(value),
-            ),
-          ),
-          if (enabled) ...[
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Text(
-                  l10n.seasonalThemeIntensity,
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-                Expanded(
-                  child: Slider(
-                    value: intensity.clamp(0.0, 1.0),
-                    divisions: 20,
-                    label: '${(intensity * 100).round()}%',
-                    onChanged: intensityState.isLoading
-                        ? null
-                        : (value) => ref
-                              .read(seasonalThemeIntensityProvider.notifier)
-                              .setIntensity(value),
-                  ),
-                ),
-                Text(
-                  '${(intensity * 100).round()}%',
-                  style: const TextStyle(color: Colors.white70, fontSize: 13),
-                ),
-              ],
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSeasonalSuggestions(WidgetRef ref, AppLocalizations l10n) {
-    final state = ref.watch(seasonalSuggestionsEnabledProvider);
-    return _SettingsCard(
-      title: l10n.seasonalSuggestions,
-      subtitle: l10n.seasonalSuggestionsHint,
-      child: Align(
-        alignment: Alignment.centerRight,
-        child: Switch(
-          value: state.value ?? true,
-          onChanged: state.isLoading
-              ? null
-              : (enabled) => ref
-                    .read(seasonalSuggestionsEnabledProvider.notifier)
-                    .setEnabled(enabled),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLanguage(BuildContext context, AppLocalizations l10n) {
-    return _SettingsCard(
-      title: l10n.language,
-      child: const Align(
-        alignment: Alignment.centerLeft,
-        child: LanguageSelector(),
-      ),
-    );
-  }
-
-  Widget _buildTheme(
-    BuildContext context,
-    WidgetRef ref,
-    AppLocalizations l10n,
-  ) {
-    final mode = ref.watch(themeModeProvider).value ?? ThemeMode.system;
-    final setMode = ref.read(themeModeProvider.notifier).setThemeMode;
-    final options = <(ThemeMode, String)>[
-      (ThemeMode.system, l10n.themeSystem),
-      (ThemeMode.light, l10n.themeLight),
-      (ThemeMode.dark, l10n.themeDark),
-    ];
-    return _SettingsCard(
-      title: l10n.theme,
-      child: Row(
-        children: [
-          for (final o in options)
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: ChoiceChip(
-                label: Text(o.$2),
-                selected: mode == o.$1,
-                onSelected: (_) => setMode(o.$1),
-              ),
-            ),
-        ],
       ),
     );
   }

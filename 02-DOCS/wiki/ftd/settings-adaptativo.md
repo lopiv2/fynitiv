@@ -9,8 +9,10 @@ tablet y escritorio—, sustituyendo el layout actual (breakpoint único
 escritorio en TV) por tres piezas compartidas: **tokens de densidad**,
 **scaffold único** y **filas de ajuste agrupadas**.
 
-Este documento queda **a la espera de decisión de diseño** (ver
-"Decisiones abiertas"); no se ha modificado código todavía.
+Este documento queda **en implementación Fase 1–2 (Preferencias)** con las
+decisiones ya tomadas el 2026-11-03 (una sola página con scroll por
+sección; filas agrupadas con divisor; `?section=` aparcado: se corrige
+el doc, no se recupera deep-link en esta fase).
 
 ## Scope
 
@@ -133,26 +135,27 @@ Tocados: `settings_screen.dart`, `appearance_panel.dart`, `games_panel.dart`,
 
 ### Decisiones abiertas
 
-1. **Modelo de navegación en móvil/tablet**: una sola página con scroll por
-   sección (propuesta) o rejilla “hub” de secciones que abre cada una a
-   pantalla completa. La segunda reduce chips y scroll, pero añade un nivel de
-   navegación y dos pantallas más.
-2. **Patrón de filas**: ¿se aprueba agrupar los ajustes en filas con divisor
-   (menos bordes, ~45 % menos scroll) o se mantiene una tarjeta por ajuste y
-   solo se retocan tamaños?
+Resueltas el 2026-11-03 para el rediseño de Preferencias:
+
+1. **Modelo de navegación en móvil/tablet**: una sola página con scroll
+   por sección (propuesta original). Móvil: chips scrollables arriba;
+   tablet: rail de iconos; sin hub intermedio.
+2. **Patrón de filas**: agrupar los ajustes en filas con divisor
+   (`SettingsGroup` + `SettingsRow`): menos bordes, ~45 % menos scroll.
 3. **Deuda documental detectada**: `avatar-menu-ajustes.md:10-11` documenta
    `initialSection` y el parseo de `?section=` que no existen en el
-   `SettingsScreen` actual. ¿Se recupera la funcionalidad o se corrige el doc?
+   `SettingsScreen` actual. En esta fase **no** se recupera el deep-link;
+   se deja constancia aquí y se corrige el doc dependiente aparte.
 
 ## Checklist
 
-- [ ] Decidir las tres cuestiones de "Decisiones abiertas"
-- [ ] Fase 1 — `settings_metrics.dart` + `settings_scaffold.dart`
-- [ ] Fase 2 — `settings_row.dart` + migrar Preferencias/Cuenta/Acerca de
-- [ ] Fase 3 — navegación adaptativa (móvil/tablet/escritorio/TV)
-- [ ] Fase 4 — Apariencia/Juegos/Sonidos al scaffold + 2 columnas ≥1600
-- [ ] Fase 5 — pulido TV (overscan, `AppHover`, `viewInsets`)
-- [ ] Fase 6 — ARB `es/en`, `flutter analyze`, matriz de perfiles
+- [x] Decidir las tres cuestiones de "Decisiones abiertas"
+- [x] Fase 1 — `settings_metrics.dart` + `settings_scaffold.dart`
+- [x] Fase 2 — `settings_row.dart` + migrar Preferencias (Cuenta/Acerca de pendientes)
+- [x] Fase 3 — navegación adaptativa (móvil desplegable / tablet rail / escritorio-TV menú; `TabBar` roto eliminado)
+- [ ] Fase 4 — Apariencia/Juegos/Sonidos al scaffold + 2 columnas ≥1600 (solo Preferencias usa 2 columnas)
+- [x] Fase 5 — pulido TV en Preferencias (overscan vía tokens, `AppHover` en filas/menú/chips, `FocusTraversalGroup`); formularios “Hogar” pendientes
+- [x] Fase 6 — ARB `es/en` (`prefsGroupLanguageTheme`, `prefsGroupPlaybackContent`), `flutter gen-l10n`, `flutter analyze` limpio; matriz visual en simulador pendiente
 
 ## Evidence
 
@@ -168,9 +171,25 @@ Análisis de solo lectura, sin cambios de código:
 - `debug_device.dart:6-9`: perfiles de prueba 390×844 / 768×1024 / 1280×720 /
   1920×1080.
 
+Implementación Preferencias (2026-11-03, prueba observada):
+
+- Nuevos: `widgets/settings_metrics.dart` (tokens por ancho + `PlatformMode.tv`),
+  `widgets/settings_scaffold.dart` (scaffold único), `widgets/settings_group.dart`
+  (`SettingsGroup` + `SettingsRow` con `AppHover` universal),
+  `widgets/preferences_panel.dart` (grupos “Idioma y tema” y
+  “Reproducción y contenido”; `Wrap` en chips de tema; 2 columnas ≥1600).
+- Tocados: `settings_screen.dart` (desplegable de sección en móvil en vez
+  del `TabBar` sin controlador —los chips horizontales no se veían bien ni
+  hacían scroll—; rail 88 en tablet con etiquetas ≥840; menú
+  264/320 con `autofocus` en TV; `FocusTraversalGroup` en el contenido;
+  `_PreferencesPanel` antiguo eliminado), ARB `es/en`
+  (`prefsGroupLanguageTheme`, `prefsGroupPlaybackContent`) + `flutter gen-l10n`.
+- `flutter analyze` → `No issues found!` (full, 4.5s).
+- Sin tocar: paneles Hogar/Cuenta/Acerca de/Apariencia/Juegos/Sonidos
+  (siguen con `_SettingsPanel`), `PrimeCardBadge`, lógica de controladores.
+
 ## Next
 
-Responder a las tres decisiones abiertas; con eso se marca la Fase 1 (tokens +
-scaffold) como primer cambio, se crea/actualiza este doc con la prueba de
-`flutter analyze` y se valida visualmente en el simulador de TV antes de tocar
-navegación.
+Validar visualmente en el simulador (`debugDevice`: 390×844, 768×1024,
+1280×720 con D-pad, 1920×1080) y `textScale` 1.3; después migrar
+Cuenta/Acerca de y Apariencia/Juegos/Sonidos al scaffold compartido.

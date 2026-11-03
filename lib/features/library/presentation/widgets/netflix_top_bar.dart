@@ -10,6 +10,7 @@ import '../../../../core/widgets/app_hover.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/application/auth_controller.dart';
 import 'top_bar_icon_button.dart';
+import 'top_bar_scroller.dart';
 import 'user_avatar_menu.dart';
 
 /// Barra superior estilo Netflix (foto de referencia): avatar con
@@ -116,17 +117,14 @@ class NetflixTopBar extends ConsumerWidget {
             color: Colors.white70,
             size: 20,
           ),
-          // Navegación centrada.
+          // Navegación centrada con scroll, fades y auto-centrado del activo.
           Expanded(
             child: Center(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (final item in navItems)
-                      switch (item) {
+              child: TopBarScroller(
+                isActive: (w) => w is _NetflixPill && w.selected,
+                children: [
+                  for (final item in navItems)
+                    switch (item) {
                         TopBarNavItem.search => TopBarIconButton(
                           icon: Icons.search,
                           tooltip: l10n.search,
@@ -207,7 +205,6 @@ class NetflixTopBar extends ConsumerWidget {
                 ),
               ),
             ),
-          ),
           // Logo de marca (derecha, como la N roja de la foto).
           if (sidebarLogo != null)
             Image.asset(sidebarLogo, height: 30, fit: BoxFit.contain)

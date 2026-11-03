@@ -650,6 +650,18 @@ abstract class AppLocalizations {
   /// **'Language'**
   String get language;
 
+  /// No description provided for @prefsGroupLanguageTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Language and theme'**
+  String get prefsGroupLanguageTheme;
+
+  /// No description provided for @prefsGroupPlaybackContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Playback and content'**
+  String get prefsGroupPlaybackContent;
+
   /// No description provided for @currentHome.
   ///
   /// In en, this message translates to:

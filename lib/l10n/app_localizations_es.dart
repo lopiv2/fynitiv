@@ -298,6 +298,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String get language => 'Idioma';
 
   @override
+  String get prefsGroupLanguageTheme => 'Idioma y tema';
+
+  @override
+  String get prefsGroupPlaybackContent => 'Reproducción y contenido';
+
+  @override
   String get currentHome => 'Casa actual';
 
   @override

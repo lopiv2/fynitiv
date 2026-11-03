@@ -297,6 +297,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get language => 'Language';
 
   @override
+  String get prefsGroupLanguageTheme => 'Language and theme';
+
+  @override
+  String get prefsGroupPlaybackContent => 'Playback and content';
+
+  @override
   String get currentHome => 'Current home';
 
   @override

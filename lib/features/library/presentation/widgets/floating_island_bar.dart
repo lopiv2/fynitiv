@@ -18,6 +18,7 @@ import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
 import '../../application/library_providers.dart';
 import 'desktop_library_dialog.dart';
+import 'top_bar_scroller.dart';
 import 'tv_library_modal.dart';
 
 /// Barra superior en modo isla flotante (pill con glass blur, radio 28).
@@ -266,21 +267,21 @@ class FloatingIslandBar extends ConsumerWidget {
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     // Para modo normal también había overflow de 74px tras añadir E-Reader.
-                    // Se envuelve en scroll horizontal para que nunca de Layout overflow,
-                    // manteniendo el tamaño compacto en TV ya aplicado arriba.
-                    return SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      physics: const BouncingScrollPhysics(),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          ...mainItems,
-                          if (views.isNotEmpty) libraryMenu,
-                          settings,
-                          const SizedBox(width: 4),
-                          _FloatingUserAvatar(auth: auth, compact: true),
-                        ],
-                      ),
+                    // Scroll con pistas (fades) y auto-centrado del activo.
+                    return TopBarScroller(
+                      isActive: (w) => switch (w) {
+                        _FloatingNavItem(selected: true) => true,
+                        _FloatingLibraryMenu(isAnyLibrarySelected: true) =>
+                          true,
+                        _ => false,
+                      },
+                      children: [
+                        ...mainItems,
+                        if (views.isNotEmpty) libraryMenu,
+                        settings,
+                        const SizedBox(width: 4),
+                        _FloatingUserAvatar(auth: auth, compact: true),
+                      ],
                     );
                   },
                 ),

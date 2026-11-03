@@ -21,6 +21,7 @@ import 'desktop_library_dialog.dart';
 import 'floating_island_bar.dart';
 import 'netflix_top_bar.dart';
 import 'top_bar_icon_button.dart';
+import 'top_bar_scroller.dart';
 import 'tv_library_modal.dart';
 import 'user_avatar_menu.dart';
 
@@ -358,33 +359,33 @@ class Sidebar extends ConsumerWidget {
               child: _logo(sidebarLogo, textPrimary, height: 36, compact: true),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                physics: const BouncingScrollPhysics(),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // En Prime, Buscar sale del flujo: va como lupa a la
-                    // derecha, pegada a Ajustes.
-                    ...isPrimeBar
-                        ? [flowItems[0], ...flowItems.sublist(2)]
-                        : flowItems,
-                    if (views.isNotEmpty)
-                      _TopBarLibraryMenu(
-                        views: views,
-                        activeViewId: activeViewId,
-                        isAnyLibrarySelected: isAnyLibrarySelected,
-                        textPrimary: textPrimary,
-                        textSecondary: textSecondary,
-                        accent: accent,
-                        iconSpacing: iconSpacing,
-                        selectedColor: selectedColor,
-                        textOnly: isPrimeBar,
-                        emphasized: isPrimeBar,
-                      ),
-                    seerrItem,
-                  ],
-                ),
+              child: TopBarScroller(
+                isActive: (w) => switch (w) {
+                  _NavItem(selected: true) => true,
+                  _TopBarLibraryMenu(isAnyLibrarySelected: true) => true,
+                  _ => false,
+                },
+                children: [
+                  // En Prime, Buscar sale del flujo: va como lupa a la
+                  // derecha, pegada a Ajustes.
+                  ...isPrimeBar
+                      ? [flowItems[0], ...flowItems.sublist(2)]
+                      : flowItems,
+                  if (views.isNotEmpty)
+                    _TopBarLibraryMenu(
+                      views: views,
+                      activeViewId: activeViewId,
+                      isAnyLibrarySelected: isAnyLibrarySelected,
+                      textPrimary: textPrimary,
+                      textSecondary: textSecondary,
+                      accent: accent,
+                      iconSpacing: iconSpacing,
+                      selectedColor: selectedColor,
+                      textOnly: isPrimeBar,
+                      emphasized: isPrimeBar,
+                    ),
+                  seerrItem,
+                ],
               ),
             ),
             // Lupa de Buscar a la derecha en Prime (sin texto).
