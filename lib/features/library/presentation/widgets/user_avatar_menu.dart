@@ -4,10 +4,18 @@ import 'package:material_ui/material_ui.dart';
 import '../../../../l10n/app_localizations.dart';
 import '../../../auth/application/auth_controller.dart';
 import '../../../auth/application/auth_state.dart';
+import '../../../profile/presentation/my_space_screen.dart';
 
-/// Avatar del usuario con menú desplegable (ajustes y cerrar sesión).
-/// Widget genérico reutilizable en la sidebar lateral, la topbar classic
-/// y la topbar estilo Netflix.
+/// Abre la pantalla «Mi espacio» del usuario actual.
+Future<void> openMySpace(BuildContext context) {
+  return Navigator.of(
+    context,
+  ).push(MaterialPageRoute<void>(builder: (_) => const MySpaceScreen()));
+}
+
+/// Avatar del usuario con menú desplegable (mi espacio, ajustes y cerrar
+/// sesión). Widget genérico reutilizable en la sidebar lateral, la topbar
+/// classic y la topbar estilo Netflix.
 class UserAvatarMenu extends ConsumerWidget {
   const UserAvatarMenu({
     super.key,
@@ -50,23 +58,44 @@ class UserAvatarMenu extends ConsumerWidget {
             ref.read(authControllerProvider.notifier).logout();
           } else if (value == 'settings') {
             onSettings?.call();
+          } else if (value == 'myspace') {
+            openMySpace(context);
           }
         },
         itemBuilder: (context) => [
+          PopupMenuItem(
+            value: 'myspace',
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome_outlined,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(l10n.mySpace, style: const TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
           if (onSettings != null)
             PopupMenuItem(
               value: 'settings',
               child: Row(
                 children: [
-                  const Icon(Icons.settings_outlined,
-                      color: Colors.white70, size: 20),
+                  const Icon(
+                    Icons.settings_outlined,
+                    color: Colors.white70,
+                    size: 20,
+                  ),
                   const SizedBox(width: 10),
-                  Text(l10n.settings,
-                      style: const TextStyle(color: Colors.white)),
+                  Text(
+                    l10n.settings,
+                    style: const TextStyle(color: Colors.white),
+                  ),
                 ],
               ),
             ),
-          if (onSettings != null) const PopupMenuDivider(),
+          const PopupMenuDivider(),
           PopupMenuItem(
             value: 'logout',
             child: Row(

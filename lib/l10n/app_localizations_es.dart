@@ -2689,4 +2689,180 @@ class AppLocalizationsEs extends AppLocalizations {
   String resumeSeasonEpisode(int season, int episode) {
     return 'Reanudar T$season E$episode';
   }
+
+  @override
+  String get mySpace => 'Mi espacio';
+
+  @override
+  String get mySpaceSubtitle => 'Tu rincón de la casa';
+
+  @override
+  String get nerdStatsTitle => 'Estadísticas de nerd';
+
+  @override
+  String get nerdStatsSubtitle =>
+      'Números que nadie pidió, pero que a todos nos encantan.';
+
+  @override
+  String get statMoviesWatched => 'Películas vistas';
+
+  @override
+  String get statEpisodesWatched => 'Episodios vistos';
+
+  @override
+  String get statSeriesStarted => 'Series empezadas';
+
+  @override
+  String get statHoursVideo => 'Horas de vídeo';
+
+  @override
+  String get statHoursMusic => 'Horas de música';
+
+  @override
+  String get statSongsPlayed => 'Canciones escuchadas';
+
+  @override
+  String get statBooksRead => 'Libros leídos';
+
+  @override
+  String get statGamesOwned => 'Juegos en biblioteca';
+
+  @override
+  String get statGamesPlayed => 'Juegos jugados';
+
+  @override
+  String get statPlatforms => 'Plataformas';
+
+  @override
+  String get nerdLevel => 'Nivel de nerd';
+
+  @override
+  String nerdPoints(String points) {
+    return '$points XP de nerd';
+  }
+
+  @override
+  String nerdNextLevel(String points) {
+    return '$points XP para el siguiente nivel';
+  }
+
+  @override
+  String get nerdMaxLevel => 'Nivel máximo alcanzado';
+
+  @override
+  String get xpRulesTitle => 'Cómo se gana XP';
+
+  @override
+  String xpRule(String xp, String label) {
+    return '+$xp XP · $label';
+  }
+
+  @override
+  String get xpLabelMovie => 'por película';
+
+  @override
+  String get xpLabelEpisode => 'por episodio';
+
+  @override
+  String get xpLabelSeries => 'por serie';
+
+  @override
+  String get xpLabelSong => 'por canción';
+
+  @override
+  String get xpLabelBook => 'por libro';
+
+  @override
+  String get xpLabelGame => 'por juego jugado';
+
+  @override
+  String get xpLabelGameOwned => 'por juego en biblioteca';
+
+  @override
+  String get xpLabelVideoHour => 'por hora de vídeo';
+
+  @override
+  String get xpLabelMusicHour => 'por hora de música';
+
+  @override
+  String get nerdLevel1 => 'Curioso';
+
+  @override
+  String get nerdLevel2 => 'Entusiasta';
+
+  @override
+  String get nerdLevel3 => 'Maestro del maratón';
+
+  @override
+  String get nerdLevel4 => 'Archivista';
+
+  @override
+  String get nerdLevel5 => 'Leyenda viva';
+
+  @override
+  String get achievementsTitle => 'Logros';
+
+  @override
+  String get achievementLocked => 'Bloqueado';
+
+  @override
+  String get achMarathon => 'Maratoniano';
+
+  @override
+  String get achMarathonDesc => 'Ver 10 horas de vídeo';
+
+  @override
+  String get achCinephile => 'Cinéfilo';
+
+  @override
+  String get achCinephileDesc => 'Ver 50 películas';
+
+  @override
+  String get achBinge => 'Seriófilo';
+
+  @override
+  String get achBingeDesc => 'Ver 100 episodios';
+
+  @override
+  String get achBookworm => 'Ratón de biblioteca';
+
+  @override
+  String get achBookwormDesc => 'Leer 5 libros';
+
+  @override
+  String get achAudiophile => 'Melómano';
+
+  @override
+  String get achAudiophileDesc => 'Escuchar 100 canciones';
+
+  @override
+  String get achRetro => 'Retro gamer';
+
+  @override
+  String get achRetroDesc => 'Jugar 10 juegos';
+
+  @override
+  String get achCollector => 'Coleccionista';
+
+  @override
+  String get achCollectorDesc => 'Tener 100 juegos';
+
+  @override
+  String get achCentury => 'Club de los 100';
+
+  @override
+  String get achCenturyDesc => 'Llegar a 100 horas en total';
+
+  @override
+  String get achJackOfAllTrades => 'Aprendiz de todo';
+
+  @override
+  String get achJackOfAllTradesDesc =>
+      'Tener actividad en todas las categorías';
+
+  @override
+  String get mySpaceLastSeen => 'Visto por última vez';
+
+  @override
+  String get mySpaceServer => 'Servidor';
 }

@@ -19,6 +19,8 @@ import '../application/users_provider.dart';
 String? _seasonalVideoFor(SeasonalEvent? event) => switch (event) {
   SeasonalEvent.halloween => 'assets/images/seasonal/halloween_video.mp4',
   SeasonalEvent.christmas => 'assets/images/seasonal/christmas_video.mp4',
+  SeasonalEvent.valentinesDay => 'assets/images/seasonal/valentines_video.mp4',
+  SeasonalEvent.easter => 'assets/images/seasonal/easter_video.mp4',
   _ => null,
 };
 
@@ -26,13 +28,13 @@ String? _seasonalVideoFor(SeasonalEvent? event) => switch (event) {
 String? _seasonalPosterFor(SeasonalEvent? event) => switch (event) {
   SeasonalEvent.halloween => 'assets/images/seasonal/halloween_user.jpg',
   SeasonalEvent.christmas => 'assets/images/seasonal/christmas_user.jpg',
+  SeasonalEvent.valentinesDay => 'assets/images/seasonal/valentine_user.jpg',
+  SeasonalEvent.easter => 'assets/images/seasonal/easter_user.jpg',
   _ => null,
 };
 
 /// Imagen fija de fondo para las épocas sin vídeo.
 String? _seasonalImageFor(SeasonalEvent? event) => switch (event) {
-  SeasonalEvent.valentinesDay => 'assets/images/seasonal/valentine_user.jpg',
-  SeasonalEvent.easter => 'assets/images/seasonal/easter_user.jpg',
   _ => null,
 };
 
@@ -80,8 +82,8 @@ class UserSelectionScreen extends ConsumerWidget {
     );
 
     // Fondos estacionales añadidos por el usuario: vídeo en bucle en
-    // Halloween/Navidad (con su jpg como póster mientras carga) e imagen fija
-    // en San Valentín/Pascua. Sin época activa se mantiene el degradado.
+    // Halloween/Navidad/San Valentín/Pascua (con su jpg como póster mientras
+    // carga). Sin época activa se mantiene el degradado.
     if (videoAsset != null) {
       return Scaffold(
         body: SizedBox(

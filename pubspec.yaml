@@ -155,6 +155,8 @@ flutter:
     # Audio de las presentaciones de splash por estación
     - assets/audio/halloween_splash_reveal.mp3
     - assets/audio/christmas_splash_reveal.mp3
+    - assets/audio/valentines_splash_reveal.mp3
+    - assets/audio/easter_splash.mp3
     - assets/audio/fx/buttons/
     - assets/audio/themes/
     - assets/video/
@@ -198,6 +200,18 @@ flutter:
     - family: SuperMidnight
       fonts:
         - asset: assets/fonts/Super Midnight.ttf
+    - family: Chrici
+      fonts:
+        - asset: assets/fonts/CHRICI__.TTF
+    - family: Hearrg
+      fonts:
+        - asset: assets/fonts/HEARRG__.TTF
+    - family: BunnyRabbits
+      fonts:
+        - asset: "assets/fonts/Bunny Rabbits.ttf"
+    - family: Eggs
+      fonts:
+        - asset: assets/fonts/EGGS.TTF
 
 # Iconos de lanzamiento (flutter_launcher_icons)
 # Generados con: dart run flutter_launcher_icons

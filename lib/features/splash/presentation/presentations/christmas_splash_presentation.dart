@@ -36,6 +36,14 @@ const SplashPresentation kChristmasSplashPresentation = SplashPresentation(
     Shadow(color: Color(0xCC0B1E3A), blurRadius: 10),
     Shadow(color: Color(0x990B1E3A), blurRadius: 22),
   ],
+  titleFontFamily: 'Chrici',
+  titleFontSize: 155,
+  letterOutlineColor: Color.fromARGB(255, 4, 116, 47),
+  letterOutlineWidth: 0.1,
+  capEnabled: true,
+  capDepth: 0.24,
+  capDripMax: 0.17,
+  capDrips: 6,
   backgroundEffects: [
     christmasBackEffect,
     christmasVillageGlowEffect,
@@ -117,7 +125,8 @@ Widget christmasSantaEffect(BuildContext context, double progress) {
       final bob = 5.0 * math.sin(local * 2 * math.pi * 2.2);
       final top = height * 0.12 + arc + bob;
       // Cabeceo siguiendo el arco (nariz arriba al ascender).
-      final tilt = -0.06 * math.cos(local * math.pi) +
+      final tilt =
+          -0.06 * math.cos(local * math.pi) +
           0.015 * math.sin(local * 2 * math.pi * 2.2);
       // Desvanecido en los extremos.
       final opacity = math
@@ -171,10 +180,7 @@ Widget christmasSnowEffect(BuildContext context, double progress) {
 }
 
 /// Capa de copos grandes y tenues por delante del contenido: da profundidad.
-Widget christmasForegroundSnowEffect(
-  BuildContext context,
-  double progress,
-) {
+Widget christmasForegroundSnowEffect(BuildContext context, double progress) {
   final appear = Curves.easeOut.transform((progress / 0.10).clamp(0.0, 1.0));
   return CustomPaint(
     painter: _SnowPainter(
@@ -225,7 +231,9 @@ class _SnowPainter extends CustomPainter {
       final y = ((startY + speed * progress * 2.4) % 1.0) * size.height;
       // Deriva lateral suave.
       final x =
-          (startX + swayAmplitude * math.sin(progress * 2 * math.pi * swayFreq + phase)) *
+          (startX +
+              swayAmplitude *
+                  math.sin(progress * 2 * math.pi * swayFreq + phase)) *
           size.width;
 
       paint.color = Colors.white.withValues(alpha: alpha);

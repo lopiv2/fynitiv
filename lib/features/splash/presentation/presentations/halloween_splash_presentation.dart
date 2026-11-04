@@ -14,6 +14,9 @@ const String _kHalloweenBackAsset =
 /// `halloween_back` aparece justo después.
 const double _kLightningAt = 0.55;
 
+/// Sangre de Halloween: mismo color que el borde de las letras.
+const Color _kHalloweenBlood = Color.fromARGB(255, 161, 70, 9);
+
 /// Presentación de Halloween: audio propio, paleta naranja/morado, luna y
 /// niebla de fondo, relámpago con flash —tras el que aparece `halloween_back`—
 /// y bandadas de murciélagos.
@@ -44,12 +47,17 @@ const SplashPresentation kHalloweenSplashPresentation = SplashPresentation(
     Shadow(color: Color(0xAA2A0A3E), blurRadius: 24),
   ],
   titleFontFamily: 'SuperMidnight',
-  letterOutlineColor: Color.fromARGB(
-    255,
-    161,
-    70,
-    9,
-  ), // rosa pálido, solo Halloween
+  letterOutlineColor: _kHalloweenBlood,
+  capEnabled: true,
+  capColor: Color.fromARGB(255, 233, 8, 8),
+  capShadowColor: Color(0xCC2A0606),
+  capDepth: 0.14,
+  capDripMax: 0.22,
+  capDrips: 2,
+  capDripsReachBottom: true,
+  capDripSpeed: 0.15,
+  capFallSpeed: 0.1,
+  capAfterCompletion: true,
   backgroundEffects: [
     halloweenBackEffect,
     halloweenFogEffect,

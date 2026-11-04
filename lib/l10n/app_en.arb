@@ -1060,5 +1060,80 @@
       "season": { "type": "int" },
       "episode": { "type": "int" }
     }
-  }
+  },
+  "mySpace": "My space",
+  "mySpaceSubtitle": "Your corner of the house",
+  "nerdStatsTitle": "Nerd stats",
+  "nerdStatsSubtitle": "Numbers nobody asked for, but everyone secretly loves.",
+  "statMoviesWatched": "Movies watched",
+  "statEpisodesWatched": "Episodes watched",
+  "statSeriesStarted": "Series started",
+  "statHoursVideo": "Hours of video",
+  "statHoursMusic": "Hours of music",
+  "statSongsPlayed": "Songs played",
+  "statBooksRead": "Books read",
+  "statGamesOwned": "Games in library",
+  "statGamesPlayed": "Games played",
+  "statPlatforms": "Platforms",
+  "nerdLevel": "Nerd level",
+  "nerdPoints": "{points} nerd XP",
+  "@nerdPoints": {
+    "description": "Nerd XP accumulated from all activity.",
+    "placeholders": {
+      "points": { "type": "String" }
+    }
+  },
+  "nerdNextLevel": "{points} XP to the next level",
+  "@nerdNextLevel": {
+    "description": "Remaining XP to reach the next level.",
+    "placeholders": {
+      "points": { "type": "String" }
+    }
+  },
+  "nerdMaxLevel": "Maximum level reached",
+  "xpRulesTitle": "How XP is earned",
+  "xpRule": "+{xp} XP · {label}",
+  "@xpRule": {
+    "description": "XP rate line, e.g. +50 XP · per movie.",
+    "placeholders": {
+      "xp": { "type": "String" },
+      "label": { "type": "String" }
+    }
+  },
+  "xpLabelMovie": "per movie",
+  "xpLabelEpisode": "per episode",
+  "xpLabelSeries": "per series",
+  "xpLabelSong": "per song",
+  "xpLabelBook": "per book",
+  "xpLabelGame": "per game played",
+  "xpLabelGameOwned": "per game owned",
+  "xpLabelVideoHour": "per hour of video",
+  "xpLabelMusicHour": "per hour of music",
+  "nerdLevel1": "Curious",
+  "nerdLevel2": "Enthusiast",
+  "nerdLevel3": "Binge master",
+  "nerdLevel4": "Archivist",
+  "nerdLevel5": "Living legend",
+  "achievementsTitle": "Achievements",
+  "achievementLocked": "Locked",
+  "achMarathon": "Marathoner",
+  "achMarathonDesc": "Watch 10 hours of video",
+  "achCinephile": "Cinephile",
+  "achCinephileDesc": "Watch 50 movies",
+  "achBinge": "Binge watcher",
+  "achBingeDesc": "Watch 100 episodes",
+  "achBookworm": "Bookworm",
+  "achBookwormDesc": "Read 5 books",
+  "achAudiophile": "Audiophile",
+  "achAudiophileDesc": "Listen to 100 songs",
+  "achRetro": "Retro gamer",
+  "achRetroDesc": "Play 10 games",
+  "achCollector": "Collector",
+  "achCollectorDesc": "Own 100 games",
+  "achCentury": "Century club",
+  "achCenturyDesc": "Reach 100 hours in total",
+  "achJackOfAllTrades": "Jack of all trades",
+  "achJackOfAllTradesDesc": "Have activity in every category",
+  "mySpaceLastSeen": "Last seen",
+  "mySpaceServer": "Server"
 }

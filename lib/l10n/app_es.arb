@@ -1057,5 +1057,80 @@
       "season": { "type": "int" },
       "episode": { "type": "int" }
     }
-  }
+  },
+  "mySpace": "Mi espacio",
+  "mySpaceSubtitle": "Tu rincón de la casa",
+  "nerdStatsTitle": "Estadísticas de nerd",
+  "nerdStatsSubtitle": "Números que nadie pidió, pero que a todos nos encantan.",
+  "statMoviesWatched": "Películas vistas",
+  "statEpisodesWatched": "Episodios vistos",
+  "statSeriesStarted": "Series empezadas",
+  "statHoursVideo": "Horas de vídeo",
+  "statHoursMusic": "Horas de música",
+  "statSongsPlayed": "Canciones escuchadas",
+  "statBooksRead": "Libros leídos",
+  "statGamesOwned": "Juegos en biblioteca",
+  "statGamesPlayed": "Juegos jugados",
+  "statPlatforms": "Plataformas",
+  "nerdLevel": "Nivel de nerd",
+  "nerdPoints": "{points} XP de nerd",
+  "@nerdPoints": {
+    "description": "XP de nerd acumulada con toda la actividad.",
+    "placeholders": {
+      "points": { "type": "String" }
+    }
+  },
+  "nerdNextLevel": "{points} XP para el siguiente nivel",
+  "@nerdNextLevel": {
+    "description": "XP que faltan para el siguiente nivel.",
+    "placeholders": {
+      "points": { "type": "String" }
+    }
+  },
+  "nerdMaxLevel": "Nivel máximo alcanzado",
+  "xpRulesTitle": "Cómo se gana XP",
+  "xpRule": "+{xp} XP · {label}",
+  "@xpRule": {
+    "description": "Línea de tasa de XP, ej. +50 XP · por película.",
+    "placeholders": {
+      "xp": { "type": "String" },
+      "label": { "type": "String" }
+    }
+  },
+  "xpLabelMovie": "por película",
+  "xpLabelEpisode": "por episodio",
+  "xpLabelSeries": "por serie",
+  "xpLabelSong": "por canción",
+  "xpLabelBook": "por libro",
+  "xpLabelGame": "por juego jugado",
+  "xpLabelGameOwned": "por juego en biblioteca",
+  "xpLabelVideoHour": "por hora de vídeo",
+  "xpLabelMusicHour": "por hora de música",
+  "nerdLevel1": "Curioso",
+  "nerdLevel2": "Entusiasta",
+  "nerdLevel3": "Maestro del maratón",
+  "nerdLevel4": "Archivista",
+  "nerdLevel5": "Leyenda viva",
+  "achievementsTitle": "Logros",
+  "achievementLocked": "Bloqueado",
+  "achMarathon": "Maratoniano",
+  "achMarathonDesc": "Ver 10 horas de vídeo",
+  "achCinephile": "Cinéfilo",
+  "achCinephileDesc": "Ver 50 películas",
+  "achBinge": "Seriófilo",
+  "achBingeDesc": "Ver 100 episodios",
+  "achBookworm": "Ratón de biblioteca",
+  "achBookwormDesc": "Leer 5 libros",
+  "achAudiophile": "Melómano",
+  "achAudiophileDesc": "Escuchar 100 canciones",
+  "achRetro": "Retro gamer",
+  "achRetroDesc": "Jugar 10 juegos",
+  "achCollector": "Coleccionista",
+  "achCollectorDesc": "Tener 100 juegos",
+  "achCentury": "Club de los 100",
+  "achCenturyDesc": "Llegar a 100 horas en total",
+  "achJackOfAllTrades": "Aprendiz de todo",
+  "achJackOfAllTradesDesc": "Tener actividad en todas las categorías",
+  "mySpaceLastSeen": "Visto por última vez",
+  "mySpaceServer": "Servidor"
 }

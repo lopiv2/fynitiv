@@ -58,6 +58,8 @@ void main() async {
       // Presentaciones estacionales (el cambio de estación suena sin delay).
       'audio/halloween_splash_reveal.mp3',
       'audio/christmas_splash_reveal.mp3',
+      'audio/valentines_splash_reveal.mp3',
+      'audio/easter_splash.mp3',
     ]);
   } catch (_) {}
   unawaited(

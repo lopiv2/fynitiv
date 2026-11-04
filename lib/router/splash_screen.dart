@@ -34,8 +34,69 @@ class SplashScreen extends ConsumerStatefulWidget {
 }
 
 class _SplashScreenState extends ConsumerState<SplashScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   static const String _title = 'FYNITIV';
+  static const Duration _dripCycleDuration = Duration(milliseconds: 1800);
+  late final List<GlobalKey> _letterKeys = List.generate(
+    _title.length,
+    (_) => GlobalKey(),
+  );
+  final GlobalKey _bloodRainOverlayKey = GlobalKey();
+
+  int get _dripCycleIndex {
+    final duration = _dripController.duration ?? _dripCycleDuration;
+    return (_dripController.lastElapsedDuration?.inMicroseconds ?? 0) ~/
+        duration.inMicroseconds;
+  }
+
+  /// Factor de velocidad acotado (menor = más lento, mayor = más rápido).
+  static double _speedFactor(double speed) => speed.clamp(0.05, 4.0).toDouble();
+
+  /// Crecimiento del capdrip dentro de la letra (fracción base 0.42..0.70).
+  static double _capGrowBase(int seed) => 0.42 + _variation(seed, 71) * 0.28;
+
+  /// Caída de la gota ya desprendida (fracción base 0.20..0.38).
+  static double _capFallBase(int seed) => 0.20 + _variation(seed, 83) * 0.18;
+
+  /// Escala del ciclo: cubre el capdrip más lento y la gota más lenta, de modo
+  /// que ambos ritmos sean independientes y nadie se reinicie a mitad.
+  static double _dripCycleScale(double dripSpeed, double fallSpeed) =>
+      (0.70 / _speedFactor(dripSpeed) + 0.38 / _speedFactor(fallSpeed))
+          .clamp(0.5, 40.0)
+          .toDouble();
+
+  static Duration _dripDurationFor(double dripSpeed, double fallSpeed) =>
+      Duration(
+        microseconds:
+            (_dripCycleDuration.inMicroseconds *
+                    _dripCycleScale(dripSpeed, fallSpeed))
+                .round(),
+      );
+
+  static int _capSeedFor(int letterIndex, int cycleIndex) =>
+      1009 + letterIndex * 7919 + cycleIndex * 104729;
+
+  static double _variation(int seed, int salt) {
+    var value = (seed * 1103515245 + 12345 + salt * 2654435761) & 0x7fffffff;
+    value ^= value >> 13;
+    value = (value * 1274126177) & 0x7fffffff;
+    return (value & 0x7fffffff) / 0x7fffffff;
+  }
+
+  List<double>? _capDripProgresses(int letterIndex, int cycleIndex) {
+    if (!_presentation.capDripsReachBottom) return null;
+    final letterSeed = _capSeedFor(letterIndex, cycleIndex);
+    final scale = _dripCycleScale(
+      _presentation.capDripSpeed,
+      _presentation.capFallSpeed,
+    );
+    final dripSpeed = _speedFactor(_presentation.capDripSpeed);
+    return List<double>.generate(_presentation.capDrips, (dropIndex) {
+      final seed = letterSeed ^ (dropIndex * 0x45d9f3b);
+      final grow = (_capGrowBase(seed) / dripSpeed) / scale;
+      return (_dripController.value / grow).clamp(0.0, 1.0).toDouble();
+    });
+  }
 
   /// Duración total de la animación en segundos (sincronizada con el audio logo).
   static const double _totalSeconds = 13;
@@ -98,10 +159,16 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   /// "Anything") — definido por la presentación estacional activa.
 
   late final AnimationController _controller;
+  late final AnimationController _dripController;
   late final SoloudSinglePlayer _audioPlayer;
 
   /// Presentación estacional activa (se reevalúa en cada build).
   late SplashPresentation _presentation;
+  List<_BloodGlyphMetrics> _bloodGlyphMetrics = const [];
+  String? _bloodMetricsFontFamily;
+  double? _bloodMetricsFontSize;
+  TextScaler? _bloodMetricsTextScaler;
+  TextDirection? _bloodMetricsTextDirection;
 
   @override
   void initState() {
@@ -111,18 +178,36 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       vsync: this,
       duration: const Duration(seconds: 13),
     );
+    _dripController = AnimationController(
+      vsync: this,
+      duration: _dripCycleDuration,
+    );
     _presentation = splashPresentationFor(
       ref.read(activeSeasonalEventProvider),
     );
+    _controller.addStatusListener(_onPresentationStatusChanged);
     _controller.forward();
     _playAudio();
   }
 
   @override
   void dispose() {
+    _controller.removeStatusListener(_onPresentationStatusChanged);
     _controller.dispose();
+    _dripController.dispose();
     _audioPlayer.dispose();
     super.dispose();
+  }
+
+  void _onPresentationStatusChanged(AnimationStatus status) {
+    if (status == AnimationStatus.completed &&
+        _presentation.capAfterCompletion) {
+      _dripController.duration = _dripDurationFor(
+        _presentation.capDripSpeed,
+        _presentation.capFallSpeed,
+      );
+      _dripController.repeat();
+    }
   }
 
   /// Reproduce el audio de la presentación activa.
@@ -133,6 +218,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
   /// Reinicia la animación y el audio desde cero con la presentación actual.
   void _replay() {
+    _dripController
+      ..stop()
+      ..value = 0;
     _controller
       ..reset()
       ..forward();
@@ -148,6 +236,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) {
     final event = ref.watch(activeSeasonalEventProvider);
     _presentation = splashPresentationFor(event);
+    _ensureBloodGlyphMetrics(context);
 
     // Al cambiar la estación (calendario o selector de debug) se reinicia la
     // presentación y suena el audio de la nueva estación.
@@ -262,37 +351,144 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               );
             },
           ),
+          Positioned.fill(
+            child: AnimatedBuilder(
+              animation: _dripController,
+              builder: (context, _) {
+                if (!_presentation.capAfterCompletion ||
+                    !_controller.isCompleted) {
+                  return const SizedBox.shrink();
+                }
+                return IgnorePointer(
+                  child: CustomPaint(
+                    key: _bloodRainOverlayKey,
+                    painter: _BloodRainPainter(
+                      letterKeys: _letterKeys,
+                      overlayKey: _bloodRainOverlayKey,
+                      glyphMetrics: _bloodGlyphMetrics,
+                      progress: _dripController.value,
+                      cycleIndex: _dripCycleIndex,
+                      color: _presentation.capColor,
+                      capDepth: _presentation.capDepth,
+                      capDrips: _presentation.capDrips,
+                      dripSpeed: _presentation.capDripSpeed,
+                      fallSpeed: _presentation.capFallSpeed,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 
+  void _ensureBloodGlyphMetrics(BuildContext context) {
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textDirection = Directionality.of(context);
+    if (_bloodMetricsFontFamily == _presentation.titleFontFamily &&
+        _bloodMetricsFontSize == _presentation.titleFontSize &&
+        _bloodMetricsTextScaler == textScaler &&
+        _bloodMetricsTextDirection == textDirection &&
+        _bloodGlyphMetrics.length == _title.length) {
+      return;
+    }
+
+    _bloodMetricsFontFamily = _presentation.titleFontFamily;
+    _bloodMetricsFontSize = _presentation.titleFontSize;
+    _bloodMetricsTextScaler = textScaler;
+    _bloodMetricsTextDirection = textDirection;
+    _bloodGlyphMetrics = [
+      for (final letter in _title.split(''))
+        _measureBloodGlyph(
+          letter: letter,
+          fontFamily: _presentation.titleFontFamily,
+          fontSize: _presentation.titleFontSize,
+          textScaler: textScaler,
+          textDirection: textDirection,
+        ),
+    ];
+  }
+
+  _BloodGlyphMetrics _measureBloodGlyph({
+    required String letter,
+    required String? fontFamily,
+    required double fontSize,
+    required TextScaler textScaler,
+    required TextDirection textDirection,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: letter,
+        style: TextStyle(
+          fontFamily: fontFamily,
+          fontSize: fontSize,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 4,
+        ),
+      ),
+      textDirection: textDirection,
+      textScaler: textScaler,
+    )..layout();
+    final line = painter.computeLineMetrics().first;
+    return _BloodGlyphMetrics(
+      width: painter.width,
+      height: painter.height,
+      baseline: line.baseline,
+    );
+  }
+
   /// Fila con cada letra del título rotando desde el perfil hasta frontal.
-  Widget _buildLetters() {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        for (var i = 0; i < _title.length; i++)
-          _LetterTile(
-            letter: _title[i],
-            angle: _letterAngle(i),
-            gradient: _presentation.letterGradient(i, _title.length),
-            fontFamily: _presentation.titleFontFamily,
-            letterOutlineColor: _presentation.letterOutlineColor,
-            extrusionDark: _presentation.extrusionDark,
-            extrusionLight: _presentation.extrusionLight,
-            glowColor: _presentation.glowColor,
-            flareAsset: _presentation.flareAsset,
-            snowEnabled: _presentation.id == 'christmas',
-            snowSeed: 1009 + i * 7919,
-            snowMelt:
-                0.5 + 0.18 * math.sin(_controller.value * 2 * math.pi * 1.5),
-            glow: i == _title.length - 1 ? _endGlowValue : 0,
-            flareOpacity: i == _title.length - 1 ? _flareOpacity : 0,
-            flareScale: i == _title.length - 1 ? _flareScale : 0,
-            flareRotation: i == _title.length - 1 ? _flareRotation : 0,
-          ),
-      ],
+  Widget _buildLetters({bool attachRainKeys = true}) {
+    return AnimatedBuilder(
+      animation: _dripController,
+      builder: (context, _) {
+        final capStarted =
+            !_presentation.capAfterCompletion || _controller.isCompleted;
+        final dripCycleIndex = _dripCycleIndex;
+        final capMelt = _presentation.capAfterCompletion
+            ? (_presentation.capDripsReachBottom ? 1.0 : _dripController.value)
+            : 0.5 + 0.18 * math.sin(_controller.value * 2 * math.pi * 1.5);
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (var i = 0; i < _title.length; i++)
+              _LetterTile(
+                faceKey: attachRainKeys ? _letterKeys[i] : null,
+                letter: _title[i],
+                angle: _letterAngle(i),
+                gradient: _presentation.letterGradient(i, _title.length),
+                fontFamily: _presentation.titleFontFamily,
+                fontSize: _presentation.titleFontSize,
+                capEnabled: _presentation.capEnabled && capStarted,
+                capColor: _presentation.capColor,
+                capShadowColor: _presentation.capShadowColor,
+                capDepth: _presentation.capDepth,
+                capDripMax: _presentation.capDripMax,
+                capDrips: _presentation.capDrips,
+                capDripsReachBottom: _presentation.capDripsReachBottom,
+                capDripBottomRatio: _presentation.capDripsReachBottom
+                    ? _bloodGlyphMetrics[i].baseline /
+                          _bloodGlyphMetrics[i].height
+                    : null,
+                capDripProgresses: _capDripProgresses(i, dripCycleIndex),
+                letterOutlineColor: _presentation.letterOutlineColor,
+                letterOutlineWidth: _presentation.letterOutlineWidth,
+                extrusionDark: _presentation.extrusionDark,
+                extrusionLight: _presentation.extrusionLight,
+                glowColor: _presentation.glowColor,
+                flareAsset: _presentation.flareAsset,
+                capSeed: _capSeedFor(i, dripCycleIndex),
+                capMelt: capMelt,
+                glow: i == _title.length - 1 ? _endGlowValue : 0,
+                flareOpacity: i == _title.length - 1 ? _flareOpacity : 0,
+                flareScale: i == _title.length - 1 ? _flareScale : 0,
+                flareRotation: i == _title.length - 1 ? _flareRotation : 0,
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -322,7 +518,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ],
           ).createShader(bounds);
         },
-        child: _buildLetters(),
+        // El brillo dibuja una segunda copia del título. Esa copia no debe
+        // compartir las GlobalKey que usa la capa de gotas para medir la base.
+        child: _buildLetters(attachRainKeys: false),
       ),
     );
   }
@@ -636,12 +834,23 @@ class _LetterTile extends StatelessWidget {
     required this.extrusionLight,
     required this.glowColor,
     required this.flareAsset,
-    required this.snowEnabled,
-    required this.snowSeed,
-    required this.snowMelt,
+    required this.capEnabled,
+    required this.capSeed,
+    required this.capMelt,
     this.gradient,
+    this.faceKey,
     this.fontFamily,
+    this.fontSize = 160.0,
+    this.capColor = const Color(0xFFF4FAFF),
+    this.capShadowColor = const Color(0xCC183451),
+    this.capDepth = 0.30,
+    this.capDripMax = 0.13,
+    this.capDrips = 3,
+    this.capDripsReachBottom = false,
+    this.capDripBottomRatio,
+    this.capDripProgresses,
     this.letterOutlineColor = Colors.white,
+    this.letterOutlineWidth = 3.5,
     this.glow = 0,
     this.flareOpacity = 0,
     this.flareScale = 0,
@@ -661,23 +870,56 @@ class _LetterTile extends StatelessWidget {
   /// Asset del destello (flare) final.
   final String flareAsset;
 
-  /// Nieve derretida, activa solo para la presentación navideña.
-  final bool snowEnabled;
+  /// Casquete líquido sobre la letra (nieve, sangre...).
+  final bool capEnabled;
 
   /// Semilla independiente para que cada glifo tenga chorretes propios.
-  final int snowSeed;
+  final int capSeed;
 
-  /// Fase sutil del deshielo, conducida por el clock común de la splash.
-  final double snowMelt;
+  /// Fase sutil del goteo/deshielo, conducida por el clock común de la splash.
+  final double capMelt;
 
   /// Degradado vertical de la cara frontal de la letra.
   final LinearGradient? gradient;
 
+  /// Clave solo para medir la tinta frontal, no la extrusión/sombra.
+  final GlobalKey? faceKey;
+
   /// Familia tipográfica del título (viene de la presentación estacional).
   final String? fontFamily;
 
+  /// Tamaño de la letra (viene de la presentación estacional).
+  final double fontSize;
+
+  /// Franja superior del casquete (viene de la presentación).
+  final double capDepth;
+
+  /// Longitud máxima de los chorretes del casquete (viene de la presentación).
+  final double capDripMax;
+
+  /// Número de chorretes del casquete por letra (viene de la presentación).
+  final int capDrips;
+
+  /// Extiende el extremo de cada capdrip hasta el baseline visible.
+  final bool capDripsReachBottom;
+
+  /// Baseline del glifo como fracción de la altura del texto.
+  final double? capDripBottomRatio;
+
+  /// Progreso individual de cada capdrip (0..1), si crecen a ritmos distintos.
+  final List<double>? capDripProgresses;
+
+  /// Color del casquete (viene de la presentación).
+  final Color capColor;
+
+  /// Sombra bajo el casquete (viene de la presentación).
+  final Color capShadowColor;
+
   /// Color del borde (outline) de la letra (viene de la presentación).
   final Color letterOutlineColor;
+
+  /// Grosor del borde (outline) de la letra (viene de la presentación).
+  final double letterOutlineWidth;
 
   /// Intensidad 0→1 del glow que envuelve la letra (usado en la última "V").
   final double glow;
@@ -742,29 +984,32 @@ class _LetterTile extends StatelessWidget {
               ),
             // Cara frontal con el degradado vertical de la letra. Lleva
             // outline blanco.
-            _face(gradient: gradient, outline: true),
-            if (snowEnabled)
+            _face(gradient: gradient, outline: true, textKey: faceKey),
+            if (capEnabled)
               Positioned.fill(
                 child: IgnorePointer(
                   child: ClipPath(
                     clipper: SnowDripClipper(
-                      seed: snowSeed,
-                      depth: 0.30,
-                      dripMax: 0.13,
-                      drips: 3,
-                      melt: snowMelt,
+                      seed: capSeed,
+                      depth: capDepth,
+                      dripMax: capDripMax,
+                      drips: capDrips,
+                      melt: capMelt,
+                      dripsReachBottom: capDripsReachBottom,
+                      dripBottomRatio: capDripBottomRatio,
+                      dripProgresses: capDripProgresses,
                     ),
                     child: Text(
                       letter,
                       style: TextStyle(
-                        color: const Color(0xFFF4FAFF),
+                        color: capColor,
                         fontFamily: fontFamily,
-                        fontSize: 160,
+                        fontSize: fontSize,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 4,
-                        shadows: const [
+                        shadows: [
                           Shadow(
-                            color: Color(0xCC183451),
+                            color: capShadowColor,
                             blurRadius: 8,
                             offset: Offset(0, 3),
                           ),
@@ -807,13 +1052,19 @@ class _LetterTile extends StatelessWidget {
 
   /// Dibuja la letra con un color sólido o un degradado y, opcionalmente, un
   /// outline blanco con un leve brillo que solo cubre la letra (no el relieve).
-  Widget _face({Color? color, LinearGradient? gradient, bool outline = false}) {
+  Widget _face({
+    Color? color,
+    LinearGradient? gradient,
+    bool outline = false,
+    GlobalKey? textKey,
+  }) {
     final filled = Text(
       letter,
+      key: textKey,
       style: TextStyle(
         color: color ?? Colors.white,
         fontFamily: fontFamily,
-        fontSize: 160,
+        fontSize: fontSize,
         fontWeight: FontWeight.w800,
         letterSpacing: 4,
         shadows: const [
@@ -845,12 +1096,12 @@ class _LetterTile extends StatelessWidget {
           letter,
           style: TextStyle(
             fontFamily: fontFamily,
-            fontSize: 160,
+            fontSize: fontSize,
             fontWeight: FontWeight.w800,
             letterSpacing: 4,
             foreground: Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 3.5
+              ..strokeWidth = letterOutlineWidth
               ..color = letterOutlineColor,
             shadows: [
               Shadow(
@@ -864,4 +1115,277 @@ class _LetterTile extends StatelessWidget {
       ],
     );
   }
+}
+
+/// Gotas visibles que recorren la cara frontal de las letras tras la intro.
+/// Cada gota deja un rastro corto y reinicia su caída con un desfase propio.
+/// Gotas de sangre que caen desde el borde inferior de las letras hasta el
+/// borde inferior de la ventana. Las posiciones de origen se obtienen de las
+/// cajas reales del título, por lo que siguen el layout y el escalado del logo.
+class _BloodRainPainter extends CustomPainter {
+  const _BloodRainPainter({
+    required this.letterKeys,
+    required this.overlayKey,
+    required this.glyphMetrics,
+    required this.progress,
+    required this.cycleIndex,
+    required this.color,
+    required this.capDepth,
+    required this.capDrips,
+    required this.dripSpeed,
+    required this.fallSpeed,
+  });
+
+  final List<GlobalKey> letterKeys;
+  final GlobalKey overlayKey;
+  final List<_BloodGlyphMetrics> glyphMetrics;
+  final double progress;
+  final int cycleIndex;
+  final Color color;
+  final double capDepth;
+  final int capDrips;
+  final double dripSpeed;
+  final double fallSpeed;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final overlayObject = overlayKey.currentContext?.findRenderObject();
+    if (overlayObject is! RenderBox || !overlayObject.attached) return;
+    final overlayOrigin = overlayObject.localToGlobal(Offset.zero);
+    final cycleScale = _SplashScreenState._dripCycleScale(dripSpeed, fallSpeed);
+    final dripSpeedFactor = _SplashScreenState._speedFactor(dripSpeed);
+    final fallSpeedFactor = _SplashScreenState._speedFactor(fallSpeed);
+
+    for (var letterIndex = 0; letterIndex < letterKeys.length; letterIndex++) {
+      final letterObject = letterKeys[letterIndex].currentContext
+          ?.findRenderObject();
+      if (letterObject is! RenderBox || !letterObject.attached) continue;
+      if (letterIndex >= glyphMetrics.length) continue;
+      final metrics = glyphMetrics[letterIndex];
+      final baselineLeft =
+          letterObject.localToGlobal(Offset(0, metrics.baseline)) -
+          overlayOrigin;
+      final baselineRight =
+          letterObject.localToGlobal(Offset(metrics.width, metrics.baseline)) -
+          overlayOrigin;
+      final textWidth = (baselineRight - baselineLeft).distance;
+      final capSeed = _SplashScreenState._capSeedFor(letterIndex, cycleIndex);
+      final random = math.Random(capSeed);
+      final capPhase = (capSeed % 17) * 0.37;
+      final baseY = metrics.height * capDepth;
+
+      for (var dropIndex = 0; dropIndex < capDrips; dropIndex++) {
+        // Mantiene exactamente el centro/anchura aleatorios que usa
+        // buildSnowDripPath para que la gota caiga desde el mismo capdrip.
+        final jitter = (random.nextDouble() - 0.5) * (0.7 / capDrips);
+        final centerFraction = (dropIndex + 0.5) / capDrips + jitter;
+        final halfWidth = metrics.width * (0.035 + random.nextDouble() * 0.05);
+        random
+            .nextDouble(); // longitud del clipper, consumida para mantener la semilla alineada.
+
+        final seed = capSeed ^ (dropIndex * 0x45d9f3b);
+        final growBase = _SplashScreenState._capGrowBase(seed);
+        final fallBase = _SplashScreenState._capFallBase(seed);
+        final grow = (growBase / dripSpeedFactor) / cycleScale;
+        final fall = (fallBase / fallSpeedFactor) / cycleScale;
+        final fallEndsAt = (grow + fall).clamp(grow + 0.02, 0.995);
+        final dropSpeed = 0.55 + _variation(seed, 17) * 1.30;
+        final sizeFactor = 0.70 + _variation(seed, 59) * 0.90;
+        final swayAmount = 2.0 + _variation(seed, 43) * 8.0;
+        final swayPhase = _variation(seed, 47) * math.pi * 2;
+        final wave =
+            math.sin(centerFraction * math.pi * 3 + capPhase) *
+            metrics.height *
+            0.012;
+        final localX = centerFraction * metrics.width;
+        final localEdgeY = baseY + wave;
+        final edge =
+            letterObject.localToGlobal(Offset(localX, localEdgeY)) -
+            overlayOrigin;
+        final baseline =
+            letterObject.localToGlobal(Offset(localX, metrics.baseline)) -
+            overlayOrigin;
+
+        // El capdrip recortado crece durante esta fase. Al llegar al baseline,
+        // comienza la caída exterior desde el mismo extremo.
+        if (progress < grow) continue;
+        final rawFall = (progress - grow) / (fallEndsAt - grow);
+        final fallProgress = math
+            .pow(
+              Curves.easeInCubic.transform(rawFall.clamp(0.0, 1.0)),
+              1 / dropSpeed,
+            )
+            .toDouble();
+        final width = (halfWidth * 2 * (textWidth / metrics.width) * sizeFactor)
+            .clamp(3.5, 18.0)
+            .toDouble();
+        final swayProgress = Curves.easeOut.transform(rawFall.clamp(0.0, 1.0));
+        final sway =
+            math.sin(progress * math.pi * 2 + swayPhase) *
+            swayAmount *
+            swayProgress;
+        final x = edge.dx + sway;
+
+        if (progress < fallEndsAt) {
+          final bodyGrowth = Curves.easeOut.transform(fallProgress);
+          final bodyWidth = width * (0.48 + bodyGrowth * 0.52);
+          final bodyHeight = bodyWidth * 1.75;
+          final dropTipY =
+              baseline.dy +
+              (size.height - bodyHeight * 1.22 - baseline.dy) * fallProgress;
+          final dropCenterY = dropTipY + bodyHeight * 0.56;
+          final thread = Path()
+            ..moveTo(baseline.dx, baseline.dy)
+            ..cubicTo(
+              baseline.dx + sway * 0.25,
+              baseline.dy + bodyHeight * 0.16,
+              x - sway * 0.20,
+              dropTipY + bodyHeight * 0.04,
+              x,
+              dropTipY,
+            );
+          canvas.drawPath(
+            thread,
+            Paint()
+              ..color = color.withValues(alpha: 0.28)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = math.max(0.8, width * 0.10)
+              ..strokeCap = StrokeCap.round,
+          );
+          _drawFallingMucus(
+            canvas,
+            center: Offset(x, dropCenterY),
+            width: bodyWidth,
+          );
+        } else {
+          final impactAge = ((progress - fallEndsAt) / (1 - fallEndsAt)).clamp(
+            0.0,
+            1.0,
+          );
+          final opacity = (1 - impactAge).clamp(0.0, 1.0);
+          canvas.drawOval(
+            Rect.fromCenter(
+              center: Offset(x, size.height - 3),
+              width: width * (0.8 + impactAge * 1.8),
+              height: width * (0.16 + (1 - impactAge) * 0.2),
+            ),
+            Paint()..color = color.withValues(alpha: 0.72 * opacity),
+          );
+        }
+      }
+    }
+  }
+
+  /// Pseudoaleatorio reproducible por gota y atributo, sin cambios entre frames.
+  double _variation(int seed, int salt) {
+    var value = (seed * 1103515245 + 12345 + salt * 2654435761) & 0x7fffffff;
+    value ^= value >> 13;
+    value = (value * 1274126177) & 0x7fffffff;
+    return (value & 0x7fffffff) / 0x7fffffff;
+  }
+
+  void _drawFallingMucus(
+    Canvas canvas, {
+    required Offset center,
+    required double width,
+  }) {
+    final height = width * 1.75;
+    final tailLength = width * 0.75;
+    final tail = Path()
+      ..moveTo(center.dx, center.dy - height * 0.42 - tailLength)
+      ..quadraticBezierTo(
+        center.dx - width * 0.08,
+        center.dy - height * 0.55,
+        center.dx,
+        center.dy - height * 0.34,
+      )
+      ..quadraticBezierTo(
+        center.dx + width * 0.08,
+        center.dy - height * 0.55,
+        center.dx,
+        center.dy - height * 0.42 - tailLength,
+      )
+      ..close();
+    _drawGlossyPath(canvas, tail);
+
+    // Gota con punta arriba y cuerpo redondeado abajo, estirada por la caída.
+    final drop = Path()
+      ..moveTo(center.dx, center.dy - height * 0.56)
+      ..cubicTo(
+        center.dx - width * 0.08,
+        center.dy - height * 0.20,
+        center.dx - width * 0.52,
+        center.dy + height * 0.08,
+        center.dx - width * 0.38,
+        center.dy + height * 0.34,
+      )
+      ..cubicTo(
+        center.dx - width * 0.18,
+        center.dy + height * 0.66,
+        center.dx + width * 0.34,
+        center.dy + height * 0.61,
+        center.dx + width * 0.43,
+        center.dy + height * 0.30,
+      )
+      ..cubicTo(
+        center.dx + width * 0.55,
+        center.dy - height * 0.02,
+        center.dx + width * 0.10,
+        center.dy - height * 0.22,
+        center.dx,
+        center.dy - height * 0.56,
+      )
+      ..close();
+    _drawGlossyPath(canvas, drop);
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset(center.dx - width * 0.14, center.dy + height * 0.18),
+        width: width * 0.16,
+        height: height * 0.22,
+      ),
+      Paint()..color = Colors.white.withValues(alpha: 0.52),
+    );
+  }
+
+  void _drawGlossyPath(Canvas canvas, Path path) {
+    final bounds = path.getBounds();
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [
+            Color.lerp(color, Colors.white, 0.28)!,
+            color,
+            Color.lerp(color, Colors.black, 0.30)!,
+          ],
+          stops: const [0.0, 0.48, 1.0],
+        ).createShader(bounds),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _BloodRainPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.cycleIndex != cycleIndex ||
+      oldDelegate.color != color ||
+      oldDelegate.capDepth != capDepth ||
+      oldDelegate.capDrips != capDrips ||
+      oldDelegate.letterKeys != letterKeys ||
+      oldDelegate.overlayKey != overlayKey ||
+      oldDelegate.glyphMetrics != glyphMetrics;
+}
+
+class _BloodGlyphMetrics {
+  const _BloodGlyphMetrics({
+    required this.width,
+    required this.height,
+    required this.baseline,
+  });
+
+  final double width;
+  final double height;
+  final double baseline;
 }

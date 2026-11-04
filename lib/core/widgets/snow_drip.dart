@@ -27,6 +27,9 @@ Path buildSnowDripPath(
   double dripMax = 0.14,
   int drips = 5,
   double melt = 0.0,
+  bool dripsReachBottom = false,
+  double? dripBottomRatio,
+  List<double>? dripProgresses,
 }) {
   final width = size.width;
   final height = size.height;
@@ -35,6 +38,7 @@ Path buildSnowDripPath(
 
   final rnd = math.Random(seed);
   final baseY = (depth * height).clamp(0.0, height);
+  final phase = (seed % 17) * 0.37;
 
   // Chorretes: posición, anchura y longitud deterministas por semilla.
   final specs = <_SnowDrip>[];
@@ -42,15 +46,22 @@ Path buildSnowDripPath(
     final jitter = (rnd.nextDouble() - 0.5) * (0.7 / drips);
     final center = ((i + 0.5) / drips + jitter) * width;
     final halfWidth = width * (0.035 + rnd.nextDouble() * 0.05);
-    final length =
-        height *
-        dripMax *
-        (0.45 + rnd.nextDouble() * 0.8) *
-        (0.75 + 0.5 * melt.clamp(0.0, 1.0));
+    final lengthVariation = rnd.nextDouble();
+    final edgeY =
+        baseY +
+        math.sin(center / width * math.pi * 3.0 + phase) * height * 0.012;
+    final dripProgress = i < (dripProgresses?.length ?? 0)
+        ? dripProgresses![i]
+        : melt;
+    final length = dripsReachBottom
+        ? ((height * (dripBottomRatio ?? 1.0) - edgeY).clamp(0.0, height) *
+              dripProgress.clamp(0.0, 1.0))
+        : height *
+              dripMax *
+              (0.45 + lengthVariation * 0.8) *
+              (0.75 + 0.5 * melt.clamp(0.0, 1.0));
     specs.add(_SnowDrip(center, halfWidth, length));
   }
-
-  final phase = (seed % 17) * 0.37;
 
   path
     ..moveTo(0, 0)
@@ -181,6 +192,9 @@ class SnowDripClipper extends CustomClipper<Path> {
     this.depth = 0.30,
     this.dripMax = 0.14,
     this.drips = 3,
+    this.dripsReachBottom = false,
+    this.dripBottomRatio,
+    this.dripProgresses,
   });
 
   final int seed;
@@ -188,6 +202,9 @@ class SnowDripClipper extends CustomClipper<Path> {
   final double depth;
   final double dripMax;
   final int drips;
+  final bool dripsReachBottom;
+  final double? dripBottomRatio;
+  final List<double>? dripProgresses;
 
   @override
   Path getClip(Size size) => buildSnowDripPath(
@@ -197,6 +214,9 @@ class SnowDripClipper extends CustomClipper<Path> {
     dripMax: dripMax,
     drips: drips,
     melt: melt,
+    dripsReachBottom: dripsReachBottom,
+    dripBottomRatio: dripBottomRatio,
+    dripProgresses: dripProgresses,
   );
 
   @override
@@ -205,5 +225,8 @@ class SnowDripClipper extends CustomClipper<Path> {
       oldClipper.melt != melt ||
       oldClipper.depth != depth ||
       oldClipper.dripMax != dripMax ||
-      oldClipper.drips != drips;
+      oldClipper.drips != drips ||
+      oldClipper.dripsReachBottom != dripsReachBottom ||
+      oldClipper.dripBottomRatio != dripBottomRatio ||
+      oldClipper.dripProgresses != dripProgresses;
 }

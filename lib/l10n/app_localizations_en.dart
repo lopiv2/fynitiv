@@ -2679,4 +2679,179 @@ class AppLocalizationsEn extends AppLocalizations {
   String resumeSeasonEpisode(int season, int episode) {
     return 'Resume S$season E$episode';
   }
+
+  @override
+  String get mySpace => 'My space';
+
+  @override
+  String get mySpaceSubtitle => 'Your corner of the house';
+
+  @override
+  String get nerdStatsTitle => 'Nerd stats';
+
+  @override
+  String get nerdStatsSubtitle =>
+      'Numbers nobody asked for, but everyone secretly loves.';
+
+  @override
+  String get statMoviesWatched => 'Movies watched';
+
+  @override
+  String get statEpisodesWatched => 'Episodes watched';
+
+  @override
+  String get statSeriesStarted => 'Series started';
+
+  @override
+  String get statHoursVideo => 'Hours of video';
+
+  @override
+  String get statHoursMusic => 'Hours of music';
+
+  @override
+  String get statSongsPlayed => 'Songs played';
+
+  @override
+  String get statBooksRead => 'Books read';
+
+  @override
+  String get statGamesOwned => 'Games in library';
+
+  @override
+  String get statGamesPlayed => 'Games played';
+
+  @override
+  String get statPlatforms => 'Platforms';
+
+  @override
+  String get nerdLevel => 'Nerd level';
+
+  @override
+  String nerdPoints(String points) {
+    return '$points nerd XP';
+  }
+
+  @override
+  String nerdNextLevel(String points) {
+    return '$points XP to the next level';
+  }
+
+  @override
+  String get nerdMaxLevel => 'Maximum level reached';
+
+  @override
+  String get xpRulesTitle => 'How XP is earned';
+
+  @override
+  String xpRule(String xp, String label) {
+    return '+$xp XP · $label';
+  }
+
+  @override
+  String get xpLabelMovie => 'per movie';
+
+  @override
+  String get xpLabelEpisode => 'per episode';
+
+  @override
+  String get xpLabelSeries => 'per series';
+
+  @override
+  String get xpLabelSong => 'per song';
+
+  @override
+  String get xpLabelBook => 'per book';
+
+  @override
+  String get xpLabelGame => 'per game played';
+
+  @override
+  String get xpLabelGameOwned => 'per game owned';
+
+  @override
+  String get xpLabelVideoHour => 'per hour of video';
+
+  @override
+  String get xpLabelMusicHour => 'per hour of music';
+
+  @override
+  String get nerdLevel1 => 'Curious';
+
+  @override
+  String get nerdLevel2 => 'Enthusiast';
+
+  @override
+  String get nerdLevel3 => 'Binge master';
+
+  @override
+  String get nerdLevel4 => 'Archivist';
+
+  @override
+  String get nerdLevel5 => 'Living legend';
+
+  @override
+  String get achievementsTitle => 'Achievements';
+
+  @override
+  String get achievementLocked => 'Locked';
+
+  @override
+  String get achMarathon => 'Marathoner';
+
+  @override
+  String get achMarathonDesc => 'Watch 10 hours of video';
+
+  @override
+  String get achCinephile => 'Cinephile';
+
+  @override
+  String get achCinephileDesc => 'Watch 50 movies';
+
+  @override
+  String get achBinge => 'Binge watcher';
+
+  @override
+  String get achBingeDesc => 'Watch 100 episodes';
+
+  @override
+  String get achBookworm => 'Bookworm';
+
+  @override
+  String get achBookwormDesc => 'Read 5 books';
+
+  @override
+  String get achAudiophile => 'Audiophile';
+
+  @override
+  String get achAudiophileDesc => 'Listen to 100 songs';
+
+  @override
+  String get achRetro => 'Retro gamer';
+
+  @override
+  String get achRetroDesc => 'Play 10 games';
+
+  @override
+  String get achCollector => 'Collector';
+
+  @override
+  String get achCollectorDesc => 'Own 100 games';
+
+  @override
+  String get achCentury => 'Century club';
+
+  @override
+  String get achCenturyDesc => 'Reach 100 hours in total';
+
+  @override
+  String get achJackOfAllTrades => 'Jack of all trades';
+
+  @override
+  String get achJackOfAllTradesDesc => 'Have activity in every category';
+
+  @override
+  String get mySpaceLastSeen => 'Last seen';
+
+  @override
+  String get mySpaceServer => 'Server';
 }

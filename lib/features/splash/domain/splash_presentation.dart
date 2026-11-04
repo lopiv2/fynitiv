@@ -30,7 +30,19 @@ class SplashPresentation {
     this.backgroundEffects = const [],
     this.effects = const [],
     this.titleFontFamily,
+    this.titleFontSize = 160.0,
     this.letterOutlineColor = Colors.white,
+    this.letterOutlineWidth = 3.5,
+    this.capEnabled = false,
+    this.capColor = const Color(0xFFF4FAFF),
+    this.capShadowColor = const Color(0xCC183451),
+    this.capDepth = 0.30,
+    this.capDripMax = 0.13,
+    this.capDrips = 3,
+    this.capDripsReachBottom = false,
+    this.capDripSpeed = 1.0,
+    this.capFallSpeed = 1.0,
+    this.capAfterCompletion = false,
   });
 
   /// Identificador estable (para comparar presentaciones entre estaciones).
@@ -79,9 +91,54 @@ class SplashPresentation {
   /// sistema (resto de presentaciones). Halloween usa Super Midnight.
   final String? titleFontFamily;
 
+  /// Tamaño de las letras del título. 160 por defecto; cada presentación
+  /// puede ajustarlo (p. ej. Navidad con una fuente más grande).
+  final double titleFontSize;
+
   /// Color del borde (outline) de las letras del título. Blanco por defecto;
   /// cada presentación puede fijar el suyo (p. ej. Halloween).
   final Color letterOutlineColor;
+
+  /// Grosor del borde (outline) de las letras del título. 3.5 por defecto;
+  /// cada presentación puede afinarlo (p. ej. Pascua).
+  final double letterOutlineWidth;
+
+  /// Casquete líquido sobre las letras (nieve en Navidad, sangre en
+  /// Halloween): banda superior con chorretes que cuelgan. Desactivado por
+  /// defecto; cada presentación lo configura.
+  final bool capEnabled;
+
+  /// Color del casquete (nieve blanca, sangre del borde...).
+  final Color capColor;
+
+  /// Sombra bajo el casquete (agua de nieve, brillo oscuro de sangre...).
+  final Color capShadowColor;
+
+  /// Franja superior del casquete (fracción de la altura). 0.30 por defecto.
+  final double capDepth;
+
+  /// Longitud máxima de los chorretes (fracción de la altura). 0.13 por defecto.
+  final double capDripMax;
+
+  /// Número de chorretes por letra. 3 por defecto.
+  final int capDrips;
+
+  /// Si es true, los chorretes crecen hasta la línea base indicada por la
+  /// presentación antes de desprenderse.
+  final bool capDripsReachBottom;
+
+  /// Velocidad con la que el capdrip crece dentro de la letra (1 = normal;
+  /// <1 más lento, >1 más rápido). Afecta solo al recorrido interior.
+  final double capDripSpeed;
+
+  /// Velocidad de caída de la gota ya desprendida (1 = normal; <1 más lento,
+  /// >1 más rápido). Afecta solo la caída exterior; cada gota conserva además
+  /// su variación individual.
+  final double capFallSpeed;
+
+  /// Si es true, el casquete se activa y anima al completar la presentación,
+  /// para dejar el efecto en marcha mientras el usuario espera.
+  final bool capAfterCompletion;
 
   /// Color base de la letra [index] de un título de [count] letras:
   /// interpolación con paradas repartidas uniformemente en [letterStops].
@@ -113,8 +170,7 @@ class SplashPresentation {
       Color.lerp(extrusionDark, extrusionLight, t.clamp(0.0, 1.0))!;
 
   /// Color del tagline en la posición [index] (con respaldo al último).
-  Color taglineColor(int index) =>
-      taglineColors.isEmpty
+  Color taglineColor(int index) => taglineColors.isEmpty
       ? Colors.white
       : taglineColors[index.clamp(0, taglineColors.length - 1)];
 }

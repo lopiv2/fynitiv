@@ -7,7 +7,7 @@ export 'skin_enums.dart';
 
 class HomeScroll {
   const HomeScroll({
-    required this.titleKey,
+    this.titleKey = HomeScrollTitle.custom,
     this.customTitle,
     this.genres = const [],
     this.types = const [BaseItemKind.movie, BaseItemKind.series],

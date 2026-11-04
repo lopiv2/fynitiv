@@ -20,6 +20,7 @@ import '../../application/library_providers.dart';
 import 'desktop_library_dialog.dart';
 import 'top_bar_scroller.dart';
 import 'tv_library_modal.dart';
+import 'user_avatar_menu.dart';
 
 /// Barra superior en modo isla flotante (pill con glass blur, radio 28).
 ///
@@ -713,6 +714,21 @@ class _FloatingUserAvatar extends ConsumerWidget {
         color: const Color(0xFF1A2568),
         items: [
           PopupMenuItem(
+            value: 'myspace',
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.auto_awesome_outlined,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Text(l10n.mySpace, style: const TextStyle(color: Colors.white)),
+              ],
+            ),
+          ),
+          const PopupMenuDivider(),
+          PopupMenuItem(
             value: 'logout',
             child: Row(
               children: [
@@ -726,6 +742,8 @@ class _FloatingUserAvatar extends ConsumerWidget {
       );
       if (result == 'logout') {
         ref.read(authControllerProvider.notifier).logout();
+      } else if (result == 'myspace' && btnContext.mounted) {
+        openMySpace(btnContext);
       }
     }
 

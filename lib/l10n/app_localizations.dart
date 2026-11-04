@@ -5083,6 +5083,342 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Resume S{season} E{episode}'**
   String resumeSeasonEpisode(int season, int episode);
+
+  /// No description provided for @mySpace.
+  ///
+  /// In en, this message translates to:
+  /// **'My space'**
+  String get mySpace;
+
+  /// No description provided for @mySpaceSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your corner of the house'**
+  String get mySpaceSubtitle;
+
+  /// No description provided for @nerdStatsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Nerd stats'**
+  String get nerdStatsTitle;
+
+  /// No description provided for @nerdStatsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Numbers nobody asked for, but everyone secretly loves.'**
+  String get nerdStatsSubtitle;
+
+  /// No description provided for @statMoviesWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Movies watched'**
+  String get statMoviesWatched;
+
+  /// No description provided for @statEpisodesWatched.
+  ///
+  /// In en, this message translates to:
+  /// **'Episodes watched'**
+  String get statEpisodesWatched;
+
+  /// No description provided for @statSeriesStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Series started'**
+  String get statSeriesStarted;
+
+  /// No description provided for @statHoursVideo.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours of video'**
+  String get statHoursVideo;
+
+  /// No description provided for @statHoursMusic.
+  ///
+  /// In en, this message translates to:
+  /// **'Hours of music'**
+  String get statHoursMusic;
+
+  /// No description provided for @statSongsPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Songs played'**
+  String get statSongsPlayed;
+
+  /// No description provided for @statBooksRead.
+  ///
+  /// In en, this message translates to:
+  /// **'Books read'**
+  String get statBooksRead;
+
+  /// No description provided for @statGamesOwned.
+  ///
+  /// In en, this message translates to:
+  /// **'Games in library'**
+  String get statGamesOwned;
+
+  /// No description provided for @statGamesPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'Games played'**
+  String get statGamesPlayed;
+
+  /// No description provided for @statPlatforms.
+  ///
+  /// In en, this message translates to:
+  /// **'Platforms'**
+  String get statPlatforms;
+
+  /// No description provided for @nerdLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Nerd level'**
+  String get nerdLevel;
+
+  /// Nerd XP accumulated from all activity.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} nerd XP'**
+  String nerdPoints(String points);
+
+  /// Remaining XP to reach the next level.
+  ///
+  /// In en, this message translates to:
+  /// **'{points} XP to the next level'**
+  String nerdNextLevel(String points);
+
+  /// No description provided for @nerdMaxLevel.
+  ///
+  /// In en, this message translates to:
+  /// **'Maximum level reached'**
+  String get nerdMaxLevel;
+
+  /// No description provided for @xpRulesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'How XP is earned'**
+  String get xpRulesTitle;
+
+  /// XP rate line, e.g. +50 XP · per movie.
+  ///
+  /// In en, this message translates to:
+  /// **'+{xp} XP · {label}'**
+  String xpRule(String xp, String label);
+
+  /// No description provided for @xpLabelMovie.
+  ///
+  /// In en, this message translates to:
+  /// **'per movie'**
+  String get xpLabelMovie;
+
+  /// No description provided for @xpLabelEpisode.
+  ///
+  /// In en, this message translates to:
+  /// **'per episode'**
+  String get xpLabelEpisode;
+
+  /// No description provided for @xpLabelSeries.
+  ///
+  /// In en, this message translates to:
+  /// **'per series'**
+  String get xpLabelSeries;
+
+  /// No description provided for @xpLabelSong.
+  ///
+  /// In en, this message translates to:
+  /// **'per song'**
+  String get xpLabelSong;
+
+  /// No description provided for @xpLabelBook.
+  ///
+  /// In en, this message translates to:
+  /// **'per book'**
+  String get xpLabelBook;
+
+  /// No description provided for @xpLabelGame.
+  ///
+  /// In en, this message translates to:
+  /// **'per game played'**
+  String get xpLabelGame;
+
+  /// No description provided for @xpLabelGameOwned.
+  ///
+  /// In en, this message translates to:
+  /// **'per game owned'**
+  String get xpLabelGameOwned;
+
+  /// No description provided for @xpLabelVideoHour.
+  ///
+  /// In en, this message translates to:
+  /// **'per hour of video'**
+  String get xpLabelVideoHour;
+
+  /// No description provided for @xpLabelMusicHour.
+  ///
+  /// In en, this message translates to:
+  /// **'per hour of music'**
+  String get xpLabelMusicHour;
+
+  /// No description provided for @nerdLevel1.
+  ///
+  /// In en, this message translates to:
+  /// **'Curious'**
+  String get nerdLevel1;
+
+  /// No description provided for @nerdLevel2.
+  ///
+  /// In en, this message translates to:
+  /// **'Enthusiast'**
+  String get nerdLevel2;
+
+  /// No description provided for @nerdLevel3.
+  ///
+  /// In en, this message translates to:
+  /// **'Binge master'**
+  String get nerdLevel3;
+
+  /// No description provided for @nerdLevel4.
+  ///
+  /// In en, this message translates to:
+  /// **'Archivist'**
+  String get nerdLevel4;
+
+  /// No description provided for @nerdLevel5.
+  ///
+  /// In en, this message translates to:
+  /// **'Living legend'**
+  String get nerdLevel5;
+
+  /// No description provided for @achievementsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Achievements'**
+  String get achievementsTitle;
+
+  /// No description provided for @achievementLocked.
+  ///
+  /// In en, this message translates to:
+  /// **'Locked'**
+  String get achievementLocked;
+
+  /// No description provided for @achMarathon.
+  ///
+  /// In en, this message translates to:
+  /// **'Marathoner'**
+  String get achMarathon;
+
+  /// No description provided for @achMarathonDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch 10 hours of video'**
+  String get achMarathonDesc;
+
+  /// No description provided for @achCinephile.
+  ///
+  /// In en, this message translates to:
+  /// **'Cinephile'**
+  String get achCinephile;
+
+  /// No description provided for @achCinephileDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch 50 movies'**
+  String get achCinephileDesc;
+
+  /// No description provided for @achBinge.
+  ///
+  /// In en, this message translates to:
+  /// **'Binge watcher'**
+  String get achBinge;
+
+  /// No description provided for @achBingeDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch 100 episodes'**
+  String get achBingeDesc;
+
+  /// No description provided for @achBookworm.
+  ///
+  /// In en, this message translates to:
+  /// **'Bookworm'**
+  String get achBookworm;
+
+  /// No description provided for @achBookwormDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Read 5 books'**
+  String get achBookwormDesc;
+
+  /// No description provided for @achAudiophile.
+  ///
+  /// In en, this message translates to:
+  /// **'Audiophile'**
+  String get achAudiophile;
+
+  /// No description provided for @achAudiophileDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Listen to 100 songs'**
+  String get achAudiophileDesc;
+
+  /// No description provided for @achRetro.
+  ///
+  /// In en, this message translates to:
+  /// **'Retro gamer'**
+  String get achRetro;
+
+  /// No description provided for @achRetroDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Play 10 games'**
+  String get achRetroDesc;
+
+  /// No description provided for @achCollector.
+  ///
+  /// In en, this message translates to:
+  /// **'Collector'**
+  String get achCollector;
+
+  /// No description provided for @achCollectorDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Own 100 games'**
+  String get achCollectorDesc;
+
+  /// No description provided for @achCentury.
+  ///
+  /// In en, this message translates to:
+  /// **'Century club'**
+  String get achCentury;
+
+  /// No description provided for @achCenturyDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Reach 100 hours in total'**
+  String get achCenturyDesc;
+
+  /// No description provided for @achJackOfAllTrades.
+  ///
+  /// In en, this message translates to:
+  /// **'Jack of all trades'**
+  String get achJackOfAllTrades;
+
+  /// No description provided for @achJackOfAllTradesDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Have activity in every category'**
+  String get achJackOfAllTradesDesc;
+
+  /// No description provided for @mySpaceLastSeen.
+  ///
+  /// In en, this message translates to:
+  /// **'Last seen'**
+  String get mySpaceLastSeen;
+
+  /// No description provided for @mySpaceServer.
+  ///
+  /// In en, this message translates to:
+  /// **'Server'**
+  String get mySpaceServer;
 }
 
 class _AppLocalizationsDelegate
