@@ -119,15 +119,18 @@ abstract final class SkinPresets {
         ),
       ),
       LayoutSection.nextUp(),
-      LayoutSection.recent(HomeScroll(
+      LayoutSection.recent(
+        HomeScroll(
           genres: [],
           imageSource: RowImageSource.primary,
           showSeeMore: false,
-          cardType: HomeScrollCardType.backdrop,
+          cardType: HomeScrollCardType.poster,
           showHoverOverlay: false,
           showPlayIcon: true,
           highlightTitleOnHover: true,
-        ),),
+          tapAction: HomeScrollTapAction.details,
+        ),
+      ),
     ],
     vodLayout: [
       LayoutSection.featuredSlider(),

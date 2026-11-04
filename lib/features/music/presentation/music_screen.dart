@@ -211,12 +211,37 @@ class MusicAlbumScreen extends ConsumerWidget {
                           ],
                         ),
                       )
-                    : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-                        itemCount: list.length,
-                        separatorBuilder: (_, _) =>
-                            Divider(height: 1, color: textSecondary.withValues(alpha: 0.15)),
-                        itemBuilder: (context, i) {
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(24, 0, 24, 12),
+                            child: FilledButton.icon(
+                              onPressed: () {
+                                final first = list.first;
+                                final id = first.id;
+                                if (id == null || id.isEmpty) return;
+                                context.push(
+                                  '/player/$id',
+                                  extra: first,
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.play_arrow_rounded,
+                                size: 22,
+                              ),
+                              label: Text(l10n.play),
+                            ),
+                          ),
+                          Expanded(
+                            child: ListView.separated(
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+                              itemCount: list.length,
+                              separatorBuilder: (_, _) => Divider(
+                                height: 1,
+                                color: textSecondary.withValues(alpha: 0.15),
+                              ),
+                              itemBuilder: (context, i) {
                           final track = list[i];
                           final index = (track.indexNumber ?? i + 1).toString();
                           final ticks = track.runTimeTicks;
@@ -272,7 +297,7 @@ class MusicAlbumScreen extends ConsumerWidget {
                                     if (durStr.isNotEmpty)
                                       const SizedBox(width: 12),
                                     IconButton(
-                                      tooltip: 'Reproducir',
+                                      tooltip: l10n.play,
                                       icon: Icon(Icons.play_circle_fill_rounded, color: mSkin?.accent ?? Colors.white, size: 28),
                                       onPressed: () async {
                                         final id = track.id;
@@ -297,6 +322,9 @@ class MusicAlbumScreen extends ConsumerWidget {
                           );
                         },
                       ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ],
@@ -733,6 +761,7 @@ class _JellyfinTrackRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
     final dur = track.runTimeTicks != null ? (track.runTimeTicks! ~/ 10000) : 0;
     final ms = dur;
     final m = (ms ~/ 60000);
@@ -769,7 +798,7 @@ class _JellyfinTrackRow extends ConsumerWidget {
             ),
             const SizedBox(width: 8),
             IconButton(
-              tooltip: 'Reproducir',
+              tooltip: l10n.play,
               icon: const Icon(Icons.play_circle_fill_rounded, color: Colors.white, size: 22),
               padding: EdgeInsets.zero,
               constraints: const BoxConstraints.tightFor(width: 28, height: 28),

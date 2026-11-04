@@ -4,6 +4,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/skin/home_scroll.dart';
+import '../../../core/navigation/play_routing.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
@@ -386,15 +387,16 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                                   scroll?.highlightTitleOnHover ?? false,
                               cardBorderRadius: scroll?.cardBorderRadius,
                               hoverScale: scroll?.hoverScale,
-                              onTap: isSeries
-                                  ? () => context.push(
-                                      '/home/details/${item.id}',
-                                      extra: item,
-                                    )
-                                  : () => context.push(
-                                      '/player/${item.id}',
-                                      extra: item,
-                                    ),
+                              onTap: () {
+                                // Directo al reproductor si es reproducible;
+                                // si no, a su ficha (álbum, libro…).
+                                if (playTargetFor(item) !=
+                                    DetailPlayTarget.unsupported) {
+                                  pushPlayForDetail(context, item);
+                                  return;
+                                }
+                                pushDetailForType(context, item);
+                              },
                               onImageTap: () => context.push(
                                 '/home/details/${item.id}',
                                 extra: item,
@@ -428,15 +430,16 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                             showPlayIcon: scroll?.showPlayIcon ?? true,
                             cardBorderRadius: scroll?.cardBorderRadius,
                             hoverScale: scroll?.hoverScale,
-                            onTap: isSeries
-                                ? () => context.push(
-                                    '/home/details/${item.id}',
-                                    extra: item,
-                                  )
-                                : () => context.push(
-                                    '/player/${item.id}',
-                                    extra: item,
-                                  ),
+                            onTap: () {
+                              // Directo al reproductor si es reproducible;
+                              // si no, a su ficha (serie, álbum, libro…).
+                              if (playTargetFor(item) !=
+                                  DetailPlayTarget.unsupported) {
+                                pushPlayForDetail(context, item);
+                                return;
+                              }
+                              pushDetailForType(context, item);
+                            },
                             onImageTap: () => context.push(
                               '/home/details/${item.id}',
                               extra: item,

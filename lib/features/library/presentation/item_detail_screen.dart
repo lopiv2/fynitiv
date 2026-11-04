@@ -10,6 +10,7 @@ import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/audio/item_theme_player.dart';
+import '../../../core/navigation/play_routing.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
@@ -700,7 +701,7 @@ class _RelatedSection extends StatelessWidget {
       height: 215,
       useBackdrop: true,
       showTitle: false,
-      onItemTap: (item) => context.push('/player/${item.id}', extra: item),
+      onItemTap: (item) => pushRelatedForDetail(context, item),
       onItemImageTap: (item) =>
           context.push('/home/details/${item.id}', extra: item),
     );
@@ -1194,13 +1195,36 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
         if (seerrRef != null) ...[
           _buildSeerrActions(context, seerrRef),
           const SizedBox(height: 14),
-        ] else if (item.type != BaseItemKind.book) ...[
-          // Los libros/cómics no se reproducen; el lector tiene su propio flujo.
+        ] else if (playTargetFor(item) != DetailPlayTarget.unsupported) ...[
+          // Ver ahora va al reproductor que toca: vídeo/audio a `/player`
+          // y libro al lector (ver `play_routing.dart`).
           _WideDetailButton(
             label: l10n.watchNow,
             icon: Icons.play_arrow,
             primary: true,
-            onTap: () => context.push('/player/${item.id}', extra: item),
+            onTap: () => pushPlayForDetail(context, item),
+          ),
+          const SizedBox(height: 14),
+        ] else if (item.type == BaseItemKind.musicAlbum ||
+            item.type == BaseItemKind.playlist) ...[
+          // Colección de música (álbum/single, playlist): Ver ahora
+          // reproduce su primera pista en `/player`.
+          _CollectionWatchNow(item: item, l10n: l10n),
+          const SizedBox(height: 14),
+        ] else if (item.type == BaseItemKind.musicArtist) ...[
+          // Artista: su ficha de Música ya tiene reproducir.
+          _WideDetailButton(
+            label: l10n.watchNow,
+            icon: Icons.play_arrow,
+            primary: true,
+            onTap: () {
+              final name = (item.name ?? '').trim();
+              if (name.isEmpty) return;
+              context.push(
+                '/music/artist/${Uri.encodeComponent(name)}',
+                extra: {'jellyfin': item},
+              );
+            },
           ),
           const SizedBox(height: 14),
         ],
@@ -1225,6 +1249,34 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Ver ahora para colecciones de música (álbum/single, playlist): resuelve la
+/// primera pista con los providers de jellyfin_dart y la abre en `/player`.
+/// Sin pistas todavía, no pinta nada (carga rápida, sin loader en el detalle).
+class _CollectionWatchNow extends ConsumerWidget {
+  const _CollectionWatchNow({required this.item, required this.l10n});
+
+  final BaseItemDto item;
+  final AppLocalizations l10n;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = item.id ?? '';
+    if (id.isEmpty) return const SizedBox.shrink();
+    final tracks = item.type == BaseItemKind.playlist
+        ? ref.watch(playlistTracksProvider(id)).value
+        : ref.watch(libraryItemsProvider(id)).value;
+    final first = tracks?.firstOrNull;
+    final firstId = first?.id;
+    if (firstId == null || firstId.isEmpty) return const SizedBox.shrink();
+    return _WideDetailButton(
+      label: l10n.watchNow,
+      icon: Icons.play_arrow,
+      primary: true,
+      onTap: () => context.push('/player/$firstId', extra: first),
     );
   }
 }

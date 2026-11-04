@@ -26,7 +26,7 @@ Que los elementos de los scrolls del home (`ContentRow` + tarjetas) aparezcan an
 
 ## Evidence
 - `flutter analyze` (7 ficheros): `No issues found! (ran in 5.1s)`.
-- Ajuste intermedio: `cacheExtent` deprecado → `ScrollCacheExtent.pixels(800)` en `ListView` vertical (SDK Flutter 3.50 master).
+- Ajuste intermedio: `cacheExtent` deprecado → `ScrollCacheExtent.pixels(800)` en `ListView` vertical (SDK Flutter 3.50 master; en 3.47.7 estable requiere `import 'package:flutter/rendering.dart'`, ver FTD `scroll-cache-stable-fix`).
 - Usuario confirma en sesión: el TTI del home ha bajado tras la opción A.
 
 ## Next

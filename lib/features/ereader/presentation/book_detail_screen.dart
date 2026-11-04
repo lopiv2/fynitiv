@@ -7,6 +7,7 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/skin/detail_layout.dart';
+import '../../../core/navigation/play_routing.dart';
 import '../../../core/skin/skin.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/widgets/app_hover.dart';
@@ -624,10 +625,10 @@ class _RelatedSection extends StatelessWidget {
       showTitle: false,
       onItemTap: onTap != null
           ? onTap!
-          : (item) => context.push('/player/${item.id}', extra: item),
+          : (item) => pushDetailForType(context, item),
       onItemImageTap: onTap != null
           ? onTap!
-          : (item) => context.push('/home/details/${item.id}', extra: item),
+          : (item) => pushDetailForType(context, item),
     );
   }
 }

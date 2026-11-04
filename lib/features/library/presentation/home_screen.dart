@@ -1,10 +1,12 @@
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/navigation/platform_mode.dart';
+import '../../../core/navigation/play_routing.dart';
 import '../../../core/skin/home_scroll.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
@@ -100,11 +102,18 @@ class HomeScreen extends ConsumerWidget {
     }
 
     // Tap según el scroll: detalle o reproducción directa (default).
+    // Lo no reproducible directo (serie, álbum, libro…) cae a su ficha.
     void Function(BaseItemDto) tapFor(HomeScroll? cfg) {
       if (cfg?.tapAction == HomeScrollTapAction.details) {
-        return (item) => context.push('/home/details/${item.id}', extra: item);
+        return (item) => pushDetailForType(context, item);
       }
-      return (item) => context.push('/player/${item.id}', extra: item);
+      return (item) {
+        if (playTargetFor(item) != DetailPlayTarget.unsupported) {
+          pushPlayForDetail(context, item);
+          return;
+        }
+        pushDetailForType(context, item);
+      };
     }
 
     Widget buildContinueRow([HomeScroll? cfg]) {

@@ -641,46 +641,108 @@ final vodItemsProvider = FutureProvider<List<BaseItemDto>>((ref) async {
 });
 
 /// Contenidos similares al item actual, para la fila de relacionados del
-/// detalle Prime.
+/// detalle Prime: mismo género (o parecido) y variados entre visitas.
+///
+/// Sin `sortBy` el servidor devuelve SortName asc y con `limit: 10` siempre
+/// caen los mismos; por eso se pide un pool amplio en aleatorio y se puntúa
+/// en cliente por géneros compartidos.
 final similarItemsProvider =
     FutureProvider.family<List<BaseItemDto>, BaseItemDto>((ref, item) async {
       final client = ref.watch(jellyfinClientProvider);
       final userId = ref.watch(currentUserIdProvider);
       final itemId = item.id ?? '';
       if (client == null || userId == null || itemId.isEmpty) return const [];
+      final genres = (item.genres ?? const <String>[])
+          .map((g) => g.trim())
+          .where((g) => g.isNotEmpty)
+          .toList();
+      final List<BaseItemKind>? kinds = switch (item.type) {
+        BaseItemKind.movie => const [BaseItemKind.movie],
+        BaseItemKind.series ||
+        BaseItemKind.season ||
+        BaseItemKind.episode => const [BaseItemKind.series],
+        BaseItemKind.book => const [BaseItemKind.book],
+        BaseItemKind.audio ||
+        BaseItemKind.audioBook ||
+        BaseItemKind.musicVideo => const [
+          BaseItemKind.audio,
+          BaseItemKind.audioBook,
+          BaseItemKind.musicVideo,
+        ],
+        _ => null,
+      };
       try {
         final res = await client.getItemsApi().getItems(
           userId: userId,
           recursive: true,
-          limit: 10,
+          limit: 30,
           excludeItemIds: [itemId],
-          genres: item.type == BaseItemKind.book ? null : item.genres,
-          includeItemTypes: item.type == BaseItemKind.movie
-              ? [BaseItemKind.movie]
-              : item.type == BaseItemKind.series
-              ? [BaseItemKind.series]
-              : item.type == BaseItemKind.book
-              ? [BaseItemKind.book]
-              : null,
-          fields: [
+          genres: genres.isEmpty ? null : genres.take(3).toList(),
+          includeItemTypes: kinds,
+          sortBy: const [ItemSortBy.random],
+          fields: const [
+            ItemFields.genres,
             ItemFields.overview,
             ItemFields.providerIds,
             ItemFields.primaryImageAspectRatio,
           ],
-          enableImageTypes: [
+          enableImageTypes: const [
             ImageType.primary,
             ImageType.thumb,
             ImageType.backdrop,
             ImageType.logo,
           ],
         );
-        final items = res.data?.items ?? const <BaseItemDto>[];
-        return items
-            .where(
-              (i) => item.type != BaseItemKind.book || i.type == BaseItemKind.book,
-            )
-            .take(10)
-            .toList();
+        var pool = (res.data?.items ?? const <BaseItemDto>[]).where(
+          (i) => item.type != BaseItemKind.book || i.type == BaseItemKind.book,
+        ).toList();
+        // Filtro de géneros demasiado restrictivo (AND del servidor): reintenta
+        // sin géneros para no dejar la fila vacía.
+        if (pool.isEmpty && genres.isNotEmpty) {
+          final fallback = await client.getItemsApi().getItems(
+            userId: userId,
+            recursive: true,
+            limit: 30,
+            excludeItemIds: [itemId],
+            includeItemTypes: kinds,
+            sortBy: const [ItemSortBy.random],
+            fields: const [
+              ItemFields.genres,
+              ItemFields.overview,
+              ItemFields.providerIds,
+              ItemFields.primaryImageAspectRatio,
+            ],
+            enableImageTypes: const [
+              ImageType.primary,
+              ImageType.thumb,
+              ImageType.backdrop,
+              ImageType.logo,
+            ],
+          );
+          pool = (fallback.data?.items ?? const <BaseItemDto>[]).where(
+            (i) =>
+                item.type != BaseItemKind.book || i.type == BaseItemKind.book,
+          ).toList();
+        }
+        if (pool.isEmpty) return const [];
+        // Sin géneros de referencia no hay nada que puntuar: variedad pura.
+        if (genres.isEmpty) {
+          pool.shuffle();
+          return pool.take(10).toList();
+        }
+        final wanted = genres.map((g) => g.toLowerCase()).toSet();
+        final scored = pool.map((candidate) {
+          final shared =
+              (candidate.genres ?? const <String>[])
+                  .map((g) => g.trim().toLowerCase())
+                  .where(wanted.contains)
+                  .toSet()
+                  .length;
+          return (candidate: candidate, shared: shared);
+        }).toList();
+        scored.shuffle();
+        scored.sort((a, b) => b.shared.compareTo(a.shared));
+        return scored.take(10).map((e) => e.candidate).toList();
       } catch (_) {
         return const [];
       }
