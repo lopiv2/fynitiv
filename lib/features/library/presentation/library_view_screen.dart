@@ -353,10 +353,8 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                         itemBuilder: (context, i) {
                           final item = items[i];
                           final scroll = widget.scroll;
-                          // Las series abren el detalle tanto al tocar la tarjeta
-                          // como con "Ver ahora": la reproducción se elige dentro
-                          // (temporadas/capítulos), igual que en otras secciones.
-                          final isSeries = item.type == BaseItemKind.series;
+                          // Tap: directo al reproductor si es reproducible;
+                          // si no, a su ficha (serie, álbum, libro…).
                           if (useBackdrop) {
                             return BackdropCard(
                               item: item,
