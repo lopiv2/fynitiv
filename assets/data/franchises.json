@@ -2,10 +2,10 @@
   "version": 1,
   "franchises": [
     {
-      "id": "mcu_infinity_saga",
-      "name": "Universo Cinematográfico Marvel: Saga del Infinito",
-      "nameEn": "Marvel Cinematic Universe: Infinity Saga",
-      "logo": "assets/images/franchises/Marvel_Cinematic_Universe.png",
+      "id": "mcu",
+      "name": "Universo Cinematográfico Marvel",
+      "nameEn": "Marvel Cinematic Universe",
+      "posterAsset": "assets/images/franchises/Marvel_poster.png",
       "items": [
         {
           "type": "movie",
@@ -144,6 +144,111 @@
           "tmdbId": 429617,
           "title": "Spider-Man: Lejos de casa",
           "year": 2019
+        },
+        {
+          "type": "movie",
+          "tmdbId": 497698,
+          "title": "Viuda Negra",
+          "titleEn": "Black Widow",
+          "year": 2021
+        },
+        {
+          "type": "movie",
+          "tmdbId": 566525,
+          "title": "Shang-Chi y la leyenda de los Diez Anillos",
+          "titleEn": "Shang-Chi and the Legend of the Ten Rings",
+          "year": 2021
+        },
+        {
+          "type": "movie",
+          "tmdbId": 524434,
+          "title": "Eternals",
+          "year": 2021
+        },
+        {
+          "type": "movie",
+          "tmdbId": 634649,
+          "title": "Spider-Man: No Way Home",
+          "year": 2021
+        },
+        {
+          "type": "movie",
+          "tmdbId": 453395,
+          "title": "Doctor Strange en el Multiverso de la Locura",
+          "titleEn": "Doctor Strange in the Multiverse of Madness",
+          "year": 2022
+        },
+        {
+          "type": "movie",
+          "tmdbId": 616037,
+          "title": "Thor: Love and Thunder",
+          "year": 2022
+        },
+        {
+          "type": "movie",
+          "tmdbId": 505642,
+          "title": "Black Panther: Wakanda Forever",
+          "year": 2022
+        },
+        {
+          "type": "movie",
+          "tmdbId": 640146,
+          "title": "Ant-Man y la Avispa: Quantumanía",
+          "titleEn": "Ant-Man and the Wasp: Quantumania",
+          "year": 2023
+        },
+        {
+          "type": "movie",
+          "tmdbId": 447365,
+          "title": "Guardianes de la Galaxia Vol. 3",
+          "titleEn": "Guardians of the Galaxy Vol. 3",
+          "year": 2023
+        },
+        {
+          "type": "movie",
+          "tmdbId": 609681,
+          "title": "The Marvels",
+          "year": 2023
+        },
+        {
+          "type": "movie",
+          "tmdbId": 533535,
+          "title": "Deadpool y Lobezno",
+          "titleEn": "Deadpool & Wolverine",
+          "year": 2024
+        },
+        {
+          "type": "movie",
+          "tmdbId": 822119,
+          "title": "Capitán América: Brave New World",
+          "titleEn": "Captain America: Brave New World",
+          "year": 2025
+        },
+        {
+          "type": "movie",
+          "tmdbId": 986056,
+          "title": "Thunderbolts*",
+          "year": 2025
+        },
+        {
+          "type": "movie",
+          "tmdbId": 617126,
+          "title": "Los 4 Fantásticos: Primeros pasos",
+          "titleEn": "The Fantastic Four: First Steps",
+          "year": 2025
+        },
+        {
+          "type": "movie",
+          "tmdbId": 969681,
+          "title": "Spider-Man: Brand New Day",
+          "year": 2026
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1003596,
+          "title": "Vengadores: Doomsday",
+          "titleEn": "Avengers: Doomsday",
+          "year": 2026
         }
       ]
     },
@@ -151,7 +256,7 @@
       "id": "star_wars_skywalker",
       "name": "Star Wars: Saga Skywalker",
       "nameEn": "Star Wars: Skywalker Saga",
-      "logo": "assets/images/franchises/Star_wars.webp",
+      "posterAsset": "assets/images/franchises/starwars.jpg",
       "collectionId": 10,
       "items": [
         {
@@ -214,7 +319,7 @@
       "id": "harry_potter",
       "name": "Harry Potter",
       "nameEn": "Harry Potter",
-      "logo": "assets/images/franchises/Harry-Potter.png",
+      "posterAsset": "assets/images/franchises/harry_potter.webp",
       "collectionId": 1241,
       "items": [
         {
@@ -271,7 +376,7 @@
       "id": "fast_furious",
       "name": "Fast & Furious",
       "nameEn": "Fast & Furious",
-      "logo": "assets/images/franchises/fast_furious.png",
+      "posterAsset": "assets/images/franchises/fastfurious.webp",
       "collectionId": 9485,
       "items": [
         {
@@ -340,7 +445,7 @@
       "id": "lotr",
       "name": "El Señor de los Anillos",
       "nameEn": "The Lord of the Rings",
-      "logo": "assets/images/franchises/Tloftr-logo.webp",
+      "posterAsset": "assets/images/franchises/lotr.jpg",
       "collectionId": 119,
       "items": [
         {
@@ -360,6 +465,165 @@
           "tmdbId": 122,
           "title": "El Señor de los Anillos: El Retorno del Rey",
           "year": 2003
+        }
+      ]
+    },
+    {
+      "id": "dceu",
+      "name": "Universo Extendido DC",
+      "nameEn": "DC Extended Universe",
+      "posterAsset": "assets/images/franchises/dceu.png",
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 49521,
+          "title": "El Hombre de Acero",
+          "titleEn": "Man of Steel",
+          "year": 2013
+        },
+        {
+          "type": "movie",
+          "tmdbId": 209112,
+          "title": "Batman v Superman: El Amanecer de la Justicia",
+          "titleEn": "Batman v Superman: Dawn of Justice",
+          "year": 2016
+        },
+        {
+          "type": "movie",
+          "tmdbId": 297761,
+          "title": "Escuadrón Suicida",
+          "titleEn": "Suicide Squad",
+          "year": 2016
+        },
+        {
+          "type": "movie",
+          "tmdbId": 297762,
+          "title": "Wonder Woman",
+          "year": 2017
+        },
+        {
+          "type": "movie",
+          "tmdbId": 141052,
+          "title": "Liga de la Justicia",
+          "titleEn": "Justice League",
+          "year": 2017
+        },
+        {
+          "type": "movie",
+          "tmdbId": 297802,
+          "title": "Aquaman",
+          "year": 2018
+        },
+        {
+          "type": "movie",
+          "tmdbId": 287947,
+          "title": "¡Shazam!",
+          "titleEn": "Shazam!",
+          "year": 2019
+        },
+        {
+          "type": "movie",
+          "tmdbId": 495764,
+          "title": "Aves de Presa",
+          "titleEn": "Birds of Prey",
+          "year": 2020
+        },
+        {
+          "type": "movie",
+          "tmdbId": 464052,
+          "title": "Wonder Woman 1984",
+          "year": 2020
+        },
+        {
+          "type": "movie",
+          "tmdbId": 791373,
+          "title": "La Liga de la Justicia de Zack Snyder",
+          "titleEn": "Zack Snyder's Justice League",
+          "year": 2021
+        },
+        {
+          "type": "movie",
+          "tmdbId": 436969,
+          "title": "El Escuadrón Suicida",
+          "titleEn": "The Suicide Squad",
+          "year": 2021
+        },
+        {
+          "type": "movie",
+          "tmdbId": 436270,
+          "title": "Black Adam",
+          "year": 2022
+        },
+        {
+          "type": "movie",
+          "tmdbId": 594767,
+          "title": "¡Shazam! La furia de los dioses",
+          "titleEn": "Shazam! Fury of the Gods",
+          "year": 2023
+        },
+        {
+          "type": "movie",
+          "tmdbId": 298618,
+          "title": "Flash",
+          "titleEn": "The Flash",
+          "year": 2023
+        },
+        {
+          "type": "movie",
+          "tmdbId": 565770,
+          "title": "Blue Beetle",
+          "year": 2023
+        },
+        {
+          "type": "movie",
+          "tmdbId": 572802,
+          "title": "Aquaman y el Reino Perdido",
+          "titleEn": "Aquaman and the Lost Kingdom",
+          "year": 2023
+        }
+      ]
+    },
+    {
+      "id": "potc",
+      "name": "Piratas del Caribe",
+      "nameEn": "Pirates of the Caribbean",
+      "posterAsset": "assets/images/franchises/potc.webp",
+      "collectionId": 295,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 22,
+          "title": "Piratas del Caribe: La Maldición del Perla Negra",
+          "titleEn": "Pirates of the Caribbean: The Curse of the Black Pearl",
+          "year": 2003
+        },
+        {
+          "type": "movie",
+          "tmdbId": 58,
+          "title": "Piratas del Caribe: El Cofre del Hombre Muerto",
+          "titleEn": "Pirates of the Caribbean: Dead Man's Chest",
+          "year": 2006
+        },
+        {
+          "type": "movie",
+          "tmdbId": 285,
+          "title": "Piratas del Caribe: En el Fin del Mundo",
+          "titleEn": "Pirates of the Caribbean: At World's End",
+          "year": 2007
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1865,
+          "title": "Piratas del Caribe: En Mareas Misteriosas",
+          "titleEn": "Pirates of the Caribbean: On Stranger Tides",
+          "year": 2011
+        },
+        {
+          "type": "movie",
+          "tmdbId": 166426,
+          "title": "Piratas del Caribe: La Venganza de Salazar",
+          "titleEn": "Pirates of the Caribbean: Dead Men Tell No Tales",
+          "year": 2017
         }
       ]
     }

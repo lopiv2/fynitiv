@@ -49,6 +49,7 @@ class CuratedFranchise {
     this.collectionId,
     this.posterPath,
     this.backdropPath,
+    this.posterAsset,
     this.logo,
   });
 
@@ -64,6 +65,10 @@ class CuratedFranchise {
   /// usa la primera película que tengas en Jellyfin.
   final String? posterPath;
   final String? backdropPath;
+
+  /// Imagen local del bundle (`assets/...`) para la tarjeta de la franquicia.
+  /// Tiene prioridad sobre TMDB/Jellyfin/Seerr; el usuario crea sus imágenes.
+  final String? posterAsset;
 
   /// Logo de la franquicia (asset local o URL) para superponer en la tarjeta.
   final String? logo;
@@ -107,6 +112,7 @@ class CuratedFranchise {
       collectionId: (json['collectionId'] as num?)?.toInt(),
       posterPath: (json['posterPath'] as String?)?.trim(),
       backdropPath: (json['backdropPath'] as String?)?.trim(),
+      posterAsset: (json['posterAsset'] as String?)?.trim(),
       logo: (json['logo'] as String?)?.trim(),
       items: items,
     );

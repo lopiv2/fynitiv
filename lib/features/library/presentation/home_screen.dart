@@ -1,4 +1,5 @@
 
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -365,7 +366,8 @@ class HomeScreen extends ConsumerWidget {
         bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
         showMetaOverlay: cfg?.metaOverlay ?? false,
         showNewBadge: false,
-        showStackLogo: cfg?.showLogo ?? true,
+        // Franquicias: sin logo superpuesto (el usuario crea sus imágenes).
+        showStackLogo: false,
         logoPosition: cfg?.logoPosition ?? RowLogoPosition.center,
         metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
         logoSize: cfg?.logoSize ?? 72,
@@ -385,7 +387,6 @@ class HomeScreen extends ConsumerWidget {
         showHoverIncludedBadge: false,
         hoverActionLabel: l10n.details,
         imageUrlFor: (item) => byId[item.id]?.imageUrl,
-        stackLogoFor: (item) => byId[item.id]?.logo,
         onItemTap: openFranchise,
         onItemImageTap: openFranchise,
       );

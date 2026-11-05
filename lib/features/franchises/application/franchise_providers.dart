@@ -224,8 +224,11 @@ final franchiseHubProvider =
         final firstItem = firstId == null ? null : hydrated[firstId];
         // Imagen de una película de la franquicia: carátula de la primera que
         // tengas; si no tienes ninguna, la de la primera en Seerr.
-        String? imageUrl;
-        if (serverUrl != null && firstItem != null) {
+        // Imagen local del usuario (posterAsset del JSON): prioridad máxima.
+        // El resto (Jellyfin/Seerr/TMDB) solo es fallback.
+        String? imageUrl = franchise.posterAsset?.trim();
+        if (imageUrl != null && imageUrl.isEmpty) imageUrl = null;
+        if (imageUrl == null && serverUrl != null && firstItem != null) {
           imageUrl = itemImageUrl(serverUrl, firstItem);
         }
         if (imageUrl == null && api != null && franchise.items.isNotEmpty) {

@@ -162,6 +162,14 @@ class _BackdropCardState extends ConsumerState<BackdropCard>
   }
 
   Widget _cachedImage(String url, Widget Function() onError) {
+    // Imagen local del bundle (franquicias curadas por el usuario): sin red.
+    if (url.startsWith('assets/')) {
+      return Image.asset(
+        url,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => onError(),
+      );
+    }
     // 800px afinado para tarjetas 16:9 de scroll (antes 1920 Full HD: con
     // menos no se notaba en la tarjeta y el hover x1.3 sigue nítido).
     return CachedNetworkImage(

@@ -331,6 +331,8 @@ class _ContentRowState extends ConsumerState<ContentRow> {
     for (var i = 0; i < count; i++) {
       final url = _imageUrlFor(items[i]);
       if (url == null || url.isEmpty) continue;
+      // Assets locales (franquicias del usuario): los gestiona Image.asset.
+      if (url.startsWith('assets/')) continue;
       precacheImage(
         CachedNetworkImageProvider(
           url,

@@ -360,20 +360,30 @@ class _PosterCardState extends ConsumerState<PosterCard> {
     Widget imageWidget;
     if (builtImage != null) {
       imageWidget = builtImage;
-    } else if (url != null) {
-      imageWidget = CachedNetworkImage(
-        imageUrl: url,
-        fit: BoxFit.cover,
-        // 500px: las tarjetas llegan a ~300px lógicos (x2 con homeCardScale)
-        // y el hover las amplía x1.3. Con más solo crece descarga y decode.
-        memCacheWidth: kPosterMaxWidth,
-        maxWidthDiskCache: kPosterMaxWidth,
-        fadeInDuration: const Duration(milliseconds: 150),
-        useOldImageOnUrlChange: true,
-        errorBuilder: (_, _, _) =>
-            PosterFallback(item: widget.item, color: fallbackColor),
-        placeholder: (_, _) => const SizedBox.shrink(),
-      );
+    } else if (url != null && url.isNotEmpty) {
+      // Imagen local del bundle (franquicias curadas por el usuario): sin red.
+      if (url.startsWith('assets/')) {
+        imageWidget = Image.asset(
+          url,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) =>
+              PosterFallback(item: widget.item, color: fallbackColor),
+        );
+      } else {
+        imageWidget = CachedNetworkImage(
+          imageUrl: url,
+          fit: BoxFit.cover,
+          // 500px: las tarjetas llegan a ~300px lógicos (x2 con homeCardScale)
+          // y el hover las amplía x1.3. Con más solo crece descarga y decode.
+          memCacheWidth: kPosterMaxWidth,
+          maxWidthDiskCache: kPosterMaxWidth,
+          fadeInDuration: const Duration(milliseconds: 150),
+          useOldImageOnUrlChange: true,
+          errorBuilder: (_, _, _) =>
+              PosterFallback(item: widget.item, color: fallbackColor),
+          placeholder: (_, _) => const SizedBox.shrink(),
+        );
+      }
     } else {
       imageWidget = fallback;
     }

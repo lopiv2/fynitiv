@@ -431,7 +431,8 @@ class VodScreen extends ConsumerWidget {
         bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
         showMetaOverlay: cfg?.metaOverlay ?? false,
         showNewBadge: false,
-        showStackLogo: cfg?.showLogo ?? false,
+        // Franquicias: sin logo superpuesto (el usuario crea sus imágenes).
+        showStackLogo: false,
         logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
         metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
         logoSize: cfg?.logoSize,
