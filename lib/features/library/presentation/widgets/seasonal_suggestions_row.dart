@@ -78,6 +78,7 @@ class SeasonalSuggestionsRow extends ConsumerWidget {
             logoSize: cfg?.logoSize,
             hideTitle: cfg?.hideTitle ?? false,
             hideYear: cfg?.hideYear ?? false,
+            hideSubtitle: cfg?.hideSubtitle ?? false,
             showHoverOverlay: cfg?.showHoverOverlay ?? true,
             showPlayIcon: cfg?.showPlayIcon ?? true,
             highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,

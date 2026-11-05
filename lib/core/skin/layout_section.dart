@@ -69,6 +69,17 @@ class LayoutSection {
   const LayoutSection.custom(HomeScroll scroll)
     : this._(LayoutSectionType.custom, scroll);
 
+  /// Fila de colecciones (BoxSets de Jellyfin: sagas/franquicias). Una sola
+  /// fila con todas las colecciones del servidor; [scroll] define apariencia,
+  /// orden y límite. El título es "Colecciones" salvo `scroll.customTitle`.
+  const LayoutSection.boxSets([HomeScroll? scroll])
+    : this._(LayoutSectionType.boxSets, scroll);
+
+  /// Hub de franquicias curadas. [scroll] define la apariencia de las tarjetas;
+  /// el orden de las franquicias es el del catálogo JSON.
+  const LayoutSection.franchises([HomeScroll? scroll])
+    : this._(LayoutSectionType.franchises, scroll);
+
   /// Bloque de sugerencias estacionales (Halloween, Navidad…). Solo se muestra
   /// cuando hay una temática de calendario activa, la preferencia está activa
   /// y hay resultados; en el resto de fechas no ocupa espacio. La config
@@ -92,6 +103,11 @@ class LayoutSection {
     SeerrDiscoverCategory category, [
     HomeScroll? scroll,
   ]) : this._(LayoutSectionType.seerrDiscover, scroll, null, category);
+
+  /// Fila de estudios de Seerr (compañías de TMDB). Solo aparece si Seerr está
+  /// configurado; [scroll] define la apariencia de las tarjetas.
+  const LayoutSection.seerrStudios([HomeScroll? scroll])
+    : this._(LayoutSectionType.seerrStudios, scroll);
 
   final LayoutSectionType type;
 
@@ -159,6 +175,10 @@ class LayoutSection {
         return LayoutSection.custom(
           s ?? HomeScroll.fromJson({'titleKey': 'custom', 'genres': []}),
         );
+      case LayoutSectionType.boxSets:
+        return LayoutSection.boxSets(s);
+      case LayoutSectionType.franchises:
+        return LayoutSection.franchises(s);
       case LayoutSectionType.seasonal:
         return LayoutSection.seasonal(s);
       case LayoutSectionType.upcoming:
@@ -172,6 +192,8 @@ class LayoutSection {
           seerrCategory ?? SeerrDiscoverCategory.trending,
           s,
         );
+      case LayoutSectionType.seerrStudios:
+        return LayoutSection.seerrStudios(s);
     }
   }
 

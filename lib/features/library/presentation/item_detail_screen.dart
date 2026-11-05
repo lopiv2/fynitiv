@@ -973,11 +973,14 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
     // solicitar se vea el estado en vez del botón otra vez.
     final requestLabel = switch (widget.seerrMedia?.status) {
       SeerrMediaStatus.pending => l10n.seerrStatusRequested,
-      SeerrMediaStatus.processing => l10n.seerrStatusProcessing,
+      // En Radarr/Sonarr pero sin media: "Pronto en tu biblioteca".
+      SeerrMediaStatus.processing => l10n.seerrComingSoonInLibrary,
       SeerrMediaStatus.partiallyAvailable => l10n.seerrStatusPartial,
       SeerrMediaStatus.available => l10n.seerrStatusAvailable,
       _ => null,
     };
+    final isComingSoon =
+        widget.seerrMedia?.status == SeerrMediaStatus.processing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -995,7 +998,10 @@ class _DetailActionsState extends ConsumerState<_DetailActions> {
           Align(
             alignment: Alignment.centerLeft,
             child: Chip(
-              avatar: const Icon(Icons.check, size: 18),
+              avatar: Icon(
+                isComingSoon ? Icons.schedule : Icons.check,
+                size: 18,
+              ),
               label: Text(requestLabel),
             ),
           )

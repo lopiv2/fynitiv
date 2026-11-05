@@ -378,6 +378,7 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                               logoSize: scroll?.logoSize,
                               hideTitle: scroll?.hideTitle ?? false,
                               hideYear: scroll?.hideYear ?? false,
+                              hideSubtitle: scroll?.hideSubtitle ?? false,
                               showHoverOverlay:
                                   scroll?.showHoverOverlay ?? true,
                               showPlayIcon: scroll?.showPlayIcon ?? true,
@@ -385,20 +386,8 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                                   scroll?.highlightTitleOnHover ?? false,
                               cardBorderRadius: scroll?.cardBorderRadius,
                               hoverScale: scroll?.hoverScale,
-                              onTap: () {
-                                // Directo al reproductor si es reproducible;
-                                // si no, a su ficha (álbum, libro…).
-                                if (playTargetFor(item) !=
-                                    DetailPlayTarget.unsupported) {
-                                  pushPlayForDetail(context, item);
-                                  return;
-                                }
-                                pushDetailForType(context, item);
-                              },
-                              onImageTap: () => context.push(
-                                '/home/details/${item.id}',
-                                extra: item,
-                              ),
+                              onTap: () => _openItem(context, item),
+                              onImageTap: () => _openItem(context, item),
                             );
                           }
                           return PosterCard(
@@ -423,25 +412,14 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
                             logoSize: scroll?.logoSize,
                             hideTitle: scroll?.hideTitle ?? false,
                             hideYear: scroll?.hideYear ?? false,
+                            hideSubtitle: scroll?.hideSubtitle ?? false,
                             showHoverOverlay:
                                 scroll?.showHoverOverlay ?? true,
                             showPlayIcon: scroll?.showPlayIcon ?? true,
                             cardBorderRadius: scroll?.cardBorderRadius,
                             hoverScale: scroll?.hoverScale,
-                            onTap: () {
-                              // Directo al reproductor si es reproducible;
-                              // si no, a su ficha (serie, álbum, libro…).
-                              if (playTargetFor(item) !=
-                                  DetailPlayTarget.unsupported) {
-                                pushPlayForDetail(context, item);
-                                return;
-                              }
-                              pushDetailForType(context, item);
-                            },
-                            onImageTap: () => context.push(
-                              '/home/details/${item.id}',
-                              extra: item,
-                            ),
+                            onTap: () => _openItem(context, item),
+                            onImageTap: () => _openItem(context, item),
                           );
                         },
                       ),
@@ -451,6 +429,19 @@ class _LibraryViewScreenState extends ConsumerState<LibraryViewScreen> {
         ),
       ),
     );
+  }
+
+  /// Tap en un contenido de la biblioteca: siempre abre su ficha (no
+  /// reproduce directo). Desde la ficha se reproduce/lee. Las colecciones
+  /// (BoxSets) abren el grid con las películas que las componen.
+  void _openItem(BuildContext context, BaseItemDto item) {
+    if (item.type == BaseItemKind.boxSet) {
+      final id = item.id;
+      if (id == null || id.isEmpty) return;
+      context.push('/library/$id', extra: item.name);
+      return;
+    }
+    pushDetailForType(context, item);
   }
 
   String _resolveScrollTitle(AppLocalizations l10n, HomeScroll scroll) =>

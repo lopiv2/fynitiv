@@ -89,6 +89,16 @@ enum LayoutSectionType {
   recent,
   newReleases,
   library,
+
+  /// Fila de colecciones (BoxSets de Jellyfin, "sagas"): una sola fila con
+  /// todas las colecciones del servidor. La apariencia y el orden van en
+  /// [LayoutSection.scroll] ([HomeScroll]).
+  boxSets,
+
+  /// Hub de franquicias curadas (`assets/data/franchises.json`): una fila con
+  /// las carátulas de las sagas; al pulsar se abre su pantalla con las
+  /// películas en el orden TMDB del catálogo.
+  franchises,
   custom,
   seasonal,
   upcoming,
@@ -100,6 +110,11 @@ enum LayoutSectionType {
   /// Fila de descubrimiento de Seerr (pestaña "Descubrir"). La categoría va en
   /// [LayoutSection.seerrCategory].
   seerrDiscover,
+
+  /// Fila de estudios de Seerr (compañías de TMDB con su catálogo). Solo se
+  /// muestra si Seerr está configurado. La apariencia va en
+  /// [LayoutSection.scroll].
+  seerrStudios,
 }
 
 /// División del VOD en pantallas por tipo de contenido.

@@ -62,6 +62,7 @@ class JellyfinUpcomingRow extends ConsumerWidget {
             logoSize: cfg?.logoSize,
             hideTitle: cfg?.hideTitle ?? false,
             hideYear: cfg?.hideYear ?? false,
+            hideSubtitle: cfg?.hideSubtitle ?? false,
             showHoverOverlay: cfg?.showHoverOverlay ?? true,
             // Esta fila ES la de placeholders: no se excluyen.
             excludePlaceholders: false,

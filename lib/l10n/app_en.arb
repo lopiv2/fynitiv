@@ -1052,6 +1052,17 @@
   "sliderRemoved": "Slider removed",
   "shows": "TV Shows",
   "movies": "Movies",
+  "collections": "Collections",
+  "franchises": "Franchises",
+  "studios": "Studios",
+  "notInLibrary": "Not in your library",
+  "franchiseProgress": "{owned}/{total} in your library",
+  "@franchiseProgress": {
+    "placeholders": {
+      "owned": { "type": "int" },
+      "total": { "type": "int" }
+    }
+  },
   "myNetflix": "My Library",
   "resumeSeasonEpisode": "Resume S{season} E{episode}",
   "@resumeSeasonEpisode": {

@@ -565,6 +565,41 @@ final recentRowItemsProvider =
       return collapseSeriesDuplicates(res.data?.items ?? []);
     });
 
+/// Colecciones (BoxSets) del servidor para la fila "Colecciones".
+/// Orden configurable por [HomeScrollSort]; las colecciones sin hijos se
+/// descartan (no aportan nada a la fila).
+final boxSetItemsProvider =
+    FutureProvider.family<List<BaseItemDto>, HomeScrollSort>((ref, sort) async {
+      if (sort != HomeScrollSort.random) ref.cacheFor(_kLibraryCache);
+      final client = ref.watch(jellyfinClientProvider);
+      final userId = ref.watch(currentUserIdProvider);
+      if (client == null || userId == null) return const [];
+      final (sortBy, sortOrder) = homeScrollSortParams(sort);
+      final res = await client.getItemsApi().getItems(
+        userId: userId,
+        recursive: true,
+        includeItemTypes: const [BaseItemKind.boxSet],
+        sortBy: sortBy,
+        sortOrder: sortOrder,
+        // Suficiente para la fila; "Ver más" abre la biblioteca de colecciones.
+        limit: 40,
+        fields: const [
+          ItemFields.primaryImageAspectRatio,
+          ItemFields.overview,
+          ItemFields.childCount,
+        ],
+        enableImageTypes: const [
+          ImageType.primary,
+          ImageType.backdrop,
+          ImageType.logo,
+          ImageType.thumb,
+        ],
+      );
+      final items = res.data?.items ?? const <BaseItemDto>[];
+      // childCount null = no vino en la respuesta: no descartar la colección.
+      return items.where((e) => (e.childCount ?? 1) > 0).toList();
+    });
+
 /// Temporadas de una serie, ordenadas por nombre.
 final seriesSeasonsProvider =
     FutureProvider.family<List<BaseItemDto>, String>((ref, seriesId) async {

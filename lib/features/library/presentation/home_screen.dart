@@ -1,5 +1,4 @@
 
-import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
@@ -13,6 +12,9 @@ import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/scroll_title.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../franchises/application/franchise_providers.dart';
+import '../../seerr/application/seerr_studios_providers.dart';
+import '../../seerr/presentation/widgets/seerr_studio_tile.dart';
 import '../application/library_providers.dart';
 import 'widgets/content_row.dart';
 import 'widgets/featured_slider.dart';
@@ -64,6 +66,9 @@ class HomeScreen extends ConsumerWidget {
     // --- RowSpacing doble backdrop->poster ---
     final List<bool> visibleBackdrops = [];
     bool isBackdropForContinue([HomeScroll? cfg]) {
+      // `cardType` manda; `imageSource` solo decide si no se fijó formato.
+      if (cfg?.cardType == HomeScrollCardType.backdrop) return true;
+      if (cfg?.cardType == HomeScrollCardType.poster) return false;
       final src = cfg?.imageSource;
       if (src == RowImageSource.primary) return false;
       if (src != null) return true;
@@ -131,7 +136,7 @@ class HomeScreen extends ConsumerWidget {
         cardLogo: skin?.cardLogo,
         showBottomVignette: cfg?.bottomVignette ?? false,
         showMetaOverlay: cfg?.metaOverlay ?? false,
-        imageSource: cfg?.imageSource,
+        imageSource: isBack ? cfg?.imageSource : RowImageSource.primary,
         showNewBadge: cfg?.showNewBadge ?? false,
         showStackLogo: cfg?.showLogo ?? false,
         logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
@@ -139,6 +144,7 @@ class HomeScreen extends ConsumerWidget {
         logoSize: cfg?.logoSize,
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
         showPlayIcon: cfg?.showPlayIcon ?? true,
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
@@ -185,6 +191,7 @@ class HomeScreen extends ConsumerWidget {
         logoSize: cfg?.logoSize,
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
         showPlayIcon: cfg?.showPlayIcon ?? true,
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
@@ -197,6 +204,272 @@ class HomeScreen extends ConsumerWidget {
         onItemTap: tapFor(cfg),
         onItemImageTap: (item) =>
             context.push('/home/details/${item.id}', extra: item),
+      );
+      rowCursor++;
+      return w;
+    }
+
+    /// ID de la vista "Colecciones" (BoxSets) del servidor, si existe.
+    String? boxSetsViewId() {
+      for (final view in views.value ?? const <BaseItemDto>[]) {
+        final id = view.id ?? '';
+        if (view.collectionType == CollectionType.boxsets && id.isNotEmpty) {
+          return id;
+        }
+      }
+      return null;
+    }
+
+    /// Fila de colecciones (BoxSets): título "Colecciones" (o nombre libre del
+    /// scroll) y tap que abre las películas de la colección en el grid.
+    Widget buildBoxSetsRow([HomeScroll? cfg]) {
+      final sort = cfg?.sort ?? HomeScrollSort.alphabetical;
+      final boxAsync = ref.watch(boxSetItemsProvider(sort));
+      final items = boxAsync.value ?? const <BaseItemDto>[];
+      final isBack = cfg?.cardType == HomeScrollCardType.backdrop
+          ? true
+          : cfg?.cardType == HomeScrollCardType.poster
+          ? false
+          : useBackdrop;
+      final isNextPoster = isNextPosterFor(isBack);
+      final freeTitle = cfg?.customTitle?.trim() ?? '';
+      final title = freeTitle.isNotEmpty ? freeTitle : l10n.collections;
+      if (items.isEmpty) {
+        // Carga inicial: título + loader; sin resultados reales se oculta.
+        if (!boxAsync.isLoading) return const SizedBox.shrink();
+        rowCursor++;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ScrollTitle(title: title),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: rowHeight,
+              child: const Center(child: AppLoader()),
+            ),
+          ],
+        );
+      }
+      final targetViewId = boxSetsViewId();
+      void openCollection(BaseItemDto item) {
+        final id = item.id;
+        if (id == null || id.isEmpty) return;
+        context.push('/library/$id', extra: item.name);
+      }
+      final w = ContentRow(
+        title: title,
+        items: items,
+        serverUrl: serverUrl,
+        height: rowHeight,
+        cardWidth: cardWidth,
+        itemSpacing: skin?.itemSpacing,
+        useBackdrop: isBack,
+        cardLogo: skin?.cardLogo,
+        showBottomVignette: cfg?.bottomVignette ?? false,
+        bottomVignetteHeight: cfg?.bottomVignetteHeight ?? 56,
+        bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
+        showMetaOverlay: cfg?.metaOverlay ?? false,
+        imageSource: cfg?.imageSource,
+        showNewBadge: cfg?.showNewBadge ?? false,
+        showStackLogo: cfg?.showLogo ?? false,
+        logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: cfg?.showPlayIcon ?? false,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
+        isNextPoster: isNextPoster,
+        hasNext: rowCursor < visibleBackdrops.length - 1,
+        onSeeMore: (cfg?.showSeeMore ?? true) && targetViewId != null
+            ? () => context.push(
+                '/library/$targetViewId',
+                extra: l10n.collections,
+              )
+            : null,
+        onItemTap: openCollection,
+        onItemImageTap: openCollection,
+      );
+      rowCursor++;
+      return w;
+    }
+
+    /// Hub "Franquicias": una tarjeta por saga curada; al pulsar se abre su
+    /// pantalla con el orden TMDB y los faltantes pedibles desde Seerr.
+    Widget buildFranchisesRow([HomeScroll? cfg]) {
+      final hubAsync = ref.watch(franchiseHubProvider);
+      final hub = hubAsync.value ?? const <FranchiseHubEntry>[];
+      final isBack = cfg?.cardType == HomeScrollCardType.backdrop
+          ? true
+          : cfg?.cardType == HomeScrollCardType.poster
+          ? false
+          : useBackdrop;
+      final isNextPoster = isNextPosterFor(isBack);
+      final freeTitle = cfg?.customTitle?.trim() ?? '';
+      final title = freeTitle.isNotEmpty ? freeTitle : l10n.franchises;
+      if (hub.isEmpty) {
+        if (!hubAsync.isLoading) return const SizedBox.shrink();
+        rowCursor++;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ScrollTitle(title: title),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: rowHeight,
+              child: const Center(child: AppLoader()),
+            ),
+          ],
+        );
+      }
+      final language = Localizations.localeOf(context).languageCode;
+      final byId = <String, FranchiseHubEntry>{
+        for (final entry in hub) 'franchise:${entry.franchise.id}': entry,
+      };
+      final items = [
+        for (final entry in hub)
+          BaseItemDto(
+            id: 'franchise:${entry.franchise.id}',
+            name: entry.franchise.nameFor(language),
+            type: BaseItemKind.movie,
+          ),
+      ];
+      void openFranchise(BaseItemDto item) {
+        final entry = byId[item.id];
+        if (entry == null) return;
+        context.push('/franchises/${entry.franchise.id}');
+      }
+
+      final w = ContentRow(
+        title: title,
+        items: items,
+        serverUrl: serverUrl,
+        height: rowHeight,
+        cardWidth: cardWidth,
+        itemSpacing: skin?.itemSpacing,
+        useBackdrop: isBack,
+        showBottomVignette: cfg?.bottomVignette ?? false,
+        bottomVignetteHeight: cfg?.bottomVignetteHeight ?? 56,
+        bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
+        showMetaOverlay: cfg?.metaOverlay ?? false,
+        showNewBadge: false,
+        showStackLogo: cfg?.showLogo ?? true,
+        logoPosition: cfg?.logoPosition ?? RowLogoPosition.center,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize ?? 72,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: false,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
+        isNextPoster: isNextPoster,
+        hasNext: rowCursor < visibleBackdrops.length - 1,
+        excludePlaceholders: false,
+        showHoverIncludedBadge: false,
+        hoverActionLabel: l10n.details,
+        imageUrlFor: (item) => byId[item.id]?.imageUrl,
+        stackLogoFor: (item) => byId[item.id]?.logo,
+        onItemTap: openFranchise,
+        onItemImageTap: openFranchise,
+      );
+      rowCursor++;
+      return w;
+    }
+
+    /// Fila de estudios de Seerr (solo si Seerr está configurado): tarjetas con
+    /// logo a sangre o degradado + glassmorphism, usando el scroll estándar.
+    Widget buildSeerrStudiosRow([HomeScroll? cfg]) {
+      final studiosAsync = ref.watch(seerrStudiosProvider);
+      final studios = studiosAsync.value ?? const <SeerrStudioEntry>[];
+      final freeTitle = cfg?.customTitle?.trim() ?? '';
+      final title = freeTitle.isNotEmpty ? freeTitle : l10n.studios;
+      if (studios.isEmpty) {
+        if (!studiosAsync.isLoading) return const SizedBox.shrink();
+        rowCursor++;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ScrollTitle(title: title),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: rowHeight,
+              child: const Center(child: AppLoader()),
+            ),
+          ],
+        );
+      }
+      final byId = <String, SeerrStudioEntry>{
+        for (final entry in studios) 'studio:${entry.companyId}': entry,
+      };
+      final items = [
+        for (final entry in studios)
+          BaseItemDto(
+            id: 'studio:${entry.companyId}',
+            name: entry.name,
+            type: BaseItemKind.movie,
+          ),
+      ];
+      void openStudio(BaseItemDto item) {
+        final entry = byId[item.id];
+        if (entry == null) return;
+        context.push('/studios/${entry.companyId}', extra: entry.name);
+      }
+
+      final isBack = cfg?.cardType != HomeScrollCardType.poster;
+      final isNextPoster = isNextPosterFor(isBack);
+      final w = ContentRow(
+        title: title,
+        items: items,
+        serverUrl: serverUrl,
+        height: rowHeight,
+        cardWidth: cardWidth,
+        itemSpacing: skin?.itemSpacing,
+        useBackdrop: isBack,
+        imageBuilder: (context, item) {
+          final entry = byId[item.id];
+          if (entry == null) return const SizedBox.shrink();
+          return SeerrStudioTile(studio: entry);
+        },
+        showMetaOverlay: false,
+        showNewBadge: false,
+        showStackLogo: false,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: true,
+        hideSubtitle: true,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: false,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
+        spotlight: false,
+        cardScale: cfg?.cardScale ?? 1.0,
+        isNextPoster: isNextPoster,
+        hasNext: rowCursor < visibleBackdrops.length - 1,
+        excludePlaceholders: false,
+        showHoverIncludedBadge: false,
+        hoverActionLabel: l10n.details,
+        onItemTap: openStudio,
+        onItemImageTap: openStudio,
       );
       rowCursor++;
       return w;
@@ -395,6 +668,40 @@ class HomeScreen extends ConsumerWidget {
               customBackdrops.add(useBackdrop);
             }
             break;
+          case LayoutSectionType.boxSets:
+            final boxSort =
+                section.scroll?.sort ?? HomeScrollSort.alphabetical;
+            final boxAsync = ref.watch(boxSetItemsProvider(boxSort));
+            final boxItems = boxAsync.value ?? const <BaseItemDto>[];
+            if (boxItems.isEmpty && !boxAsync.isLoading) break;
+            final s = section.scroll;
+            final isBack = s?.cardType == HomeScrollCardType.backdrop
+                ? true
+                : s?.cardType == HomeScrollCardType.poster
+                ? false
+                : useBackdrop;
+            customBackdrops.add(isBack);
+            break;
+          case LayoutSectionType.franchises:
+            final hubAsync = ref.watch(franchiseHubProvider);
+            final hub = hubAsync.value ?? const <FranchiseHubEntry>[];
+            if (hub.isEmpty && !hubAsync.isLoading) break;
+            final s = section.scroll;
+            final isBack = s?.cardType == HomeScrollCardType.backdrop
+                ? true
+                : s?.cardType == HomeScrollCardType.poster
+                ? false
+                : useBackdrop;
+            customBackdrops.add(isBack);
+            break;
+          case LayoutSectionType.seerrStudios:
+            final studiosAsync = ref.watch(seerrStudiosProvider);
+            final studios = studiosAsync.value ?? const <SeerrStudioEntry>[];
+            if (studios.isEmpty && !studiosAsync.isLoading) break;
+            customBackdrops.add(
+              section.scroll?.cardType != HomeScrollCardType.poster,
+            );
+            break;
           case LayoutSectionType.custom:
             final s = section.scroll!;
             final scrollItems = ref.watch(homeScrollItemsProvider(s));
@@ -537,6 +844,7 @@ class HomeScreen extends ConsumerWidget {
                         logoSize: recentScroll?.logoSize,
                         hideTitle: recentScroll?.hideTitle ?? false,
                         hideYear: recentScroll?.hideYear ?? false,
+                        hideSubtitle: recentScroll?.hideSubtitle ?? false,
                         showHoverOverlay:
                             recentScroll?.showHoverOverlay ?? true,
                         showPlayIcon: recentScroll?.showPlayIcon ?? true,
@@ -648,6 +956,7 @@ class HomeScreen extends ConsumerWidget {
                         logoSize: libraryScroll?.logoSize,
                         hideTitle: libraryScroll?.hideTitle ?? false,
                         hideYear: libraryScroll?.hideYear ?? false,
+                        hideSubtitle: libraryScroll?.hideSubtitle ?? false,
                         showHoverOverlay:
                             libraryScroll?.showHoverOverlay ?? true,
                         showPlayIcon: libraryScroll?.showPlayIcon ?? true,
@@ -725,6 +1034,7 @@ class HomeScreen extends ConsumerWidget {
                     logoSize: newReleasesScroll?.logoSize,
                     hideTitle: newReleasesScroll?.hideTitle ?? false,
                     hideYear: newReleasesScroll?.hideYear ?? false,
+                    hideSubtitle: newReleasesScroll?.hideSubtitle ?? false,
                     showHoverOverlay:
                         newReleasesScroll?.showHoverOverlay ?? true,
                     showPlayIcon: newReleasesScroll?.showPlayIcon ?? true,
@@ -745,6 +1055,15 @@ class HomeScreen extends ConsumerWidget {
                 },
               ),
             );
+            break;
+          case LayoutSectionType.boxSets:
+            out.add(buildBoxSetsRow(section.scroll));
+            break;
+          case LayoutSectionType.franchises:
+            out.add(buildFranchisesRow(section.scroll));
+            break;
+          case LayoutSectionType.seerrStudios:
+            out.add(buildSeerrStudiosRow(section.scroll));
             break;
           case LayoutSectionType.custom:
             final s = section.scroll!;
@@ -805,6 +1124,7 @@ class HomeScreen extends ConsumerWidget {
                     logoSize: s.logoSize,
                     hideTitle: s.hideTitle,
                     hideYear: s.hideYear,
+                    hideSubtitle: s.hideSubtitle,
                     showHoverOverlay: s.showHoverOverlay,
                     showPlayIcon: s.showPlayIcon,
                     highlightTitleOnHover: s.highlightTitleOnHover,

@@ -420,3 +420,32 @@ class SeerrQuickConnect {
   final String code;
   final String secret;
 }
+
+/// Compañía/estudio de TMDB (resultado de `/search/company`).
+class SeerrCompany {
+  const SeerrCompany({required this.id, required this.name, this.logoPath});
+
+  final int id;
+  final String name;
+  final String? logoPath;
+
+  String? logoUrl({String size = 'w300'}) {
+    final path = logoPath;
+    if (path == null || path.isEmpty) return null;
+    return 'https://image.tmdb.org/t/p/$size$path';
+  }
+
+  factory SeerrCompany.fromJson(Map<String, dynamic> json) => SeerrCompany(
+    id: (json['id'] as num?)?.toInt() ?? 0,
+    name: (json['name'] ?? '').toString().trim(),
+    logoPath: (json['logo_path'] ?? json['logoPath']) as String?,
+  );
+}
+
+/// Catálogo de un estudio desde Seerr: metadatos del estudio y sus películas.
+class SeerrStudioCatalog {
+  const SeerrStudioCatalog({required this.studio, required this.items});
+
+  final SeerrCompany studio;
+  final List<SeerrMedia> items;
+}

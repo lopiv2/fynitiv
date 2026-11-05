@@ -2673,6 +2673,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get movies => 'Movies';
 
   @override
+  String get collections => 'Collections';
+
+  @override
+  String get franchises => 'Franchises';
+
+  @override
+  String get studios => 'Studios';
+
+  @override
+  String get notInLibrary => 'Not in your library';
+
+  @override
+  String franchiseProgress(int owned, int total) {
+    return '$owned/$total in your library';
+  }
+
+  @override
   String get myNetflix => 'My Library';
 
   @override

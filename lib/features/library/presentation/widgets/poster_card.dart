@@ -44,6 +44,7 @@ class PosterCard extends ConsumerStatefulWidget {
     this.logoSize,
     this.hideTitle = false,
     this.hideYear = false,
+    this.hideSubtitle = false,
     this.showHoverOverlay = true,
     this.showPlayIcon = true,
     this.showImageHoverBorder = true,
@@ -55,6 +56,8 @@ class PosterCard extends ConsumerStatefulWidget {
     this.overlayBelowEntry,
     this.cornerBadge,
     this.imageUrl,
+    this.imageBuilder,
+    this.stackLogo,
     this.showHoverIncludedBadge = true,
     this.hoverActionLabel,
   });
@@ -72,6 +75,13 @@ class PosterCard extends ConsumerStatefulWidget {
   /// URL de imagen explícita (contenido externo, p. ej. TMDB). Si se indica,
   /// se usa en lugar de resolver la imagen desde Jellyfin.
   final String? imageUrl;
+
+  /// Construye el contenido de la zona de imagen (contenido externo/custom).
+  final Widget Function(BuildContext context, BaseItemDto item)? imageBuilder;
+
+  /// Logo apilado sobre la imagen (asset/archivo/URL). Si es null, se usa el
+  /// logo del item de Jellyfin.
+  final String? stackLogo;
   final VoidCallback? onTap;
   final VoidCallback? onImageTap;
   final String? cardLogo;
@@ -90,6 +100,9 @@ class PosterCard extends ConsumerStatefulWidget {
   final double? logoSize;
   final bool hideTitle;
   final bool hideYear;
+
+  /// Oculta la línea de subtítulo (artista/autor/año-géneros).
+  final bool hideSubtitle;
   final bool showHoverOverlay;
   final bool showPlayIcon;
   final bool showImageHoverBorder;
@@ -119,8 +132,29 @@ class _PosterCardState extends ConsumerState<PosterCard> {
   @override
   Widget build(BuildContext context) {
     String? logoUrl;
-    if (widget.showStackLogo && widget.serverUrl != null) {
-      logoUrl = itemLogoUrl(widget.serverUrl!, widget.item);
+    if (widget.showStackLogo) {
+      logoUrl = widget.stackLogo;
+      if (logoUrl == null && widget.serverUrl != null) {
+        logoUrl = itemLogoUrl(widget.serverUrl!, widget.item);
+      }
+    }
+    Widget stackLogoWidget(double height) {
+      final custom = widget.stackLogo;
+      if (custom != null && custom.isNotEmpty) {
+        return LogoImage(logo: custom, height: height, fit: BoxFit.contain);
+      }
+      return CachedNetworkImage(
+        imageUrl: logoUrl!,
+        height: height,
+        fit: BoxFit.contain,
+        alignment: Alignment.center,
+        fadeInDuration: const Duration(milliseconds: 150),
+        useOldImageOnUrlChange: true,
+        memCacheHeight: (height * 3).toInt(),
+        maxHeightDiskCache: (height * 3).toInt(),
+        errorBuilder: (_, _, _) => const SizedBox.shrink(),
+        placeholder: (_, _) => const SizedBox.shrink(),
+      );
     }
     String? url;
     if (widget.imageUrl != null && widget.imageUrl!.isNotEmpty) {
@@ -274,6 +308,7 @@ class _PosterCardState extends ConsumerState<PosterCard> {
       }
       if (subtitle != null && subtitle.isEmpty) subtitle = null;
     }
+    if (widget.hideSubtitle) subtitle = null;
     if (widget.hideTitle) {
       cardTitle = '';
     }
@@ -321,8 +356,11 @@ class _PosterCardState extends ConsumerState<PosterCard> {
     }
 
     final fallback = PosterFallback(item: widget.item, color: fallbackColor);
+    final builtImage = widget.imageBuilder?.call(context, widget.item);
     Widget imageWidget;
-    if (url != null) {
+    if (builtImage != null) {
+      imageWidget = builtImage;
+    } else if (url != null) {
       imageWidget = CachedNetworkImage(
         imageUrl: url,
         fit: BoxFit.cover,
@@ -444,42 +482,11 @@ class _PosterCardState extends ConsumerState<PosterCard> {
                               : null,
                           child: widget.logoPosition == RowLogoPosition.center
                               ? Center(
-                                  child: CachedNetworkImage(
-                                    imageUrl: logoUrl,
-                                    height: widget.logoSize ?? 36,
-                                    fit: BoxFit.contain,
-                                    fadeInDuration: const Duration(
-                                      milliseconds: 150,
-                                    ),
-                                    useOldImageOnUrlChange: true,
-                                    memCacheHeight:
-                                        ((widget.logoSize ?? 36) * 3).toInt(),
-                                    maxHeightDiskCache:
-                                        ((widget.logoSize ?? 36) * 3).toInt(),
-                                    errorBuilder: (_, _, _) =>
-                                        const SizedBox.shrink(),
-                                    placeholder: (_, _) =>
-                                        const SizedBox.shrink(),
+                                  child: stackLogoWidget(
+                                    widget.logoSize ?? 36,
                                   ),
                                 )
-                              : CachedNetworkImage(
-                                  imageUrl: logoUrl,
-                                  height: widget.logoSize ?? 28,
-                                  fit: BoxFit.contain,
-                                  alignment: Alignment.center,
-                                  fadeInDuration: const Duration(
-                                    milliseconds: 150,
-                                  ),
-                                  useOldImageOnUrlChange: true,
-                                  memCacheHeight: ((widget.logoSize ?? 28) * 3)
-                                      .toInt(),
-                                  maxHeightDiskCache:
-                                      ((widget.logoSize ?? 28) * 3).toInt(),
-                                  errorBuilder: (_, _, _) =>
-                                      const SizedBox.shrink(),
-                                  placeholder: (_, _) =>
-                                      const SizedBox.shrink(),
-                                ),
+                              : stackLogoWidget(widget.logoSize ?? 28),
                         ),
                       if (widget.showMetaOverlay)
                         Positioned(

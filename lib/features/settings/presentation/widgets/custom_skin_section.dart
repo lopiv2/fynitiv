@@ -633,6 +633,7 @@ class _CustomRowDialogState extends State<_CustomRowDialog> {
         logoSize: initial?.logoSize,
         hideTitle: initial?.hideTitle ?? false,
         hideYear: initial?.hideYear ?? false,
+        hideSubtitle: initial?.hideSubtitle ?? false,
         showHoverOverlay: initial?.showHoverOverlay ?? true,
         showPlayIcon: initial?.showPlayIcon ?? true,
         highlightTitleOnHover: initial?.highlightTitleOnHover ?? false,

@@ -3,6 +3,8 @@ import 'package:material_ui/material_ui.dart';
 
 import '../../../core/widgets/app_loader.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../library/application/library_providers.dart';
+import '../../library/application/library_tmdb_index.dart';
 import '../../library/presentation/item_detail_screen.dart';
 import '../application/seerr_providers.dart';
 import '../domain/seerr_models.dart';
@@ -26,12 +28,24 @@ class SeerrDetailScreen extends ConsumerWidget {
     final detail = ref.watch(
       seerrDetailProvider((mediaType: mediaType, tmdbId: tmdbId)),
     );
+    final index = ref.watch(libraryTmdbIndexProvider).value;
     return detail.when(
-      data: (media) => ItemDetailScreen(
-        item: seerrMediaToBaseItem(media),
-        backdropUrl: media.backdropUrl(),
-        seerrMedia: media,
-      ),
+      data: (media) {
+        final type = media.mediaType == SeerrMediaType.movie
+            ? TmdbMediaType.movie
+            : TmdbMediaType.series;
+        final real = index?[(type: type, tmdbId: media.tmdbId)];
+        // Si está en Jellyfin con media real, la ficha usa el item real para
+        // que aparezca el botón de reproducir; si no, el virtual de Seerr.
+        final item = (real != null && !isPlaceholderItem(real))
+            ? real
+            : seerrMediaToBaseItem(media);
+        return ItemDetailScreen(
+          item: item,
+          backdropUrl: media.backdropUrl(),
+          seerrMedia: media,
+        );
+      },
       loading: () => const Scaffold(
         backgroundColor: Color(0xFF02070D),
         body: Center(child: AppLoader()),

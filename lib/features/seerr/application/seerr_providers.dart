@@ -6,6 +6,7 @@ import '../../../core/i18n/locale_provider.dart';
 import '../../../core/i18n/locale_regions.dart';
 import '../../../core/skin/layout_section.dart';
 import '../../library/application/library_providers.dart';
+import '../../library/application/library_tmdb_index.dart';
 import '../domain/seerr_models.dart';
 import 'seerr_controller.dart';
 
@@ -147,60 +148,22 @@ enum SeerrLibraryStatus {
 }
 
 /// Estado del título (por `TmdbId`) en la biblioteca Jellyfin: ausente,
-/// placeholder (`.disc`) o con media real.
+/// placeholder (`.disc`) o con media real. Usa el índice TMDB global (sin
+/// búsqueda por título), así los stubs de Radarr/Sonarr se detectan siempre.
 final seerrLibraryStatusProvider =
     FutureProvider.family<SeerrLibraryStatus, JellyfinTmdbLookup>((
       ref,
       args,
     ) async {
-      final client = ref.watch(jellyfinClientProvider);
-      final userId = ref.watch(currentUserIdProvider);
-      if (client == null || userId == null || args.title.trim().isEmpty) {
-        return SeerrLibraryStatus.none;
-      }
-      try {
-        final res = await client.getItemsApi().getItems(
-          userId: userId,
-          recursive: true,
-          includeItemTypes: [args.kind],
-          searchTerm: args.title.trim(),
-          limit: 10,
-          fields: const [
-            ItemFields.providerIds,
-            ItemFields.mediaSources,
-            ItemFields.path,
-          ],
-          enableImages: false,
-          enableUserData: false,
-          enableTotalRecordCount: false,
-        );
-        final items = res.data?.items ?? const <BaseItemDto>[];
-        final tmdb = '${args.tmdbId}';
-        var foundPlaceholder = false;
-        for (final it in items) {
-          final ids = it.providerIds;
-          if (ids == null) continue;
-          var match = false;
-          for (final e in ids.entries) {
-            if (e.key.toLowerCase() == 'tmdb' && e.value == tmdb) {
-              match = true;
-              break;
-            }
-          }
-          if (!match) continue;
-          // Un título con media real prevalece sobre un stub del mismo título.
-          if (isPlaceholderItem(it)) {
-            foundPlaceholder = true;
-            continue;
-          }
-          return SeerrLibraryStatus.available;
-        }
-        return foundPlaceholder
-            ? SeerrLibraryStatus.placeholder
-            : SeerrLibraryStatus.none;
-      } catch (_) {
-        return SeerrLibraryStatus.none;
-      }
+      final index = await ref.watch(libraryTmdbIndexProvider.future);
+      final type = args.kind == BaseItemKind.series
+          ? TmdbMediaType.series
+          : TmdbMediaType.movie;
+      final item = index[(type: type, tmdbId: args.tmdbId)];
+      if (item == null) return SeerrLibraryStatus.none;
+      return isPlaceholderItem(item)
+          ? SeerrLibraryStatus.placeholder
+          : SeerrLibraryStatus.available;
     });
 
 /// Datos necesarios para los logos de una tarjeta de Descubrir/Buscar.

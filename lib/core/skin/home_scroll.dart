@@ -25,6 +25,7 @@ class HomeScroll {
     this.logoSize,
     this.hideTitle = false,
     this.hideYear = false,
+    this.hideSubtitle = false,
     this.showHoverOverlay = true,
     this.showPlayIcon = true,
     this.highlightTitleOnHover = false,
@@ -99,6 +100,10 @@ class HomeScroll {
   /// Oculta el año bajo el título (solo afecta al subtítulo de año).
   final bool hideYear;
 
+  /// Oculta la línea de subtítulo bajo el título: artista en música,
+  /// autor en libros/cómics, año/géneros en el resto.
+  final bool hideSubtitle;
+
   /// Si es `false` no muestra la capa oscura (alpha) al hacer hover
   /// (útil para skins que quieren solo escala/borde sin oscurecer).
   /// Independiente de [showPlayIcon]: puede haber play sin oscurecer.
@@ -161,6 +166,7 @@ class HomeScroll {
     double? logoSize,
     bool? hideTitle,
     bool? hideYear,
+    bool? hideSubtitle,
     bool? showHoverOverlay,
     bool? showPlayIcon,
     bool? highlightTitleOnHover,
@@ -194,6 +200,7 @@ class HomeScroll {
       logoSize: logoSize ?? this.logoSize,
       hideTitle: hideTitle ?? this.hideTitle,
       hideYear: hideYear ?? this.hideYear,
+      hideSubtitle: hideSubtitle ?? this.hideSubtitle,
       showHoverOverlay: showHoverOverlay ?? this.showHoverOverlay,
       showPlayIcon: showPlayIcon ?? this.showPlayIcon,
       highlightTitleOnHover:
@@ -229,6 +236,7 @@ class HomeScroll {
     if (logoSize != null) 'logoSize': logoSize,
     'hideTitle': hideTitle,
     'hideYear': hideYear,
+    'hideSubtitle': hideSubtitle,
     'showHoverOverlay': showHoverOverlay,
     'showPlayIcon': showPlayIcon,
     'highlightTitleOnHover': highlightTitleOnHover,
@@ -284,6 +292,7 @@ class HomeScroll {
     logoSize: (json['logoSize'] as num?)?.toDouble(),
     hideTitle: json['hideTitle'] as bool? ?? false,
     hideYear: json['hideYear'] as bool? ?? false,
+    hideSubtitle: json['hideSubtitle'] as bool? ?? false,
     showHoverOverlay: json['showHoverOverlay'] as bool? ?? true,
     // Compat: skins guardados sin la clave heredan el valor del overlay
     // (antes ambas cosas iban juntas).
@@ -330,6 +339,7 @@ class HomeScroll {
        other.logoSize == logoSize &&
         other.hideTitle == hideTitle &&
         other.hideYear == hideYear &&
+        other.hideSubtitle == hideSubtitle &&
          other.showHoverOverlay == showHoverOverlay &&
         other.showPlayIcon == showPlayIcon &&
         other.highlightTitleOnHover == highlightTitleOnHover &&
@@ -366,6 +376,7 @@ class HomeScroll {
     logoSize,
     hideTitle,
     hideYear,
+    hideSubtitle,
     showHoverOverlay,
     showPlayIcon,
     highlightTitleOnHover,

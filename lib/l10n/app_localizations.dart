@@ -5072,6 +5072,36 @@ abstract class AppLocalizations {
   /// **'Movies'**
   String get movies;
 
+  /// No description provided for @collections.
+  ///
+  /// In en, this message translates to:
+  /// **'Collections'**
+  String get collections;
+
+  /// No description provided for @franchises.
+  ///
+  /// In en, this message translates to:
+  /// **'Franchises'**
+  String get franchises;
+
+  /// No description provided for @studios.
+  ///
+  /// In en, this message translates to:
+  /// **'Studios'**
+  String get studios;
+
+  /// No description provided for @notInLibrary.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in your library'**
+  String get notInLibrary;
+
+  /// No description provided for @franchiseProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'{owned}/{total} in your library'**
+  String franchiseProgress(int owned, int total);
+
   /// No description provided for @myNetflix.
   ///
   /// In en, this message translates to:

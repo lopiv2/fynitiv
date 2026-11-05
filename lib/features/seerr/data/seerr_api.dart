@@ -384,6 +384,44 @@ class SeerrApi {
     return _mediaList(res.data);
   }
 
+  /// Busca compañías/estudios de TMDB por nombre.
+  Future<List<SeerrCompany>> searchCompanies(String query) async {
+    final res = await _dio.get<Object>(
+      '/search/company',
+      queryParameters: {'query': query},
+      options: _options('GET'),
+    );
+    if (res.statusCode != 200) return const [];
+    final data = res.data;
+    final results = (data is Map) ? data['results'] : null;
+    if (results is! List) return const [];
+    final out = <SeerrCompany>[];
+    for (final e in results) {
+      if (e is! Map) continue;
+      try {
+        out.add(SeerrCompany.fromJson(e.cast<String, dynamic>()));
+      } catch (_) {}
+    }
+    return out;
+  }
+
+  /// Películas de un estudio (TMDB company id) desde Descubrir, junto con los
+  /// metadatos del estudio (nombre/logo) que devuelve el mismo endpoint.
+  Future<SeerrStudioCatalog?> studioCatalog(int studioId) async {
+    final res = await _dio.get<Object>(
+      '/discover/movies/studio/$studioId',
+      options: _options('GET'),
+    );
+    if (res.statusCode != 200) return null;
+    final data = res.data;
+    final studioRaw = (data is Map) ? data['studio'] : null;
+    if (studioRaw is! Map) return null;
+    return SeerrStudioCatalog(
+      studio: SeerrCompany.fromJson(studioRaw.cast<String, dynamic>()),
+      items: _mediaList(data),
+    );
+  }
+
   /// Crea una petición en Seerr. Lanza [SeerrException] con el motivo real que
   /// devuelve el servidor (permiso, cuota, duplicada, CSRF…) para poder
   /// mostrarlo, en lugar de devolver un booleano sin contexto.

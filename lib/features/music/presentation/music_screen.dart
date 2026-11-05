@@ -10,6 +10,7 @@ import '../../../core/skin/music_player_skin_controller.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
+import '../../../core/widgets/artist_logo_name.dart';
 import '../../../core/widgets/library_page_header.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../l10n/genre_localizer.dart';
@@ -116,6 +117,13 @@ class MusicAlbumScreen extends ConsumerWidget {
     final textPrimary = mSkin?.textPrimary ?? Colors.white;
     final textSecondary = mSkin?.textSecondary ?? Colors.white70;
     final title = album?.name ?? '';
+    // Artista del álbum: logo si existe, con el nombre como fallback.
+    final artistName =
+        (album?.albumArtists?.firstOrNull?.name ??
+                album?.artists?.firstOrNull ??
+                album?.albumArtist ??
+                '')
+            .trim();
     final bgTop = mSkin?.backgroundTop ?? const Color(0xFF0A0A0A);
     final bgBottom = mSkin?.backgroundBottom ?? const Color(0xFF1A1A1A);
     final globalSkin = ref.watch(skinControllerProvider).value;
@@ -173,15 +181,35 @@ class MusicAlbumScreen extends ConsumerWidget {
                         ),
                       if (album != null) const SizedBox(width: 16),
                       Expanded(
-                        child: Text(
-                          title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: textPrimary,
-                            fontSize: 24,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (artistName.isNotEmpty) ...[
+                              ArtistLogoName(
+                                artistName: artistName,
+                                serverUrl: serverUrl,
+                                logoHeight: 80,
+                                maxWidth: 240,
+                                textStyle: TextStyle(
+                                  color: textSecondary,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                            ],
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: textPrimary,
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],

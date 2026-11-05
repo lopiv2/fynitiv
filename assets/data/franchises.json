@@ -1,0 +1,367 @@
+{
+  "version": 1,
+  "franchises": [
+    {
+      "id": "mcu_infinity_saga",
+      "name": "Universo Cinematográfico Marvel: Saga del Infinito",
+      "nameEn": "Marvel Cinematic Universe: Infinity Saga",
+      "logo": "assets/images/franchises/Marvel_Cinematic_Universe.png",
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 1726,
+          "title": "Iron Man",
+          "year": 2008
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1724,
+          "title": "El increíble Hulk",
+          "year": 2008
+        },
+        {
+          "type": "movie",
+          "tmdbId": 10138,
+          "title": "Iron Man 2",
+          "year": 2010
+        },
+        {
+          "type": "movie",
+          "tmdbId": 10195,
+          "title": "Thor",
+          "year": 2011
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1771,
+          "title": "Capitán América: El primer vengador",
+          "year": 2011
+        },
+        {
+          "type": "movie",
+          "tmdbId": 24428,
+          "title": "Los Vengadores",
+          "year": 2012
+        },
+        {
+          "type": "movie",
+          "tmdbId": 68721,
+          "title": "Iron Man 3",
+          "year": 2013
+        },
+        {
+          "type": "movie",
+          "tmdbId": 76338,
+          "title": "Thor: El mundo oscuro",
+          "year": 2013
+        },
+        {
+          "type": "movie",
+          "tmdbId": 100402,
+          "title": "Capitán América: El soldado de invierno",
+          "year": 2014
+        },
+        {
+          "type": "movie",
+          "tmdbId": 118340,
+          "title": "Guardianes de la Galaxia",
+          "year": 2014
+        },
+        {
+          "type": "movie",
+          "tmdbId": 99861,
+          "title": "Vengadores: La era de Ultrón",
+          "year": 2015
+        },
+        {
+          "type": "movie",
+          "tmdbId": 102899,
+          "title": "Ant-Man",
+          "year": 2015
+        },
+        {
+          "type": "movie",
+          "tmdbId": 271110,
+          "title": "Capitán América: Civil War",
+          "year": 2016
+        },
+        {
+          "type": "movie",
+          "tmdbId": 284052,
+          "title": "Doctor Strange",
+          "year": 2016
+        },
+        {
+          "type": "movie",
+          "tmdbId": 283995,
+          "title": "Guardianes de la Galaxia Vol. 2",
+          "year": 2017
+        },
+        {
+          "type": "movie",
+          "tmdbId": 315635,
+          "title": "Spider-Man: Homecoming",
+          "year": 2017
+        },
+        {
+          "type": "movie",
+          "tmdbId": 284053,
+          "title": "Thor: Ragnarok",
+          "year": 2017
+        },
+        {
+          "type": "movie",
+          "tmdbId": 284054,
+          "title": "Black Panther",
+          "year": 2018
+        },
+        {
+          "type": "movie",
+          "tmdbId": 299536,
+          "title": "Vengadores: Infinity War",
+          "year": 2018
+        },
+        {
+          "type": "movie",
+          "tmdbId": 363088,
+          "title": "Ant-Man y la Avispa",
+          "year": 2018
+        },
+        {
+          "type": "movie",
+          "tmdbId": 299537,
+          "title": "Capitana Marvel",
+          "year": 2019
+        },
+        {
+          "type": "movie",
+          "tmdbId": 299534,
+          "title": "Vengadores: Endgame",
+          "year": 2019
+        },
+        {
+          "type": "movie",
+          "tmdbId": 429617,
+          "title": "Spider-Man: Lejos de casa",
+          "year": 2019
+        }
+      ]
+    },
+    {
+      "id": "star_wars_skywalker",
+      "name": "Star Wars: Saga Skywalker",
+      "nameEn": "Star Wars: Skywalker Saga",
+      "logo": "assets/images/franchises/Star_wars.webp",
+      "collectionId": 10,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 11,
+          "title": "Star Wars: Episodio IV - Una nueva esperanza",
+          "year": 1977
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1891,
+          "title": "Star Wars: Episodio V - El Imperio contraataca",
+          "year": 1980
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1892,
+          "title": "Star Wars: Episodio VI - El retorno del Jedi",
+          "year": 1983
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1893,
+          "title": "Star Wars: Episodio I - La amenaza fantasma",
+          "year": 1999
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1894,
+          "title": "Star Wars: Episodio II - El ataque de los clones",
+          "year": 2002
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1895,
+          "title": "Star Wars: Episodio III - La venganza de los Sith",
+          "year": 2005
+        },
+        {
+          "type": "movie",
+          "tmdbId": 140607,
+          "title": "Star Wars: Episodio VII - El despertar de la Fuerza",
+          "year": 2015
+        },
+        {
+          "type": "movie",
+          "tmdbId": 181808,
+          "title": "Star Wars: Episodio VIII - Los últimos Jedi",
+          "year": 2017
+        },
+        {
+          "type": "movie",
+          "tmdbId": 181812,
+          "title": "Star Wars: Episodio IX - El ascenso de Skywalker",
+          "year": 2019
+        }
+      ]
+    },
+    {
+      "id": "harry_potter",
+      "name": "Harry Potter",
+      "nameEn": "Harry Potter",
+      "logo": "assets/images/franchises/Harry-Potter.png",
+      "collectionId": 1241,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 671,
+          "title": "Harry Potter y la piedra filosofal",
+          "year": 2001
+        },
+        {
+          "type": "movie",
+          "tmdbId": 672,
+          "title": "Harry Potter y la cámara secreta",
+          "year": 2002
+        },
+        {
+          "type": "movie",
+          "tmdbId": 673,
+          "title": "Harry Potter y el prisionero de Azkaban",
+          "year": 2004
+        },
+        {
+          "type": "movie",
+          "tmdbId": 674,
+          "title": "Harry Potter y el cáliz de fuego",
+          "year": 2005
+        },
+        {
+          "type": "movie",
+          "tmdbId": 675,
+          "title": "Harry Potter y la Orden del Fénix",
+          "year": 2007
+        },
+        {
+          "type": "movie",
+          "tmdbId": 767,
+          "title": "Harry Potter y el misterio del príncipe",
+          "year": 2009
+        },
+        {
+          "type": "movie",
+          "tmdbId": 12444,
+          "title": "Harry Potter y las Reliquias de la Muerte: Parte 1",
+          "year": 2010
+        },
+        {
+          "type": "movie",
+          "tmdbId": 12445,
+          "title": "Harry Potter y las Reliquias de la Muerte: Parte 2",
+          "year": 2011
+        }
+      ]
+    },
+    {
+      "id": "fast_furious",
+      "name": "Fast & Furious",
+      "nameEn": "Fast & Furious",
+      "logo": "assets/images/franchises/fast_furious.png",
+      "collectionId": 9485,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 9799,
+          "title": "The Fast and the Furious (A todo gas)",
+          "year": 2001
+        },
+        {
+          "type": "movie",
+          "tmdbId": 584,
+          "title": "2 Fast 2 Furious",
+          "year": 2003
+        },
+        {
+          "type": "movie",
+          "tmdbId": 9615,
+          "title": "A todo gas: Tokyo Race",
+          "year": 2006
+        },
+        {
+          "type": "movie",
+          "tmdbId": 13804,
+          "title": "Fast & Furious: Aún más rápido",
+          "year": 2009
+        },
+        {
+          "type": "movie",
+          "tmdbId": 51497,
+          "title": "Fast & Furious 5",
+          "year": 2011
+        },
+        {
+          "type": "movie",
+          "tmdbId": 82992,
+          "title": "Fast & Furious 6",
+          "year": 2013
+        },
+        {
+          "type": "movie",
+          "tmdbId": 168259,
+          "title": "Furious 7",
+          "year": 2015
+        },
+        {
+          "type": "movie",
+          "tmdbId": 337339,
+          "title": "Fast & Furious 8",
+          "year": 2017
+        },
+        {
+          "type": "movie",
+          "tmdbId": 385128,
+          "title": "Fast & Furious 9",
+          "year": 2021
+        },
+        {
+          "type": "movie",
+          "tmdbId": 385687,
+          "title": "Fast X",
+          "year": 2023
+        }
+      ]
+    },
+    {
+      "id": "lotr",
+      "name": "El Señor de los Anillos",
+      "nameEn": "The Lord of the Rings",
+      "logo": "assets/images/franchises/Tloftr-logo.webp",
+      "collectionId": 119,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 120,
+          "title": "El Señor de los Anillos: La Comunidad del Anillo",
+          "year": 2001
+        },
+        {
+          "type": "movie",
+          "tmdbId": 121,
+          "title": "El Señor de los Anillos: Las Dos Torres",
+          "year": 2002
+        },
+        {
+          "type": "movie",
+          "tmdbId": 122,
+          "title": "El Señor de los Anillos: El Retorno del Rey",
+          "year": 2003
+        }
+      ]
+    }
+  ]
+}

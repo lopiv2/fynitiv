@@ -11,6 +11,7 @@ import '../../../core/theme/dashboard_background.dart';
 import '../../../core/widgets/app_loader.dart';
 import '../../../core/widgets/scroll_title.dart';
 import '../../../l10n/app_localizations.dart';
+import '../../franchises/application/franchise_providers.dart';
 import '../../library/application/library_providers.dart';
 import '../../library/presentation/widgets/content_row.dart';
 import '../../library/presentation/widgets/featured_slider.dart';
@@ -103,6 +104,9 @@ class VodScreen extends ConsumerWidget {
 
     final List<bool> visibleBackdrops = [];
     bool isBackForContinue([HomeScroll? cfg]) {
+      // `cardType` manda; `imageSource` solo decide si no se fijó formato.
+      if (cfg?.cardType == HomeScrollCardType.backdrop) return true;
+      if (cfg?.cardType == HomeScrollCardType.poster) return false;
       final src = cfg?.imageSource;
       if (src == RowImageSource.primary) return false;
       if (src != null) return true;
@@ -159,7 +163,7 @@ class VodScreen extends ConsumerWidget {
         cardLogo: skin?.cardLogo,
         showBottomVignette: cfg?.bottomVignette ?? false,
         showMetaOverlay: cfg?.metaOverlay ?? false,
-        imageSource: cfg?.imageSource,
+        imageSource: isBack ? cfg?.imageSource : RowImageSource.primary,
         showNewBadge: cfg?.showNewBadge ?? false,
         showStackLogo: cfg?.showLogo ?? false,
         logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
@@ -167,6 +171,7 @@ class VodScreen extends ConsumerWidget {
         logoSize: cfg?.logoSize,
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
         showPlayIcon: cfg?.showPlayIcon ?? true,
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
@@ -213,6 +218,7 @@ class VodScreen extends ConsumerWidget {
         logoSize: cfg?.logoSize,
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
         showPlayIcon: cfg?.showPlayIcon ?? true,
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
@@ -258,6 +264,7 @@ class VodScreen extends ConsumerWidget {
         logoSize: cfg?.logoSize,
         hideTitle: cfg?.hideTitle ?? false,
         hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
         showHoverOverlay: cfg?.showHoverOverlay ?? true,
         showPlayIcon: cfg?.showPlayIcon ?? true,
         highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
@@ -269,6 +276,183 @@ class VodScreen extends ConsumerWidget {
         onItemTap: tapFor(cfg),
         onItemImageTap: (item) =>
             context.push('/home/details/${item.id}', extra: item),
+      );
+      rowCursor++;
+      return w;
+    }
+
+    /// Fila de colecciones (BoxSets) con el aspecto de [cfg].
+    Widget buildBoxSetsRow([HomeScroll? cfg]) {
+      final sort = cfg?.sort ?? HomeScrollSort.alphabetical;
+      final boxAsync = ref.watch(boxSetItemsProvider(sort));
+      final items = boxAsync.value ?? const <BaseItemDto>[];
+      final isBack = cfg?.cardType == HomeScrollCardType.backdrop
+          ? true
+          : cfg?.cardType == HomeScrollCardType.poster
+          ? false
+          : useBackdrop;
+      final isNextPoster = isNextPosterFor(isBack);
+      final freeTitle = cfg?.customTitle?.trim() ?? '';
+      final title = freeTitle.isNotEmpty ? freeTitle : l10n.collections;
+      if (items.isEmpty) {
+        if (!boxAsync.isLoading) return const SizedBox.shrink();
+        rowCursor++;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ScrollTitle(title: title),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: rowHeight,
+              child: const Center(child: AppLoader()),
+            ),
+          ],
+        );
+      }
+      String? targetViewId;
+      for (final view in views.value ?? const <BaseItemDto>[]) {
+        final id = view.id ?? '';
+        if (view.collectionType == CollectionType.boxsets && id.isNotEmpty) {
+          targetViewId = id;
+          break;
+        }
+      }
+      void openCollection(BaseItemDto item) {
+        final id = item.id;
+        if (id == null || id.isEmpty) return;
+        context.push('/library/$id', extra: item.name);
+      }
+      final w = ContentRow(
+        title: title,
+        items: items,
+        serverUrl: serverUrl,
+        height: rowHeight,
+        cardWidth: cardWidth,
+        itemSpacing: skin?.itemSpacing,
+        useBackdrop: isBack,
+        cardLogo: skin?.cardLogo,
+        showBottomVignette: cfg?.bottomVignette ?? false,
+        bottomVignetteHeight: cfg?.bottomVignetteHeight ?? 56,
+        bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
+        showMetaOverlay: cfg?.metaOverlay ?? false,
+        imageSource: cfg?.imageSource,
+        showNewBadge: cfg?.showNewBadge ?? false,
+        showStackLogo: cfg?.showLogo ?? false,
+        logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: cfg?.showPlayIcon ?? false,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
+        isNextPoster: isNextPoster,
+        hasNext: rowCursor < visibleBackdrops.length - 1,
+        onSeeMore: (cfg?.showSeeMore ?? true) && targetViewId != null
+            ? () => context.push(
+                '/library/$targetViewId',
+                extra: l10n.collections,
+              )
+            : null,
+        onItemTap: openCollection,
+        onItemImageTap: openCollection,
+      );
+      rowCursor++;
+      return w;
+    }
+
+    /// Hub "Franquicias": una tarjeta por saga curada.
+    Widget buildFranchisesRow([HomeScroll? cfg]) {
+      final hubAsync = ref.watch(franchiseHubProvider);
+      final hub = hubAsync.value ?? const <FranchiseHubEntry>[];
+      final isBack = cfg?.cardType == HomeScrollCardType.backdrop
+          ? true
+          : cfg?.cardType == HomeScrollCardType.poster
+          ? false
+          : useBackdrop;
+      final isNextPoster = isNextPosterFor(isBack);
+      final freeTitle = cfg?.customTitle?.trim() ?? '';
+      final title = freeTitle.isNotEmpty ? freeTitle : l10n.franchises;
+      if (hub.isEmpty) {
+        if (!hubAsync.isLoading) return const SizedBox.shrink();
+        rowCursor++;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: ScrollTitle(title: title),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: rowHeight,
+              child: const Center(child: AppLoader()),
+            ),
+          ],
+        );
+      }
+      final language = Localizations.localeOf(context).languageCode;
+      final byId = <String, FranchiseHubEntry>{
+        for (final entry in hub) 'franchise:${entry.franchise.id}': entry,
+      };
+      final items = [
+        for (final entry in hub)
+          BaseItemDto(
+            id: 'franchise:${entry.franchise.id}',
+            name: entry.franchise.nameFor(language),
+            type: BaseItemKind.movie,
+          ),
+      ];
+      void openFranchise(BaseItemDto item) {
+        final entry = byId[item.id];
+        if (entry == null) return;
+        context.push('/franchises/${entry.franchise.id}');
+      }
+
+      final w = ContentRow(
+        title: title,
+        items: items,
+        serverUrl: serverUrl,
+        height: rowHeight,
+        cardWidth: cardWidth,
+        itemSpacing: skin?.itemSpacing,
+        useBackdrop: isBack,
+        cardLogo: skin?.cardLogo,
+        showBottomVignette: cfg?.bottomVignette ?? false,
+        bottomVignetteHeight: cfg?.bottomVignetteHeight ?? 56,
+        bottomVignetteOpacity: cfg?.bottomVignetteOpacity ?? 0.72,
+        showMetaOverlay: cfg?.metaOverlay ?? false,
+        showNewBadge: false,
+        showStackLogo: cfg?.showLogo ?? false,
+        logoPosition: cfg?.logoPosition ?? RowLogoPosition.top,
+        metaAlignment: cfg?.metaAlignment ?? RowMetaAlign.left,
+        logoSize: cfg?.logoSize,
+        hideTitle: cfg?.hideTitle ?? false,
+        hideYear: cfg?.hideYear ?? false,
+        hideSubtitle: cfg?.hideSubtitle ?? false,
+        showHoverOverlay: cfg?.showHoverOverlay ?? true,
+        showPlayIcon: false,
+        highlightTitleOnHover: cfg?.highlightTitleOnHover ?? false,
+        cardBorderRadius: cfg?.cardBorderRadius,
+        hoverScale: cfg?.hoverScale,
+        spotlight: cfg?.spotlight ?? false,
+        cardScale: cfg?.cardScale ?? 1.0,
+        isNextPoster: isNextPoster,
+        hasNext: rowCursor < visibleBackdrops.length - 1,
+        excludePlaceholders: false,
+        showHoverIncludedBadge: false,
+        hoverActionLabel: l10n.details,
+        imageUrlFor: (item) => byId[item.id]?.imageUrl,
+        onItemTap: openFranchise,
+        onItemImageTap: openFranchise,
       );
       rowCursor++;
       return w;
@@ -481,6 +665,34 @@ class VodScreen extends ConsumerWidget {
               customBackdrops.add(useBackdrop);
             }
             break;
+          case LayoutSectionType.boxSets:
+            if (split == VodSplit.series) break;
+            final boxSort =
+                section.scroll?.sort ?? HomeScrollSort.alphabetical;
+            final boxAsync = ref.watch(boxSetItemsProvider(boxSort));
+            final boxItems = boxAsync.value ?? const <BaseItemDto>[];
+            if (boxItems.isEmpty && !boxAsync.isLoading) break;
+            final s = section.scroll;
+            final isBack = s?.cardType == HomeScrollCardType.backdrop
+                ? true
+                : s?.cardType == HomeScrollCardType.poster
+                ? false
+                : useBackdrop;
+            customBackdrops.add(isBack);
+            break;
+          case LayoutSectionType.franchises:
+            if (split == VodSplit.series) break;
+            final hubAsync = ref.watch(franchiseHubProvider);
+            final hub = hubAsync.value ?? const <FranchiseHubEntry>[];
+            if (hub.isEmpty && !hubAsync.isLoading) break;
+            final s = section.scroll;
+            final isBack = s?.cardType == HomeScrollCardType.backdrop
+                ? true
+                : s?.cardType == HomeScrollCardType.poster
+                ? false
+                : useBackdrop;
+            customBackdrops.add(isBack);
+            break;
           case LayoutSectionType.custom:
             final narrowed = narrowScroll(section.scroll!);
             if (narrowed == null) break;
@@ -501,6 +713,7 @@ class VodScreen extends ConsumerWidget {
           case LayoutSectionType.seasonal:
           case LayoutSectionType.upcoming:
           case LayoutSectionType.seerrDiscover:
+          case LayoutSectionType.seerrStudios:
           case LayoutSectionType.gap:
             break;
         }
@@ -532,6 +745,7 @@ class VodScreen extends ConsumerWidget {
             out.add(JellyfinUpcomingRow(scroll: section.scroll));
             break;
           case LayoutSectionType.seerrDiscover:
+          case LayoutSectionType.seerrStudios:
             // Las secciones de Seerr solo aplican en su propia pantalla.
             break;
           case LayoutSectionType.gap:
@@ -618,6 +832,7 @@ class VodScreen extends ConsumerWidget {
                       logoSize: recentScroll?.logoSize,
                       hideTitle: recentScroll?.hideTitle ?? false,
                       hideYear: recentScroll?.hideYear ?? false,
+                      hideSubtitle: recentScroll?.hideSubtitle ?? false,
                       showHoverOverlay:
                           recentScroll?.showHoverOverlay ?? true,
                       showPlayIcon:
@@ -718,6 +933,7 @@ class VodScreen extends ConsumerWidget {
                       logoSize: libraryScroll?.logoSize,
                       hideTitle: libraryScroll?.hideTitle ?? false,
                       hideYear: libraryScroll?.hideYear ?? false,
+                      hideSubtitle: libraryScroll?.hideSubtitle ?? false,
                       showHoverOverlay:
                           libraryScroll?.showHoverOverlay ?? true,
                       showPlayIcon:
@@ -748,6 +964,16 @@ class VodScreen extends ConsumerWidget {
                   },
                 ),
               );
+            }
+            break;
+          case LayoutSectionType.boxSets:
+            if (split != VodSplit.series) {
+              out.add(buildBoxSetsRow(section.scroll));
+            }
+            break;
+          case LayoutSectionType.franchises:
+            if (split != VodSplit.series) {
+              out.add(buildFranchisesRow(section.scroll));
             }
             break;
           case LayoutSectionType.custom:
@@ -812,6 +1038,7 @@ class VodScreen extends ConsumerWidget {
                     logoSize: s.logoSize,
                     hideTitle: s.hideTitle,
                     hideYear: s.hideYear,
+                    hideSubtitle: s.hideSubtitle,
                     showHoverOverlay: s.showHoverOverlay,
                     showPlayIcon: s.showPlayIcon,
                     highlightTitleOnHover: s.highlightTitleOnHover,

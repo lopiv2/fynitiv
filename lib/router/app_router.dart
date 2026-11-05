@@ -28,6 +28,7 @@ import '../features/ereader/presentation/collection_detail_screen.dart';
 import '../features/ereader/presentation/collections_screen.dart';
 import '../features/ereader/presentation/ereader_screen.dart';
 import '../features/ereader/presentation/reader/book_reader_screen.dart';
+import '../features/franchises/presentation/franchise_screen.dart';
 import '../features/games/presentation/game_detail_screen.dart';
 import '../features/games/presentation/game_list_screen.dart';
 import '../features/games/presentation/games_screen.dart';
@@ -37,6 +38,7 @@ import '../features/search/presentation/search_screen.dart';
 import '../features/seerr/domain/seerr_models.dart';
 import '../features/seerr/presentation/seerr_detail_screen.dart';
 import '../features/seerr/presentation/seerr_screen.dart';
+import '../features/seerr/presentation/seerr_studio_screen.dart';
 import '../features/vod/presentation/vod_screen.dart';
 import '../features/settings/presentation/settings_screen.dart';
 import '../features/users/presentation/user_selection_screen.dart';
@@ -179,6 +181,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     );
                   }
                   return LibraryViewScreen(viewId: viewId);
+                },
+              ),
+              GoRoute(
+                path: '/franchises/:id',
+                builder: (context, state) => FranchiseScreen(
+                  franchiseId: state.pathParameters['id']!,
+                ),
+              ),
+              GoRoute(
+                path: '/studios/:id',
+                builder: (context, state) {
+                  final extra = state.extra;
+                  return SeerrStudioScreen(
+                    studioId:
+                        int.tryParse(state.pathParameters['id'] ?? '') ?? 0,
+                    name: extra is String ? extra : null,
+                  );
                 },
               ),
             ],

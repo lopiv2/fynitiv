@@ -176,7 +176,7 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
                                         serverUrl: serverUrl,
                                         cardLogo: skin?.cardLogo,
                                         hoverExtension: true,
-                                        onTap: () => context.push('/player/${item.id}', extra: item),
+                                        onTap: () => context.push('/home/details/${item.id}', extra: item),
                                         onImageTap: () => context.push('/home/details/${item.id}', extra: item),
                                       )
                                     : PosterCard(
@@ -184,7 +184,7 @@ class _AllMoviesScreenState extends ConsumerState<AllMoviesScreen> {
                                         serverUrl: serverUrl,
                                         cardLogo: skin?.cardLogo,
                                         hoverExtension: true,
-                                        onTap: () => context.push('/player/${item.id}', extra: item),
+                                        onTap: () => context.push('/home/details/${item.id}', extra: item),
                                         onImageTap: () => context.push('/home/details/${item.id}', extra: item),
                                       );
                                 return card;

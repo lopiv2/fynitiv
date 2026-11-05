@@ -39,6 +39,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.useSeriesPoster = false,
     this.cardLogo,
     this.cardLogoFor,
+    this.stackLogoFor,
     this.onItemTap,
     this.onItemImageTap,
     this.onSeeMore,
@@ -55,6 +56,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.logoSize,
     this.hideTitle = false,
     this.hideYear = false,
+    this.hideSubtitle = false,
     this.showHoverOverlay = true,
     this.showPlayIcon = true,
     this.highlightTitleOnHover = false,
@@ -69,6 +71,7 @@ class ContentRow extends ConsumerStatefulWidget {
     this.cornerBadgeFor,
     this.excludePlaceholders = true,
     this.imageUrlFor,
+    this.imageBuilder,
     this.showHoverIncludedBadge = true,
     this.hoverActionLabel,
     this.cornerLogosFor,
@@ -84,6 +87,9 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// URL de imagen explícita por item (contenido externo, p. ej. TMDB).
   final String? Function(BaseItemDto item)? imageUrlFor;
+
+  /// Construye el contenido de la imagen por item (contenido externo/custom).
+  final Widget Function(BuildContext context, BaseItemDto item)? imageBuilder;
 
   /// Muestra "Se incluye con Jellyfin" en el panel de hover de las tarjetas.
   /// Se pone a `false` en filas de contenido externo (Seerr).
@@ -118,6 +124,9 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Logo de tarjeta calculado por item, para contenido externo.
   final String? Function(BaseItemDto item)? cardLogoFor;
+
+  /// Logo apilado (sobre la imagen) por item; sustituye al logo de Jellyfin.
+  final String? Function(BaseItemDto item)? stackLogoFor;
 
   /// Se invoca al pulsar una tarjeta de la fila.
   final void Function(BaseItemDto item)? onItemTap;
@@ -174,6 +183,9 @@ class ContentRow extends ConsumerStatefulWidget {
 
   /// Oculta el año bajo el título.
   final bool hideYear;
+
+  /// Oculta la línea de subtítulo (artista/autor/año-géneros).
+  final bool hideSubtitle;
 
   /// Si es `false` no muestra la capa oscura (alpha) al hacer hover.
   /// Independiente de [showPlayIcon]: puede haber play sin oscurecer.
@@ -985,6 +997,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     item: item,
                     serverUrl: widget.serverUrl,
                     cardLogo: cardLogo,
+        stackLogo: widget.stackLogoFor?.call(item),
                     hoverExtension: false,
                     useSeriesPoster: widget.useSeriesPoster,
                     showBottomVignette: false,
@@ -992,6 +1005,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
                     metaAlignment: widget.metaAlignment,
                     imageSource: RowImageSource.backdrop,
                     imageUrl: backdropUrl,
+                    imageBuilder: widget.imageBuilder,
                     showHoverIncludedBadge: widget.showHoverIncludedBadge,
                     hoverActionLabel: widget.hoverActionLabel,
                     cornerLogos: cornerLogos,
@@ -1043,6 +1057,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         item: item,
         serverUrl: widget.serverUrl,
         cardLogo: cardLogo,
+        stackLogo: widget.stackLogoFor?.call(item),
         hoverExtension: true,
         useSeriesPoster: widget.useSeriesPoster,
         showBottomVignette: widget.showBottomVignette,
@@ -1052,6 +1067,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         metaAlignment: widget.metaAlignment,
         imageSource: widget.imageSource ?? RowImageSource.thumb,
         imageUrl: imageUrl,
+        imageBuilder: widget.imageBuilder,
         showHoverIncludedBadge: widget.showHoverIncludedBadge,
         hoverActionLabel: widget.hoverActionLabel,
         cornerLogos: cornerLogos,
@@ -1061,6 +1077,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         logoSize: widget.logoSize,
         hideTitle: widget.hideTitle,
         hideYear: widget.hideYear,
+        hideSubtitle: widget.hideSubtitle,
         showHoverOverlay: widget.showHoverOverlay,
         showPlayIcon: widget.showPlayIcon,
         showImageHoverBorder: showImageHoverBorder,
@@ -1081,6 +1098,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         item: item,
         serverUrl: widget.serverUrl,
         cardLogo: cardLogo,
+        stackLogo: widget.stackLogoFor?.call(item),
         hoverExtension: true,
         useSeriesPoster: widget.useSeriesPoster,
         showBottomVignette: widget.showBottomVignette,
@@ -1090,6 +1108,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         metaAlignment: widget.metaAlignment,
         imageSource: widget.imageSource ?? RowImageSource.primary,
         imageUrl: imageUrl,
+        imageBuilder: widget.imageBuilder,
         showHoverIncludedBadge: widget.showHoverIncludedBadge,
         hoverActionLabel: widget.hoverActionLabel,
         cornerLogos: cornerLogos,
@@ -1099,6 +1118,7 @@ class _ContentRowState extends ConsumerState<ContentRow> {
         logoSize: widget.logoSize,
         hideTitle: widget.hideTitle,
         hideYear: widget.hideYear,
+        hideSubtitle: widget.hideSubtitle,
         showHoverOverlay: widget.showHoverOverlay,
         showPlayIcon: widget.showPlayIcon,
         showImageHoverBorder: showImageHoverBorder,

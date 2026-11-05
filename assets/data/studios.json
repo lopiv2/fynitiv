@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "studios": [
+    {
+      "name": "Walt Disney Pictures",
+      "companyId": 2,
+      "logo": "assets/images/studios/Walt_Disney_Pictures.webp",
+      "fillCard": true
+    },
+    {
+      "name": "Pixar",
+      "companyId": 3,
+      "logo": "assets/images/studios/pixar.png",
+      "colors": ["#0B1E3A", "#1D4ED8"]
+    },
+    {
+      "name": "Marvel Studios",
+      "companyId": 420,
+      "logo": "assets/images/studios/marvel_studios.png",
+      "colors": ["#4C0519", "#B91C1C"]
+    },
+    {
+      "name": "Lucasfilm",
+      "companyId": 1,
+      "logo": "assets/images/studios/lucasfilm.png",
+      "fillCard": true
+    },
+    {
+      "name": "Warner Bros. Pictures",
+      "companyId": 174,
+      "logo": "assets/images/studios/Warner_Bros.svg",
+      "colors": ["#0B1E4B", "#1D4ED8"]
+    },
+    {
+      "name": "Universal Pictures",
+      "companyId": 33,
+      "logo": "assets/images/studios/Universal-Pictures.svg",
+      "colors": ["#042F2E", "#0F766E"]
+    },
+    {
+      "name": "Paramount Pictures",
+      "companyId": 4,
+      "logo": "assets/images/studios/Paramount_Pictures.webp",
+      "colors": ["#0A1F44", "#2563EB"]
+    },
+    {
+      "name": "Columbia Pictures",
+      "companyId": 5,
+      "logo": "assets/images/studios/Columbia_Pictures.png",
+      "colors": ["#0F172A", "#334155"]
+    },
+    {
+      "name": "Sony Pictures",
+      "companyId": 34,
+      "logo": "assets/images/studios/Sony_Pictures.svg",
+      "colors": ["#111827", "#0E7490"]
+    },
+    {
+      "name": "DreamWorks",
+      "companyId": 27,
+      "logo": "assets/images/studios/DreamWorks.svg",
+      "colors": ["#082F49", "#0284C7"]
+    },
+    {
+      "name": "20th Century Studios",
+      "companyId": 127928,
+      "logo": "assets/images/studios/20th_Century_Studios.svg",
+      "colors": ["#3B2A0A", "#B45309"]
+    }
+  ]
+}
