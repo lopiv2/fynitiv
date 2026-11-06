@@ -10,13 +10,6 @@ import 'seerr_controller.dart';
 
 const _kStudiosCache = Duration(minutes: 20);
 
-extension _StudiosCache on Ref {
-  void cacheFor(Duration d) {
-    final link = keepAlive();
-    Timer(d, link.close);
-  }
-}
-
 Color? _parseColor(String? value) {
   final hex = value?.replaceAll('#', '').trim() ?? '';
   if (hex.length != 6 && hex.length != 8) return null;
@@ -81,15 +74,27 @@ Future<Map<String, String>> _studioAssets() async {
 }
 
 /// Catálogo de un estudio desde Seerr (metadatos + películas).
+/// Solo los éxitos se cachean 20 min: un fallo transitorio (red, Seerr) no
+/// debe envenenar el estudio con un `null`; al salir y entrar (o reintentar)
+/// se repite la petición.
 final seerrStudioCatalogProvider =
     FutureProvider.family<SeerrStudioCatalog?, int>((ref, studioId) async {
-      ref.cacheFor(_kStudiosCache);
-      final api = ref.watch(seerrApiProvider);
-      if (api == null) return null;
+      final link = ref.keepAlive();
+      var ok = false;
       try {
-        return await api.studioCatalog(studioId);
+        final api = ref.watch(seerrApiProvider);
+        if (api == null) return null;
+        final catalog = await api.studioCatalog(studioId);
+        ok = catalog != null;
+        return catalog;
       } catch (_) {
         return null;
+      } finally {
+        if (ok) {
+          Timer(_kStudiosCache, link.close);
+        } else {
+          link.close();
+        }
       }
     });
 

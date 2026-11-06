@@ -272,6 +272,7 @@ const List<LayoutSection> _netflixVod = [
     ),
   ),
   LayoutSection.franchises(_franchisesScroll),
+  LayoutSection.seerrStudios(_seerrStudiosScroll),
 ];
 
 /// Skins predefinidos.
@@ -492,6 +493,7 @@ abstract final class SkinPresets {
         ),
       ),
       LayoutSection.franchises(_franchisesScroll),
+      LayoutSection.seerrStudios(_seerrStudiosScroll),
     ],
     vodLayout: _amazonPrimeVod,
     splitVod: true,
@@ -551,6 +553,7 @@ abstract final class SkinPresets {
       LayoutSection.recent(),
       LayoutSection.library(),
       LayoutSection.franchises(_franchisesScroll),
+      LayoutSection.seerrStudios(_seerrStudiosScroll),
     ],
     vodLayout: _customVod,
     moviesLayout: _customVod,
@@ -626,6 +629,8 @@ abstract final class SkinPresets {
       LayoutSection.recent(),
       LayoutSection.library(),
       LayoutSection.franchises(_franchisesScroll),
+      LayoutSection.seerrStudios(_seerrStudiosScroll),
+      LayoutSection.gap(184),
       LayoutSection.custom(
         HomeScroll(
           titleKey: HomeScrollTitle.actionMovies,

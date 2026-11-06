@@ -517,8 +517,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           onShowRelated: _showRelated,
                           onShowDetails: _showDetails,
                         )
-                      else if (variant == DetailLayoutVariant.disney &&
-                          widget.seerrMedia == null)
+                      else if (variant == DetailLayoutVariant.disney)
                         _DisneyMovieBody(
                           item: item,
                           serverUrl: serverUrl,
@@ -536,9 +535,9 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           onPlay: () => pushPlayForDetail(context, item),
                           onTrailer: _openTrailer,
                           onFavorite: _toggleFavorite,
+                          seerrMedia: widget.seerrMedia,
                         )
-                      else if (variant == DetailLayoutVariant.netflix &&
-                          widget.seerrMedia == null)
+                      else if (variant == DetailLayoutVariant.netflix)
                         _NetflixDetailBody(
                           item: item,
                           serverUrl: serverUrl,
@@ -554,9 +553,9 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           onPlay: () => pushPlayForDetail(context, item),
                           onTrailer: _openTrailer,
                           onFavorite: _toggleFavorite,
+                          seerrMedia: widget.seerrMedia,
                         )
-                      else if (variant == DetailLayoutVariant.jellyfin &&
-                          widget.seerrMedia == null)
+                      else if (variant == DetailLayoutVariant.jellyfin)
                         _JellyfinDetailBody(
                           item: item,
                           serverUrl: serverUrl,
@@ -570,6 +569,7 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           onPlay: () => pushPlayForDetail(context, item),
                           onTrailer: _openTrailer,
                           onFavorite: _toggleFavorite,
+                          seerrMedia: widget.seerrMedia,
                         )
                       else ...[
                         Padding(
@@ -2718,6 +2718,7 @@ class _DisneyMovieBody extends StatefulWidget {
     required this.onPlay,
     required this.onTrailer,
     required this.onFavorite,
+    this.seerrMedia,
   });
 
   final BaseItemDto item;
@@ -2735,6 +2736,7 @@ class _DisneyMovieBody extends StatefulWidget {
   final VoidCallback onPlay;
   final VoidCallback onTrailer;
   final VoidCallback onFavorite;
+  final SeerrMedia? seerrMedia;
 
   @override
   State<_DisneyMovieBody> createState() => _DisneyMovieBodyState();
@@ -2840,17 +2842,33 @@ class _DisneyMovieBodyState extends State<_DisneyMovieBody> {
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              _VerButton(
-                label: hasProgress ? l10n.resume : l10n.watchNow,
-                onTap: widget.onPlay,
-              ),
-              // Reiniciar: vuelve al reproductor (sin posición inicial
-              // dedicada en el player; ver FTD).
-              _DetailActionButton(
-                icon: Icons.replay,
-                tooltip: l10n.watchNow,
-                onTap: widget.onPlay,
-              ),
+              if (widget.seerrMedia != null)
+                SizedBox(
+                  width: compact ? double.infinity : 320,
+                  child: _DetailActions(
+                    item: item,
+                    l10n: l10n,
+                    isFavorite: widget.isFavorite,
+                    downloading: false,
+                    onTrailer: _noop,
+                    onFavorite: widget.onFavorite,
+                    onDownload: _noop,
+                    seerrMedia: widget.seerrMedia,
+                  ),
+                )
+              else ...[
+                _VerButton(
+                  label: hasProgress ? l10n.resume : l10n.watchNow,
+                  onTap: widget.onPlay,
+                ),
+                // Reiniciar: vuelve al reproductor (sin posición inicial
+                // dedicada en el player; ver FTD).
+                _DetailActionButton(
+                  icon: Icons.replay,
+                  tooltip: l10n.watchNow,
+                  onTap: widget.onPlay,
+                ),
+              ],
               _DetailActionButton(
                 icon: Icons.movie_outlined,
                 tooltip: l10n.watchTrailer,
@@ -2960,6 +2978,7 @@ class _NetflixDetailBody extends ConsumerStatefulWidget {
     required this.onFavorite,
     this.series,
     this.onPlayEpisode,
+    this.seerrMedia,
   });
 
   /// Item a mostrar (peli o serie). Si [series] no es null, modo serie.
@@ -2978,6 +2997,7 @@ class _NetflixDetailBody extends ConsumerStatefulWidget {
   final VoidCallback onTrailer;
   final VoidCallback onFavorite;
   final void Function(BaseItemDto episode)? onPlayEpisode;
+  final SeerrMedia? seerrMedia;
 
   @override
   ConsumerState<_NetflixDetailBody> createState() =>
@@ -2991,6 +3011,35 @@ class _NetflixDetailBodyState extends ConsumerState<_NetflixDetailBody> {
   bool get _isSeries => widget.series != null;
   BaseItemDto get _display => widget.series ?? widget.item;
   String get _seriesId => widget.series?.id ?? '';
+
+  /// Reproducir o, si es un título virtual de Seerr, solicitarlo con el
+  /// flujo de `_DetailActions` (igual que `_DisneySeriesBody`).
+  Widget _playOrRequest(AppLocalizations l10n, BaseItemDto? verTarget) {
+    final seerr = widget.seerrMedia;
+    if (seerr != null) {
+      return _DetailActions(
+        item: _display,
+        l10n: l10n,
+        isFavorite: widget.isFavorite,
+        downloading: false,
+        onTrailer: _noop,
+        onFavorite: widget.onFavorite,
+        onDownload: _noop,
+        seerrMedia: seerr,
+      );
+    }
+    return _NetflixPlayButton(
+      accent: widget.accent,
+      onTap: () {
+        final target = _isSeries ? verTarget : null;
+        if (target != null) {
+          widget.onPlayEpisode?.call(target);
+        } else {
+          widget.onPlay();
+        }
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -3177,17 +3226,7 @@ class _NetflixDetailBodyState extends ConsumerState<_NetflixDetailBody> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    _NetflixPlayButton(
-                      accent: widget.accent,
-                      onTap: () {
-                        final target = _isSeries ? verTarget : null;
-                        if (target != null) {
-                          widget.onPlayEpisode?.call(target);
-                        } else {
-                          widget.onPlay();
-                        }
-                      },
-                    ),
+                    _playOrRequest(l10n, verTarget),
                   ],
                 ),
               ),
@@ -3205,17 +3244,7 @@ class _NetflixDetailBodyState extends ConsumerState<_NetflixDetailBody> {
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 36),
-            child: _NetflixPlayButton(
-              accent: widget.accent,
-              onTap: () {
-                final target = _isSeries ? verTarget : null;
-                if (target != null) {
-                  widget.onPlayEpisode?.call(target);
-                } else {
-                  widget.onPlay();
-                }
-              },
-            ),
+            child: _playOrRequest(l10n, verTarget),
           ),
         ],
         const SizedBox(height: 18),
@@ -3470,6 +3499,7 @@ class _JellyfinDetailBody extends ConsumerStatefulWidget {
     required this.onFavorite,
     this.series,
     this.onPlayEpisode,
+    this.seerrMedia,
   });
 
   /// Item a mostrar (peli o serie). Si [series] no es null, modo serie.
@@ -3486,6 +3516,7 @@ class _JellyfinDetailBody extends ConsumerStatefulWidget {
   final VoidCallback onTrailer;
   final VoidCallback onFavorite;
   final void Function(BaseItemDto episode)? onPlayEpisode;
+  final SeerrMedia? seerrMedia;
 
   @override
   ConsumerState<_JellyfinDetailBody> createState() =>
@@ -3714,31 +3745,47 @@ class _JellyfinDetailBodyState extends ConsumerState<_JellyfinDetailBody> {
                 spacing: 12,
                 runSpacing: 12,
                 children: [
-                  _JellyfinActionButton(
-                    icon: Icons.play_arrow,
-                    label: l10n.play,
-                    onTap: () {
-                      final target = _isSeries
-                          ? _verTargetEpisode(allEpisodes)
-                          : null;
-                      if (target != null) {
-                        widget.onPlayEpisode?.call(target);
-                      } else {
-                        widget.onPlay();
-                      }
-                    },
-                  ),
+                  if (widget.seerrMedia != null)
+                    SizedBox(
+                      width: 320,
+                      child: _DetailActions(
+                        item: display,
+                        l10n: l10n,
+                        isFavorite: widget.isFavorite,
+                        downloading: false,
+                        onTrailer: _noop,
+                        onFavorite: widget.onFavorite,
+                        onDownload: _noop,
+                        seerrMedia: widget.seerrMedia,
+                      ),
+                    )
+                  else
+                    _JellyfinActionButton(
+                      icon: Icons.play_arrow,
+                      label: l10n.play,
+                      onTap: () {
+                        final target = _isSeries
+                            ? _verTargetEpisode(allEpisodes)
+                            : null;
+                        if (target != null) {
+                          widget.onPlayEpisode?.call(target);
+                        } else {
+                          widget.onPlay();
+                        }
+                      },
+                    ),
                   _JellyfinActionButton(
                     icon: Icons.movie_outlined,
                     label: l10n.watchTrailer,
                     onTap: widget.onTrailer,
                   ),
-                  _JellyfinActionButton(
-                    icon: watched ? Icons.check : Icons.check_outlined,
-                    label: l10n.watched,
-                    selected: watched,
-                    onTap: _toggleWatched,
-                  ),
+                  if (widget.seerrMedia == null)
+                    _JellyfinActionButton(
+                      icon: watched ? Icons.check : Icons.check_outlined,
+                      label: l10n.watched,
+                      selected: watched,
+                      onTap: _toggleWatched,
+                    ),
                   _JellyfinActionButton(
                     icon: widget.isFavorite
                         ? Icons.favorite

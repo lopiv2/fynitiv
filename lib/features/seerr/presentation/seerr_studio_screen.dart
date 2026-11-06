@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:jellyfin_dart/jellyfin_dart.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../../../core/navigation/play_routing.dart';
@@ -46,15 +45,9 @@ class SeerrStudioScreen extends ConsumerWidget {
           SeerrPosterGridEntry(
             item: seerrMediaToBaseItem(media),
             imageUrl: media.posterUrl(),
-            hoverActionLabel: available ? l10n.watchNow : l10n.details,
+            hoverActionLabel: l10n.details,
             onTap: available
-                ? () {
-                    if (real.type == BaseItemKind.movie) {
-                      pushPlayForDetail(context, real);
-                    } else {
-                      pushDetailForType(context, real);
-                    }
-                  }
+                ? () => pushDetailForType(context, real)
                 : () => context.push(
                     '/seerr/${media.mediaType.value}/${media.tmdbId}',
                   ),
@@ -81,9 +74,21 @@ class SeerrStudioScreen extends ConsumerWidget {
                   ? const Center(child: AppLoader())
                   : items.isEmpty
                   ? Center(
-                      child: Text(
-                        l10n.noResults,
-                        style: const TextStyle(color: Colors.white70),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.noResults,
+                            style: const TextStyle(color: Colors.white70),
+                          ),
+                          const SizedBox(height: 12),
+                          OutlinedButton(
+                            onPressed: () => ref.invalidate(
+                              seerrStudioCatalogProvider(studioId),
+                            ),
+                            child: Text(l10n.retry),
+                          ),
+                        ],
                       ),
                     )
                   : SeerrPosterGrid(entries: buildEntries()),
