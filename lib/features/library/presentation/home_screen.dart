@@ -1193,7 +1193,11 @@ class HomeScreen extends ConsumerWidget {
                 child: ListView(
                   // Mantiene las filas vecinas compuestas para que el scroll
                   // vertical no reconstruya tarjetas al volver atrás.
-                  scrollCacheExtent: const ScrollCacheExtent.pixels(800),
+                  // NOTA: se usa cacheExtent (estable) en vez de
+                  // scrollCacheExtent/ScrollCacheExtent, que exige
+                  // import 'package:flutter/rendering.dart' y SDK >=3.47.
+                  // Así el fichero compila en ambos PCs sin imports frágiles.
+                  cacheExtent: 800,
                   padding: EdgeInsets.only(
                     top: bannerAttached ? 0 : (skin?.bannerTopPadding ?? 54),
                     bottom: 24,
