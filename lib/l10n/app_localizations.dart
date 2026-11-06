@@ -2192,6 +2192,66 @@ abstract class AppLocalizations {
   /// **'Suggestions'**
   String get suggestions;
 
+  /// No description provided for @overview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get overview;
+
+  /// No description provided for @trailersAndMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Trailers & More'**
+  String get trailersAndMore;
+
+  /// No description provided for @castAndCrew.
+  ///
+  /// In en, this message translates to:
+  /// **'Cast & crew'**
+  String get castAndCrew;
+
+  /// No description provided for @starring.
+  ///
+  /// In en, this message translates to:
+  /// **'Starring'**
+  String get starring;
+
+  /// No description provided for @createdBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Created by'**
+  String get createdBy;
+
+  /// No description provided for @directedBy.
+  ///
+  /// In en, this message translates to:
+  /// **'Directed by'**
+  String get directedBy;
+
+  /// No description provided for @favorite.
+  ///
+  /// In en, this message translates to:
+  /// **'Favorite'**
+  String get favorite;
+
+  /// No description provided for @runs.
+  ///
+  /// In en, this message translates to:
+  /// **'Runtime'**
+  String get runs;
+
+  /// No description provided for @ends.
+  ///
+  /// In en, this message translates to:
+  /// **'Ends'**
+  String get ends;
+
+  /// No description provided for @watched.
+  ///
+  /// In en, this message translates to:
+  /// **'Watched'**
+  String get watched;
+
   /// No description provided for @season.
   ///
   /// In en, this message translates to:
@@ -5101,6 +5161,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{owned}/{total} in your library'**
   String franchiseProgress(int owned, int total);
+
+  /// No description provided for @sortByRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'Release order'**
+  String get sortByRelease;
+
+  /// No description provided for @sortChronological.
+  ///
+  /// In en, this message translates to:
+  /// **'Chronological order'**
+  String get sortChronological;
 
   /// No description provided for @myNetflix.
   ///

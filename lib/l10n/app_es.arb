@@ -368,6 +368,16 @@
   "episodes": "Episodios",
   "extras": "Extras",
   "suggestions": "Sugerencias",
+  "overview": "Resumen",
+  "trailersAndMore": "Tráilers y más",
+  "castAndCrew": "Reparto",
+  "starring": "Protagonistas",
+  "createdBy": "Creada por",
+  "directedBy": "Dirección",
+  "favorite": "Favorito",
+  "runs": "Duración",
+  "ends": "Termina",
+  "watched": "Vista",
   "season": "Temporada",
   "seriesSeasons": "{count, plural, =1{1 temporada} other{{count} temporadas}}",
   "@seriesSeasons": {
@@ -1060,6 +1070,8 @@
       "total": { "type": "int" }
     }
   },
+  "sortByRelease": "Orden de estreno",
+  "sortChronological": "Orden cronológico",
   "myNetflix": "Mi biblioteca",
   "resumeSeasonEpisode": "Reanudar T{season} E{episode}",
   "@resumeSeasonEpisode": {

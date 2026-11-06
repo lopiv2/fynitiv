@@ -11,6 +11,7 @@ import 'package:media_kit_video/media_kit_video.dart';
 
 import '../../../core/audio/item_theme_player.dart';
 import '../../../core/navigation/play_routing.dart';
+import '../../../core/skin/detail_layout.dart';
 import '../../../core/skin/skin_controller.dart';
 import '../../../core/video/mpv_teardown.dart';
 import '../../../core/widgets/ad_free_easter_egg_dialog.dart';
@@ -365,6 +366,9 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
         libraryPageTopPadding(context, skin) -
         MediaQuery.of(context).padding.top;
 
+    final variant = detailVariantFor(skin: skin, kind: item.type);
+    final isSeriesItem = item.type == BaseItemKind.series;
+
     return Scaffold(
       backgroundColor: const Color(0xFF02070D),
       body: Stack(
@@ -445,7 +449,53 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           ],
                         ),
                       ),
-                      if (isSeriesDetail)
+                      if (isSeriesItem &&
+                          variant == DetailLayoutVariant.netflix)
+                        _NetflixDetailBody(
+                          item: seriesItem ?? item,
+                          series: seriesItem ?? item,
+                          serverUrl: serverUrl,
+                          logoUrl: logoUrl,
+                          overview: overview,
+                          genres: genres,
+                          people: people,
+                          studios: studios,
+                          isFavorite: isFavorite,
+                          accent: skin?.accent ?? const Color(0xFFE50914),
+                          relatedItems:
+                              related.value ?? const <BaseItemDto>[],
+                          onPlay: () => pushPlayForDetail(
+                            context,
+                            seriesItem ?? item,
+                          ),
+                          onPlayEpisode: (episode) =>
+                              pushPlayForDetail(context, episode),
+                          onTrailer: _openTrailer,
+                          onFavorite: _toggleFavorite,
+                        )
+                      else if (isSeriesItem &&
+                          variant == DetailLayoutVariant.jellyfin)
+                        _JellyfinDetailBody(
+                          item: seriesItem ?? item,
+                          series: seriesItem ?? item,
+                          serverUrl: serverUrl,
+                          overview: overview,
+                          genres: genres,
+                          people: people,
+                          studios: studios,
+                          isFavorite: isFavorite,
+                          relatedItems:
+                              related.value ?? const <BaseItemDto>[],
+                          onPlay: () => pushPlayForDetail(
+                            context,
+                            seriesItem ?? item,
+                          ),
+                          onPlayEpisode: (episode) =>
+                              pushPlayForDetail(context, episode),
+                          onTrailer: _openTrailer,
+                          onFavorite: _toggleFavorite,
+                        )
+                      else if (isSeriesDetail)
                         _DisneySeriesBody(
                           item: seriesItem,
                           serverUrl: serverUrl,
@@ -466,6 +516,60 @@ class _ItemDetailScreenState extends ConsumerState<ItemDetailScreen>
                           detailsSelected: _detailsSelected,
                           onShowRelated: _showRelated,
                           onShowDetails: _showDetails,
+                        )
+                      else if (variant == DetailLayoutVariant.disney &&
+                          widget.seerrMedia == null)
+                        _DisneyMovieBody(
+                          item: item,
+                          serverUrl: serverUrl,
+                          logoUrl: logoUrl,
+                          overview: overview,
+                          genres: genres,
+                          people: people,
+                          studios: studios,
+                          audioLanguages: audioLanguages,
+                          subtitleLanguages: subtitleLanguages,
+                          imdbRating: imdbRating,
+                          isFavorite: isFavorite,
+                          relatedItems:
+                              related.value ?? const <BaseItemDto>[],
+                          onPlay: () => pushPlayForDetail(context, item),
+                          onTrailer: _openTrailer,
+                          onFavorite: _toggleFavorite,
+                        )
+                      else if (variant == DetailLayoutVariant.netflix &&
+                          widget.seerrMedia == null)
+                        _NetflixDetailBody(
+                          item: item,
+                          serverUrl: serverUrl,
+                          logoUrl: logoUrl,
+                          overview: overview,
+                          genres: genres,
+                          people: people,
+                          studios: studios,
+                          isFavorite: isFavorite,
+                          accent: skin?.accent ?? const Color(0xFFE50914),
+                          relatedItems:
+                              related.value ?? const <BaseItemDto>[],
+                          onPlay: () => pushPlayForDetail(context, item),
+                          onTrailer: _openTrailer,
+                          onFavorite: _toggleFavorite,
+                        )
+                      else if (variant == DetailLayoutVariant.jellyfin &&
+                          widget.seerrMedia == null)
+                        _JellyfinDetailBody(
+                          item: item,
+                          serverUrl: serverUrl,
+                          overview: overview,
+                          genres: genres,
+                          people: people,
+                          studios: studios,
+                          isFavorite: isFavorite,
+                          relatedItems:
+                              related.value ?? const <BaseItemDto>[],
+                          onPlay: () => pushPlayForDetail(context, item),
+                          onTrailer: _openTrailer,
+                          onFavorite: _toggleFavorite,
                         )
                       else ...[
                         Padding(
@@ -685,16 +789,23 @@ class _DetailTitle extends StatelessWidget {
 }
 
 class _RelatedSection extends StatelessWidget {
-  const _RelatedSection({required this.items, required this.serverUrl});
+  const _RelatedSection({
+    required this.items,
+    required this.serverUrl,
+    this.title,
+  });
 
   final List<BaseItemDto> items;
   final String? serverUrl;
+
+  /// Título de la fila (`related` por defecto; Netflix usa `moreLikeThis`).
+  final String? title;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return ContentRow(
-      title: l10n.related,
+      title: title ?? l10n.related,
       items: items,
       serverUrl: serverUrl,
       cardWidth: 320,
@@ -1607,6 +1718,98 @@ String _formatDuration(int ticks) {
 
 void _noop() {}
 
+/// Fracción reproducida (0..1) si hay progreso parcial; `null` si no hay
+/// nada que continuar (sin posición o ya visto entero).
+double? _playProgress(BaseItemDto item) {
+  final total = item.runTimeTicks;
+  final pos = item.userData?.playbackPositionTicks ?? 0;
+  if (total == null ||
+      total <= 0 ||
+      pos <= 0 ||
+      (item.userData?.played ?? false)) {
+    return null;
+  }
+  return (pos / total).clamp(0.0, 1.0);
+}
+
+/// Minutos restantes de reproducción, si hay progreso parcial.
+int? _remainingMinutes(BaseItemDto item) {
+  final total = item.runTimeTicks;
+  final pos = item.userData?.playbackPositionTicks ?? 0;
+  if (total == null ||
+      total <= 0 ||
+      pos <= 0 ||
+      (item.userData?.played ?? false)) {
+    return null;
+  }
+  final minutes = ((total - pos) / 600000000 / 60).round();
+  return minutes > 0 ? minutes : null;
+}
+
+/// Insignias de formato (1080p/H264/AAC…) del primer stream de cada tipo.
+List<String> _formatBadges(BaseItemDto item) {
+  MediaStream? firstOf(MediaStreamType type) {
+    for (final s in item.mediaStreams ?? const <MediaStream>[]) {
+      if (s.type == type) return s;
+    }
+    return null;
+  }
+
+  final out = <String>[];
+  final video = firstOf(MediaStreamType.video);
+  final height = video?.height;
+  if (height != null) {
+    out.add(
+      height >= 2160
+          ? '4K'
+          : height >= 1080
+          ? '1080p'
+          : height >= 720
+          ? '720p'
+          : '${height}p',
+    );
+  } else if (item.isHD == true) {
+    out.add('HD');
+  }
+  final videoCodec = (video?.codec ?? '').trim();
+  if (videoCodec.isNotEmpty) out.add(videoCodec.toUpperCase());
+  final audioCodec = (firstOf(MediaStreamType.audio)?.codec ?? '').trim();
+  if (audioCodec.isNotEmpty) out.add(audioCodec.toUpperCase());
+  return out;
+}
+
+/// URL de la foto de una persona del reparto (`/Persons/<nombre>/...`).
+String _personPhotoUrl(String serverUrl, String name) =>
+    '$serverUrl/Persons/${Uri.encodeComponent(name)}/Images/Primary?maxWidth=200';
+
+/// VER: episodio a medias > siguiente sin ver > primer episodio.
+BaseItemDto? _verTargetEpisode(List<BaseItemDto> episodes) {
+  BaseItemDto? resume;
+  BaseItemDto? next;
+  for (final ep in episodes) {
+    final ticks = ep.userData?.playbackPositionTicks ?? 0;
+    final played = ep.userData?.played ?? false;
+    if (ticks > 0 && resume == null) resume = ep;
+    if (!played && ticks <= 0 && next == null) next = ep;
+    if (resume != null && next != null) break;
+  }
+  if (episodes.isEmpty) return null;
+  return resume ?? next ?? episodes.first;
+}
+
+/// Episodios de una temporada: por `seasonId`, si no por número de temporada.
+List<BaseItemDto> _episodesForSeason(
+  List<BaseItemDto> all,
+  BaseItemDto? season,
+) {
+  if (season == null) return all;
+  final byId = all
+      .where((e) => season.id != null && e.seasonId == season.id)
+      .toList();
+  if (byId.isNotEmpty) return byId;
+  return all.where((e) => e.parentIndexNumber == season.indexNumber).toList();
+}
+
 /// Cuerpo del detalle de SERIE solo para el skin Disney (estilo Netflix de la
 /// referencia: logo, meta, VER, tabs Episodios/Sugerencias/Detalles).
 /// Lógica de reproducción: VER reanuda el episodio a medias, si no el
@@ -1672,28 +1875,11 @@ class _DisneySeriesBodyState extends ConsumerState<_DisneySeriesBody> {
   }
 
   /// VER: episodio a medias > siguiente sin ver > primer episodio.
-  BaseItemDto? _verTarget(List<BaseItemDto> episodes) {
-    BaseItemDto? resume;
-    BaseItemDto? next;
-    for (final ep in episodes) {
-      final ticks = ep.userData?.playbackPositionTicks ?? 0;
-      final played = ep.userData?.played ?? false;
-      if (ticks > 0 && resume == null) resume = ep;
-      if (!played && ticks <= 0 && next == null) next = ep;
-      if (resume != null && next != null) break;
-    }
-    if (episodes.isEmpty) return null;
-    return resume ?? next ?? episodes.first;
-  }
+  BaseItemDto? _verTarget(List<BaseItemDto> episodes) =>
+      _verTargetEpisode(episodes);
 
-  List<BaseItemDto> _episodesFor(List<BaseItemDto> all, BaseItemDto? season) {
-    if (season == null) return all;
-    final byId = all
-        .where((e) => season.id != null && e.seasonId == season.id)
-        .toList();
-    if (byId.isNotEmpty) return byId;
-    return all.where((e) => e.parentIndexNumber == season.indexNumber).toList();
-  }
+  List<BaseItemDto> _episodesFor(List<BaseItemDto> all, BaseItemDto? season) =>
+      _episodesForSeason(all, season);
 
   @override
   Widget build(BuildContext context) {
@@ -1985,11 +2171,15 @@ class _SeriesTabButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.selectedColor = Colors.white,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+
+  /// Color del subrayado seleccionado (blanco Disney/Prime, acento Netflix).
+  final Color selectedColor;
 
   @override
   Widget build(BuildContext context) {
@@ -1998,9 +2188,9 @@ class _SeriesTabButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.only(bottom: 8),
         decoration: selected
-            ? const BoxDecoration(
+            ? BoxDecoration(
                 border: Border(
-                  bottom: BorderSide(color: Colors.white, width: 3),
+                  bottom: BorderSide(color: selectedColor, width: 3),
                 ),
               )
             : null,
@@ -2458,4 +2648,1317 @@ class _ThumbImage extends ConsumerWidget {
   final tmdb = int.tryParse(parts[2]);
   if (type == null || tmdb == null) return null;
   return (type, tmdb);
+}
+
+/// Barra fina de progreso de reproducción.
+class _ProgressLine extends StatelessWidget {
+  const _ProgressLine({required this.progress});
+
+  final double progress;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(2),
+      child: SizedBox(
+        height: 4,
+        child: LinearProgressIndicator(
+          value: progress.clamp(0.0, 1.0),
+          backgroundColor: Colors.white24,
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+        ),
+      ),
+    );
+  }
+}
+
+/// Pastilla oscura de metadato (edad, HD, CC…) estilo Disney.
+class _MetaChip extends StatelessWidget {
+  const _MetaChip({required this.text});
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: const Color(0xFF3A3A42),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+/// Cuerpo Disney para pelis/episodios: cabecera con logo, badges, meta,
+/// sinopsis, progreso y botones; tabs SUGERENCIAS / EXTRAS / DETALLES.
+/// Las series Disney siguen con [_DisneySeriesBody].
+class _DisneyMovieBody extends StatefulWidget {
+  const _DisneyMovieBody({
+    required this.item,
+    required this.serverUrl,
+    required this.logoUrl,
+    required this.overview,
+    required this.genres,
+    required this.people,
+    required this.studios,
+    required this.audioLanguages,
+    required this.subtitleLanguages,
+    required this.imdbRating,
+    required this.isFavorite,
+    required this.relatedItems,
+    required this.onPlay,
+    required this.onTrailer,
+    required this.onFavorite,
+  });
+
+  final BaseItemDto item;
+  final String? serverUrl;
+  final String? logoUrl;
+  final String overview;
+  final List<String> genres;
+  final List<BaseItemPerson> people;
+  final List<String> studios;
+  final List<String> audioLanguages;
+  final List<String> subtitleLanguages;
+  final double? imdbRating;
+  final bool isFavorite;
+  final List<BaseItemDto> relatedItems;
+  final VoidCallback onPlay;
+  final VoidCallback onTrailer;
+  final VoidCallback onFavorite;
+
+  @override
+  State<_DisneyMovieBody> createState() => _DisneyMovieBodyState();
+}
+
+class _DisneyMovieBodyState extends State<_DisneyMovieBody> {
+  /// 0 = Sugerencias, 1 = Extras, 2 = Detalles.
+  int _tab = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final compact = MediaQuery.sizeOf(context).width < 760;
+    final item = widget.item;
+    final year = item.productionYear;
+    final metaParts = <String>[
+      if (year != null) '$year',
+      if (item.runTimeTicks != null) _formatDuration(item.runTimeTicks!),
+      ...localizeGenres(widget.genres.take(2), l10n),
+    ];
+    final progress = _playProgress(item);
+    final remaining = _remainingMinutes(item);
+    final hasProgress = progress != null && remaining != null;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 24, 36, 0),
+          child: _DetailTitle(
+            title: item.name ?? '',
+            logoUrl: widget.logoUrl,
+            compact: compact,
+          ),
+        ),
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              if ((item.officialRating ?? '').isNotEmpty)
+                _MetaChip(text: item.officialRating!),
+              if (item.isHD == true) const DetailTag(text: 'HD'),
+              if (widget.subtitleLanguages.isNotEmpty)
+                const DetailTag(text: 'CC'),
+            ],
+          ),
+        ),
+        if (metaParts.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: Text(
+              metaParts.join(' • '),
+              style: const TextStyle(color: Colors.white70, fontSize: 14),
+            ),
+          ),
+        ],
+        if (widget.overview.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: Text(
+              widget.overview,
+              maxLines: 4,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+        if (hasProgress) ...[
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _ProgressLine(progress: progress),
+                const SizedBox(height: 4),
+                Text(
+                  l10n.timeRemaining(remaining),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 18),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _VerButton(
+                label: hasProgress ? l10n.resume : l10n.watchNow,
+                onTap: widget.onPlay,
+              ),
+              // Reiniciar: vuelve al reproductor (sin posición inicial
+              // dedicada en el player; ver FTD).
+              _DetailActionButton(
+                icon: Icons.replay,
+                tooltip: l10n.watchNow,
+                onTap: widget.onPlay,
+              ),
+              _DetailActionButton(
+                icon: Icons.movie_outlined,
+                tooltip: l10n.watchTrailer,
+                onTap: widget.onTrailer,
+              ),
+              _DetailActionButton(
+                icon: widget.isFavorite ? Icons.check : Icons.add,
+                onTap: widget.onFavorite,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 26),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  _SeriesTabButton(
+                    label: l10n.suggestions.toUpperCase(),
+                    selected: _tab == 0,
+                    onTap: () => setState(() => _tab = 0),
+                  ),
+                  const SizedBox(width: 32),
+                  _SeriesTabButton(
+                    label: l10n.extras.toUpperCase(),
+                    selected: _tab == 1,
+                    onTap: () => setState(() => _tab = 1),
+                  ),
+                  const SizedBox(width: 32),
+                  _SeriesTabButton(
+                    label: l10n.details.toUpperCase(),
+                    selected: _tab == 2,
+                    onTap: () => setState(() => _tab = 2),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(height: 1, color: Colors.white24),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        if (_tab == 0)
+          widget.relatedItems.isNotEmpty
+              ? Padding(
+                  padding: const EdgeInsets.only(bottom: 24),
+                  child: _RelatedSection(
+                    items: widget.relatedItems.take(10).toList(),
+                    serverUrl: widget.serverUrl,
+                  ),
+                )
+              : Padding(
+                  padding: const EdgeInsets.fromLTRB(36, 8, 36, 36),
+                  child: Text(
+                    l10n.noResults,
+                    style: const TextStyle(color: Colors.white54),
+                  ),
+                )
+        else if (_tab == 1)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 8, 36, 36),
+            child: _WideDetailButton(
+              label: l10n.watchTrailer,
+              icon: Icons.movie_outlined,
+              onTap: widget.onTrailer,
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 36),
+            child: _AdditionalInformation(
+              item: item,
+              overview: widget.overview,
+              genres: widget.genres,
+              compact: compact,
+              imdbRating: widget.imdbRating,
+              people: widget.people,
+              studios: widget.studios,
+              audioLanguages: widget.audioLanguages,
+              subtitleLanguages: widget.subtitleLanguages,
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Cuerpo Netflix para pelis y series: póster lateral con resume, centro
+/// con título/meta y tabs Overview/Episodios/Tráilers/Más como este.
+class _NetflixDetailBody extends ConsumerStatefulWidget {
+  const _NetflixDetailBody({
+    required this.item,
+    required this.serverUrl,
+    required this.logoUrl,
+    required this.overview,
+    required this.genres,
+    required this.people,
+    required this.studios,
+    required this.isFavorite,
+    required this.accent,
+    required this.relatedItems,
+    required this.onPlay,
+    required this.onTrailer,
+    required this.onFavorite,
+    this.series,
+    this.onPlayEpisode,
+  });
+
+  /// Item a mostrar (peli o serie). Si [series] no es null, modo serie.
+  final BaseItemDto item;
+  final BaseItemDto? series;
+  final String? serverUrl;
+  final String? logoUrl;
+  final String overview;
+  final List<String> genres;
+  final List<BaseItemPerson> people;
+  final List<String> studios;
+  final bool isFavorite;
+  final Color accent;
+  final List<BaseItemDto> relatedItems;
+  final VoidCallback onPlay;
+  final VoidCallback onTrailer;
+  final VoidCallback onFavorite;
+  final void Function(BaseItemDto episode)? onPlayEpisode;
+
+  @override
+  ConsumerState<_NetflixDetailBody> createState() =>
+      _NetflixDetailBodyState();
+}
+
+class _NetflixDetailBodyState extends ConsumerState<_NetflixDetailBody> {
+  int _tab = 0;
+  String? _seasonId;
+
+  bool get _isSeries => widget.series != null;
+  BaseItemDto get _display => widget.series ?? widget.item;
+  String get _seriesId => widget.series?.id ?? '';
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final compact = MediaQuery.sizeOf(context).width < 760;
+    final display = _display;
+    final seasons = _seriesId.isEmpty
+        ? const <BaseItemDto>[]
+        : ref.watch(seriesSeasonsProvider(_seriesId)).value ??
+            const <BaseItemDto>[];
+    final allEpisodes = _seriesId.isEmpty
+        ? const <BaseItemDto>[]
+        : ref.watch(seriesEpisodesProvider(_seriesId)).value ??
+            const <BaseItemDto>[];
+    final episodeSeasons =
+        seasons.where((s) => s.indexNumber != 0).toList();
+    final effectiveSeasons = episodeSeasons.isNotEmpty
+        ? episodeSeasons
+        : seasons;
+    BaseItemDto? season;
+    if (effectiveSeasons.isNotEmpty) {
+      season =
+          effectiveSeasons.where((s) => s.id == _seasonId).firstOrNull ??
+          effectiveSeasons.first;
+    }
+    final seasonEpisodes = _episodesForSeason(allEpisodes, season);
+    final verTarget = _isSeries ? _verTargetEpisode(allEpisodes) : null;
+    final verProgress =
+        verTarget == null ? null : _playProgress(verTarget);
+    final movieProgress = !_isSeries ? _playProgress(display) : null;
+
+    final year = display.productionYear;
+    final ratingChip = (display.officialRating ?? '').trim();
+    final runtimeTicks = display.runTimeTicks;
+    final countOrDuration = _isSeries
+        ? (seasons.isNotEmpty
+              ? l10n.seriesSeasons(seasons.length)
+              : null)
+        : (runtimeTicks != null ? _formatDuration(runtimeTicks) : null);
+    final metaParts = <String>[
+      if (year != null) '$year',
+      if (ratingChip.isNotEmpty) ratingChip,
+    ];
+    if (countOrDuration != null) metaParts.add(countOrDuration);
+    // 0 = Overview, 1 = Episodios (series), 2 = Tráilers, 3 = Más como este.
+    final episodesTab = _isSeries ? 1 : -1;
+    final trailersTab = _isSeries ? 2 : 1;
+    final moreTab = _isSeries ? 3 : 2;
+
+    Widget poster(double width) {
+      final url = widget.serverUrl == null
+          ? null
+          : itemImageUrl(widget.serverUrl!, display, maxWidth: 400);
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: SizedBox(
+          width: width,
+          child: AspectRatio(
+            aspectRatio: 2 / 3,
+            child: url == null
+                ? ColoredBox(
+                    color: Colors.white10,
+                    child: Center(
+                      child: Text(
+                        (display.name ?? '?').isEmpty
+                            ? '?'
+                            : display.name!.substring(0, 1),
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 48,
+                        ),
+                      ),
+                    ),
+                  )
+                : Image.network(
+                    url,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) =>
+                        const ColoredBox(color: Colors.white10),
+                  ),
+          ),
+        ),
+      );
+    }
+
+    Widget resumeBlock() {
+      final target = verTarget;
+      if (_isSeries) {
+        if (target == null) return const SizedBox.shrink();
+        final pos = target.indexNumber;
+        final seas = target.parentIndexNumber;
+        final epLabel = (seas != null && pos != null)
+            ? 'S$seas:E$pos'
+            : (target.name ?? '');
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              l10n.resume,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '$epLabel: ${target.name ?? ''}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (verProgress != null) ...[
+              const SizedBox(height: 8),
+              _ProgressLine(progress: verProgress),
+            ],
+            if ((target.overview ?? '').isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                target.overview!,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white60,
+                  fontSize: 12,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ],
+        );
+      }
+      if (movieProgress == null) return const SizedBox.shrink();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.resume,
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
+          _ProgressLine(progress: movieProgress),
+        ],
+      );
+    }
+
+    final header = compact
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  poster(120),
+                  const SizedBox(width: 16),
+                  Expanded(child: resumeBlock()),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _netflixTitle(l10n, display, compact),
+              const SizedBox(height: 8),
+              Text(
+                metaParts.join(' | '),
+                style: const TextStyle(color: Colors.white70, fontSize: 14),
+              ),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(width: 200, child: Column(children: [poster(200), const SizedBox(height: 12), resumeBlock()])),
+              const SizedBox(width: 24),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _netflixTitle(l10n, display, compact),
+                    const SizedBox(height: 8),
+                    Text(
+                      metaParts.join(' | '),
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    _NetflixPlayButton(
+                      accent: widget.accent,
+                      onTap: () {
+                        final target = _isSeries ? verTarget : null;
+                        if (target != null) {
+                          widget.onPlayEpisode?.call(target);
+                        } else {
+                          widget.onPlay();
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 24, 36, 0),
+          child: header,
+        ),
+        if (compact) ...[
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 36),
+            child: _NetflixPlayButton(
+              accent: widget.accent,
+              onTap: () {
+                final target = _isSeries ? verTarget : null;
+                if (target != null) {
+                  widget.onPlayEpisode?.call(target);
+                } else {
+                  widget.onPlay();
+                }
+              },
+            ),
+          ),
+        ],
+        const SizedBox(height: 18),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 36),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _SeriesTabButton(
+                      label: l10n.overview,
+                      selected: _tab == 0,
+                      selectedColor: widget.accent,
+                      onTap: () => setState(() => _tab = 0),
+                    ),
+                    if (_isSeries) ...[
+                      const SizedBox(width: 28),
+                      _SeriesTabButton(
+                        label: l10n.episodes.toUpperCase(),
+                        selected: _tab == episodesTab,
+                        selectedColor: widget.accent,
+                        onTap: () => setState(() => _tab = episodesTab),
+                      ),
+                    ],
+                    const SizedBox(width: 28),
+                    _SeriesTabButton(
+                      label: l10n.trailersAndMore.toUpperCase(),
+                      selected: _tab == trailersTab,
+                      selectedColor: widget.accent,
+                      onTap: () => setState(() => _tab = trailersTab),
+                    ),
+                    const SizedBox(width: 28),
+                    _SeriesTabButton(
+                      label: l10n.moreLikeThis.toUpperCase(),
+                      selected: _tab == moreTab,
+                      selectedColor: widget.accent,
+                      onTap: () => setState(() => _tab = moreTab),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(height: 1, color: Colors.white24),
+            ],
+          ),
+        ),
+        const SizedBox(height: 18),
+        if (_tab == 0)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 0, 36, 36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (widget.overview.isNotEmpty)
+                  Text(
+                    widget.overview,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      height: 1.4,
+                    ),
+                  ),
+                const SizedBox(height: 16),
+                _NetflixMetaRow(
+                  label: l10n.starring,
+                  value: detailPeopleNames(widget.people.take(4).toList()),
+                ),
+                const SizedBox(height: 10),
+                _NetflixMetaRow(
+                  label: l10n.createdBy,
+                  value: detailPeopleByType(widget.people, 'Creator').isNotEmpty
+                      ? detailPeopleByType(widget.people, 'Creator')
+                      : detailPeopleByType(widget.people, 'Director'),
+                ),
+                const SizedBox(height: 10),
+                _NetflixMetaRow(
+                  label: l10n.genres,
+                  value: localizeGenres(widget.genres, l10n).join(', '),
+                ),
+              ],
+            ),
+          )
+        else if (_tab == episodesTab && _isSeries)
+          _EpisodesTab(
+            seasons: effectiveSeasons,
+            season: season,
+            episodes: seasonEpisodes,
+            isLoading: allEpisodes.isEmpty &&
+                ref
+                    .watch(seriesEpisodesProvider(_seriesId))
+                    .isLoading,
+            l10n: l10n,
+            prime: false,
+            onSeasonChanged: (id) => setState(() => _seasonId = id),
+            onEpisodeTap: (episode) => widget.onPlayEpisode?.call(episode),
+          )
+        else if (_tab == trailersTab)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 8, 36, 36),
+            child: _WideDetailButton(
+              label: l10n.watchTrailer,
+              icon: Icons.movie_outlined,
+              onTap: widget.onTrailer,
+            ),
+          )
+        else if (widget.relatedItems.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 24),
+            child: _RelatedSection(
+              items: widget.relatedItems.take(10).toList(),
+              serverUrl: widget.serverUrl,
+              title: l10n.moreLikeThis,
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 8, 36, 36),
+            child: Text(
+              l10n.noResults,
+              style: const TextStyle(color: Colors.white54),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _netflixTitle(
+    AppLocalizations l10n,
+    BaseItemDto display,
+    bool compact,
+  ) {
+    final brand = widget.studios.isNotEmpty
+        ? widget.studios.first.trim().toUpperCase()
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (brand != null && brand.isNotEmpty)
+          Text(
+            brand,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 2,
+            ),
+          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _DetailTitle(
+                title: display.name ?? '',
+                logoUrl: widget.logoUrl,
+                compact: compact,
+              ),
+            ),
+            if ((display.communityRating ?? 0) > 0) ...[
+              const SizedBox(width: 12),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    display.communityRating!.toStringAsFixed(1),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  const Icon(Icons.star, color: Colors.amber, size: 20),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Botón de play cuadrado rojo estilo Netflix.
+class _NetflixPlayButton extends StatelessWidget {
+  const _NetflixPlayButton({required this.accent, required this.onTap});
+
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          color: accent,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Icon(Icons.play_arrow, color: Colors.white, size: 32),
+      ),
+    );
+  }
+}
+
+/// Fila etiqueta/valor de la pestaña Overview de Netflix.
+class _NetflixMetaRow extends StatelessWidget {
+  const _NetflixMetaRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    if (value.trim().isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(color: Colors.white54, fontSize: 12),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: const TextStyle(color: Colors.white, fontSize: 14),
+        ),
+      ],
+    );
+  }
+}
+
+/// Cuerpo Jellyfin clásico para pelis y series: título, nota/fecha/badges,
+/// géneros, sinopsis con póster a la derecha, metadatos a la izquierda,
+/// fila de botones y Cast & crew con fotos.
+class _JellyfinDetailBody extends ConsumerStatefulWidget {
+  const _JellyfinDetailBody({
+    required this.item,
+    required this.serverUrl,
+    required this.overview,
+    required this.genres,
+    required this.people,
+    required this.studios,
+    required this.isFavorite,
+    required this.relatedItems,
+    required this.onPlay,
+    required this.onTrailer,
+    required this.onFavorite,
+    this.series,
+    this.onPlayEpisode,
+  });
+
+  /// Item a mostrar (peli o serie). Si [series] no es null, modo serie.
+  final BaseItemDto item;
+  final BaseItemDto? series;
+  final String? serverUrl;
+  final String overview;
+  final List<String> genres;
+  final List<BaseItemPerson> people;
+  final List<String> studios;
+  final bool isFavorite;
+  final List<BaseItemDto> relatedItems;
+  final VoidCallback onPlay;
+  final VoidCallback onTrailer;
+  final VoidCallback onFavorite;
+  final void Function(BaseItemDto episode)? onPlayEpisode;
+
+  @override
+  ConsumerState<_JellyfinDetailBody> createState() =>
+      _JellyfinDetailBodyState();
+}
+
+class _JellyfinDetailBodyState extends ConsumerState<_JellyfinDetailBody> {
+  bool? _played;
+  String? _seasonId;
+
+  bool get _isSeries => widget.series != null;
+  BaseItemDto get _display => widget.series ?? widget.item;
+  String get _seriesId => widget.series?.id ?? '';
+
+  @override
+  void initState() {
+    super.initState();
+    _played = _display.userData?.played;
+  }
+
+  Future<void> _toggleWatched() async {
+    final itemId = _display.id;
+    final userId = ref.read(currentUserIdProvider);
+    final client = ref.read(jellyfinClientProvider);
+    if (itemId == null || itemId.isEmpty || userId == null || client == null) {
+      return;
+    }
+    final next = !(_played ?? false);
+    setState(() => _played = next);
+    try {
+      if (next) {
+        await client
+            .getPlaystateApi()
+            .markPlayedItem(itemId: itemId, userId: userId);
+      } else {
+        await client
+            .getPlaystateApi()
+            .markUnplayedItem(itemId: itemId, userId: userId);
+      }
+      ref.invalidate(itemDetailProvider(itemId));
+    } catch (_) {
+      if (mounted) setState(() => _played = !next);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final compact = MediaQuery.sizeOf(context).width < 760;
+    final display = _display;
+    final rating = display.communityRating;
+    final premiere = display.premiereDate;
+    final dateLabel = premiere != null
+        ? DateFormat.yMMMd(l10n.localeName).format(premiere.toLocal())
+        : (display.productionYear?.toString() ?? '');
+    final badges = _formatBadges(display);
+    final directorNames = detailPeopleByType(widget.people, 'Director');
+    final totalTicks = display.runTimeTicks;
+    final posTicks = display.userData?.playbackPositionTicks ?? 0;
+    final watchedTicks = totalTicks != null && totalTicks > 0 && posTicks > 0
+        ? totalTicks - posTicks
+        : totalTicks;
+    final endsLabel = watchedTicks != null && watchedTicks > 0
+        ? DateFormat.Hm().format(
+            DateTime.now().add(
+              Duration(microseconds: watchedTicks ~/ 10),
+            ),
+          )
+        : null;
+
+    final posterWidth = compact ? 140.0 : 220.0;
+    final posterUrl = widget.serverUrl == null
+        ? null
+        : itemImageUrl(widget.serverUrl!, display, maxWidth: 400);
+
+    final seasons = _seriesId.isEmpty
+        ? const <BaseItemDto>[]
+        : ref.watch(seriesSeasonsProvider(_seriesId)).value ??
+            const <BaseItemDto>[];
+    final allEpisodes = _seriesId.isEmpty
+        ? const <BaseItemDto>[]
+        : ref.watch(seriesEpisodesProvider(_seriesId)).value ??
+            const <BaseItemDto>[];
+    final episodeSeasons =
+        seasons.where((s) => s.indexNumber != 0).toList();
+    final effectiveSeasons = episodeSeasons.isNotEmpty
+        ? episodeSeasons
+        : seasons;
+    BaseItemDto? season;
+    if (effectiveSeasons.isNotEmpty) {
+      season =
+          effectiveSeasons.where((s) => s.id == _seasonId).firstOrNull ??
+          effectiveSeasons.first;
+    }
+
+    final watched = _played ?? display.userData?.played ?? false;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(36, 24, 36, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                display.name ?? '',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: compact ? 28 : 34,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 10,
+                runSpacing: 6,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  if (rating != null && rating > 0)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  if (dateLabel.isNotEmpty)
+                    Text(
+                      dateLabel,
+                      style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 14,
+                      ),
+                    ),
+                  for (final badge in badges) _MetaChip(text: badge),
+                ],
+              ),
+              if (widget.genres.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  localizeGenres(widget.genres, l10n).join(' / '),
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (directorNames.trim().isNotEmpty)
+                          _JellyfinMetaRow(
+                            label: l10n.directedBy.toUpperCase(),
+                            value: directorNames,
+                          ),
+                        if (!_isSeries && totalTicks != null) ...[
+                          const SizedBox(height: 10),
+                          _JellyfinMetaRow(
+                            label: l10n.runs.toUpperCase(),
+                            value: _formatDuration(totalTicks),
+                          ),
+                        ],
+                        if (!_isSeries && endsLabel != null) ...[
+                          const SizedBox(height: 10),
+                          _JellyfinMetaRow(
+                            label: l10n.ends.toUpperCase(),
+                            value: endsLabel,
+                          ),
+                        ],
+                        if (widget.overview.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            widget.overview,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 24),
+                  SizedBox(
+                    width: posterWidth,
+                    child: AspectRatio(
+                      aspectRatio: 2 / 3,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: posterUrl == null
+                            ? const ColoredBox(color: Colors.white10)
+                            : Image.network(
+                                posterUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, _, _) =>
+                                    const ColoredBox(color: Colors.white10),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _JellyfinActionButton(
+                    icon: Icons.play_arrow,
+                    label: l10n.play,
+                    onTap: () {
+                      final target = _isSeries
+                          ? _verTargetEpisode(allEpisodes)
+                          : null;
+                      if (target != null) {
+                        widget.onPlayEpisode?.call(target);
+                      } else {
+                        widget.onPlay();
+                      }
+                    },
+                  ),
+                  _JellyfinActionButton(
+                    icon: Icons.movie_outlined,
+                    label: l10n.watchTrailer,
+                    onTap: widget.onTrailer,
+                  ),
+                  _JellyfinActionButton(
+                    icon: watched ? Icons.check : Icons.check_outlined,
+                    label: l10n.watched,
+                    selected: watched,
+                    onTap: _toggleWatched,
+                  ),
+                  _JellyfinActionButton(
+                    icon: widget.isFavorite
+                        ? Icons.favorite
+                        : Icons.favorite_border,
+                    label: l10n.favorite,
+                    selected: widget.isFavorite,
+                    onTap: widget.onFavorite,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 22),
+        if (_isSeries)
+          _EpisodesTab(
+            seasons: effectiveSeasons,
+            season: season,
+            episodes: _episodesForSeason(allEpisodes, season),
+            isLoading: allEpisodes.isEmpty &&
+                ref.watch(seriesEpisodesProvider(_seriesId)).isLoading,
+            l10n: l10n,
+            prime: false,
+            onSeasonChanged: (id) => setState(() => _seasonId = id),
+            onEpisodeTap: (episode) => widget.onPlayEpisode?.call(episode),
+          ),
+        if (widget.people.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(36, 4, 36, 12),
+            child: Text(
+              l10n.castAndCrew,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          SizedBox(
+            height: 208,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 36),
+              itemCount: widget.people.length,
+              separatorBuilder: (_, _) => const SizedBox(width: 12),
+              itemBuilder: (context, i) => _CastCard(
+                person: widget.people[i],
+                serverUrl: widget.serverUrl,
+              ),
+            ),
+          ),
+          const SizedBox(height: 36),
+        ] else
+          const SizedBox(height: 36),
+      ],
+    );
+  }
+}
+
+/// Fila etiqueta/valor de la columna izquierda Jellyfin.
+class _JellyfinMetaRow extends StatelessWidget {
+  const _JellyfinMetaRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white54,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          maxLines: 3,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: Colors.white70, fontSize: 14),
+        ),
+      ],
+    );
+  }
+}
+
+/// Botón gris de la fila de acciones Jellyfin.
+class _JellyfinActionButton extends StatelessWidget {
+  const _JellyfinActionButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.selected = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected
+              ? Colors.white.withValues(alpha: 0.22)
+              : Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: Colors.white, size: 22),
+            const SizedBox(width: 10),
+            Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Tarjeta de reparto con foto (`/Persons`) y nombre; abre la ficha si hay id.
+class _CastCard extends StatelessWidget {
+  const _CastCard({required this.person, required this.serverUrl});
+
+  final BaseItemPerson person;
+  final String? serverUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (person.name ?? '').trim();
+    final base = serverUrl;
+    final photoUrl = base == null || name.isEmpty
+        ? null
+        : _personPhotoUrl(base, name);
+    return GestureDetector(
+      onTap: person.id == null || person.id!.isEmpty
+          ? null
+          : () => context.push(
+              '/home/person/${person.id}',
+              extra: BaseItemDto(
+                id: person.id,
+                name: name,
+                type: BaseItemKind.person,
+              ),
+            ),
+      child: SizedBox(
+        width: 110,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AspectRatio(
+              aspectRatio: 2 / 3,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: photoUrl == null
+                    ? _CastFallback(name: name)
+                    : Image.network(
+                        photoUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => _CastFallback(name: name),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              name.isEmpty ? '—' : name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white, fontSize: 12),
+            ),
+            if ((person.role ?? '').trim().isNotEmpty)
+              Text(
+                person.role!.trim(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 11,
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Inicial sobre fondo neutro cuando no hay foto.
+class _CastFallback extends StatelessWidget {
+  const _CastFallback({required this.name});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: const Color(0xFF2A2F36),
+      child: Center(
+        child: Text(
+          name.isEmpty ? '?' : name.substring(0, 1).toUpperCase(),
+          style: const TextStyle(color: Colors.white54, fontSize: 40),
+        ),
+      ),
+    );
+  }
 }

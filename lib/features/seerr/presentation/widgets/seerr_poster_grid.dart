@@ -15,6 +15,8 @@ class SeerrPosterGridEntry {
     this.cornerLogos,
     this.cornerBadge,
     this.hoverActionLabel,
+    this.hoverExtension = false,
+    this.hoverScale,
   });
 
   final BaseItemDto item;
@@ -34,6 +36,12 @@ class SeerrPosterGridEntry {
 
   /// Texto del botón principal del hover (p. ej. "Solicitar" o "Detalles").
   final String? hoverActionLabel;
+
+  /// Activa el panel de extensión Prime al hacer hover, como en los scrolls.
+  final bool hoverExtension;
+
+  /// Escala de la tarjeta al expandirse en el hover (null = defecto).
+  final double? hoverScale;
 }
 
 /// Grid de pósters de Seerr (pestañas Buscar y Peticiones) reutilizando el
@@ -68,6 +76,8 @@ class SeerrPosterGrid extends StatelessWidget {
           showPlayIcon: false,
           showHoverIncludedBadge: false,
           hoverActionLabel: e.hoverActionLabel,
+          hoverExtension: e.hoverExtension,
+          hoverScale: e.hoverScale,
           cardLogo: e.cardLogo,
           cornerLogos: e.cornerLogos,
           cornerBadge: e.cornerBadge,

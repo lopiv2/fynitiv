@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:jellyfin_dart/jellyfin_dart.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../library/application/image_url.dart';
 import '../../library/application/library_providers.dart';
@@ -28,24 +29,99 @@ final franchiseCatalogProvider =
       );
     });
 
-/// Entrada de una franquicia: item curado + lo que hay en Jellyfin o los
-/// metadatos de Seerr para los que faltan.
+/// Entrada de una franquicia: item curado + lo que hay en Jellyfin.
 class FranchiseEntry {
-  const FranchiseEntry({required this.item, this.owned, this.external});
+  const FranchiseEntry({required this.item, this.owned});
 
   final CuratedFranchiseItem item;
 
   /// Item real de Jellyfin (null = no está en la biblioteca).
   final BaseItemDto? owned;
 
-  /// Ficha de Seerr para pintar el faltante (título/carátula) y poder pedirlo.
-  final SeerrMedia? external;
-
   bool get isOwned => owned != null;
 }
 
-/// Elementos de una franquicia en el orden curado, mezclando lo que hay en
-/// Jellyfin y lo que falta (con metadatos de Seerr si está configurado).
+/// Metadatos externos de Seerr para los títulos que faltan en la biblioteca.
+typedef FranchiseExternalMedia = Map<TmdbKey, SeerrMedia>;
+
+/// Mapa vacío reutilizable para cuando aún no hay fichas externas.
+const FranchiseExternalMedia emptyFranchiseExternal = {};
+
+/// Ficha externa de [item], si ya se cargó.
+SeerrMedia? franchiseExternalFor(
+  FranchiseExternalMedia externals,
+  CuratedFranchiseItem item,
+) => externals[(type: _tmdbType(item.type), tmdbId: item.tmdbId)];
+
+BaseItemDto? _indexedItem(
+  Map<TmdbKey, BaseItemDto> index,
+  CuratedFranchiseItem item,
+) => index[(type: _tmdbType(item.type), tmdbId: item.tmdbId)];
+
+bool _isOwnedItem(BaseItemDto? item) {
+  final id = item?.id;
+  return item != null &&
+      id != null &&
+      id.isNotEmpty &&
+      !isPlaceholderItem(item);
+}
+
+bool _isOwnedInIndex(
+  Map<TmdbKey, BaseItemDto> index,
+  CuratedFranchiseItem item,
+) => _isOwnedItem(_indexedItem(index, item));
+
+/// Orden elegido en la pantalla de franquicia; se conserva al navegar entre
+/// sagas y entre reinicios de la app.
+const _kFranchiseSortOrderKey = 'app.franchise_sort_order';
+
+class FranchiseSortOrderController extends Notifier<FranchiseSortOrder> {
+  @override
+  FranchiseSortOrder build() {
+    _load();
+    return FranchiseSortOrder.release;
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_kFranchiseSortOrderKey);
+    if (raw == null) return;
+    final stored = FranchiseSortOrder.values.asNameMap()[raw];
+    if (stored != null) state = stored;
+  }
+
+  Future<void> set(FranchiseSortOrder order) async {
+    state = order;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_kFranchiseSortOrderKey, order.name);
+  }
+}
+
+final franchiseSortOrderProvider =
+    NotifierProvider<FranchiseSortOrderController, FranchiseSortOrder>(
+      FranchiseSortOrderController.new,
+    );
+
+/// Ordena las entradas por estreno o cronología, con el orden del catálogo
+/// como desempate.
+List<FranchiseEntry> sortedFranchiseEntries(
+  List<FranchiseEntry> entries,
+  FranchiseSortOrder order,
+) {
+  final indexed = entries.asMap().entries.toList();
+  indexed.sort((a, b) {
+    final byKey = a.value.item
+        .sortKey(order, catalogIndex: a.key)
+        .compareTo(b.value.item.sortKey(order, catalogIndex: b.key));
+    return byKey != 0 ? byKey : a.key.compareTo(b.key);
+  });
+  return [for (final entry in indexed) entry.value];
+}
+
+/// Elementos de una franquicia en el orden curado: catálogo + biblioteca.
+///
+/// No espera a Seerr: los metadatos de los faltantes se cargan aparte en
+/// [franchiseExternalProvider] para que el grid aparezca cuanto antes.
 final franchiseEntriesProvider =
     FutureProvider.family<List<FranchiseEntry>, String>((
       ref,
@@ -57,23 +133,11 @@ final franchiseEntriesProvider =
       final index = await ref.watch(libraryTmdbIndexProvider.future);
       final client = ref.watch(jellyfinClientProvider);
       final userId = ref.watch(currentUserIdProvider);
-      final api = ref.watch(seerrApiProvider);
-
-      BaseItemDto? indexed(CuratedFranchiseItem item) =>
-          index[(type: _tmdbType(item.type), tmdbId: item.tmdbId)];
-
-      bool isOwnedItem(BaseItemDto? item) {
-        final id = item?.id;
-        return item != null &&
-            id != null &&
-            id.isNotEmpty &&
-            !isPlaceholderItem(item);
-      }
 
       final ownedIds = <String>[];
       for (final item in franchise.items) {
-        final hit = indexed(item);
-        if (isOwnedItem(hit)) ownedIds.add(hit!.id!);
+        final hit = _indexedItem(index, item);
+        if (_isOwnedItem(hit)) ownedIds.add(hit!.id!);
       }
 
       final hydrated = <String, BaseItemDto>{};
@@ -99,55 +163,71 @@ final franchiseEntriesProvider =
         }
       }
 
-      final missing = <CuratedFranchiseItem>[];
-      for (final item in franchise.items) {
-        final hit = indexed(item);
-        final owned = isOwnedItem(hit) ? hydrated[hit!.id] : null;
-        if (owned == null) missing.add(item);
-      }
+      return [
+        for (final item in franchise.items)
+          FranchiseEntry(
+            item: item,
+            owned: _isOwnedItem(_indexedItem(index, item))
+                ? hydrated[_indexedItem(index, item)!.id]
+                : null,
+          ),
+      ];
+    });
 
-      final externals = <TmdbKey, SeerrMedia>{};
-      if (api != null && missing.isNotEmpty) {
+/// Metadatos de Seerr para los títulos de una franquicia que no están en la
+/// biblioteca. Se piden en lotes pequeños y con timeout, emitiendo el mapa
+/// conforme llegan para que las carátulas se completen sin bloquear el grid.
+final franchiseExternalProvider =
+    StreamProvider.family<FranchiseExternalMedia, String>((
+      ref,
+      franchiseId,
+    ) async* {
+      final api = ref.watch(seerrApiProvider);
+      if (api == null) return;
+      final catalog = await ref.watch(franchiseCatalogProvider.future);
+      final franchise = catalog.byId(franchiseId);
+      if (franchise == null) return;
+
+      final index = await ref.watch(libraryTmdbIndexProvider.future);
+      final missing = [
+        for (final item in franchise.items)
+          if (!_isOwnedInIndex(index, item)) item,
+      ];
+      if (missing.isEmpty) return;
+
+      final out = <TmdbKey, SeerrMedia>{};
+      const batchSize = 6;
+      const timeout = Duration(seconds: 8);
+      for (var start = 0; start < missing.length; start += batchSize) {
+        final batch = missing.skip(start).take(batchSize).toList();
+        final before = out.length;
         final results = await Future.wait(
-          missing.map((item) async {
+          batch.map((item) async {
             try {
-              return await ref.watch(
-                seerrDetailProvider((
-                  mediaType: item.type,
-                  tmdbId: item.tmdbId,
-                )).future,
-              );
+              // `read` y no `watch`: la ficha se pide una vez y no debe
+              // reejecutar este provider cada vez que responde una.
+              return await ref
+                  .read(
+                    seerrDetailProvider((
+                      mediaType: item.type,
+                      tmdbId: item.tmdbId,
+                    )).future,
+                  )
+                  .timeout(timeout);
             } catch (_) {
               return null;
             }
           }),
         );
-        for (var i = 0; i < missing.length; i++) {
+        for (var i = 0; i < batch.length; i++) {
           final media = results[i];
           if (media == null) continue;
-          externals[(
-            type: _tmdbType(missing[i].type),
-            tmdbId: missing[i].tmdbId,
-          )] = media;
+          out[(type: _tmdbType(batch[i].type), tmdbId: batch[i].tmdbId)] = media;
+        }
+        if (out.length != before) {
+          yield Map<TmdbKey, SeerrMedia>.of(out);
         }
       }
-
-      final entries = <FranchiseEntry>[];
-      for (final item in franchise.items) {
-        final hit = indexed(item);
-        final owned = isOwnedItem(hit) ? hydrated[hit!.id] : null;
-        if (owned != null) {
-          entries.add(FranchiseEntry(item: item, owned: owned));
-        } else {
-          entries.add(
-            FranchiseEntry(
-              item: item,
-              external: externals[(type: _tmdbType(item.type), tmdbId: item.tmdbId)],
-            ),
-          );
-        }
-      }
-      return entries;
     });
 
 /// Entrada del hub "Franquicias": progreso y carátula para la fila.

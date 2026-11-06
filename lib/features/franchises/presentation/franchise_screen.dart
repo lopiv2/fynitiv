@@ -14,6 +14,7 @@ import '../../seerr/application/seerr_providers.dart';
 import '../../seerr/domain/seerr_models.dart';
 import '../../seerr/presentation/widgets/seerr_poster_grid.dart';
 import '../application/franchise_providers.dart';
+import '../domain/curated_franchise.dart';
 
 /// Pantalla de una franquicia curada: sus títulos en el orden del catálogo,
 /// con las películas que tienes y las que faltan (pedibles desde Seerr).
@@ -32,6 +33,10 @@ class FranchiseScreen extends ConsumerWidget {
     final franchise = catalog?.byId(franchiseId);
     final entriesAsync = ref.watch(franchiseEntriesProvider(franchiseId));
     final entries = entriesAsync.value ?? const <FranchiseEntry>[];
+    final externalAsync = ref.watch(franchiseExternalProvider(franchiseId));
+    final externals = externalAsync.value ?? emptyFranchiseExternal;
+    final sortOrder = ref.watch(franchiseSortOrderProvider);
+    final orderedEntries = sortedFranchiseEntries(entries, sortOrder);
     final owned = entries.where((e) => e.isOwned).length;
 
     return Scaffold(
@@ -46,6 +51,12 @@ class FranchiseScreen extends ConsumerWidget {
                   ? null
                   : l10n.franchiseProgress(owned, entries.length),
             ),
+            if (orderedEntries.isNotEmpty)
+              _FranchiseOrderBar(
+                order: sortOrder,
+                onChanged: (order) =>
+                    ref.read(franchiseSortOrderProvider.notifier).set(order),
+              ),
             Expanded(
               child: entriesAsync.isLoading && entries.isEmpty
                   ? const Center(child: AppLoader())
@@ -58,13 +69,20 @@ class FranchiseScreen extends ConsumerWidget {
                     )
                   : SeerrPosterGrid(
                       entries: [
-                        for (final entry in entries)
+                        for (var i = 0; i < orderedEntries.length; i++)
                           _gridEntry(
                             context,
                             l10n,
                             serverUrl,
                             language,
-                            entry,
+                            orderedEntries[i],
+                            external: franchiseExternalFor(
+                              externals,
+                              orderedEntries[i].item,
+                            ),
+                            ordinal: sortOrder == FranchiseSortOrder.story
+                                ? i + 1
+                                : null,
                           ),
                       ],
                     ),
@@ -80,19 +98,22 @@ class FranchiseScreen extends ConsumerWidget {
     AppLocalizations l10n,
     String? serverUrl,
     String language,
-    FranchiseEntry entry,
-  ) {
+    FranchiseEntry entry, {
+    SeerrMedia? external,
+    int? ordinal,
+  }) {
     final owned = entry.owned;
     if (owned != null) {
       return SeerrPosterGridEntry(
         item: owned,
         imageUrl: serverUrl == null ? null : itemImageUrl(serverUrl, owned),
         hoverActionLabel: l10n.details,
+        hoverExtension: true,
+        cornerBadge: ordinal == null ? null : _CornerBadges(ordinal: ordinal),
         onTap: () => pushDetailForType(context, owned),
       );
     }
 
-    final external = entry.external;
     final media =
         external ??
         SeerrMedia(
@@ -105,11 +126,172 @@ class FranchiseScreen extends ConsumerWidget {
       item: seerrMediaToBaseItem(media),
       imageUrl: media.posterUrl(),
       hoverActionLabel: l10n.seerrRequest,
-      cornerBadge: _MissingBadge(label: l10n.notInLibrary),
+      hoverExtension: true,
+      cornerBadge: _CornerBadges(
+        ordinal: ordinal,
+        missingLabel: l10n.notInLibrary,
+      ),
       onTap: () =>
           context.push('/seerr/${media.mediaType.value}/${media.tmdbId}'),
     );
   }
+}
+
+/// Barra de orden de la franquicia: estreno (por año) o cronológico.
+class _FranchiseOrderBar extends StatelessWidget {
+  const _FranchiseOrderBar({required this.order, required this.onChanged});
+
+  final FranchiseSortOrder order;
+  final ValueChanged<FranchiseSortOrder> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _OrderChip(
+            label: l10n.sortByRelease,
+            selected: order == FranchiseSortOrder.release,
+            onSelected: () => onChanged(FranchiseSortOrder.release),
+          ),
+          _OrderChip(
+            label: l10n.sortChronological,
+            selected: order == FranchiseSortOrder.story,
+            onSelected: () => onChanged(FranchiseSortOrder.story),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderChip extends StatelessWidget {
+  const _OrderChip({
+    required this.label,
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return ChoiceChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: (_) => onSelected(),
+      selectedColor: Colors.white.withValues(alpha: 0.14),
+      backgroundColor: Colors.white.withValues(alpha: 0.06),
+      labelStyle: TextStyle(
+        color: selected ? Colors.white : Colors.white70,
+        fontWeight: FontWeight.w600,
+        fontSize: 13,
+      ),
+      side: BorderSide(color: selected ? Colors.white24 : Colors.white10),
+      showCheckmark: false,
+    );
+  }
+}
+
+/// Número de posición narrativa (solo en orden cronológico) sobre un
+/// triángulo de esquina como el de la referencia, y si falta, el badge de
+/// "no está en tu biblioteca" debajo.
+class _CornerBadges extends StatelessWidget {
+  const _CornerBadges({this.ordinal, this.missingLabel});
+
+  final int? ordinal;
+  final String? missingLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // El PosterCard coloca el cornerBadge a 6px de la esquina; se
+        // compensa para que el triángulo quede enrasado con el borde.
+        if (ordinal != null)
+          Transform.translate(
+            offset: const Offset(-6, -6),
+            child: _OrderBadge(number: ordinal!),
+          ),
+        if (missingLabel != null) ...[
+          if (ordinal != null) const SizedBox(height: 2),
+          _MissingBadge(label: missingLabel!),
+        ],
+      ],
+    );
+  }
+}
+
+/// Triángulo de esquina con el número de la posición narrativa encima.
+class _OrderBadge extends StatelessWidget {
+  const _OrderBadge({required this.number});
+
+  final int number;
+
+  @override
+  Widget build(BuildContext context) {
+    final fontSize = number >= 10 ? 26.0 : 33.0;
+    return IgnorePointer(
+      child: SizedBox(
+        width: 76,
+        height: 68,
+        child: CustomPaint(
+          painter: _CornerTrianglePainter(),
+          child: Align(
+            alignment: const Alignment(-0.62, -0.62),
+            child: Text(
+              '$number',
+              style: TextStyle(
+                color: const Color(0xFF6FE9F2),
+                fontSize: fontSize,
+                fontWeight: FontWeight.w800,
+                height: 1,
+                shadows: [
+                  Shadow(
+                    color: Colors.black.withValues(alpha: 0.55),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Triángulo rectángulo en la esquina superior izquierda de la tarjeta.
+class _CornerTrianglePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(0, size.height)
+      ..close();
+    final paint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          const Color(0xFF0B323A).withValues(alpha: 0.96),
+          const Color(0xFF0B323A).withValues(alpha: 0.78),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 /// Badge de esquina para los títulos que aún no están en Jellyfin.

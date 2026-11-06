@@ -1,5 +1,14 @@
 import '../../seerr/domain/seerr_models.dart';
 
+/// Orden de presentación de los títulos de una franquicia.
+enum FranchiseSortOrder {
+  /// Fecha de estreno, con el orden del catálogo como desempate.
+  release,
+
+  /// Orden narrativo (`storyOrder`); los títulos sin dato quedan al final.
+  story,
+}
+
 /// Catálogo curado de franquicias (`assets/data/franchises.json`).
 ///
 /// El orden de [CuratedFranchise.items] es el orden de la saga: es la fuente de
@@ -127,6 +136,7 @@ class CuratedFranchiseItem {
     this.title,
     this.titleEn,
     this.year,
+    this.storyOrder,
   });
 
   final SeerrMediaType type;
@@ -134,6 +144,19 @@ class CuratedFranchiseItem {
   final String? title;
   final String? titleEn;
   final int? year;
+
+  /// Posición narrativa dentro de la franquicia (1 = primera en la historia).
+  /// Sirve para el orden cronológico; si falta, el título queda al final.
+  final int? storyOrder;
+
+  /// Clave de ordenación para [order]; [catalogIndex] desempata y coloca al
+  /// final los títulos sin `storyOrder` en el orden narrativo.
+  int sortKey(FranchiseSortOrder order, {required int catalogIndex}) {
+    if (order == FranchiseSortOrder.story) {
+      return storyOrder ?? 100000 + catalogIndex;
+    }
+    return year ?? 0;
+  }
 
   String titleFor(String languageCode) {
     final localized = languageCode == 'en' ? titleEn : null;
@@ -151,6 +174,7 @@ class CuratedFranchiseItem {
       title: (json['title'] as String?)?.trim(),
       titleEn: (json['titleEn'] as String?)?.trim(),
       year: (json['year'] as num?)?.toInt(),
+      storyOrder: (json['storyOrder'] as num?)?.toInt(),
     );
   }
 }

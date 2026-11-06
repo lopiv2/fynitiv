@@ -1096,6 +1096,36 @@ class AppLocalizationsEs extends AppLocalizations {
   String get suggestions => 'Sugerencias';
 
   @override
+  String get overview => 'Resumen';
+
+  @override
+  String get trailersAndMore => 'Tráilers y más';
+
+  @override
+  String get castAndCrew => 'Reparto';
+
+  @override
+  String get starring => 'Protagonistas';
+
+  @override
+  String get createdBy => 'Creada por';
+
+  @override
+  String get directedBy => 'Dirección';
+
+  @override
+  String get favorite => 'Favorito';
+
+  @override
+  String get runs => 'Duración';
+
+  @override
+  String get ends => 'Termina';
+
+  @override
+  String get watched => 'Vista';
+
+  @override
   String get season => 'Temporada';
 
   @override
@@ -2698,6 +2728,12 @@ class AppLocalizationsEs extends AppLocalizations {
   String franchiseProgress(int owned, int total) {
     return '$owned/$total en tu biblioteca';
   }
+
+  @override
+  String get sortByRelease => 'Orden de estreno';
+
+  @override
+  String get sortChronological => 'Orden cronológico';
 
   @override
   String get myNetflix => 'Mi biblioteca';

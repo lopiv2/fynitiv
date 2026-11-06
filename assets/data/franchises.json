@@ -11,244 +11,530 @@
           "type": "movie",
           "tmdbId": 1726,
           "title": "Iron Man",
-          "year": 2008
+          "year": 2008,
+          "storyOrder": 5
         },
         {
           "type": "movie",
           "tmdbId": 1724,
           "title": "El increíble Hulk",
-          "year": 2008
+          "year": 2008,
+          "storyOrder": 7
         },
         {
           "type": "movie",
           "tmdbId": 10138,
           "title": "Iron Man 2",
-          "year": 2010
+          "year": 2010,
+          "storyOrder": 6
         },
         {
           "type": "movie",
           "tmdbId": 10195,
           "title": "Thor",
-          "year": 2011
+          "year": 2011,
+          "storyOrder": 8
         },
         {
           "type": "movie",
           "tmdbId": 1771,
           "title": "Capitán América: El primer vengador",
-          "year": 2011
+          "year": 2011,
+          "storyOrder": 2
         },
         {
           "type": "movie",
           "tmdbId": 24428,
           "title": "Los Vengadores",
-          "year": 2012
+          "year": 2012,
+          "storyOrder": 9
         },
         {
           "type": "movie",
           "tmdbId": 68721,
           "title": "Iron Man 3",
-          "year": 2013
+          "year": 2013,
+          "storyOrder": 12
+        },
+        {
+          "type": "tv",
+          "tmdbId": 1403,
+          "title": "Agentes de SHIELD",
+          "titleEn": "Agents of S.H.I.E.L.D.",
+          "year": 2013,
+          "storyOrder": 10
         },
         {
           "type": "movie",
           "tmdbId": 76338,
           "title": "Thor: El mundo oscuro",
-          "year": 2013
+          "year": 2013,
+          "storyOrder": 11
         },
         {
           "type": "movie",
           "tmdbId": 100402,
           "title": "Capitán América: El soldado de invierno",
-          "year": 2014
+          "year": 2014,
+          "storyOrder": 13
         },
         {
           "type": "movie",
           "tmdbId": 118340,
           "title": "Guardianes de la Galaxia",
-          "year": 2014
+          "year": 2014,
+          "storyOrder": 14
+        },
+        {
+          "type": "tv",
+          "tmdbId": 61550,
+          "title": "Agente Carter",
+          "titleEn": "Agent Carter",
+          "year": 2015,
+          "storyOrder": 3
+        },
+        {
+          "type": "tv",
+          "tmdbId": 61889,
+          "title": "Daredevil",
+          "year": 2015,
+          "storyOrder": 17
         },
         {
           "type": "movie",
           "tmdbId": 99861,
           "title": "Vengadores: La era de Ultrón",
-          "year": 2015
+          "year": 2015,
+          "storyOrder": 19
         },
         {
           "type": "movie",
           "tmdbId": 102899,
           "title": "Ant-Man",
-          "year": 2015
+          "year": 2015,
+          "storyOrder": 21
+        },
+        {
+          "type": "tv",
+          "tmdbId": 38472,
+          "title": "Jessica Jones",
+          "titleEn": "Marvel's Jessica Jones",
+          "year": 2015,
+          "storyOrder": 18
+        },
+        {
+          "type": "tv",
+          "tmdbId": 62126,
+          "title": "Luke Cage",
+          "titleEn": "Marvel's Luke Cage",
+          "year": 2016,
+          "storyOrder": 20
         },
         {
           "type": "movie",
           "tmdbId": 271110,
           "title": "Capitán América: Civil War",
-          "year": 2016
+          "year": 2016,
+          "storyOrder": 23
         },
         {
           "type": "movie",
           "tmdbId": 284052,
           "title": "Doctor Strange",
-          "year": 2016
+          "year": 2016,
+          "storyOrder": 26
+        },
+        {
+          "type": "tv",
+          "tmdbId": 62127,
+          "title": "Iron Fist",
+          "titleEn": "Marvel's Iron Fist",
+          "year": 2017,
+          "storyOrder": 22
         },
         {
           "type": "movie",
           "tmdbId": 283995,
           "title": "Guardianes de la Galaxia Vol. 2",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 15
         },
         {
           "type": "movie",
           "tmdbId": 315635,
           "title": "Spider-Man: Homecoming",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 28
+        },
+        {
+          "type": "tv",
+          "tmdbId": 62285,
+          "title": "The Defenders",
+          "titleEn": "Marvel's The Defenders",
+          "year": 2017,
+          "storyOrder": 25
+        },
+        {
+          "type": "tv",
+          "tmdbId": 68716,
+          "title": "Inhumanos",
+          "titleEn": "Inhumans",
+          "year": 2017,
+          "storyOrder": 30
         },
         {
           "type": "movie",
           "tmdbId": 284053,
           "title": "Thor: Ragnarok",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 29
+        },
+        {
+          "type": "tv",
+          "tmdbId": 67178,
+          "title": "The Punisher",
+          "titleEn": "Marvel's The Punisher",
+          "year": 2017,
+          "storyOrder": 31
+        },
+        {
+          "type": "tv",
+          "tmdbId": 67466,
+          "title": "Runaways",
+          "titleEn": "Marvel's Runaways",
+          "year": 2017,
+          "storyOrder": 32
         },
         {
           "type": "movie",
           "tmdbId": 284054,
           "title": "Black Panther",
-          "year": 2018
+          "year": 2018,
+          "storyOrder": 27
         },
         {
           "type": "movie",
           "tmdbId": 299536,
           "title": "Vengadores: Infinity War",
-          "year": 2018
+          "year": 2018,
+          "storyOrder": 35
+        },
+        {
+          "type": "tv",
+          "tmdbId": 66190,
+          "title": "Cloak & Dagger",
+          "titleEn": "Marvel's Cloak & Dagger",
+          "year": 2018,
+          "storyOrder": 33
         },
         {
           "type": "movie",
           "tmdbId": 363088,
           "title": "Ant-Man y la Avispa",
-          "year": 2018
+          "year": 2018,
+          "storyOrder": 34
         },
         {
           "type": "movie",
           "tmdbId": 299537,
           "title": "Capitana Marvel",
-          "year": 2019
+          "year": 2019,
+          "storyOrder": 4
         },
         {
           "type": "movie",
           "tmdbId": 299534,
           "title": "Vengadores: Endgame",
-          "year": 2019
+          "year": 2019,
+          "storyOrder": 36
         },
         {
           "type": "movie",
           "tmdbId": 429617,
           "title": "Spider-Man: Lejos de casa",
-          "year": 2019
+          "year": 2019,
+          "storyOrder": 45
+        },
+        {
+          "type": "tv",
+          "tmdbId": 85271,
+          "title": "Bruja Escarlata y Visión",
+          "titleEn": "WandaVision",
+          "year": 2021,
+          "storyOrder": 40
+        },
+        {
+          "type": "tv",
+          "tmdbId": 88396,
+          "title": "Falcon y el Soldado de Invierno",
+          "titleEn": "The Falcon and the Winter Soldier",
+          "year": 2021,
+          "storyOrder": 43
+        },
+        {
+          "type": "tv",
+          "tmdbId": 84958,
+          "title": "Loki",
+          "year": 2021,
+          "storyOrder": 37
         },
         {
           "type": "movie",
           "tmdbId": 497698,
           "title": "Viuda Negra",
           "titleEn": "Black Widow",
-          "year": 2021
+          "year": 2021,
+          "storyOrder": 24
+        },
+        {
+          "type": "tv",
+          "tmdbId": 91363,
+          "title": "¿Qué pasaría si...?",
+          "titleEn": "What If...?",
+          "year": 2021,
+          "storyOrder": 38
         },
         {
           "type": "movie",
           "tmdbId": 566525,
           "title": "Shang-Chi y la leyenda de los Diez Anillos",
           "titleEn": "Shang-Chi and the Legend of the Ten Rings",
-          "year": 2021
+          "year": 2021,
+          "storyOrder": 42
         },
         {
           "type": "movie",
           "tmdbId": 524434,
           "title": "Eternals",
-          "year": 2021
+          "year": 2021,
+          "storyOrder": 44
+        },
+        {
+          "type": "tv",
+          "tmdbId": 88329,
+          "title": "Ojo de Halcón",
+          "titleEn": "Hawkeye",
+          "year": 2021,
+          "storyOrder": 48
         },
         {
           "type": "movie",
           "tmdbId": 634649,
           "title": "Spider-Man: No Way Home",
-          "year": 2021
+          "year": 2021,
+          "storyOrder": 46
+        },
+        {
+          "type": "tv",
+          "tmdbId": 92749,
+          "title": "Caballero Luna",
+          "titleEn": "Moon Knight",
+          "year": 2022,
+          "storyOrder": 49
         },
         {
           "type": "movie",
           "tmdbId": 453395,
           "title": "Doctor Strange en el Multiverso de la Locura",
           "titleEn": "Doctor Strange in the Multiverse of Madness",
-          "year": 2022
+          "year": 2022,
+          "storyOrder": 47
+        },
+        {
+          "type": "tv",
+          "tmdbId": 92782,
+          "title": "Ms. Marvel",
+          "year": 2022,
+          "storyOrder": 53
         },
         {
           "type": "movie",
           "tmdbId": 616037,
           "title": "Thor: Love and Thunder",
-          "year": 2022
+          "year": 2022,
+          "storyOrder": 54
+        },
+        {
+          "type": "tv",
+          "tmdbId": 232125,
+          "title": "Yo soy Groot",
+          "titleEn": "I Am Groot",
+          "year": 2022,
+          "storyOrder": 16
+        },
+        {
+          "type": "tv",
+          "tmdbId": 92783,
+          "title": "She-Hulk: Abogada Hulka",
+          "titleEn": "She-Hulk: Attorney at Law",
+          "year": 2022,
+          "storyOrder": 52
+        },
+        {
+          "type": "movie",
+          "tmdbId": 894205,
+          "title": "Hombre lobo por la noche",
+          "titleEn": "Werewolf by Night",
+          "year": 2022,
+          "storyOrder": 56
         },
         {
           "type": "movie",
           "tmdbId": 505642,
           "title": "Black Panther: Wakanda Forever",
-          "year": 2022
+          "year": 2022,
+          "storyOrder": 50
+        },
+        {
+          "type": "movie",
+          "tmdbId": 774752,
+          "title": "Guardianes de la Galaxia: Especial de las Fiestas",
+          "titleEn": "The Guardians of the Galaxy Holiday Special",
+          "year": 2022,
+          "storyOrder": 57
         },
         {
           "type": "movie",
           "tmdbId": 640146,
           "title": "Ant-Man y la Avispa: Quantumanía",
           "titleEn": "Ant-Man and the Wasp: Quantumania",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 58
         },
         {
           "type": "movie",
           "tmdbId": 447365,
           "title": "Guardianes de la Galaxia Vol. 3",
           "titleEn": "Guardians of the Galaxy Vol. 3",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 59
+        },
+        {
+          "type": "tv",
+          "tmdbId": 114472,
+          "title": "Invasión secreta",
+          "titleEn": "Secret Invasion",
+          "year": 2023,
+          "storyOrder": 60
         },
         {
           "type": "movie",
           "tmdbId": 609681,
           "title": "The Marvels",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 61
+        },
+        {
+          "type": "tv",
+          "tmdbId": 122226,
+          "title": "Echo",
+          "year": 2024,
+          "storyOrder": 51
         },
         {
           "type": "movie",
           "tmdbId": 533535,
           "title": "Deadpool y Lobezno",
           "titleEn": "Deadpool & Wolverine",
-          "year": 2024
+          "year": 2024,
+          "storyOrder": 41
+        },
+        {
+          "type": "tv",
+          "tmdbId": 138501,
+          "title": "Agatha, ¿quién si no?",
+          "titleEn": "Agatha All Along",
+          "year": 2024,
+          "storyOrder": 62
         },
         {
           "type": "movie",
           "tmdbId": 822119,
           "title": "Capitán América: Brave New World",
           "titleEn": "Captain America: Brave New World",
-          "year": 2025
+          "year": 2025,
+          "storyOrder": 64
+        },
+        {
+          "type": "tv",
+          "tmdbId": 202555,
+          "title": "Daredevil: Born Again",
+          "year": 2025,
+          "storyOrder": 63
         },
         {
           "type": "movie",
           "tmdbId": 986056,
           "title": "Thunderbolts*",
-          "year": 2025
+          "year": 2025,
+          "storyOrder": 65
+        },
+        {
+          "type": "tv",
+          "tmdbId": 114471,
+          "title": "Ironheart",
+          "year": 2025,
+          "storyOrder": 55
         },
         {
           "type": "movie",
           "tmdbId": 617126,
           "title": "Los 4 Fantásticos: Primeros pasos",
           "titleEn": "The Fantastic Four: First Steps",
-          "year": 2025
+          "year": 2025,
+          "storyOrder": 66
+        },
+        {
+          "type": "tv",
+          "tmdbId": 241388,
+          "title": "Los ojos de Wakanda",
+          "titleEn": "Eyes of Wakanda",
+          "year": 2025,
+          "storyOrder": 1
+        },
+        {
+          "type": "tv",
+          "tmdbId": 138505,
+          "title": "Marvel Zombis",
+          "titleEn": "Marvel Zombies",
+          "year": 2025,
+          "storyOrder": 39
+        },
+        {
+          "type": "tv",
+          "tmdbId": 198178,
+          "title": "Wonder Man",
+          "year": 2026,
+          "storyOrder": 67
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1439930,
+          "title": "The Punisher: One Last Kill",
+          "year": 2026,
+          "storyOrder": 68
         },
         {
           "type": "movie",
           "tmdbId": 969681,
           "title": "Spider-Man: Brand New Day",
-          "year": 2026
+          "year": 2026,
+          "storyOrder": 69
+        },
+        {
+          "type": "tv",
+          "tmdbId": 213375,
+          "title": "VisionQuest",
+          "year": 2026,
+          "storyOrder": 70
         },
         {
           "type": "movie",
           "tmdbId": 1003596,
           "title": "Vengadores: Doomsday",
           "titleEn": "Avengers: Doomsday",
-          "year": 2026
+          "year": 2026,
+          "storyOrder": 71
         }
       ]
     },
@@ -263,55 +549,64 @@
           "type": "movie",
           "tmdbId": 11,
           "title": "Star Wars: Episodio IV - Una nueva esperanza",
-          "year": 1977
+          "year": 1977,
+          "storyOrder": 4
         },
         {
           "type": "movie",
           "tmdbId": 1891,
           "title": "Star Wars: Episodio V - El Imperio contraataca",
-          "year": 1980
+          "year": 1980,
+          "storyOrder": 5
         },
         {
           "type": "movie",
           "tmdbId": 1892,
           "title": "Star Wars: Episodio VI - El retorno del Jedi",
-          "year": 1983
+          "year": 1983,
+          "storyOrder": 6
         },
         {
           "type": "movie",
           "tmdbId": 1893,
           "title": "Star Wars: Episodio I - La amenaza fantasma",
-          "year": 1999
+          "year": 1999,
+          "storyOrder": 1
         },
         {
           "type": "movie",
           "tmdbId": 1894,
           "title": "Star Wars: Episodio II - El ataque de los clones",
-          "year": 2002
+          "year": 2002,
+          "storyOrder": 2
         },
         {
           "type": "movie",
           "tmdbId": 1895,
           "title": "Star Wars: Episodio III - La venganza de los Sith",
-          "year": 2005
+          "year": 2005,
+          "storyOrder": 3
         },
         {
           "type": "movie",
           "tmdbId": 140607,
           "title": "Star Wars: Episodio VII - El despertar de la Fuerza",
-          "year": 2015
+          "year": 2015,
+          "storyOrder": 7
         },
         {
           "type": "movie",
           "tmdbId": 181808,
           "title": "Star Wars: Episodio VIII - Los últimos Jedi",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 8
         },
         {
           "type": "movie",
           "tmdbId": 181812,
           "title": "Star Wars: Episodio IX - El ascenso de Skywalker",
-          "year": 2019
+          "year": 2019,
+          "storyOrder": 9
         }
       ]
     },
@@ -326,49 +621,57 @@
           "type": "movie",
           "tmdbId": 671,
           "title": "Harry Potter y la piedra filosofal",
-          "year": 2001
+          "year": 2001,
+          "storyOrder": 1
         },
         {
           "type": "movie",
           "tmdbId": 672,
           "title": "Harry Potter y la cámara secreta",
-          "year": 2002
+          "year": 2002,
+          "storyOrder": 2
         },
         {
           "type": "movie",
           "tmdbId": 673,
           "title": "Harry Potter y el prisionero de Azkaban",
-          "year": 2004
+          "year": 2004,
+          "storyOrder": 3
         },
         {
           "type": "movie",
           "tmdbId": 674,
           "title": "Harry Potter y el cáliz de fuego",
-          "year": 2005
+          "year": 2005,
+          "storyOrder": 4
         },
         {
           "type": "movie",
           "tmdbId": 675,
           "title": "Harry Potter y la Orden del Fénix",
-          "year": 2007
+          "year": 2007,
+          "storyOrder": 5
         },
         {
           "type": "movie",
           "tmdbId": 767,
           "title": "Harry Potter y el misterio del príncipe",
-          "year": 2009
+          "year": 2009,
+          "storyOrder": 6
         },
         {
           "type": "movie",
           "tmdbId": 12444,
           "title": "Harry Potter y las Reliquias de la Muerte: Parte 1",
-          "year": 2010
+          "year": 2010,
+          "storyOrder": 7
         },
         {
           "type": "movie",
           "tmdbId": 12445,
           "title": "Harry Potter y las Reliquias de la Muerte: Parte 2",
-          "year": 2011
+          "year": 2011,
+          "storyOrder": 8
         }
       ]
     },
@@ -383,61 +686,71 @@
           "type": "movie",
           "tmdbId": 9799,
           "title": "The Fast and the Furious (A todo gas)",
-          "year": 2001
+          "year": 2001,
+          "storyOrder": 1
         },
         {
           "type": "movie",
           "tmdbId": 584,
           "title": "2 Fast 2 Furious",
-          "year": 2003
+          "year": 2003,
+          "storyOrder": 2
         },
         {
           "type": "movie",
           "tmdbId": 9615,
           "title": "A todo gas: Tokyo Race",
-          "year": 2006
+          "year": 2006,
+          "storyOrder": 6
         },
         {
           "type": "movie",
           "tmdbId": 13804,
           "title": "Fast & Furious: Aún más rápido",
-          "year": 2009
+          "year": 2009,
+          "storyOrder": 3
         },
         {
           "type": "movie",
           "tmdbId": 51497,
           "title": "Fast & Furious 5",
-          "year": 2011
+          "year": 2011,
+          "storyOrder": 4
         },
         {
           "type": "movie",
           "tmdbId": 82992,
           "title": "Fast & Furious 6",
-          "year": 2013
+          "year": 2013,
+          "storyOrder": 5
         },
         {
           "type": "movie",
           "tmdbId": 168259,
           "title": "Furious 7",
-          "year": 2015
+          "year": 2015,
+          "storyOrder": 7
         },
         {
           "type": "movie",
           "tmdbId": 337339,
           "title": "Fast & Furious 8",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 8
         },
         {
           "type": "movie",
           "tmdbId": 385128,
           "title": "Fast & Furious 9",
-          "year": 2021
+          "year": 2021,
+          "storyOrder": 9
         },
         {
           "type": "movie",
           "tmdbId": 385687,
           "title": "Fast X",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 10
         }
       ]
     },
@@ -452,19 +765,22 @@
           "type": "movie",
           "tmdbId": 120,
           "title": "El Señor de los Anillos: La Comunidad del Anillo",
-          "year": 2001
+          "year": 2001,
+          "storyOrder": 1
         },
         {
           "type": "movie",
           "tmdbId": 121,
           "title": "El Señor de los Anillos: Las Dos Torres",
-          "year": 2002
+          "year": 2002,
+          "storyOrder": 2
         },
         {
           "type": "movie",
           "tmdbId": 122,
           "title": "El Señor de los Anillos: El Retorno del Rey",
-          "year": 2003
+          "year": 2003,
+          "storyOrder": 3
         }
       ]
     },
@@ -479,107 +795,123 @@
           "tmdbId": 49521,
           "title": "El Hombre de Acero",
           "titleEn": "Man of Steel",
-          "year": 2013
+          "year": 2013,
+          "storyOrder": 3
         },
         {
           "type": "movie",
           "tmdbId": 209112,
           "title": "Batman v Superman: El Amanecer de la Justicia",
           "titleEn": "Batman v Superman: Dawn of Justice",
-          "year": 2016
+          "year": 2016,
+          "storyOrder": 4
         },
         {
           "type": "movie",
           "tmdbId": 297761,
           "title": "Escuadrón Suicida",
           "titleEn": "Suicide Squad",
-          "year": 2016
+          "year": 2016,
+          "storyOrder": 5
         },
         {
           "type": "movie",
           "tmdbId": 297762,
           "title": "Wonder Woman",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 1
         },
         {
           "type": "movie",
           "tmdbId": 141052,
           "title": "Liga de la Justicia",
           "titleEn": "Justice League",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 6
         },
         {
           "type": "movie",
           "tmdbId": 297802,
           "title": "Aquaman",
-          "year": 2018
+          "year": 2018,
+          "storyOrder": 8
         },
         {
           "type": "movie",
           "tmdbId": 287947,
           "title": "¡Shazam!",
           "titleEn": "Shazam!",
-          "year": 2019
+          "year": 2019,
+          "storyOrder": 9
         },
         {
           "type": "movie",
           "tmdbId": 495764,
           "title": "Aves de Presa",
           "titleEn": "Birds of Prey",
-          "year": 2020
+          "year": 2020,
+          "storyOrder": 10
         },
         {
           "type": "movie",
           "tmdbId": 464052,
           "title": "Wonder Woman 1984",
-          "year": 2020
+          "year": 2020,
+          "storyOrder": 2
         },
         {
           "type": "movie",
           "tmdbId": 791373,
           "title": "La Liga de la Justicia de Zack Snyder",
           "titleEn": "Zack Snyder's Justice League",
-          "year": 2021
+          "year": 2021,
+          "storyOrder": 7
         },
         {
           "type": "movie",
           "tmdbId": 436969,
           "title": "El Escuadrón Suicida",
           "titleEn": "The Suicide Squad",
-          "year": 2021
+          "year": 2021,
+          "storyOrder": 11
         },
         {
           "type": "movie",
           "tmdbId": 436270,
           "title": "Black Adam",
-          "year": 2022
+          "year": 2022,
+          "storyOrder": 12
         },
         {
           "type": "movie",
           "tmdbId": 594767,
           "title": "¡Shazam! La furia de los dioses",
           "titleEn": "Shazam! Fury of the Gods",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 13
         },
         {
           "type": "movie",
           "tmdbId": 298618,
           "title": "Flash",
           "titleEn": "The Flash",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 14
         },
         {
           "type": "movie",
           "tmdbId": 565770,
           "title": "Blue Beetle",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 15
         },
         {
           "type": "movie",
           "tmdbId": 572802,
           "title": "Aquaman y el Reino Perdido",
           "titleEn": "Aquaman and the Lost Kingdom",
-          "year": 2023
+          "year": 2023,
+          "storyOrder": 16
         }
       ]
     },
@@ -595,35 +927,495 @@
           "tmdbId": 22,
           "title": "Piratas del Caribe: La Maldición del Perla Negra",
           "titleEn": "Pirates of the Caribbean: The Curse of the Black Pearl",
-          "year": 2003
+          "year": 2003,
+          "storyOrder": 1
         },
         {
           "type": "movie",
           "tmdbId": 58,
           "title": "Piratas del Caribe: El Cofre del Hombre Muerto",
           "titleEn": "Pirates of the Caribbean: Dead Man's Chest",
-          "year": 2006
+          "year": 2006,
+          "storyOrder": 2
         },
         {
           "type": "movie",
           "tmdbId": 285,
           "title": "Piratas del Caribe: En el Fin del Mundo",
           "titleEn": "Pirates of the Caribbean: At World's End",
-          "year": 2007
+          "year": 2007,
+          "storyOrder": 3
         },
         {
           "type": "movie",
           "tmdbId": 1865,
           "title": "Piratas del Caribe: En Mareas Misteriosas",
           "titleEn": "Pirates of the Caribbean: On Stranger Tides",
-          "year": 2011
+          "year": 2011,
+          "storyOrder": 4
         },
         {
           "type": "movie",
           "tmdbId": 166426,
           "title": "Piratas del Caribe: La Venganza de Salazar",
           "titleEn": "Pirates of the Caribbean: Dead Men Tell No Tales",
-          "year": 2017
+          "year": 2017,
+          "storyOrder": 5
+        }
+      ]
+    },
+    {
+      "id": "alien",
+      "name": "Alien",
+      "nameEn": "Alien",
+      "posterAsset": "assets/images/franchises/alien.webp",
+      "collectionId": 8091,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 348,
+          "title": "Alien, el octavo pasajero",
+          "titleEn": "Alien",
+          "year": 1979,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 679,
+          "title": "Aliens: El regreso",
+          "titleEn": "Aliens",
+          "year": 1986,
+          "storyOrder": 5
+        },
+        {
+          "type": "movie",
+          "tmdbId": 8077,
+          "title": "Alien³",
+          "titleEn": "Alien³",
+          "year": 1992,
+          "storyOrder": 6
+        },
+        {
+          "type": "movie",
+          "tmdbId": 8078,
+          "title": "Alien: Resurrección",
+          "titleEn": "Alien: Resurrection",
+          "year": 1997,
+          "storyOrder": 7
+        },
+        {
+          "type": "movie",
+          "tmdbId": 70981,
+          "title": "Prometheus",
+          "year": 2012,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 126889,
+          "title": "Alien: Covenant",
+          "year": 2017,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 945961,
+          "title": "Alien: Romulus",
+          "year": 2024,
+          "storyOrder": 4
+        }
+      ]
+    },
+    {
+      "id": "back_to_the_future",
+      "name": "Regreso al futuro",
+      "nameEn": "Back to the Future",
+      "posterAsset": "assets/images/franchises/backtothefuture.webp",
+      "collectionId": 264,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 105,
+          "title": "Regreso al futuro",
+          "titleEn": "Back to the Future",
+          "year": 1985,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 165,
+          "title": "Regreso al futuro Parte II",
+          "titleEn": "Back to the Future Part II",
+          "year": 1989,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 196,
+          "title": "Regreso al futuro Parte III",
+          "titleEn": "Back to the Future Part III",
+          "year": 1990,
+          "storyOrder": 3
+        }
+      ]
+    },
+    {
+      "id": "ghostbusters",
+      "name": "Cazafantasmas",
+      "nameEn": "Ghostbusters",
+      "posterAsset": "assets/images/franchises/ghostbusters.webp",
+      "collectionId": 2980,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 620,
+          "title": "Cazafantasmas",
+          "titleEn": "Ghostbusters",
+          "year": 1984,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 2978,
+          "title": "Cazafantasmas II",
+          "titleEn": "Ghostbusters II",
+          "year": 1989,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 43074,
+          "title": "Cazafantasmas (2016)",
+          "titleEn": "Ghostbusters (2016)",
+          "year": 2016,
+          "storyOrder": 5
+        },
+        {
+          "type": "movie",
+          "tmdbId": 425909,
+          "title": "Cazafantasmas: Más allá",
+          "titleEn": "Ghostbusters: Afterlife",
+          "year": 2021,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 967847,
+          "title": "Cazafantasmas: Imperio helado",
+          "titleEn": "Ghostbusters: Frozen Empire",
+          "year": 2024,
+          "storyOrder": 4
+        }
+      ]
+    },
+    {
+      "id": "indiana_jones",
+      "name": "Indiana Jones",
+      "nameEn": "Indiana Jones",
+      "posterAsset": "assets/images/franchises/indianajones.webp",
+      "collectionId": 84,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 85,
+          "title": "En busca del arca perdida",
+          "titleEn": "Raiders of the Lost Ark",
+          "year": 1981,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 87,
+          "title": "Indiana Jones y el templo maldito",
+          "titleEn": "Indiana Jones and the Temple of Doom",
+          "year": 1984,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 89,
+          "title": "Indiana Jones y la última cruzada",
+          "titleEn": "Indiana Jones and the Last Crusade",
+          "year": 1989,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 217,
+          "title": "Indiana Jones y el reino de la calavera de cristal",
+          "titleEn": "Indiana Jones and the Kingdom of the Crystal Skull",
+          "year": 2008,
+          "storyOrder": 4
+        },
+        {
+          "type": "movie",
+          "tmdbId": 335977,
+          "title": "Indiana Jones y el dial del destino",
+          "titleEn": "Indiana Jones and the Dial of Destiny",
+          "year": 2023,
+          "storyOrder": 5
+        }
+      ]
+    },
+    {
+      "id": "jurassic_park",
+      "name": "Jurassic Park",
+      "nameEn": "Jurassic Park",
+      "posterAsset": "assets/images/franchises/jurassicpark.webp",
+      "collectionId": 328,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 329,
+          "title": "Parque Jurásico",
+          "titleEn": "Jurassic Park",
+          "year": 1993,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 330,
+          "title": "El mundo perdido: Jurassic Park",
+          "titleEn": "The Lost World: Jurassic Park",
+          "year": 1997,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 331,
+          "title": "Jurassic Park III",
+          "year": 2001,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 135397,
+          "title": "Jurassic World",
+          "year": 2015,
+          "storyOrder": 4
+        },
+        {
+          "type": "movie",
+          "tmdbId": 351286,
+          "title": "Jurassic World: El reino caído",
+          "titleEn": "Jurassic World: Fallen Kingdom",
+          "year": 2018,
+          "storyOrder": 5
+        },
+        {
+          "type": "movie",
+          "tmdbId": 507086,
+          "title": "Jurassic World: Dominion",
+          "year": 2022,
+          "storyOrder": 6
+        },
+        {
+          "type": "movie",
+          "tmdbId": 1234821,
+          "title": "Jurassic World: Rebirth",
+          "year": 2025,
+          "storyOrder": 7
+        }
+      ]
+    },
+    {
+      "id": "matrix",
+      "name": "Matrix",
+      "nameEn": "The Matrix",
+      "posterAsset": "assets/images/franchises/matrix.webp",
+      "collectionId": 2344,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 603,
+          "title": "Matrix",
+          "titleEn": "The Matrix",
+          "year": 1999,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 604,
+          "title": "Matrix Reloaded",
+          "titleEn": "The Matrix Reloaded",
+          "year": 2003,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 605,
+          "title": "Matrix Revolutions",
+          "titleEn": "The Matrix Revolutions",
+          "year": 2003,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 624860,
+          "title": "Matrix Resurrections",
+          "titleEn": "The Matrix Resurrections",
+          "year": 2021,
+          "storyOrder": 4
+        }
+      ]
+    },
+    {
+      "id": "men_in_black",
+      "name": "Hombres de negro",
+      "nameEn": "Men in Black",
+      "posterAsset": "assets/images/franchises/meninblack.webp",
+      "collectionId": 1370,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 607,
+          "title": "Hombres de negro",
+          "titleEn": "Men in Black",
+          "year": 1997,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 608,
+          "title": "Hombres de negro II",
+          "titleEn": "Men in Black II",
+          "year": 2002,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 41154,
+          "title": "Hombres de negro 3",
+          "titleEn": "Men in Black 3",
+          "year": 2012,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 479455,
+          "title": "Hombres de negro: Internacional",
+          "titleEn": "Men in Black: International",
+          "year": 2019,
+          "storyOrder": 4
+        }
+      ]
+    },
+    {
+      "id": "terminator",
+      "name": "Terminator",
+      "nameEn": "Terminator",
+      "posterAsset": "assets/images/franchises/terminator.webp",
+      "collectionId": 528,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 218,
+          "title": "Terminator",
+          "titleEn": "The Terminator",
+          "year": 1984,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 280,
+          "title": "Terminator 2: El juicio final",
+          "titleEn": "Terminator 2: Judgment Day",
+          "year": 1991,
+          "storyOrder": 2
+        },
+        {
+          "type": "movie",
+          "tmdbId": 296,
+          "title": "Terminator 3: La rebelión de las máquinas",
+          "titleEn": "Terminator 3: Rise of the Machines",
+          "year": 2003,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 534,
+          "title": "Terminator Salvation",
+          "year": 2009,
+          "storyOrder": 4
+        },
+        {
+          "type": "movie",
+          "tmdbId": 87101,
+          "title": "Terminator Génesis",
+          "titleEn": "Terminator Genisys",
+          "year": 2015,
+          "storyOrder": 5
+        },
+        {
+          "type": "movie",
+          "tmdbId": 290859,
+          "title": "Terminator: Destino oscuro",
+          "titleEn": "Terminator: Dark Fate",
+          "year": 2019,
+          "storyOrder": 6
+        }
+      ]
+    },
+    {
+      "id": "transformers",
+      "name": "Transformers",
+      "nameEn": "Transformers",
+      "posterAsset": "assets/images/franchises/transformers.webp",
+      "collectionId": 8650,
+      "items": [
+        {
+          "type": "movie",
+          "tmdbId": 1858,
+          "title": "Transformers",
+          "year": 2007,
+          "storyOrder": 3
+        },
+        {
+          "type": "movie",
+          "tmdbId": 8373,
+          "title": "Transformers: La venganza de los caídos",
+          "titleEn": "Transformers: Revenge of the Fallen",
+          "year": 2009,
+          "storyOrder": 4
+        },
+        {
+          "type": "movie",
+          "tmdbId": 38356,
+          "title": "Transformers: El lado oscuro de la luna",
+          "titleEn": "Transformers: Dark of the Moon",
+          "year": 2011,
+          "storyOrder": 5
+        },
+        {
+          "type": "movie",
+          "tmdbId": 91314,
+          "title": "Transformers: La era de la extinción",
+          "titleEn": "Transformers: Age of Extinction",
+          "year": 2014,
+          "storyOrder": 6
+        },
+        {
+          "type": "movie",
+          "tmdbId": 335988,
+          "title": "Transformers: El último caballero",
+          "titleEn": "Transformers: The Last Knight",
+          "year": 2017,
+          "storyOrder": 7
+        },
+        {
+          "type": "movie",
+          "tmdbId": 424783,
+          "title": "Bumblebee",
+          "year": 2018,
+          "storyOrder": 1
+        },
+        {
+          "type": "movie",
+          "tmdbId": 667538,
+          "title": "Transformers: El despertar de las bestias",
+          "titleEn": "Transformers: Rise of the Beasts",
+          "year": 2023,
+          "storyOrder": 2
         }
       ]
     }

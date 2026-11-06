@@ -2,6 +2,23 @@ import 'package:jellyfin_dart/jellyfin_dart.dart';
 
 import 'skin.dart';
 
+/// Variantes de composición del detalle de item por skin: cada una ordena
+/// los mismos bloques de forma distinta (tabs Disney/Netflix, secuencial
+/// Prime/Jellyfin). Los colores los pone el skin; aquí solo distribución.
+enum DetailLayoutVariant {
+  /// Composición Prime actual (secuencial con tabs Relacionado/Detalles).
+  prime,
+
+  /// Disney: cabecera + tabs Sugerencias/Extras/Detalles.
+  disney,
+
+  /// Netflix: póster lateral + tabs Overview/Episodios/Tráilers/Más como este.
+  netflix,
+
+  /// Jellyfin clásico: cabecera informativa + botones + Cast & crew.
+  jellyfin,
+}
+
 /// Estilo de cabecera de la página de detalle.
 enum DetailHeaderStyle {
   /// Backdrop a pantalla completa con degradado (Prime).
@@ -181,4 +198,23 @@ DetailLayout detailLayoutFor({Skin? skin, BaseItemKind? kind}) {
     return base.copyWith(showTabs: false);
   }
   return base;
+}
+
+/// Variante de composición del detalle de item según el skin.
+///
+/// Solo pelis/series/episodios tienen variantes propias; el resto de tipos y
+/// los skins sin diseño propio (`movistar_plus`, `custom`) usan Prime.
+DetailLayoutVariant detailVariantFor({Skin? skin, BaseItemKind? kind}) {
+  final isItemKind =
+      kind == null ||
+      kind == BaseItemKind.movie ||
+      kind == BaseItemKind.series ||
+      kind == BaseItemKind.episode;
+  if (!isItemKind) return DetailLayoutVariant.prime;
+  return switch (skin?.id) {
+    'disney_plus' => DetailLayoutVariant.disney,
+    'netflix' => DetailLayoutVariant.netflix,
+    'jellyfin_default' => DetailLayoutVariant.jellyfin,
+    _ => DetailLayoutVariant.prime,
+  };
 }
